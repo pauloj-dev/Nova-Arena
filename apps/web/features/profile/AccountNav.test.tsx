@@ -13,13 +13,15 @@ function links() {
 describe('AccountNav', () => {
   afterEach(cleanup);
 
-  it('lista as quatro áreas da conta, na ordem', () => {
+  it('lista as áreas da conta, na ordem', () => {
     pathname.current = '/minha-conta';
     render(<AccountNav />);
     expect(links().map((a) => [a.textContent, a.getAttribute('href')])).toEqual([
       ['Conta', '/minha-conta'],
       ['Squads', '/minha-conta/squads'],
       ['Campeonatos', '/minha-conta/campeonatos'],
+      ['Notificações', '/minha-conta/notificacoes'],
+      ['Denúncias', '/minha-conta/denuncias'],
       ['Segurança', '/minha-conta/seguranca'],
     ]);
   });
