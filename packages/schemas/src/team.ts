@@ -58,3 +58,42 @@ export type TeamInviteInput = z.infer<typeof TeamInviteInput>;
 
 export const TransferCaptainInput = z.object({ userId: Id });
 export const UpdateMemberInput = z.object({ isSub: z.boolean() });
+
+// ── Acréscimos da F1.9 (squads e convites) ───────────────────────────
+
+/** Máximo de pessoas num squad: o maior modo possível (10 titulares) + o máximo de reservas (5). */
+export const MAX_TEAM_MEMBERS = 15;
+/** Validade do convite de squad (PRD §12.1). */
+export const TEAM_INVITE_TTL_HOURS = 72;
+/** Tamanho máximo do arquivo de logo (o upload real, em B1, vai para o Vercel Blob). */
+export const TEAM_LOGO_MAX_BYTES = 5 * 1024 * 1024;
+
+/** Edição do squad: só os campos enviados mudam. */
+export const TeamUpdateInput = TeamInput.partial();
+export type TeamUpdateInput = z.infer<typeof TeamUpdateInput>;
+
+export type TransferCaptainInput = z.infer<typeof TransferCaptainInput>;
+export type UpdateMemberInput = z.infer<typeof UpdateMemberInput>;
+
+/** Resultado da busca de jogador por apelido para convidar. Só o que é público. */
+export const InviteCandidate = z.object({ id: Id, nickname: z.string(), avatarUrl: z.string().nullable() });
+export type InviteCandidate = z.infer<typeof InviteCandidate>;
+
+export const TeamInviteState = z.enum(['VALID', 'EXPIRED', 'REVOKED', 'ACCEPTED', 'DECLINED']);
+export type TeamInviteState = z.infer<typeof TeamInviteState>;
+
+/** Prévia pública do convite (`/squads/convite/[code]`): o suficiente para a pessoa decidir se entra. */
+export const TeamInvitePreview = z.object({
+  code: z.string().length(6),
+  state: TeamInviteState,
+  team: z.object({ id: Id, name: z.string(), tag: z.string(), logoUrl: z.string().nullable(), memberCount: z.number().int() }),
+  invitedByNickname: z.string(),
+  /** Preenchido quando o convite foi feito por apelido (só vale para essa pessoa). */
+  invitedNickname: z.string().nullable(),
+  expiresAt: IsoDateTime,
+  /** Quem está vendo já faz parte do squad. Sempre falso para visitante. */
+  viewerIsMember: z.boolean(),
+  /** O convite é dirigido a outra pessoa. Sempre falso para visitante. */
+  viewerIsNotInvitee: z.boolean(),
+});
+export type TeamInvitePreview = z.infer<typeof TeamInvitePreview>;
