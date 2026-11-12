@@ -1,0 +1,78 @@
+/**
+ * Chaves do TanStack Query, centralizadas. Quem invalida cache usa estas funções,
+ * nunca um array escrito à mão.
+ */
+type Params = object;
+
+export const keys = {
+  me: ['me'] as const,
+  games: {
+    all: ['games'] as const,
+    list: (params?: Params) => ['games', 'list', params ?? {}] as const,
+    detail: (slugOrId: string) => ['games', 'detail', slugOrId] as const,
+    ranking: (slug: string) => ['games', 'ranking', slug] as const,
+  },
+  tournaments: {
+    all: ['tournaments'] as const,
+    list: (params?: Params) => ['tournaments', 'list', params ?? {}] as const,
+    detail: (slugOrId: string) => ['tournaments', 'detail', slugOrId] as const,
+    mine: (scope: 'organizer' | 'participant') => ['tournaments', 'mine', scope] as const,
+    registrations: (id: string, params?: Params) => ['tournaments', 'registrations', id, params ?? {}] as const,
+    announcements: (id: string) => ['tournaments', 'announcements', id] as const,
+    staff: (id: string) => ['tournaments', 'staff', id] as const,
+    templates: ['tournaments', 'templates'] as const,
+    matches: (id: string, params?: Params) => ['tournaments', 'matches', id, params ?? {}] as const,
+  },
+  stages: {
+    bracket: (stageId: string) => ['bracket', stageId] as const,
+    standings: (stageId: string) => ['standings', stageId] as const,
+    preview: (stageId: string) => ['stage-preview', stageId] as const,
+  },
+  matches: {
+    detail: (id: string) => ['match', id] as const,
+    lobby: (id: string) => ['match', id, 'lobby'] as const,
+    submissions: (params?: Params) => ['submissions', params ?? {}] as const,
+    disputes: (params?: Params) => ['disputes', params ?? {}] as const,
+    dispute: (id: string) => ['disputes', 'detail', id] as const,
+  },
+  teams: {
+    all: ['teams'] as const,
+    mine: ['teams', 'mine'] as const,
+    detail: (id: string) => ['teams', 'detail', id] as const,
+    invite: (code: string) => ['teams', 'invite', code] as const,
+    myInvites: ['teams', 'my-invites'] as const,
+  },
+  users: {
+    profile: (nickname: string) => ['users', 'profile', nickname] as const,
+    search: (q: string) => ['users', 'search', q] as const,
+    stats: (nickname: string) => ['users', 'stats', nickname] as const,
+  },
+  organizerRequest: ['organizer-request'] as const,
+  roleInvite: (token: string) => ['role-invite', token] as const,
+  follows: ['follows'] as const,
+  notifications: {
+    all: ['notifications'] as const,
+    list: (params?: Params) => ['notifications', 'list', params ?? {}] as const,
+    unread: ['notifications', 'unread'] as const,
+    preferences: ['notifications', 'preferences'] as const,
+  },
+  reports: { mine: ['reports', 'mine'] as const },
+  admin: {
+    all: ['admin'] as const,
+    stats: (params?: Params) => ['admin', 'stats', params ?? {}] as const,
+    users: (params?: Params) => ['admin', 'users', params ?? {}] as const,
+    user: (id: string) => ['admin', 'user', id] as const,
+    admins: ['admin', 'admins'] as const,
+    organizers: (params?: Params) => ['admin', 'organizers', params ?? {}] as const,
+    invites: ['admin', 'invites'] as const,
+    organizerRequests: (params?: Params) => ['admin', 'organizer-requests', params ?? {}] as const,
+    tournaments: (params?: Params) => ['admin', 'tournaments', params ?? {}] as const,
+    audit: (params?: Params) => ['admin', 'audit', params ?? {}] as const,
+    reports: (params?: Params) => ['admin', 'reports', params ?? {}] as const,
+    settings: ['admin', 'settings'] as const,
+    flags: ['admin', 'flags'] as const,
+    health: ['admin', 'health'] as const,
+    announcements: ['admin', 'announcements'] as const,
+  },
+  site: { settings: ['site', 'settings'] as const, banner: ['site', 'banner'] as const },
+};

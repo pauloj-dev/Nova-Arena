@@ -1,0 +1,6 @@
+@import 'tailwindcss';
+@import '@nova/ui/styles/tokens.css';
+@import '@nova/ui/styles/theme.css';
+
+/* O Tailwind precisa enxergar as classes usadas dentro do design system. */
+@source '../../../packages/ui/src';
