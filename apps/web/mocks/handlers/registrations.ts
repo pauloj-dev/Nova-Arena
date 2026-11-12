@@ -18,6 +18,7 @@ import {
   statusAfterMemberConfirmation,
 } from '@/features/registrations/lib/rules';
 import { formatDateTime } from '@/shared/lib/datetime';
+import { listMatches, podiums } from '../competition';
 import { db, nowIso, save, uid, type DbRegistration, type DbTeam, type DbTournament, type DbUser } from '../db';
 import { badRequest, conflict, body, currentUser, findTournament, forbidden, handle, HttpProblem, json, noContent, notFound, param, requireUser, url } from '../http';
 import { findUser, takenSlots, toRegistration, toTournamentSummary } from '../views';
@@ -126,14 +127,45 @@ function myRegistrationIn(t: DbTournament, userId: string): DbRegistration | und
   );
 }
 
+/** Status de partida que ainda não acabou para quem joga. */
+const OPEN_MATCH_STATUSES = ['SCHEDULED', 'CHECK_IN', 'LIVE', 'AWAITING_VALIDATION', 'DISPUTED'];
+/** Estados do campeonato em que pode existir partida por jogar. */
+const MATCH_TOURNAMENT_STATUSES: TournamentStatus[] = ['REGISTRATION_CLOSED', 'CHECK_IN', 'IN_PROGRESS', 'PAUSED'];
+
 /**
- * Próxima partida e colocação final de uma inscrição.
- * Ponto de extensão da F2: partidas e resultados ainda não existem na API simulada.
- * Quando existirem, este é o único lugar a mudar: a função passa a receber a inscrição e a procurar
- * a próxima partida e a colocação dela — o contrato `MyTournamentEntry` já prevê os dois campos.
+ * Próxima partida e colocação final de uma inscrição (PAR-06).
+ * - `nextMatch`: a partida ainda por jogar da inscrição com o horário mais próximo (sem horário fica por último).
+ *   `checkInOpen` é verdadeiro enquanto a janela está aberta e o check-in da inscrição ainda não foi concluído.
+ * - `finalPlacement`: o lugar no pódio, quando o campeonato terminou e a inscrição ficou entre os três primeiros.
  */
-function competitionInfo(): Pick<MyTournamentEntry, 'nextMatch' | 'finalPlacement'> {
-  return { nextMatch: null, finalPlacement: null };
+function competitionInfo(t: DbTournament, registration: DbRegistration): Pick<MyTournamentEntry, 'nextMatch' | 'finalPlacement'> {
+  const ended = t.status === 'FINISHED' || t.status === 'ARCHIVED';
+  const finalPlacement = ended ? (podiums().find((p) => p.tournamentId === t.id)?.places.find((p) => p.registrationId === registration.id)?.place ?? null) : null;
+  if (registration.status !== 'CONFIRMED' || !MATCH_TOURNAMENT_STATUSES.includes(t.status)) return { nextMatch: null, finalPlacement };
+
+  const mine = listMatches(t.id)
+    .filter((m) => OPEN_MATCH_STATUSES.includes(m.status) && m.participants.some((p) => p.registrationId === registration.id))
+    .sort((a, b) => {
+      if (a.scheduledAt && b.scheduledAt) return a.scheduledAt.localeCompare(b.scheduledAt);
+      if (a.scheduledAt) return -1;
+      if (b.scheduledAt) return 1;
+      return a.round - b.round || a.position - b.position;
+    });
+  const next = mine[0];
+  if (!next) return { nextMatch: null, finalPlacement };
+
+  const me = next.participants.find((p) => p.registrationId === registration.id);
+  const opponent = next.kind === 'DUEL' ? next.participants.find((p) => p.registrationId !== registration.id) : undefined;
+  return {
+    nextMatch: {
+      id: next.id,
+      label: [next.stageName, next.groupName, next.roundLabel].filter(Boolean).join(' · '),
+      scheduledAt: next.scheduledAt,
+      opponent: opponent?.registrationId ? opponent.name : null,
+      checkInOpen: next.status === 'CHECK_IN' && !me?.checkedIn,
+    },
+    finalPlacement,
+  };
 }
 
 export const handlers = [
@@ -153,7 +185,7 @@ export const handlers = [
         const mine = d.registrations.filter((r) => r.tournamentId === id && involves(r, user.id)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
         const registration = mine.find(isActive) ?? mine[0];
         if (!registration) continue;
-        entries.push({ tournament: toTournamentSummary(t), registration: toRegistration(registration), ...competitionInfo() });
+        entries.push({ tournament: toTournamentSummary(t), registration: toRegistration(registration), ...competitionInfo(t, registration) });
       }
       // Os que estão valendo vêm primeiro, pela data mais próxima; o histórico, do mais recente para o mais antigo.
       const live = isCurrentEntry;

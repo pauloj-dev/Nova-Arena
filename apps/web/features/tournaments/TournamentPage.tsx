@@ -5,31 +5,55 @@ import { Avatar, Badge, Button, EmptyState, ErrorState, Progress, Skeleton, Stat
 import { CalendarClock, CalendarDays, Compass, Settings, User, Users } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { MatchViewerProvider, type MatchViewer } from '@/features/matches/viewer';
 import { VerifiedBadge } from '@/features/profile/VerifiedBadge';
 import { RegistrationPanel } from '@/features/registrations/RegistrationPanel';
 import { ApiError, errorMessage } from '@/shared/api/client';
+import { useTournamentMatches } from '@/shared/api/hooks/competition';
 import { useGame } from '@/shared/api/hooks/games';
+import { useMyRegistration } from '@/shared/api/hooks/registrations';
 import { useTournament, useTournamentAccess } from '@/shared/api/hooks/tournaments';
 import { PageContainer } from '@/shared/layout/AreaShell';
 import { formatDateTime } from '@/shared/lib/datetime';
+import { LiveIndicator } from '@/shared/realtime/LiveIndicator';
+import { useTournamentChannel } from '@/shared/realtime/RealtimeProvider';
 import { useSession } from '@/shared/session/useSession';
+import { BracketTab, MatchesTab, ResultsTab } from './CompetitionTabs';
 import { FollowButton } from './FollowButton';
 import { ShareButton } from './ShareButton';
 import { slotsText } from './TournamentCard';
 import { AnnouncementsTab, OverviewTab, RegistrationsTab, RulesTab } from './TournamentTabs';
 
-/** Abas da página pública na F1. Chave/Tabela, Partidas e Resultados entram na F2 (sem aba vazia até lá). */
+/**
+ * Abas da página pública (PAR-03). As de competição (`competition: true`) só aparecem quando o
+ * campeonato já tem chave confirmada ou terminou — sem aba vazia antes disso.
+ */
 const TABS = [
-  { value: 'visao-geral', label: 'Visão geral' },
-  { value: 'regulamento', label: 'Regulamento' },
-  { value: 'inscritos', label: 'Inscritos' },
-  { value: 'comunicados', label: 'Comunicados' },
+  { value: 'visao-geral', label: 'Visão geral', competition: false },
+  { value: 'regulamento', label: 'Regulamento', competition: false },
+  { value: 'inscritos', label: 'Inscritos', competition: false },
+  { value: 'chave', label: 'Chave/Tabela', competition: true },
+  { value: 'partidas', label: 'Partidas', competition: true },
+  { value: 'resultados', label: 'Resultados', competition: true },
+  { value: 'comunicados', label: 'Comunicados', competition: false },
 ] as const;
 type TabValue = (typeof TABS)[number]['value'];
 const DEFAULT_TAB: TabValue = 'visao-geral';
+/** Links antigos e notificações usam `?aba=tabela`. */
+const TAB_ALIASES: Record<string, TabValue> = { tabela: 'chave' };
 
-export function parseTab(value: string | null): TabValue {
-  return TABS.some((t) => t.value === value) ? (value as TabValue) : DEFAULT_TAB;
+/** Antes disso não existe chave confirmada: nem vale perguntar à API. */
+const NO_COMPETITION_STATUSES: Tournament['status'][] = ['DRAFT', 'PUBLISHED', 'REGISTRATION_OPEN'];
+
+export function parseTab(value: string | null, competition = true): TabValue {
+  const wanted = value !== null ? (TAB_ALIASES[value] ?? value) : null;
+  const tab = TABS.find((t) => t.value === wanted);
+  return tab && (competition || !tab.competition) ? tab.value : DEFAULT_TAB;
+}
+
+/** A aba pedida na URL é uma das de competição (para não piscar a "Visão geral" enquanto as partidas carregam). */
+function wantsCompetitionTab(value: string | null): boolean {
+  return TABS.some((t) => t.competition && t.value === parseTab(value));
 }
 
 function PageSkeleton() {
@@ -104,6 +128,7 @@ function Header({ t, canManage }: { t: Tournament; canManage: boolean }) {
               {t.modeName && ` · ${t.modeName}`}
             </span>
             <StatusPill status={t.status} />
+            {t.status === 'IN_PROGRESS' && <LiveIndicator />}
             {t.free && <Badge tone="gold">Gratuito</Badge>}
           </div>
           <h1 className="text-xl break-words md:text-2xl">{t.name}</h1>
@@ -178,7 +203,14 @@ export function TournamentPage({ slug }: { slug: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const tab = parseTab(searchParams.get('aba'));
+  const requestedTab = searchParams.get('aba');
+
+  // Competição (F2): partidas das fases com chave confirmada, minha inscrição e tempo real.
+  // Cada evento do canal invalida as consultas; se a conexão cair, elas passam a atualizar a cada 10 s (CT-10).
+  const mayHaveMatches = t !== undefined && !NO_COMPETITION_STATUSES.includes(t.status);
+  const matches = useTournamentMatches(mayHaveMatches ? t.id : undefined);
+  const myRegistration = useMyRegistration(t?.id, { enabled: Boolean(user) });
+  useTournamentChannel(t?.id);
 
   if (tournament.isPending) return <PageSkeleton />;
   if (tournament.isError) {
@@ -195,10 +227,17 @@ export function TournamentPage({ slug }: { slug: string }) {
   // Dono, co-organizador e admin gerenciam; moderador não tem a área de gestão.
   const canManage = access.data === 'OWNER' || access.data === 'CO_ORGANIZER' || access.data === 'ADMIN';
 
+  const hasCompetition = t.status === 'FINISHED' || (matches.data?.length ?? 0) > 0;
+  const showCompetition = hasCompetition || (mayHaveMatches && matches.isPending && wantsCompetitionTab(requestedTab));
+  const tab = parseTab(requestedTab, showCompetition);
+  const viewer: MatchViewer = { userId: user?.id ?? null, registration: (user && myRegistration.data) || null, checkIn: t.checkIn, isStaff: user !== null && access.data != null };
+
   function onTabChange(value: string) {
     const params = new URLSearchParams(searchParams.toString());
     if (value === DEFAULT_TAB) params.delete('aba');
     else params.set('aba', value);
+    // O detalhe aberto em "Partidas" não acompanha a troca de aba.
+    params.delete('partida');
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
@@ -207,8 +246,12 @@ export function TournamentPage({ slug }: { slug: string }) {
     'visao-geral': <OverviewTab tournament={t} />,
     regulamento: <RulesTab tournament={t} />,
     inscritos: <RegistrationsTab tournament={t} />,
+    chave: <BracketTab tournament={t} />,
+    partidas: <MatchesTab tournament={t} matches={matches} />,
+    resultados: <ResultsTab tournament={t} matches={matches} />,
     comunicados: <AnnouncementsTab tournament={t} />,
   };
+  const tabs = TABS.filter((x) => showCompetition || !x.competition);
 
   return (
     <PageContainer>
@@ -221,7 +264,9 @@ export function TournamentPage({ slug }: { slug: string }) {
           <RegistrationPanel tournament={t} />
         </aside>
         <div className="min-w-0 lg:col-start-1">
-          <Tabs label="Seções do campeonato" value={tab} onValueChange={onTabChange} items={TABS.map((x) => ({ value: x.value, label: x.label, content: content[x.value] }))} />
+          <MatchViewerProvider value={viewer}>
+            <Tabs label="Seções do campeonato" value={tab} onValueChange={onTabChange} items={tabs.map((x) => ({ value: x.value, label: x.label, content: content[x.value] }))} />
+          </MatchViewerProvider>
         </div>
       </div>
     </PageContainer>
