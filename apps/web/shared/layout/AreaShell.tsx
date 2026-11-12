@@ -62,7 +62,7 @@ export function AreaShell({ area, title, nav, children }: AreaShellProps) {
   return (
     <div className="flex min-h-dvh flex-col" data-area={area}>
       <header className="sticky top-0 z-40 border-b border-border bg-chrome text-chrome-text">
-        <div className="flex h-14 items-center gap-3 px-3 md:px-6">
+        <div className="flex h-14 min-w-0 items-center gap-1 px-2 xs:gap-3 xs:px-3 md:px-6">
           <button type="button" onClick={() => setOpen(true)} aria-label="Abrir menu" className="flex size-11 items-center justify-center rounded-md hover:bg-neutral-soft/30 md:hidden">
             <Menu className="size-5" aria-hidden />
           </button>
