@@ -1,5 +1,7 @@
-import { ComingSoon } from '@/shared/layout/ComingSoon';
+'use client';
 
-export default function OrganizerHome() {
-  return <ComingSoon title="Meu painel" phase="F1.6" />;
+import { OrganizerDashboard } from '@/features/organizer/dashboard/OrganizerDashboard';
+
+export default function OrganizerHomePage() {
+  return <OrganizerDashboard />;
 }
