@@ -1,0 +1,6 @@
+/* Entrada de CSS do Storybook: Tailwind v4 + tokens + ligação dos tokens com o Tailwind. */
+@import 'tailwindcss';
+@import '../src/styles/tokens.css';
+@import '../src/styles/theme.css';
+
+@source '../src';
