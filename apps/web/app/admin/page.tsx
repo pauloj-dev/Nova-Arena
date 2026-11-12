@@ -1,5 +1,7 @@
-import { ComingSoon } from '@/shared/layout/ComingSoon';
+'use client';
+
+import { AdminDashboard } from '@/features/admin/dashboard/AdminDashboard';
 
 export default function AdminHome() {
-  return <ComingSoon title="Dashboard" phase="F2.8" />;
+  return <AdminDashboard />;
 }

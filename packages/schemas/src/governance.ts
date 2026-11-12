@@ -252,3 +252,106 @@ export type GlobalAnnouncementInput = z.infer<typeof GlobalAnnouncementInput>;
 export const TwoFactorSetup = z.object({ secret: z.string(), otpauthUrl: z.string(), qrSvg: z.string() });
 export const TwoFactorEnableInput = z.object({ code: z.string().regex(/^\d{6}$/, 'O código tem 6 dígitos') });
 export const TwoFactorEnabled = z.object({ recoveryCodes: z.array(z.string()) });
+
+// ── Acréscimos do painel do Administrador (F2.8) ─────────────────────
+/** Admin na lista de administradores: desde quando tem o papel (base da RN-11). */
+export const AdminMember = AdminUser.extend({ adminSince: IsoDateTime, isSuperAdmin: z.boolean() });
+export type AdminMember = z.infer<typeof AdminMember>;
+
+/** Pedido para remover um Admin mais antigo, à espera do Super Admin (RN-11). */
+export const AdminRemovalRequest = z.object({
+  id: Id,
+  targetUserId: Id,
+  targetNickname: z.string(),
+  requestedById: Id,
+  requestedByNickname: z.string(),
+  reason: z.string().nullable(),
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']),
+  createdAt: IsoDateTime,
+  reviewedAt: IsoDateTime.nullable(),
+  reviewedByNickname: z.string().nullable(),
+});
+export type AdminRemovalRequest = z.infer<typeof AdminRemovalRequest>;
+
+export const RoleRevokeInput = z.object({ reason: z.string().max(500).optional() });
+/** Campeonato afetado pela saída do organizador (RN-09). */
+export const OrphanOutcome = z.object({ id: Id, name: z.string(), outcome: z.enum(['TRANSFERRED', 'PAUSED']), newOwnerNickname: z.string().nullable() });
+export type OrphanOutcome = z.infer<typeof OrphanOutcome>;
+export const RoleRevokeResult = z.object({
+  /** `PENDING_APPROVAL`: o papel continua até o Super Admin aprovar (RN-11). */
+  outcome: z.enum(['REVOKED', 'PENDING_APPROVAL']),
+  requestId: Id.nullable(),
+  affectedTournaments: z.array(OrphanOutcome),
+});
+export type RoleRevokeResult = z.infer<typeof RoleRevokeResult>;
+
+export const AdminOrganizer = AdminUser.extend({
+  organizerLimits: z.object({ maxActiveTournaments: z.number().int(), allowedGameIds: z.array(Id) }),
+  activeTournaments: z.number().int(),
+  totalTournaments: z.number().int(),
+});
+export type AdminOrganizer = z.infer<typeof AdminOrganizer>;
+
+/** No protótipo o link de redefinição volta na resposta; a API real envia por e-mail. */
+export const PasswordResetLink = z.object({ link: z.string() });
+export const MergeUsersResult = z.object({
+  target: AdminUserDetail,
+  moved: z.object({ registrations: z.number().int(), teams: z.number().int(), gameAccounts: z.number().int() }),
+});
+export type MergeUsersResult = z.infer<typeof MergeUsersResult>;
+export const SanctionResult = z.object({ sanction: Sanction, user: AdminUserDetail, affectedTournaments: z.array(OrphanOutcome) });
+export type SanctionResult = z.infer<typeof SanctionResult>;
+
+/** Denúncia na fila do Admin: além do contrato público, quem responde pelo alvo (para as ações rápidas). */
+export const AdminReport = Report.extend({
+  reporterId: Id.nullable(),
+  targetUserId: Id.nullable(),
+  targetUserNickname: z.string().nullable(),
+  targetUserStatus: UserStatus.nullable(),
+});
+export type AdminReport = z.infer<typeof AdminReport>;
+
+export const AdminTournamentPatch = z.object({ featured: z.boolean() });
+export const AdminCancelTournamentInput = z.object({ reason: z.string().trim().min(5, 'Informe o motivo do cancelamento').max(500) });
+/** Fase com a chave travada (já tem partida concluída). Só o Admin destrava (RN-07). */
+export const LockedStage = z.object({ stageId: Id, stageName: z.string(), tournamentId: Id, tournamentName: z.string(), completedMatches: z.number().int() });
+export type LockedStage = z.infer<typeof LockedStage>;
+
+export const GlobalAnnouncementPatch = z.object({ active: z.boolean() });
+/** O que o site mostra no topo: banner ou aviso de manutenção ativo. */
+export const SiteBannerItem = z.object({
+  id: Id,
+  kind: z.enum(['BANNER', 'MAINTENANCE']),
+  title: z.string(),
+  body: z.string(),
+  startsAt: IsoDateTime.nullable(),
+  endsAt: IsoDateTime.nullable(),
+  /** Manutenção em curso: o aviso não pode ser dispensado. */
+  ongoing: z.boolean(),
+  dismissible: z.boolean(),
+});
+export type SiteBannerItem = z.infer<typeof SiteBannerItem>;
+
+/** Parte das configurações que o site público lê. */
+export const PublicSiteSettings = SiteSettings.omit({ requireApprovalForSeniorAdminRemoval: true });
+export type PublicSiteSettings = z.infer<typeof PublicSiteSettings>;
+
+export const FEATURE_FLAG_DEFAULTS = { ranking: true, publicSignup: true, resultSubmission: true, pushNotifications: false } as const;
+export type FeatureFlagKey = keyof typeof FEATURE_FLAG_DEFAULTS;
+export const FeatureFlagInput = z.object({ enabled: z.boolean() });
+
+export const AuditMeta = z.object({ actions: z.array(z.object({ value: z.string(), label: z.string() })), entityTypes: z.array(z.string()) });
+export type AuditMeta = z.infer<typeof AuditMeta>;
+
+export const TwoFactorStatus = z.object({
+  enabled: z.boolean(),
+  /** Obrigatória para Admin e Super Admin (RNF-08): não pode ser desligada. */
+  required: z.boolean(),
+  recoveryCodesLeft: z.number().int(),
+});
+export type TwoFactorStatus = z.infer<typeof TwoFactorStatus>;
+/** Para desligar: código do aplicativo (6 dígitos) ou um código de recuperação. */
+export const TwoFactorDisableInput = z.object({ code: z.string().trim().min(6, 'Informe o código').max(20) });
+/** Só no protótipo: o código atual, para a demonstração funcionar sem aplicativo autenticador. */
+export const TwoFactorDevCode = z.object({ code: z.string(), expiresInSeconds: z.number().int() });
+export const TwoFactorResetInput = z.object({ reason: z.string().trim().min(5, 'Informe o motivo').max(500) });
