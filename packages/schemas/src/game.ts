@@ -44,7 +44,8 @@ export const ScoringRule = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('MULTIPLIER'),
     factor: z.number().positive(),
-    when: z.object({ matchIndex: z.union([z.number().int().min(0), z.literal('last')]).optional() }).optional(),
+    // O número da partida/queda começa em 1, como no motor.
+    when: z.object({ matchIndex: z.union([z.number().int().min(1), z.literal('last')]).optional() }).optional(),
   }),
 ]);
 export type ScoringRule = z.infer<typeof ScoringRule>;
@@ -139,11 +140,13 @@ export function isValidPattern(pattern: string | null | undefined): boolean {
   }
 }
 
-type GameCatalogFields = Partial<Pick<GameInput, 'requiredAccountFields' | 'extraStatFields' | 'modes'>>;
+type GameCatalogFields = Partial<Pick<GameInput, 'icon' | 'requiredAccountFields' | 'extraStatFields' | 'modes'>>;
 
-/** Regras do cadastro que dependem de mais de um campo: regex que compila, chaves e nomes sem repetição, sala só no BR. */
+/** Regras do cadastro que o `GameInput` sozinho não cobre: ícone preenchido, regex que compila, chaves e nomes sem repetição, sala no BR. */
 function checkGameCatalogRules(input: GameCatalogFields, ctx: z.core.$RefinementCtx<GameCatalogFields>): void {
   const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message });
+
+  if (input.icon !== undefined && input.icon.trim() === '') issue(['icon'], 'Escolha um emoji ou uma sigla');
 
   const accountKeys = new Set<string>();
   input.requiredAccountFields?.forEach((field, i) => {

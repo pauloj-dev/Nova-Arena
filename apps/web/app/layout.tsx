@@ -20,8 +20,11 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  // A meta `theme-color` não aceita variável CSS: aqui se repetem `--bg` do tema claro e do escuro (tokens.css).
   themeColor: [
+    // check-colors-ignore
     { media: '(prefers-color-scheme: light)', color: '#f8faf9' },
+    // check-colors-ignore
     { media: '(prefers-color-scheme: dark)', color: '#07130d' },
   ],
 };
