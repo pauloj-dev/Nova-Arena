@@ -20,10 +20,14 @@
     "@nova/schemas": "workspace:*",
     "@nova/ui": "workspace:*",
     "@tanstack/react-query": "^5.107.1",
+    "@tiptap/pm": "^3.33.1",
+    "@tiptap/react": "^3.33.1",
+    "@tiptap/starter-kit": "^3.33.1",
     "dompurify": "^3.4.17",
     "lucide-react": "^1.72.0",
     "msw": "^3.0.5",
     "next": "16.4.6",
+    "papaparse": "^5.7.0",
     "radix-ui": "^1.8.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -39,7 +43,9 @@
     "@tailwindcss/turbopack": "4.3.3",
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.9",
     "@types/node": "^22",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.3.0",
@@ -50,5 +56,9 @@
     "typescript": "^5.9.0",
     "vitest": "^5.1.0"
   },
-  "msw": { "workerDirectory": ["public"] }
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
 }
