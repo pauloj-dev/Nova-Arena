@@ -4,17 +4,17 @@
 
 ### Plataforma de Gestão de Campeonatos de eSports Mobile & Casual
 
-**Product Requirements Document (PRD) · v1.0**
+**Product Requirements Document (PRD) · v1.1**
 
 ![Status](https://img.shields.io/badge/status-em%20defini%C3%A7%C3%A3o-16A34A?style=for-the-badge)
-![Stack](https://img.shields.io/badge/stack-React%20%7C%20Node%20%7C%20PostgreSQL-0F766E?style=for-the-badge)
-![Versão](https://img.shields.io/badge/vers%C3%A3o-1.0.0-22C55E?style=for-the-badge)
+![Stack](https://img.shields.io/badge/stack-Next.js%20%7C%20Vercel%20%7C%20PostgreSQL-0F766E?style=for-the-badge)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-1.1.0-22C55E?style=for-the-badge)
 
 | Campo | Valor |
 |---|---|
 | **Produto** | Nova Arena |
 | **Documento** | PRD — Requisitos de Produto, UX e Arquitetura |
-| **Versão** | 1.0.0 |
+| **Versão** | 1.1.0 — arquitetura alinhada à Vercel; questões em aberto decididas |
 | **Data** | 11/11/2026 |
 | **Status** | Rascunho para revisão |
 | **Público do documento** | Produto, Engenharia (Front/Back), Design/UX, QA, Stakeholders |
@@ -751,7 +751,7 @@ sequenceDiagram
 | RF-14 | Inscrição solo e com squad; lista de espera | Participante | P0 |
 | RF-15 | Squads persistentes com convites (link, código, busca) | Participante | P0 |
 | RF-16 | Check-in com janela e W.O. automático | Participante | P0 |
-| RF-17 | Chaves e tabelas em tempo real (WebSocket) | Todos | P0 |
+| RF-17 | Chaves e tabelas em tempo real (Ably, com polling como alternativa) | Todos | P0 |
 | RF-18 | Notificações no site e por e-mail | Todos | P0 |
 | RF-19 | Envio de resultado pelo participante com evidência e contestação | Participante | P1 |
 | RF-20 | Moderação e denúncias | Admin | P1 |
@@ -926,7 +926,7 @@ Escala com base 16 px, razão 1,25; altura de linha de 1,5 no texto e 1,2 nos t�
 }
 ```
 
-**Integração com Tailwind** (`tailwind.config.ts`): as cores e espaçamentos do Tailwind apontam para os tokens (`primary: 'var(--color-primary-600)'`), para que exista uma única fonte da verdade.
+**Integração com Tailwind** (preset em `packages/config`): as cores e espaçamentos do Tailwind apontam para os tokens (`primary: 'var(--color-primary-600)'`), para que exista uma única fonte da verdade.
 
 ### 15.5 Biblioteca de componentes
 
@@ -1041,112 +1041,111 @@ graph TD
 
 ## 16. Arquitetura Técnica
 
+> **Atualizado na v1.1:** a arquitetura original (React SPA + Vite, NestJS, Socket.IO, BullMQ, S3) foi substituída para o produto rodar **100% na Vercel**. A fonte da verdade é o [plano de implementação §2](plano-de-implementacao.md#2-arquitetura-na-vercel); esta seção é o resumo.
+
 ### 16.1 Stack
 
 | Camada | Tecnologia | Justificativa |
 |---|---|---|
-| **Front-end** | **React 18 + TypeScript + Vite** | Ecossistema maduro, build rápido, tipagem |
-| Roteamento | React Router v6 (data routers, lazy routes) | Separar o código por área (admin/org/participante) |
+| **Aplicação** | **Next.js (App Router) + React 19 + TypeScript** | Telas e API no mesmo projeto e no mesmo domínio; SSR/ISR nas páginas públicas |
 | Estado do servidor | **TanStack Query** | Cache, revalidação, atualizações otimistas |
 | Estado do cliente | Zustand | Simples, para UI/sessão |
-| Formulários | React Hook Form + **Zod** | Schemas compartilhados com o back-end |
-| Estilo | **Tailwind CSS** + CSS Custom Properties + CSS Modules (casos específicos) | Tokens únicos, produtividade |
+| Formulários | React Hook Form + **Zod** | Schemas compartilhados com a API (`packages/schemas`) |
+| Estilo | **Tailwind CSS** + CSS Custom Properties | Tokens únicos, produtividade |
 | Componentes | Radix UI (primitivos acessíveis) + componentes próprios | Acessibilidade AA |
-| Chaves/Gráficos | SVG próprio para chaves (com D3 para layout) · Recharts para dashboards | Controle visual total |
-| Tempo real | Socket.IO client | Reconexão automática, salas |
-| Testes front | Vitest + Testing Library + Playwright (E2E) + Storybook | — |
-| **Back-end** | **Node.js 20 + NestJS (TypeScript)** | Módulos, injeção de dependência, guards de RBAC |
+| Chaves/Gráficos | SVG próprio para chaves · Recharts para dashboards | Controle visual total |
+| **API** | **Hono** em **Vercel Functions** (Node.js), montado em `/api/v1/*` | Monólito modular sem servidor para manter |
 | ORM | **Prisma** | Migrations e tipagem |
-| Banco | **PostgreSQL 16** | Relacional, JSONB para regras de pontuação |
-| Cache / Pub-Sub / Filas | **Redis** + BullMQ | Ranking em cache, jobs (W.O., lembretes), Socket.IO adapter |
-| Tempo real | Socket.IO (gateway NestJS) | Eventos de chave/tabela |
-| Arquivos | S3 compatível (Cloudflare R2 / AWS S3) + CDN | Prints, logos, capas |
-| E-mail | Resend / Amazon SES | Transacionais |
-| Auth | JWT + refresh rotativo, OAuth2 (Google, Discord), TOTP 2FA | — |
-| Observabilidade | OpenTelemetry, Sentry, Grafana/Loki | — |
-| Infra | Docker, front na Vercel/Cloudflare Pages, API no Railway/Fly.io/AWS ECS, Postgres gerenciado | Começar simples, escalar depois |
-| CI/CD | GitHub Actions (lint, typecheck, testes, preview deploy) | — |
+| Banco | **Neon Postgres** | Relacional, JSONB para regras; um banco por preview |
+| Cache / rate limit / idempotência | **Upstash Redis** (HTTP) | Feito para funções serverless |
+| Jobs | **Upstash QStash** + **Vercel Cron** | Mensagens com hora marcada; o Cron é a rede de segurança |
+| Tempo real | **Ably** + polling de 10 s como alternativa | Funções da Vercel não mantêm WebSocket |
+| Arquivos | **Vercel Blob** (upload direto do navegador) | Prints, logos, capas |
+| E-mail | **Resend** | Transacionais |
+| Auth | Própria: `jose` (JWT 15 min + refresh rotativo em cookies `httpOnly`), `arctic` (OAuth Google/Discord), `otplib` (TOTP) | Mesmo domínio, sem CORS |
+| Configuração e flags | **Vercel Edge Config** + Flags SDK | Leitura em milissegundos |
+| Observabilidade | Vercel Observability, `@vercel/otel`, Sentry | — |
+| Testes | Vitest + fast-check, Testing Library, Storybook, Playwright, axe-core, k6 | — |
+| CI/CD | GitHub Actions + integração Git da Vercel (preview por PR) | — |
 
-### 16.2 Visão de contêineres (C4 — nível 2)
+### 16.2 Visão de contêineres
 
 ```mermaid
 graph TB
-    U[👤 Usuário<br/>Navegador / PWA] -->|HTTPS| CDN[CDN / Edge]
-    CDN --> SPA[⚛️ React SPA<br/>Vite build estático]
-    SPA -->|REST JSON| API[🟢 API NestJS]
-    SPA <-->|WebSocket| WS[🔌 Gateway Socket.IO]
-    API --> PG[(🐘 PostgreSQL)]
-    API --> RD[(🔴 Redis<br/>cache · pub/sub)]
-    WS --> RD
-    API --> Q[[📬 BullMQ Workers<br/>W.O. · lembretes · e-mails · recálculo]]
-    Q --> PG
-    Q --> MAIL[✉️ Serviço de E-mail]
-    API --> S3[(🗂️ Object Storage)]
-    API --> OAUTH[🔑 Google / Discord OAuth]
+    U[👤 Usuário<br/>Navegador / PWA] -->|HTTPS| EDGE[Vercel Edge Network<br/>CDN · Firewall · proxy.ts]
+    EDGE --> NEXT[⚛️ Next.js<br/>páginas SSR/ISR + estáticas]
+    EDGE --> API[🟢 Vercel Functions<br/>/api/v1 · Hono]
+    API --> PG[(🐘 Neon Postgres)]
+    API --> RD[(🔴 Upstash Redis)]
+    API --> BLOB[(🗂️ Vercel Blob)]
+    API --> EC[(⚙️ Edge Config)]
+    API -->|publica eventos| ABLY[🔌 Ably]
+    ABLY <-->|WebSocket| U
+    API -->|agenda mensagens| QS[[📬 Upstash QStash]]
+    QS --> JOBS[⏱️ /api/jobs/*]
+    CRON[🕐 Vercel Cron] --> JOBS
+    JOBS --> PG
+    JOBS --> MAIL[✉️ Resend]
 
     style API fill:#16A34A,color:#fff
-    style SPA fill:#22C55E,color:#fff
-    style WS fill:#0F766E,color:#fff
+    style NEXT fill:#22C55E,color:#fff
+    style ABLY fill:#0F766E,color:#fff
 ```
 
-### 16.3 Módulos do back-end (monólito modular)
+### 16.3 Módulos da API (monólito modular)
 
 ```
-apps/api/src/
+packages/api/src/
 ├── modules/
 │   ├── auth/            # login, OAuth, refresh, 2FA
 │   ├── users/           # perfis, IDs de jogo
 │   ├── roles/           # RBAC, convites de admin/organizador
 │   ├── games/           # catálogo, modos, modelos de pontuação
 │   ├── tournaments/     # CRUD, ciclo de vida, staff
-│   ├── stages/          # fases, grupos, regras de classificação
-│   ├── brackets/        # geradores: single, double, groups, rr, swiss, br
+│   ├── stages/          # fases, chave, classificação (usa packages/engine)
 │   ├── matches/         # partidas, agenda, check-in, resultados, disputas
-│   ├── scoring/         # motor de pontuação + desempate (puro, testável)
 │   ├── teams/           # squads, convites, elencos
 │   ├── registrations/   # inscrições, lista de espera
-│   ├── notifications/   # in-app, e-mail, preferências
+│   ├── notifications/   # no site, e-mail, preferências
 │   ├── moderation/      # denúncias, sanções
-│   ├── audit/           # AuditLog append-only
-│   └── realtime/        # gateway Socket.IO, salas por campeonato
-├── common/              # guards, interceptors, pipes Zod, filtros de erro
-└── jobs/                # processadores BullMQ
+│   ├── audit/           # AuditLog somente-inserção
+│   └── realtime/        # token e publicação no Ably
+├── middleware/          # requireRole, requireTournamentAccess, validação Zod, erros
+└── jobs/                # handlers de /api/jobs/* e /api/cron/*
 ```
 
-> **Domínio puro:** `brackets/` e `scoring/` são **funções puras** sem dependência de framework, para que possam ser testadas com propriedades (*property-based testing*) e reutilizadas no front para pré-visualização.
+> **Domínio puro:** o chaveamento e a pontuação ficam em `packages/engine`, como **funções puras** sem dependência de framework, testadas por propriedade e reaproveitadas no navegador para a pré-visualização.
 
 ### 16.4 Fluxo de tempo real (resultado → tabela)
 
 ```mermaid
 sequenceDiagram
-    participant O as Organizador (SPA)
-    participant API
-    participant SC as Scoring Engine
-    participant DB as PostgreSQL
-    participant R as Redis Pub/Sub
-    participant WS as Gateway WS
-    participant P as Participantes (SPA)
+    participant O as Organizador (navegador)
+    participant F as Vercel Function
+    participant DB as Neon Postgres
+    participant R as Upstash Redis
+    participant A as Ably
+    participant P as Participantes (navegador)
 
-    O->>API: PUT /matches/:id/result {stats}
-    API->>API: Autoriza (owner/staff) + valida Zod
-    API->>SC: compute(stats, scoringModel)
-    SC-->>API: pontos por participação
-    API->>DB: Transação: salva stats, pontos, status=VALIDATED
-    API->>DB: Recalcula standings da fase (materializado)
-    API->>R: publish tournament:{id} {type:'standings.updated'}
-    R->>WS: evento
-    WS->>P: emit 'standings.updated' (sala tournament:{id})
-    P->>P: TanStack Query invalida → refetch / patch
+    O->>F: PUT /api/v1/matches/:id/result {stats} + Idempotency-Key
+    F->>F: Autoriza (dono/staff) + valida Zod + engine.computePoints
+    F->>DB: Transação: stats, pontos, status=VALIDATED, tabela da fase
+    F->>R: Atualiza cache standings:{stageId}
+    F->>A: publish tournament:{id} 'standings.updated' (HTTP, depois do commit)
+    A->>P: evento via WebSocket
+    P->>F: TanStack Query invalida → GET /standings
+    Note over P: Se o WebSocket cair, polling a cada 10 s
 ```
 
 ### 16.5 Segurança
 
-- **Guards em camadas:** `JwtAuthGuard` → `RolesGuard` (papel global) → `TournamentAccessGuard` (dono/staff do recurso).
+- **Camadas:** `proxy.ts` (redireciona na borda) → middleware `requireRole` (papel global) → `requireTournamentAccess` (dono/staff do recurso). A checagem que vale é a da API.
 - **Princípio do menor privilégio:** o organizador só enxerga os recursos dos próprios campeonatos.
-- **Dados sensíveis:** código/senha da sala do jogo ficam visíveis **só para participantes daquela partida**, e apenas X minutos antes do início.
+- **Dados sensíveis:** código/senha da sala ficam visíveis **só para participantes daquela partida**, e apenas X minutos antes do início. O código nunca vai em evento de tempo real.
 - **Anti-fraude:** limite de contas por dispositivo/IP (alerta), detecção de IDs de jogo duplicados, evidência obrigatória em resultados contestados.
-- **Rate limiting** por rota e por usuário (Redis).
-- **Headers:** CSP restritiva, HSTS, `X-Content-Type-Options`, `Referrer-Policy`.
+- **Rate limiting** por rota e por usuário (Upstash Ratelimit + Vercel Firewall).
+- **CSRF:** cookies `SameSite=Lax` + checagem do cabeçalho `Origin` em toda mutação.
+- **Headers:** CSP restritiva com nonce, HSTS, `X-Content-Type-Options`, `Referrer-Policy`.
 
 ---
 
@@ -1312,7 +1311,7 @@ erDiagram
 
 ## 18. API (contratos principais)
 
-**Base:** `https://api.novaarena.gg/v1` · JSON · autenticação `Bearer` · erros no padrão RFC 7807 (`application/problem+json`).
+**Base:** `/api/v1` no mesmo domínio do site · JSON · autenticação por **cookies `httpOnly`** (JWT de acesso de 15 min + refresh rotativo) · mutações com checagem de `Origin` · erros no padrão RFC 7807 (`application/problem+json`).
 
 ### 18.1 Endpoints
 
@@ -1364,8 +1363,9 @@ erDiagram
 ### 18.2 Exemplo — lançar resultado de queda BR
 
 ```http
-PUT /v1/matches/7f3c.../result
-Authorization: Bearer <token>
+PUT /api/v1/matches/7f3c.../result
+Cookie: na_access=<jwt>
+Idempotency-Key: 5b1e...
 Content-Type: application/json
 
 {
@@ -1390,7 +1390,7 @@ Content-Type: application/json
 }
 ```
 
-### 18.3 Eventos WebSocket
+### 18.3 Eventos de tempo real (Ably)
 
 | Sala | Evento | Payload |
 |---|---|---|
@@ -1399,130 +1399,75 @@ Content-Type: application/json
 | `tournament:{id}` | `stage.advanced` | `{ fromStageId, toStageId }` |
 | `tournament:{id}` | `announcement.created` | `{ title, body }` |
 | `user:{id}` | `notification.created` | `{ id, type, title, link }` |
-| `match:{id}` | `lobby.revealed` | `{ code }` *(somente para participantes)* |
+| `match:{id}` | `lobby.revealed` | `{ matchId }` *(só avisa; o código é buscado em `GET /matches/:id/lobby`, que confere a permissão)* |
+| `user:{id}` | `session.revoked` | `{ reason }` |
 
 ---
 
 ## 19. Estrutura do Front-end (React)
+
+> **Atualizado na v1.1** para o Next.js (App Router). Detalhes no [plano §4.4](plano-de-implementacao.md#44-estrutura-do-repositório).
 
 ### 19.1 Monorepo
 
 ```
 nova-arena/
 ├── apps/
-│   ├── web/                    # React SPA (Vite)
-│   └── api/                    # NestJS
-├── packages/
-│   ├── engine/                 # brackets + scoring (TS puro, compartilhado)
-│   ├── schemas/                # Zod (DTOs compartilhados)
-│   ├── ui/                     # Design system + Storybook
-│   └── config/                 # eslint, tsconfig, tailwind preset
-├── turbo.json
-└── pnpm-workspace.yaml
+│   └── web/                 # Next.js — único projeto publicado na Vercel
+│       ├── app/
+│       │   ├── (public)/    # home, campeonatos, perfil público
+│       │   ├── (participant)/
+│       │   ├── organizador/
+│       │   ├── admin/
+│       │   └── api/         # v1 (Hono), jobs (QStash), cron
+│       ├── features/        # auth, tournaments, brackets, matches, teams, organizer, admin, notifications
+│       ├── shared/          # api (cliente único + query keys), realtime, hooks, lib
+│       └── proxy.ts         # proteção de rotas na borda
+└── packages/
+    ├── ui/         # Design system + Storybook
+    ├── schemas/    # Contratos Zod
+    ├── engine/     # Chaveamento + pontuação (TS puro)
+    ├── api/        # Hono: módulos, middlewares, serviços
+    ├── db/         # Prisma
+    └── config/     # ESLint, tsconfig, preset Tailwind
 ```
 
-### 19.2 `apps/web/src` (organização por feature)
+### 19.2 Proteção de rotas
 
-```
-src/
-├── app/
-│   ├── router.tsx              # rotas lazy por área
-│   ├── providers.tsx           # QueryClient, Theme, Socket, Auth
-│   └── layouts/
-│       ├── PublicLayout.tsx
-│       ├── ParticipantLayout.tsx
-│       ├── OrganizerLayout.tsx # acento teal
-│       └── AdminLayout.tsx     # acento verde-escuro + dourado
-├── features/
-│   ├── auth/
-│   ├── tournaments/            # listagem, detalhe, cards
-│   ├── brackets/               # BracketView, GroupTable, BRDropTable
-│   ├── matches/                # MatchCard, CheckIn, ResultForm
-│   ├── teams/                  # SquadRoster, convites
-│   ├── organizer/              # TournamentWizard, StageBuilder, ScoreInput
-│   ├── admin/                  # Dashboard, Users, Invites, Games, Audit
-│   └── notifications/
-├── shared/
-│   ├── api/                    # client fetch + hooks TanStack Query
-│   ├── realtime/               # useTournamentChannel()
-│   ├── hooks/
-│   └── lib/
-└── styles/
-    ├── tokens.css
-    └── globals.css
-```
+- **Na borda:** `proxy.ts` valida o JWT e redireciona quem não pode abrir `/organizador` ou `/admin`.
+- **No cliente:** `<RequireRole roles={[...]} require2FA>` nos layouts de cada área, com página 403.
+- **Na API:** é a checagem que vale (ver §16.5).
 
-### 19.3 Proteção de rotas
+### 19.3 Tempo real com TanStack Query
 
-```tsx
-// app/router.tsx (trecho)
-const router = createBrowserRouter([
-  { path: '/', element: <PublicLayout />, children: publicRoutes },
-  {
-    path: '/organizador',
-    element: <RequireRole roles={['ORGANIZER', 'ADMIN', 'SUPER_ADMIN']}><OrganizerLayout /></RequireRole>,
-    children: organizerRoutes, // lazy(() => import('@/features/organizer/...'))
-  },
-  {
-    path: '/admin',
-    element: <RequireRole roles={['ADMIN', 'SUPER_ADMIN']} require2FA><AdminLayout /></RequireRole>,
-    children: adminRoutes,
-  },
-]);
-```
-
-### 19.4 Tempo real com TanStack Query
+As telas usam a interface `RealtimeClient` (assinar canal, receber evento, estado da conexão). No protótipo ela é simulada; em produção, é implementada com o Ably.
 
 ```tsx
 // shared/realtime/useTournamentChannel.ts
 export function useTournamentChannel(tournamentId: string) {
   const qc = useQueryClient();
+  const realtime = useRealtime();
   useEffect(() => {
-    const socket = getSocket();
-    socket.emit('join', `tournament:${tournamentId}`);
-    const onStandings = ({ stageId }: { stageId: string }) =>
-      qc.invalidateQueries({ queryKey: ['standings', stageId] });
-    const onMatch = ({ matchId }: { matchId: string }) =>
-      qc.invalidateQueries({ queryKey: ['match', matchId] });
-    socket.on('standings.updated', onStandings);
-    socket.on('match.updated', onMatch);
-    return () => {
-      socket.emit('leave', `tournament:${tournamentId}`);
-      socket.off('standings.updated', onStandings);
-      socket.off('match.updated', onMatch);
-    };
-  }, [tournamentId, qc]);
+    const channel = realtime.subscribe(`tournament:${tournamentId}`, (event) => {
+      if (event.type === 'standings.updated') qc.invalidateQueries({ queryKey: ['standings', event.stageId] });
+      if (event.type === 'match.updated') qc.invalidateQueries({ queryKey: ['match', event.matchId] });
+    });
+    return () => channel.unsubscribe();
+  }, [tournamentId, qc, realtime]);
 }
 ```
 
-### 19.5 Motor de pontuação compartilhado (`packages/engine`)
+### 19.4 Motor de pontuação compartilhado (`packages/engine`)
 
 ```ts
-export type Rule =
-  | { stat: string; type: 'PER_UNIT'; points: number }
-  | { stat: string; type: 'TABLE'; table: Record<string, number> }
-  | { stat: 'outcome'; type: 'OUTCOME'; win: number; draw: number; loss: number }
-  | { stat: string; type: 'CAP'; max: number };
-
-export function computePoints(stats: Record<string, number | string>, rules: Rule[]): number {
-  let total = 0;
-  for (const r of rules) {
-    switch (r.type) {
-      case 'PER_UNIT': total += Number(stats[r.stat] ?? 0) * r.points; break;
-      case 'TABLE':    total += r.table[String(stats[r.stat])] ?? 0; break;
-      case 'OUTCOME':  total += r[stats.outcome as 'win' | 'draw' | 'loss'] ?? 0; break;
-      case 'CAP':      /* aplicado no pós-processamento por stat */ break;
-    }
-  }
-  return total;
-}
-
 // Free Fire padrão: kill = 1, Booyah = 3
 computePoints({ kills: 7, placement: 1 }, [
   { stat: 'kills', type: 'PER_UNIT', points: 1 },
   { stat: 'placement', type: 'TABLE', table: { '1': 3 } },
-]); // → 10
+]).total; // → 10
 ```
+
+Os seis tipos de regra (`PER_UNIT`, `TABLE`, `OUTCOME`, `BONUS`, `CAP`, `MULTIPLIER`) estão descritos no §11.3.
 
 ---
 
@@ -1604,7 +1549,7 @@ gantt
 |---|---|:-:|:-:|---|
 | R1 | Resultados falsos enviados por participantes | Alta | Alto | Prova obrigatória, confirmação do adversário, validação do staff, auditoria, sanções |
 | R2 | Complexidade do motor com fases mistas gera bugs | Média | Alto | Motor puro em pacote isolado, testes com propriedades, prévia antes de confirmar fase |
-| R3 | Pico de acesso em finais quebra o tempo real | Média | Médio | Redis adapter, escala horizontal do gateway, fallback para *polling* de 10 s |
+| R3 | Pico de acesso em finais quebra o tempo real | Média | Médio | Serviço gerenciado (Ably) que escala sozinho, alternativa de *polling* de 10 s |
 | R4 | Abuso de papéis (admin malicioso) | Baixa | Alto | 2FA obrigatório, auditoria imutável, Super Admin único com poder de revogar, alertas para ações em massa |
 | R5 | Questões de marca/direitos dos jogos | Média | Médio | Usar só nomes para identificação, sem logos oficiais sem autorização; aviso de "não afiliado" |
 | R6 | Baixa adoção pelos organizadores | Média | Alto | Modelos prontos, onboarding guiado, importação de lista de inscritos via CSV |
@@ -1630,29 +1575,37 @@ gantt
 
 ## 24. Decisões de Arquitetura (ADRs)
 
+> **Atualizado na v1.1.** As ADRs 001, 002, 005, 008 e 009 foram revisadas para a Vercel. Registros completos em [`docs/adr/`](adr/).
+
 | ADR | Decisão | Alternativas consideradas | Motivo |
 |---|---|---|---|
-| ADR-001 | **Monólito modular** (NestJS) em vez de microsserviços | Microsserviços | Time pequeno, domínio ainda em descoberta; módulos com fronteiras claras permitem extrair serviços depois |
-| ADR-002 | **SPA React + Vite** em vez de SSR completo | Next.js | Área logada é a maior parte do produto; SEO só nas páginas públicas (resolvido com pré-renderização das páginas de campeonato ou migração parcial para Next.js na v2) |
-| ADR-003 | **PostgreSQL + JSONB** para regras de pontuação/config de fase | Tabelas EAV, NoSQL | Integridade relacional + flexibilidade para novos jogos sem migration |
-| ADR-004 | **Motor de chave/pontuação como pacote TS puro** compartilhado | Lógica dentro dos services | Testabilidade, prévia no front idêntica ao back |
-| ADR-005 | **Socket.IO + Redis Pub/Sub** para tempo real | SSE, polling, serviço gerenciado (Pusher/Ably) | Bidirecional (check-in, salas), custo controlado, fallback automático |
+| ADR-001 | **Monólito modular em funções** (Hono em `packages/api`, montado no Next.js) | NestJS em servidor contínuo, microsserviços | Roda como Vercel Function; time pequeno; módulos com fronteiras claras |
+| ADR-002 | **Next.js (App Router)**: áreas logadas no cliente, páginas públicas com SSR/ISR | SPA React + Vite | Mesmo domínio para telas e API (cookies funcionam), SEO nativo |
+| ADR-003 | **PostgreSQL + JSONB** (Neon) para regras de pontuação/config de fase | Tabelas EAV, NoSQL | Integridade relacional + flexibilidade para novos jogos sem migration |
+| ADR-004 | **Motor de chave/pontuação como pacote TS puro** compartilhado | Lógica dentro dos serviços | Testabilidade, prévia no front idêntica ao back |
+| ADR-005 | **Ably** para tempo real + polling de 10 s | Socket.IO + Redis Pub/Sub, SSE | A Vercel não mantém WebSocket; serviço gerenciado escala nas finais |
 | ADR-006 | **Pontos sempre derivados no servidor** a partir das estatísticas brutas | Cliente envia pontos | Integridade e auditabilidade; permite recálculo ao mudar o modelo |
-| ADR-007 | **Seed aleatória registrada** em sorteios | `Math.random` sem registro | Sorteio reproduzível e auditável, gera confiança |
+| ADR-007 | **Seed aleatória registrada** em sorteios | `Math.random` sem registro | Sorteio reproduzível e auditável |
+| ADR-008 | **QStash + Vercel Cron** para jobs, todos idempotentes | BullMQ + workers | Sem processo contínuo; o Cron é a rede de segurança |
+| ADR-009 | **Autenticação própria** com cookies `httpOnly` no mesmo domínio | JWT em header `Bearer`, serviço de auth de terceiros | Atende RNF-06 e funciona no `proxy.ts` |
 
 ---
 
 ## 25. Questões em Aberto
 
-| # | Questão | Responsável | Prazo |
-|---|---|---|---|
-| Q1 | Qual o tamanho máximo de sala BR por padrão (12 squads / 48 jogadores)? | Produto + comunidade | Discovery |
-| Q2 | Existe parceria ou API oficial para importar resultados de algum jogo? | Negócios | v2 |
-| Q3 | A final BR com só 2 squads deve ter sala completada por repescagem como padrão? | Produto | Antes do M1 |
-| Q4 | Organizador poderá cobrar inscrição (v2)? Qual modelo de taxa? | Negócios | v2 |
-| Q5 | Idade mínima para cadastro (13, 16 ou 18 anos)? | Jurídico | Antes do beta |
-| Q6 | Kills por jogador serão obrigatórias para o ranking de MVP? | Produto | M1 |
-| Q7 | Domínio definitivo (`novaarena.gg`, `.com.br`)? | Negócios | M0 |
+> **Atualizado na v1.1:** Q1, Q3, Q5, Q6 e Q7 foram decididas na [ADR-0001](adr/0001-decisoes-iniciais.md).
+
+| # | Questão | Situação |
+|---|---|---|
+| Q1 | Tamanho máximo de sala BR por padrão | ✅ **12 equipes por sala**, configurável por fase |
+| Q2 | Existe parceria ou API oficial para importar resultados de algum jogo? | ⏳ Pós-lançamento |
+| Q3 | A final BR com poucos squads deve ter sala completada por repescagem como padrão? | ✅ **Não.** Repescagem é opção por fase, desligada por padrão |
+| Q4 | Organizador poderá cobrar inscrição? Qual modelo de taxa? | ⏳ Pós-lançamento |
+| Q5 | Idade mínima para cadastro | ✅ **16 anos** *(provisória; validar com o jurídico antes do beta)* |
+| Q6 | Kills por jogador serão obrigatórias para o ranking de MVP? | ✅ **Opcional por fase** |
+| Q7 | Domínio definitivo | ✅ **`novaarena.gg`** *(provisória; o código usa `NEXT_PUBLIC_SITE_URL`)* |
+
+Regras de negócio que o PRD citava sem definir (desistência, regerar chave, lista de espera com squad, mesclar contas etc.) estão em [`regras-de-negocio.md`](regras-de-negocio.md). O modelo de dados completo está em [`modelo-de-dados.md`](modelo-de-dados.md).
 
 ---
 

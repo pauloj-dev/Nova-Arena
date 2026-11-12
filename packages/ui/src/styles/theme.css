@@ -1,0 +1,156 @@
+/*
+ * Liga o Tailwind v4 aos tokens. Importe depois de `tailwindcss` e de tokens.css.
+ * As classes geradas (bg-surface, text-muted, bg-accent…) apontam para as variáveis,
+ * então trocar de tema ou de área não exige mudar classe nenhuma.
+ */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme inline {
+  /* Zera a paleta padrão do Tailwind: só existem as cores dos tokens. */
+  --color-*: initial;
+
+  --color-white: var(--color-white);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --color-primary-50: var(--color-primary-50);
+  --color-primary-100: var(--color-primary-100);
+  --color-primary-500: var(--color-primary-500);
+  --color-primary-600: var(--color-primary-600);
+  --color-primary-700: var(--color-primary-700);
+  --color-primary-900: var(--color-primary-900);
+  --color-teal-700: var(--color-teal-700);
+  --color-gold: var(--color-gold-400);
+  --color-silver: var(--color-silver-300);
+  --color-bronze: var(--color-bronze-600);
+  --color-info: var(--color-info-500);
+  --color-warning: var(--color-warning-500);
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-on-accent: var(--text-on-accent);
+  --color-overlay: var(--overlay);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-text: var(--primary-text);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-text: var(--primary-soft-text);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-text: var(--accent-soft-text);
+  --color-accent-detail: var(--accent-detail);
+  --color-chrome: var(--chrome-bg);
+  --color-chrome-text: var(--chrome-text);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-soft-text: var(--danger-soft-text);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-soft-text: var(--warning-soft-text);
+  --color-info-soft: var(--info-soft);
+  --color-info-soft-text: var(--info-soft-text);
+  --color-neutral-soft: var(--neutral-soft);
+  --color-neutral-soft-text: var(--neutral-soft-text);
+  --color-gold-soft: var(--gold-soft);
+  --color-gold-soft-text: var(--gold-soft-text);
+  --color-gold-text: var(--gold-text);
+
+  --font-display: var(--font-display);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-full: var(--radius-full);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-glow: var(--shadow-glow);
+  --shadow-focus: var(--focus-ring);
+
+  --ease-out: var(--ease-out);
+
+  /* Breakpoints do PRD (RNF-13): 360 é a base; os demais são min-width. */
+  --breakpoint-*: initial;
+  --breakpoint-xs: 30rem; /* 480 */
+  --breakpoint-md: 48rem; /* 768 */
+  --breakpoint-lg: 64rem; /* 1024 */
+  --breakpoint-xl: 90rem; /* 1440 */
+
+  /* Escala tipográfica (base 16, razão 1,25) */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.375rem; /* 22 */
+  --text-xl: 1.75rem; /* 28 */
+  --text-2xl: 2.25rem; /* 36 */
+  --text-3xl: 3rem; /* 48 */
+
+  --animate-pulse-live: pulse-live 1.6s var(--ease-out) infinite;
+  --animate-fade-in: fade-in var(--duration-base) var(--ease-out);
+  --animate-slide-up: slide-up var(--duration-base) var(--ease-out);
+  --animate-skeleton: skeleton 1.4s ease-in-out infinite;
+
+  @keyframes pulse-live {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary-500) 70%, transparent); }
+    70% { box-shadow: 0 0 0 8px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slide-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes skeleton { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+}
+
+@layer base {
+  html {
+    font-family: var(--font-body);
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--primary-soft);
+    color: var(--primary-soft-text);
+  }
+}
+
+@utility tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+@utility bg-hero {
+  background-image: var(--gradient-hero);
+}
+@utility bg-gold-gradient {
+  background-image: var(--gradient-gold);
+}
+@utility bg-glass {
+  background-image: var(--gradient-glass);
+  backdrop-filter: blur(8px);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

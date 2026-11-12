@@ -1,0 +1,20 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  sharp: true
+  unrs-resolver: true
+  esbuild: true
+  lefthook: true
+  msw: true
+minimumReleaseAgeExclude:
+  - '@hookform/resolvers@7.0.6'
+  - '@turbo/darwin-64@2.11.11'
+  - '@turbo/darwin-arm64@2.11.11'
+  - '@turbo/linux-64@2.11.11'
+  - '@turbo/linux-arm64@2.11.11'
+  - '@turbo/windows-64@2.11.11'
+  - '@turbo/windows-arm64@2.11.11'
+  - lucide-react@1.72.0
+  - react-hook-form@7.92.0
+  - turbo@2.11.11
