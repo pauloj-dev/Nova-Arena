@@ -1,18 +1,24 @@
 'use client';
 
 import type { OrganizerTournamentDetail } from '@nova/schemas';
-import { Button, Card, Progress, StatusPill, useToast } from '@nova/ui';
-import { ClipboardCopy, Copy, DoorClosed, DoorOpen, FileStack, PencilLine, Trash2, XCircle } from 'lucide-react';
+import { Button, Card, Modal, Progress, StatusPill, useToast } from '@nova/ui';
+import { Archive, ClipboardCopy, Copy, DoorClosed, DoorOpen, FileStack, ImageDown, ListTree, PauseCircle, PencilLine, PlayCircle, Trash2, Trophy, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { errorMessage } from '@/shared/api/client';
+import { Podium } from '@/features/matches/Podium';
+import { usePodium } from '@/shared/api/hooks/competition';
 import { useCloseRegistration, useDuplicateTournament, useOpenRegistration } from '@/shared/api/hooks/organizer';
+import { useArchiveTournament, usePauseTournament, useResumeTournament } from '@/shared/api/hooks/organizer-ops';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { CancelTournamentDialog, DeleteDraftDialog, SaveTemplateDialog } from '../components/TournamentDialogs';
 import { FORMAT_INFO } from '../lib/formats';
 import { describeQualification } from '../lib/labels';
 import { isReadOnly, lifecycleActions, statusExplanation } from '../lib/status';
+import { Confetti } from '../operation/Confetti';
+import { FinishDialog } from '../operation/FinishDialog';
+import { ReasonDialog } from '../operation/ReasonDialog';
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -26,13 +32,27 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 const dateOr = (iso: string | null, fallback: string) => (iso ? formatDateTime(iso) : <span className="text-muted">{fallback}</span>);
 
 /** Aba Resumo: estado, datas, vagas, link público e as ações do ciclo de vida que valem para o estado atual. */
-export function SummaryTab({ tournament: t }: { tournament: OrganizerTournamentDetail }) {
+export interface SummaryTabProps {
+  tournament: OrganizerTournamentDetail;
+  onGoToStages?: () => void;
+  /** Chamado quando o campeonato é encerrado por esta tela. */
+  onFinished?: () => void;
+  /** Acabou de ser encerrado nesta sessão: solta o confete. */
+  celebrate?: boolean;
+}
+
+export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate = false }: SummaryTabProps) {
   const router = useRouter();
   const { success, error } = useToast();
   const open = useOpenRegistration();
   const close = useCloseRegistration();
   const duplicate = useDuplicateTournament();
-  const [dialog, setDialog] = useState<'cancel' | 'delete' | 'template' | null>(null);
+  const pause = usePauseTournament();
+  const resume = useResumeTournament();
+  const archive = useArchiveTournament();
+  const finished = t.status === 'FINISHED' || t.status === 'ARCHIVED';
+  const podium = usePodium(finished ? t.id : undefined);
+  const [dialog, setDialog] = useState<'cancel' | 'delete' | 'template' | 'pause' | 'resume' | 'finish' | 'archive' | null>(null);
 
   const isDraft = t.status === 'DRAFT';
   const isModerator = t.access === 'MODERATOR';
@@ -60,6 +80,11 @@ export function SummaryTab({ tournament: t }: { tournament: OrganizerTournamentD
             <StatusPill status={t.status} />
           </div>
           <p className="text-sm text-text">{statusExplanation(t.status)}</p>
+          {t.status === 'PAUSED' && t.pauseReason && (
+            <p className="rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-soft-text" data-testid="pause-reason">
+              <strong>Motivo da pausa:</strong> {t.pauseReason}
+            </p>
+          )}
           {t.cancelReason && (
             <p className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger-soft-text">
               <strong>Motivo do cancelamento:</strong> {t.cancelReason}
@@ -92,6 +117,31 @@ export function SummaryTab({ tournament: t }: { tournament: OrganizerTournamentD
                   onClick={() => close.mutate({ id: t.id }, { onSuccess: () => success('Inscrições encerradas'), onError: (e) => error('Não foi possível encerrar as inscrições', errorMessage(e)) })}
                 >
                   Encerrar inscrições
+                </Button>
+              )}
+              {actions.includes('start') && (
+                <Button iconLeft={<ListTree className="size-4" aria-hidden />} onClick={onGoToStages}>
+                  Gerar a chave da primeira fase
+                </Button>
+              )}
+              {actions.includes('resume') && (
+                <Button iconLeft={<PlayCircle className="size-4" aria-hidden />} onClick={() => setDialog('resume')}>
+                  Retomar campeonato
+                </Button>
+              )}
+              {actions.includes('finish') && (
+                <Button variant="gold" iconLeft={<Trophy className="size-4" aria-hidden />} onClick={() => setDialog('finish')}>
+                  Encerrar campeonato
+                </Button>
+              )}
+              {actions.includes('pause') && (
+                <Button variant="secondary" iconLeft={<PauseCircle className="size-4" aria-hidden />} onClick={() => setDialog('pause')}>
+                  Pausar campeonato
+                </Button>
+              )}
+              {actions.includes('archive') && (
+                <Button variant="secondary" iconLeft={<Archive className="size-4" aria-hidden />} onClick={() => setDialog('archive')}>
+                  Arquivar
                 </Button>
               )}
               {!isDraft && !isReadOnly(t.status) && (
@@ -139,6 +189,21 @@ export function SummaryTab({ tournament: t }: { tournament: OrganizerTournamentD
             </div>
           )}
         </Card>
+
+        {finished && podium.data && (
+          <Card className="flex flex-col gap-4" data-testid="closing-card">
+            {celebrate && <Confetti />}
+            <Podium podium={podium.data} />
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="secondary">
+                <Link href={`/c/${t.slug}/arte`}>
+                  <ImageDown className="size-4" aria-hidden />
+                  Arte de resultado e certificados
+                </Link>
+              </Button>
+            </div>
+          </Card>
+        )}
 
         <Card className="flex flex-col gap-3">
           <h2 className="text-lg">Datas</h2>
@@ -207,6 +272,81 @@ export function SummaryTab({ tournament: t }: { tournament: OrganizerTournamentD
         </Card>
       </div>
 
+      <ReasonDialog
+        open={dialog === 'pause'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title="Pausar o campeonato?"
+        description="Enquanto estiver pausado ninguém lança resultado. Os inscritos são avisados com o motivo."
+        label="Motivo da pausa"
+        confirmLabel="Pausar campeonato"
+        loading={pause.isPending}
+        onConfirm={(reason) =>
+          pause.mutate(
+            { id: t.id, reason },
+            {
+              onSuccess: () => {
+                success('Campeonato pausado', 'Os inscritos foram avisados.');
+                setDialog(null);
+              },
+              onError: (e) => error('Não foi possível pausar', errorMessage(e)),
+            },
+          )
+        }
+      />
+      <ReasonDialog
+        open={dialog === 'resume'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title="Retomar o campeonato?"
+        description="O campeonato volta a ficar em andamento e os resultados podem ser lançados de novo."
+        label="Recado para os inscritos (opcional)"
+        required={false}
+        confirmLabel="Retomar campeonato"
+        loading={resume.isPending}
+        onConfirm={(reason) =>
+          resume.mutate(
+            { id: t.id, ...(reason ? { reason } : {}) },
+            {
+              onSuccess: () => {
+                success('Campeonato retomado', 'Os inscritos foram avisados.');
+                setDialog(null);
+              },
+              onError: (e) => error('Não foi possível retomar', errorMessage(e)),
+            },
+          )
+        }
+      />
+      <Modal
+        open={dialog === 'archive'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        size="sm"
+        title="Arquivar o campeonato?"
+        description="Ele sai da vitrine e fica só para consulta, com o pódio e os resultados. Não dá para desarquivar."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDialog(null)}>
+              Voltar
+            </Button>
+            <Button
+              loading={archive.isPending}
+              onClick={() =>
+                archive.mutate(
+                  { id: t.id },
+                  {
+                    onSuccess: () => {
+                      success('Campeonato arquivado');
+                      setDialog(null);
+                    },
+                    onError: (e) => error('Não foi possível arquivar', errorMessage(e)),
+                  },
+                )
+              }
+            >
+              Arquivar campeonato
+            </Button>
+          </>
+        }
+      />
+      <FinishDialog tournament={t} open={dialog === 'finish'} onOpenChange={(o) => !o && setDialog(null)} onFinished={onFinished} />
       <CancelTournamentDialog tournament={t} open={dialog === 'cancel'} onOpenChange={(o) => !o && setDialog(null)} />
       <DeleteDraftDialog tournament={t} open={dialog === 'delete'} onOpenChange={(o) => !o && setDialog(null)} onDone={() => router.push('/organizador/campeonatos')} />
       <SaveTemplateDialog tournament={t} open={dialog === 'template'} onOpenChange={(o) => !o && setDialog(null)} />

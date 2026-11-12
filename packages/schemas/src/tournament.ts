@@ -275,6 +275,8 @@ export const OrganizerTournamentDetail = Tournament.extend({
   pendingApprovals: z.number().int(),
   /** Motivo informado no cancelamento, quando houver. */
   cancelReason: z.string().nullable(),
+  /** Motivo da pausa em vigor (F2.3). Ausente ou nulo quando o campeonato não está pausado. */
+  pauseReason: z.string().nullable().optional(),
 });
 export type OrganizerTournamentDetail = z.infer<typeof OrganizerTournamentDetail>;
 
@@ -296,3 +298,23 @@ export type SaveTemplateInput = z.infer<typeof SaveTemplateInput>;
 /** Modelo de pontuação personalizado de um organizador, criado dentro de uma fase. */
 export const CustomScoringModelInput = ScoringModelInput.omit({ isDefault: true }).extend({ gameId: Id });
 export type CustomScoringModelInput = z.infer<typeof CustomScoringModelInput>;
+
+// ── Operação do campeonato (F2.3) ────────────────────────────────────
+/** Convite para a equipe do evento: por apelido, como co-organizador ou moderador (ORG-10). */
+export const StaffInput = z.object({ nickname: z.string().trim().min(1, 'Informe o apelido de quem vai entrar na equipe').max(40), role: StaffRole });
+export type StaffInput = z.infer<typeof StaffInput>;
+export const StaffRoleInput = z.object({ role: StaffRole });
+export type StaffRoleInput = z.infer<typeof StaffRoleInput>;
+export type StaffRole = z.infer<typeof StaffRole>;
+
+export type AnnouncementInput = z.infer<typeof AnnouncementInput>;
+
+/** Pausar exige motivo (os inscritos são avisados); retomar aceita um recado opcional. */
+export const PauseTournamentInput = z.object({ reason: z.string().trim().min(3, 'Informe o motivo da pausa').max(500) });
+export type PauseTournamentInput = z.infer<typeof PauseTournamentInput>;
+export const ResumeTournamentInput = z.object({ reason: z.string().trim().max(500).optional() });
+export type ResumeTournamentInput = z.infer<typeof ResumeTournamentInput>;
+
+/** Troca do modelo de pontuação de uma fase (RN-02: em fase em andamento, recalcula a fase inteira). */
+export const StageScoringInput = z.object({ scoringModelId: Id });
+export type StageScoringInput = z.infer<typeof StageScoringInput>;

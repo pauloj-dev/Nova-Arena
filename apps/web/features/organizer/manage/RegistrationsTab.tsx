@@ -13,6 +13,7 @@ import { useTournamentRegistrations } from '@/shared/api/hooks/tournaments';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { confirmedMembers, registrationKind } from '../lib/csv';
 import { downloadFile } from '../lib/download';
+import { WithdrawDialog } from '../operation/WithdrawDialog';
 import { ImportCsvDialog } from './ImportCsvDialog';
 
 type Filter = 'all' | 'confirmed' | 'pending' | 'waitlist' | 'out';
@@ -30,13 +31,13 @@ const STARTED = ['IN_PROGRESS', 'PAUSED'];
 const ReasonInput = z.object({ reason: z.string().trim().min(3, 'Informe o motivo (pelo menos 3 letras)').max(300, 'Use no máximo 300 caracteres') });
 type ReasonForm = z.infer<typeof ReasonInput>;
 
-type Action = { kind: 'reject' | 'remove' | 'replace'; registration: Registration } | null;
+type Action = { kind: 'reject' | 'remove' | 'replace' | 'withdraw'; registration: Registration } | null;
 
-function ReasonDialog({ action, started, loading, onClose, onSubmit }: { action: Exclude<Action, null>; started: boolean; loading: boolean; onClose: () => void; onSubmit: (reason: string) => void }) {
+function ReasonDialog({ action, loading, onClose, onSubmit }: { action: Exclude<Action, null>; loading: boolean; onClose: () => void; onSubmit: (reason: string) => void }) {
   const form = useForm<ReasonForm>({ resolver: zodResolver(ReasonInput), defaultValues: { reason: '' } });
   const name = action.registration.displayName;
   const isReject = action.kind === 'reject';
-  const verb = isReject ? 'Recusar' : started ? 'Desclassificar' : 'Remover';
+  const verb = isReject ? 'Recusar' : 'Remover';
   return (
     <Modal
       open
@@ -45,9 +46,7 @@ function ReasonDialog({ action, started, loading, onClose, onSubmit }: { action:
       description={
         isReject
           ? 'A inscrição é recusada e a pessoa fica sabendo o motivo.'
-          : started
-            ? 'Com o campeonato em andamento, a saída é uma desclassificação e a vaga não é reposta.'
-            : 'A vaga é liberada e, se houver lista de espera, o primeiro da fila assume.'
+          : 'A vaga é liberada e, se houver lista de espera, o primeiro da fila assume.'
       }
       footer={
         <>
@@ -233,10 +232,18 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
         </Button>,
       );
     }
-    if (!isModerator && (beforeStart || started) && (r.status === 'CONFIRMED' || r.status === 'PENDING_MEMBERS' || r.status === 'WAITLIST')) {
+    if (!isModerator && beforeStart && (r.status === 'CONFIRMED' || r.status === 'PENDING_MEMBERS' || r.status === 'WAITLIST')) {
       buttons.push(
-        <Button key="remove" size="sm" variant="ghost" iconLeft={<UserMinus className="size-4" aria-hidden />} aria-label={`${started ? 'Desclassificar' : 'Remover'} ${r.displayName}`} onClick={() => setAction({ kind: 'remove', registration: r })}>
-          {started ? 'Desclassificar' : 'Remover'}
+        <Button key="remove" size="sm" variant="ghost" iconLeft={<UserMinus className="size-4" aria-hidden />} aria-label={`Remover ${r.displayName}`} onClick={() => setAction({ kind: 'remove', registration: r })}>
+          Remover
+        </Button>,
+      );
+    }
+    // Com o campeonato em andamento a saída é desistência ou desclassificação, com motivo (RN-06). Moderador não desclassifica.
+    if (!isModerator && started && r.status === 'CONFIRMED') {
+      buttons.push(
+        <Button key="withdraw" size="sm" variant="ghost" iconLeft={<UserMinus className="size-4" aria-hidden />} aria-label={`Desclassificar ou registrar desistência de ${r.displayName}`} onClick={() => setAction({ kind: 'withdraw', registration: r })}>
+          Desclassificar
         </Button>,
       );
     }
@@ -289,6 +296,12 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
         </div>
       </div>
 
+      {started && !isModerator && (
+        <p className="rounded-md bg-info-soft px-3 py-2 text-sm text-info-soft-text" data-testid="started-note">
+          Com a fase em andamento não dá mais para substituir nem remover inscritos: a substituição vale até a chave ser confirmada. Para tirar alguém, registre a desistência ou desclassifique, com motivo.
+        </p>
+      )}
+
       <DataTable
         caption={`Inscrições de ${t.name}`}
         columns={columns}
@@ -336,15 +349,14 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
         </Card>
       )}
 
-      {action && action.kind !== 'replace' && (
+      {action && (action.kind === 'reject' || action.kind === 'remove') && (
         <ReasonDialog
           key={`${action.kind}-${action.registration.id}`}
           action={action}
-          started={started}
           loading={review.isPending}
           onClose={() => setAction(null)}
           onSubmit={(reason) =>
-            run(action.registration, { action: action.kind === 'reject' ? 'reject' : 'remove', reason }, action.kind === 'reject' ? `Inscrição de ${action.registration.displayName} recusada` : `${action.registration.displayName} ${started ? 'desclassificado' : 'removido'}`)
+            run(action.registration, { action: action.kind === 'reject' ? 'reject' : 'remove', reason }, action.kind === 'reject' ? `Inscrição de ${action.registration.displayName} recusada` : `${action.registration.displayName} removido`)
           }
         />
       )}
@@ -358,6 +370,7 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
           onSubmit={(withRegistrationId) => run(action.registration, { action: 'replace', withRegistrationId }, `${action.registration.displayName} foi substituído`)}
         />
       )}
+      {action?.kind === 'withdraw' && <WithdrawDialog key={action.registration.id} tournament={t} registration={action.registration} onClose={() => setAction(null)} />}
       <ImportCsvDialog tournamentId={t.id} isTeam={isTeam} open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );

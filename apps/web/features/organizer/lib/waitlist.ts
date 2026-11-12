@@ -1,12 +1,14 @@
 /**
- * RN-12 — promoção da lista de espera. Função pura: recebe as inscrições do campeonato e devolve
- * o que mudar. É usada na gestão de inscrições do organizador (recusar, remover) e serve também
- * para o cancelamento feito pelo próprio participante.
+ * RN-12 — promoção da lista de espera na gestão de inscrições do organizador.
+ *
+ * A regra em si mora em `features/registrations/lib/rules.ts` (`planPromotions`): é a mesma
+ * usada quando o próprio participante cancela. Este arquivo é só o adaptador que transforma
+ * as inscrições do campeonato na entrada daquela função.
  */
 import { SLOT_HOLDING_STATUSES, type RegistrationStatus } from '@nova/schemas';
+import { planPromotions, type Promotion, type WaitlistEntry } from '@/features/registrations/lib/rules';
 
-/** Horas que a vaga fica reservada para o squad promovido incompleto. */
-export const RESERVATION_HOURS = 24;
+export type { Promotion };
 
 export interface WaitlistRegistration {
   id: string;
@@ -27,38 +29,35 @@ export interface WaitlistContext {
   now: Date;
 }
 
-export interface Promotion {
-  id: string;
-  status: Extract<RegistrationStatus, 'CONFIRMED' | 'PENDING_APPROVAL' | 'PENDING_MEMBERS'>;
-  /** Preenchido só para squad incompleto: até quando a vaga fica guardada. */
-  reservedUntil: string | null;
-}
-
 /** Lista de espera na ordem de entrada. */
 export function waitlistInOrder<T extends Pick<WaitlistRegistration, 'status' | 'createdAt' | 'id'>>(registrations: T[]): T[] {
   return registrations.filter((r) => r.status === 'WAITLIST').sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
 }
 
-/** Status com que alguém da lista de espera assume a vaga. */
-export function promotedStatus(r: Pick<WaitlistRegistration, 'isTeam' | 'confirmedMembers'>, ctx: Pick<WaitlistContext, 'manualApproval' | 'requiredMembers' | 'registrationClosesAt' | 'now'>): Omit<Promotion, 'id'> {
-  if (r.isTeam && r.confirmedMembers < ctx.requiredMembers) {
-    const in24h = ctx.now.getTime() + RESERVATION_HOURS * 3600_000;
-    const closes = ctx.registrationClosesAt ? new Date(ctx.registrationClosesAt).getTime() : Number.POSITIVE_INFINITY;
-    // Prazo já vencido não encurta a reserva: valem as 24 horas.
-    const until = closes > ctx.now.getTime() ? Math.min(in24h, closes) : in24h;
-    return { status: 'PENDING_MEMBERS', reservedUntil: new Date(until).toISOString() };
-  }
-  return { status: ctx.manualApproval ? 'PENDING_APPROVAL' : 'CONFIRMED', reservedUntil: null };
+function toEntry(r: WaitlistRegistration, requiredMembers: number): WaitlistEntry {
+  return { id: r.id, createdAt: r.createdAt, isTeam: r.isTeam, confirmedMembers: r.confirmedMembers, requiredMembers };
 }
 
 /**
- * Preenche as vagas livres com os primeiros da lista de espera, na ordem de entrada.
- * Não muda nada quando não há vaga livre ou a lista está vazia.
+ * Preenche as vagas livres com a lista de espera, na ordem de entrada. Squad incompleto sobe
+ * "aguardando membros" com a vaga reservada por 24 h ou até o fechamento das inscrições; depois
+ * do fechamento ele é pulado e a vaga vai para o próximo.
  */
 export function promoteFromWaitlist(registrations: WaitlistRegistration[], ctx: WaitlistContext): Promotion[] {
   const taken = registrations.filter((r) => SLOT_HOLDING_STATUSES.includes(r.status)).length;
-  const free = Math.max(0, ctx.maxParticipants - taken);
-  return waitlistInOrder(registrations)
-    .slice(0, free)
-    .map((r) => ({ id: r.id, ...promotedStatus(r, ctx) }));
+  return planPromotions({
+    freeSlots: Math.max(0, ctx.maxParticipants - taken),
+    waitlist: waitlistInOrder(registrations).map((r) => toEntry(r, ctx.requiredMembers)),
+    manualApproval: ctx.manualApproval,
+    registrationClosesAt: ctx.registrationClosesAt,
+    now: ctx.now,
+  });
+}
+
+/**
+ * Como uma inscrição específica da lista de espera assumiria uma vaga (substituição feita pela
+ * organização). Nulo quando ela não pode assumir: squad incompleto com as inscrições já fechadas.
+ */
+export function promotionFor(r: WaitlistRegistration, ctx: Omit<WaitlistContext, 'maxParticipants'>): Promotion | null {
+  return planPromotions({ freeSlots: 1, waitlist: [toEntry(r, ctx.requiredMembers)], manualApproval: ctx.manualApproval, registrationClosesAt: ctx.registrationClosesAt, now: ctx.now })[0] ?? null;
 }

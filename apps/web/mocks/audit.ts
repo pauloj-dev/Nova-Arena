@@ -61,6 +61,7 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   SETTINGS_CHANGED: 'Configurações alteradas',
   FLAG_CHANGED: 'Recurso ligado ou desligado',
   ANNOUNCEMENT_SENT: 'Comunicado enviado',
+  ANNOUNCEMENT_DELETED: 'Comunicado apagado',
   TWO_FACTOR_CHANGED: 'Verificação em duas etapas alterada',
 };
 

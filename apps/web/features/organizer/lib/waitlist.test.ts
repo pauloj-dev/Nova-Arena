@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { promoteFromWaitlist, waitlistInOrder, type WaitlistContext, type WaitlistRegistration } from './waitlist';
+import { promoteFromWaitlist, promotionFor, waitlistInOrder, type WaitlistContext, type WaitlistRegistration } from './waitlist';
 
 const now = new Date('2026-11-12T12:00:00.000Z');
 const ctx = (patch: Partial<WaitlistContext> = {}): WaitlistContext => ({ maxParticipants: 2, manualApproval: false, requiredMembers: 1, registrationClosesAt: '2026-11-20T12:00:00.000Z', now, ...patch });
@@ -41,6 +41,23 @@ describe('RN-12 — promoção da lista de espera', () => {
     const squad = reg('c', 'WAITLIST', 3, { isTeam: true, confirmedMembers: 2 });
     const result = promoteFromWaitlist([squad], ctx({ requiredMembers: 4, registrationClosesAt: '2026-11-12T18:00:00.000Z' }));
     expect(result[0]?.reservedUntil).toBe('2026-11-12T18:00:00.000Z');
+  });
+
+  it('depois do fechamento das inscrições, o squad incompleto é pulado e a vaga vai para o próximo', () => {
+    const closed = ctx({ requiredMembers: 4, registrationClosesAt: '2026-11-12T11:00:00.000Z' });
+    const incomplete = reg('c', 'WAITLIST', 3, { isTeam: true, confirmedMembers: 2 });
+    const complete = reg('d', 'WAITLIST', 4, { isTeam: true, confirmedMembers: 4 });
+    expect(promoteFromWaitlist([reg('a', 'CONFIRMED', 0), incomplete, complete], closed)).toEqual([{ id: 'd', status: 'CONFIRMED', reservedUntil: null }]);
+    // Sozinho na fila, ele continua esperando: ninguém é promovido.
+    expect(promoteFromWaitlist([reg('a', 'CONFIRMED', 0), incomplete], closed)).toEqual([]);
+  });
+
+  it('substituição escolhida pela organização segue a mesma regra', () => {
+    const squad = reg('c', 'WAITLIST', 3, { isTeam: true, confirmedMembers: 2 });
+    const open = ctx({ requiredMembers: 4 });
+    expect(promotionFor(squad, open)).toEqual({ id: 'c', status: 'PENDING_MEMBERS', reservedUntil: '2026-11-13T12:00:00.000Z' });
+    expect(promotionFor(squad, { ...open, registrationClosesAt: '2026-11-12T11:00:00.000Z' })).toBeNull();
+    expect(promotionFor(reg('s', 'WAITLIST', 4), { ...open, manualApproval: true })).toEqual({ id: 's', status: 'PENDING_APPROVAL', reservedUntil: null });
   });
 
   it('squad completo e inscrição importada (sem conta) entram confirmados', () => {
