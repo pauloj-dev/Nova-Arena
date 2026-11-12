@@ -63,7 +63,7 @@ function ensureDemoSeed(): void {
   DEMO.forEach((n, i) => {
     if (!known.has(n.userId)) return;
     const createdAt = new Date(now - n.ago).toISOString();
-    list.push({ id: `n_demo_${i + 1}`, userId: n.userId, type: n.type, title: n.title, body: n.body, link: n.link, readAt: n.read ? new Date(now - n.ago + 5 * MIN).toISOString() : null, emailQueued: false, createdAt });
+    list.push({ id: `n_demo_${i + 1}`, userId: n.userId, type: n.type, title: n.title, body: n.body, link: n.link, readAt: n.read ? new Date(now - n.ago + 5 * MIN).toISOString() : null, inApp: true, emailQueued: false, createdAt });
   });
   marks.push({ key: DEMO_MARK, at: nowIso() });
   save();
@@ -80,6 +80,8 @@ function toNotification(n: DbNotification): Notification {
  * e é por isso que dá para reconhecê-los aqui — uma leitura de verdade sempre acontece depois da criação.
  */
 function isEmailOnly(n: DbNotification): boolean {
+  // Registros novos trazem `inApp`; os antigos (sem o campo) são reconhecidos por terem nascido lidos.
+  if (typeof n.inApp === 'boolean') return !n.inApp;
   return n.readAt !== null && n.readAt <= n.createdAt;
 }
 

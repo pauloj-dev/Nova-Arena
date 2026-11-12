@@ -43,7 +43,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={push}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 top-3 z-[60] flex flex-col items-center gap-2 px-4 md:top-auto md:bottom-6 md:items-end md:pr-6" aria-live="polite" role="status">
+      <div className="pointer-events-none fixed inset-x-0 top-3 z-[60] flex flex-col items-center gap-2 px-4 md:top-auto md:bottom-6 md:items-end md:pr-6" aria-live="polite" role="status" data-toast-region>
         {items.map((t) => {
           const tone = t.tone ?? 'info';
           const Icon = toneIcon[tone];

@@ -34,6 +34,11 @@ function useReturnFocus() {
       event.preventDefault();
       opener.current.focus();
     },
+    // Fechar um aviso (toast) não é "clicar fora": o modal continua aberto e ninguém perde o que digitou.
+    onInteractOutside: (event: Event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('[data-toast-region]')) event.preventDefault();
+    },
   };
 }
 

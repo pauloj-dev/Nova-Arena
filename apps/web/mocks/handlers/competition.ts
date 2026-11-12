@@ -83,6 +83,7 @@ import {
   url,
 } from '../http';
 import { notify } from '../notify';
+import { followersOf } from './notifications';
 import { toRegistration } from '../views';
 
 export const moduleName = 'competition';
@@ -380,7 +381,8 @@ export const handlers = [
       tournament.updatedAt = nowIso();
       save();
       audit(user, { action: 'BRACKET_CONFIRMED', entityType: 'Stage', entityId: stageId, entityLabel: `${tournament.name} · ${stage.name}`, tournamentId: tournament.id, after: { seed: run.structure.seedUsed } });
-      const users = run.structure.entrants.flatMap((e) => usersOfRegistration(e.id));
+      // Quem segue o campeonato também é avisado do início e de cada nova fase (RN-15).
+      const users = [...run.structure.entrants.flatMap((e) => usersOfRegistration(e.id)), ...followersOf('TOURNAMENT', tournament.id)];
       notify(users, 'QUALIFIED', prev ? `Você está na fase "${stage.name}"` : 'A chave saiu!', `${tournament.name}: confira seus confrontos.`, `/c/${tournament.slug}?aba=chave`);
       publishStage(tournament, stageId);
       publish(`tournament:${tournament.id}`, { type: 'tournament.updated', tournamentId: tournament.id });
@@ -793,7 +795,7 @@ export const handlers = [
       save();
       const podium = toPodium(record);
       audit(user, { action: 'TOURNAMENT_STATUS_CHANGED', entityType: 'Tournament', entityId: tournament.id, entityLabel: tournament.name, tournamentId: tournament.id, before: { status: 'IN_PROGRESS' }, after: { status: 'FINISHED', podio: podium.places.map((p) => `${p.place}º ${p.name}`) } });
-      const everyone = db().registrations.filter((r) => r.tournamentId === tournament.id && r.status === 'CONFIRMED').flatMap((r) => usersOfRegistration(r.id));
+      const everyone = [...db().registrations.filter((r) => r.tournamentId === tournament.id && r.status === 'CONFIRMED').flatMap((r) => usersOfRegistration(r.id)), ...followersOf('TOURNAMENT', tournament.id)];
       notify(everyone, 'ELIMINATED', `${tournament.name} terminou`, `Campeão: ${podium.places[0]?.name ?? '—'}. Veja o resultado final.`, `/c/${tournament.slug}`);
       publish(`tournament:${tournament.id}`, { type: 'tournament.updated', tournamentId: tournament.id });
       return json(podium);

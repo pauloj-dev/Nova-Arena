@@ -55,6 +55,8 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   ENTRANT_WITHDRAWN: 'Desistência registrada',
   ENTRANT_DISQUALIFIED: 'Participante desclassificado',
   DISPUTE_RESOLVED: 'Disputa resolvida',
+  DISPUTE_ESCALATED: 'Disputa escalada para a administração',
+  SUBMISSION_REJECTED: 'Resultado enviado recusado',
   REPORT_HANDLED: 'Denúncia tratada',
   SETTINGS_CHANGED: 'Configurações alteradas',
   FLAG_CHANGED: 'Recurso ligado ou desligado',

@@ -501,6 +501,7 @@ export const handlers: HttpHandler[] = [
         s.status = 'REJECTED';
         s.rejectReason = input.reason;
         setOverride(s.matchId, null);
+        audit(user, { action: 'SUBMISSION_REJECTED', entityType: 'Match', entityId: s.matchId, entityLabel: `${s.matchLabel} · ${s.tournamentName}`, tournamentId: tournament.id, reason: input.reason });
         notify(usersOfRegistration(s.submittedByRegistrationId), 'RESULT_POSTED', 'Seu envio de resultado foi recusado', `${s.matchLabel} (${s.tournamentName}): ${input.reason}`, matchesLink(tournament));
         publish(`tournament:${tournament.id}`, { type: 'match.updated', matchId: s.matchId, stageId: s.stageId, status: 'SCHEDULED' });
       }
@@ -541,6 +542,7 @@ export const handlers: HttpHandler[] = [
       d.escalatedByUserId = user.id;
       d.messages.push({ id: uid('dm'), authorId: user.id, authorNickname: user.nickname, authorRole: authorRole(user, tournament), body: 'Disputa escalada para a administração da Nova Arena.', evidenceUrls: [], createdAt: at });
       save();
+      audit(user, { action: 'DISPUTE_ESCALATED', entityType: 'Dispute', entityId: d.id, entityLabel: `${d.matchLabel} · ${d.tournamentName}`, tournamentId: tournament.id });
       notify(involvedUsers(d.registrationIds), 'DISPUTE_UPDATE', 'Disputa escalada para a administração', `A organização passou a decisão sobre ${d.matchLabel} (${d.tournamentName}) para a administração da Nova Arena.`, disputeLink(d.id));
       notify(
         adminUserIds().filter((id) => id !== user.id),
