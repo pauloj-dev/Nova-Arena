@@ -9,6 +9,7 @@ import { errorMessage } from '@/shared/api/client';
 import { useConfirmSubmission, useMatchSubmission, useMyDisputes } from '@/shared/api/hooks/disputes';
 import { useMyRegistration } from '@/shared/api/hooks/registrations';
 import { formatTime } from '@/shared/lib/datetime';
+import { useFlag } from '@/shared/flags/useFlag';
 import { useSession } from '@/shared/session/useSession';
 import { ContestDialog } from './ContestDialog';
 import { EvidenceGallery } from './evidence/EvidenceGallery';
@@ -44,8 +45,10 @@ function Notice({ icon, children }: { icon: ReactNode; children: ReactNode }) {
  */
 export function MatchResultActions({ match }: { match: Match }) {
   const { user } = useSession();
+  // O envio pelo participante pode ser desligado nas configurações do site (flag `resultSubmission`).
+  const enabled = useFlag('resultSubmission');
   const sides = sidesOf(match);
-  const candidate = Boolean(user) && match.kind === 'DUEL' && sides !== null && OPEN_STATUSES.includes(match.status);
+  const candidate = enabled && Boolean(user) && match.kind === 'DUEL' && sides !== null && OPEN_STATUSES.includes(match.status);
   const registration = useMyRegistration(match.tournamentId, { enabled: candidate });
   const mine = registration.data && registration.data.status === 'CONFIRMED' && match.participants.some((p) => p.registrationId === registration.data?.id) ? registration.data : null;
   const plays = candidate && mine !== null;

@@ -27,6 +27,7 @@ import { UNNAMED_TOURNAMENT } from '@/features/organizer/lib/draft';
 import { checkOrganizerLimits, countActiveTournaments, isGameAllowed, type OrganizerForLimits } from '@/features/organizer/lib/limits';
 import { sanitizeTournamentHtml } from '@/features/organizer/lib/sanitize-html';
 import { validateDraft, type DraftForValidation, type DraftIssue } from '@/features/organizer/validation';
+import { audit } from '../audit';
 import { getRun, newRun, putRun, removeRun, toEngineConfig } from '../competition';
 import { collection, db, nowIso, save, uid, uniqueSlug, type DbTemplate, type DbTournament, type DbUser } from '../db';
 import {
@@ -619,6 +620,7 @@ export const handlers = [
         db().announcements.push(notice);
       }
       save();
+      audit(user, { action: 'TOURNAMENT_STATUS_CHANGED', entityType: 'Tournament', entityId: t.id, entityLabel: t.name, tournamentId: t.id, after: { status: 'CANCELLED' }, reason });
       return json(toOrganizerDetail(t, access));
     }),
   ),

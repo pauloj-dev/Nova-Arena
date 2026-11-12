@@ -119,8 +119,9 @@ function UserChannel() {
   useChannel(user ? `user:${user.id}` : null, (event) => {
     if (event.type === 'notification.created') void qc.invalidateQueries({ queryKey: keys.notifications.all });
     if (event.type === 'session.revoked') {
-      qc.clear();
+      // Primeiro a sessão vira "visitante" (quem está na tela redesenha na hora); depois sai todo dado da conta.
       qc.setQueryData(keys.me, null);
+      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' });
     }
   });
   return null;

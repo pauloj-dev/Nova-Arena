@@ -239,7 +239,10 @@ describe('dashboard: indicadores calculados do banco', () => {
     const day = (offset: number) => new Date(Date.now() - offset * DAY).toISOString().slice(0, 10);
     const week = AdminStats.parse((await call('GET', `/admin/stats?from=${day(6)}&to=${day(0)}`)).data);
     expect(week.signups).toHaveLength(7);
-    expect(week.signups.reduce((sum, d) => sum + d.count, 0)).toBe(0);
+    // O seed espalha os cadastros nos últimos 60 dias: a semana pega só os mais recentes.
+    const weekSignups = week.signups.reduce((sum, d) => sum + d.count, 0);
+    expect(weekSignups).toBeGreaterThanOrEqual(5);
+    expect(weekSignups).toBeLessThanOrEqual(7);
     expect(week.validatedMatches.reduce((sum, d) => sum + d.count, 0)).toBe(10);
     const quarter = AdminStats.parse((await call('GET', `/admin/stats?from=${day(89)}&to=${day(0)}`)).data);
     expect(quarter.signups).toHaveLength(90);

@@ -34,6 +34,9 @@ vi.mock('next/link', () => ({
   ),
 }));
 vi.mock('@/shared/session/useSession', () => ({ useSession: () => ({ user: state.user }) }));
+// O envio pelo participante depende da flag `resultSubmission`; aqui ela fica ligada, salvo no teste que a desliga.
+const flags = { resultSubmission: true };
+vi.mock('@/shared/flags/useFlag', () => ({ useFlag: (key: string) => (key === 'resultSubmission' ? flags.resultSubmission : true) }));
 vi.mock('@/shared/api/hooks/registrations', () => ({
   useMyRegistration: (...[, opts]: [string, { enabled?: boolean }]) => {
     state.enabled.registration.push(Boolean(opts.enabled));
@@ -233,6 +236,18 @@ describe('MatchResultActions: enviar resultado', () => {
     view();
     expect(screen.getByRole('button', { name: 'Enviar resultado' })).toBeInTheDocument();
     expect(state.enabled.submission.at(-1)).toBe(true);
+  });
+
+  it('com o envio pelos participantes desligado nas configurações, não mostra nada', () => {
+    asBianca();
+    flags.resultSubmission = false;
+    try {
+      view();
+      expect(slot()).toBeEmptyDOMElement();
+      expect(state.enabled.registration.at(-1)).toBe(false);
+    } finally {
+      flags.resultSubmission = true;
+    }
   });
 
   it('enquanto o envio carrega, não pisca o botão', () => {

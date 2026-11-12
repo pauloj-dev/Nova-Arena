@@ -75,7 +75,8 @@ export function currentUser(): DbUser | null {
   const id = getSessionUserId();
   if (!id) return null;
   const user = db().users.find((u) => u.id === id);
-  if (!user || user.status === 'BANNED' || user.status === 'DELETED' || user.status === 'MERGED') return null;
+  // Banido, suspenso, excluído ou mesclado: a sessão deixa de valer na hora (CT-09).
+  if (!user || user.status !== 'ACTIVE') return null;
   return user;
 }
 export function requireUser(): DbUser {
@@ -95,7 +96,10 @@ export function requireRole(...roles: Role[]): DbUser {
   return user;
 }
 export function requireAdmin(): DbUser {
-  return requireRole('ADMIN', 'SUPER_ADMIN');
+  const user = requireRole('ADMIN', 'SUPER_ADMIN');
+  // A verificação em duas etapas é obrigatória para a área de administração (RNF-08).
+  if (!user.twoFactorEnabled) throw new HttpProblem(403, 'Ative a verificação em duas etapas para usar a administração.', 'TWO_FACTOR_REQUIRED');
+  return user;
 }
 
 export type TournamentAccess = 'OWNER' | 'CO_ORGANIZER' | 'MODERATOR' | 'ADMIN';

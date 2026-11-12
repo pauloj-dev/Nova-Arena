@@ -4,12 +4,14 @@ import { ForgotPasswordInput, LoginInput, RegisterInput, ResetPasswordInput, Ver
 import { db, nowIso, save, setSessionUserId, uid, type DbUser } from '../db';
 import { badRequest, body, conflict, currentUser, handle, HttpProblem, json, noContent, requireUser, url } from '../http';
 import { toMe } from '../views';
+import { isFlagEnabled } from './admin-settings';
 
 export const moduleName = 'auth';
 
 function loginGuard(user: DbUser) {
   if (user.status === 'BANNED') throw new HttpProblem(403, 'Esta conta foi banida.', 'ACCOUNT_BANNED');
   if (user.status === 'SUSPENDED') throw new HttpProblem(403, 'Esta conta está suspensa.', 'ACCOUNT_SUSPENDED');
+  if (user.status === 'MERGED' || user.status === 'DELETED') throw new HttpProblem(401, 'E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
 }
 
 export const handlers = [
@@ -25,6 +27,7 @@ export const handlers = [
   http.post(
     url('/auth/register'),
     handle(async ({ request }) => {
+      if (!isFlagEnabled('publicSignup')) throw new HttpProblem(403, 'O cadastro público está fechado no momento.', 'SIGNUP_CLOSED');
       const input = await body(request, RegisterInput);
       const d = db();
       if (d.users.some((u) => u.email.toLowerCase() === input.email.toLowerCase())) {

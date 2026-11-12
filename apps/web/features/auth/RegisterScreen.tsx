@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { errorMessage } from '@/shared/api/client';
 import { useRegister } from '@/shared/api/hooks/users';
+import { useFlags } from '@/shared/flags/useFlag';
 import { AuthHeader, FormAlert, textLink } from './AuthParts';
 import { useDevMailbox } from './devMailbox';
 import { applyFieldErrors, hasFieldErrors } from './formErrors';
@@ -27,6 +28,7 @@ export function RegisterScreen() {
   const router = useRouter();
   const next = safeNext(useSearchParams().get('next'));
   const signUp = useRegister();
+  const flags = useFlags();
   const setVerifyToken = useDevMailbox((s) => s.setVerifyToken);
   const {
     register,
@@ -54,6 +56,18 @@ export function RegisterScreen() {
         applyFieldErrors(e, setError, FIELDS);
       },
     });
+  }
+
+  // O cadastro público pode ser fechado nas configurações do site (flag `publicSignup`), por exemplo durante o beta.
+  if (!flags.isLoading && !flags.flags.publicSignup) {
+    return (
+      <div className="flex flex-col gap-5">
+        <AuthHeader title="Cadastro fechado no momento" description="A Nova Arena está recebendo novas contas só por convite. Se você já tem conta, é só entrar." />
+        <Button asChild fullWidth>
+          <Link href={withNext('/entrar', next)}>Entrar</Link>
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -92,7 +106,18 @@ export function RegisterScreen() {
             name="acceptTerms"
             render={({ field }) => (
               <Checkbox
-                label="Li e aceito os Termos de Uso e a Política de Privacidade"
+                label={
+                  <>
+                    Li e aceito os{' '}
+                    <Link href="/termos" target="_blank" className="font-semibold text-primary-text underline">
+                      Termos de Uso
+                    </Link>{' '}
+                    e a{' '}
+                    <Link href="/privacidade" target="_blank" className="font-semibold text-primary-text underline">
+                      Política de Privacidade
+                    </Link>
+                  </>
+                }
                 hint="Usamos seus dados só para a sua conta e os campeonatos em que você entrar."
                 checked={field.value === true}
                 onCheckedChange={(checked) => field.onChange(checked)}

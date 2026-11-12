@@ -259,7 +259,7 @@ export function buildSeed(): Db {
   for (let i = 1; i <= 60; i += 1) {
     const first = FIRST[(i - 1) % FIRST.length] ?? 'Player';
     const nickname = `${first}${SUFFIX[i % SUFFIX.length] ?? ''}${i}`;
-    users.push(user(`u_p${String(i).padStart(2, '0')}`, nickname, `jogador${i}@exemplo.com`, base, { state: UF[i % UF.length] ?? 'SP', gameAccounts: gameAccounts(i, base) }));
+    users.push(user(`u_p${String(i).padStart(2, '0')}`, nickname, `jogador${i}@exemplo.com`, base, { state: UF[i % UF.length] ?? 'SP', gameAccounts: gameAccounts(i, base), createdAt: at(base, -(61 - i) * DAY) }));
   }
   const p = (i: number) => `u_p${String(i).padStart(2, '0')}`;
 

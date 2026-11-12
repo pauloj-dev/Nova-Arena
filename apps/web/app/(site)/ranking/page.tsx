@@ -3,6 +3,7 @@
 import { Skeleton } from '@nova/ui';
 import { Suspense } from 'react';
 import { RankingPage } from '@/features/games/RankingPage';
+import { FlagGate } from '@/shared/flags/FlagGate';
 
 function Fallback() {
   return (
@@ -17,8 +18,10 @@ function Fallback() {
 export default function RankingRoute() {
   // O jogo escolhido fica em `?jogo=`: `useSearchParams` exige um limite de Suspense (Next.js 16).
   return (
-    <Suspense fallback={<Fallback />}>
-      <RankingPage />
-    </Suspense>
+    <FlagGate flag="ranking">
+      <Suspense fallback={<Fallback />}>
+        <RankingPage />
+      </Suspense>
+    </FlagGate>
   );
 }

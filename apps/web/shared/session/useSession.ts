@@ -35,8 +35,8 @@ export function isOrganizerUser(user: Pick<Me, 'roles'> | null | undefined): boo
 function useResetOnSessionChange() {
   const qc = useQueryClient();
   return (me: Me | null) => {
-    qc.clear();
     qc.setQueryData(keys.me, me);
+    qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' });
   };
 }
 

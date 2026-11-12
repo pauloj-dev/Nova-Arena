@@ -24,6 +24,7 @@ import {
 } from '@nova/schemas';
 import type { z } from 'zod';
 import { audit } from '../audit';
+import { isFlagEnabled } from './admin-settings';
 import { publish } from '../bus';
 import { findStage, getMeta, getRun, registrationOfUser, splitMatchId, usersOfRegistration, type DbStageRun } from '../competition';
 import { collection, db, nowIso, save, uid, type DbRegistration, type DbTournament, type DbUser } from '../db';
@@ -315,6 +316,7 @@ export const handlers: HttpHandler[] = [
     url('/matches/:id/submissions'),
     handle(async ({ params, request }) => {
       const user = requireUser();
+      if (!isFlagEnabled('resultSubmission')) throw forbidden('O envio de resultado pelos participantes está desligado. A organização lança os resultados.');
       const ctx = matchContext(param(params, 'id'));
       const { tournament, node } = ctx;
       const mine = registrationOfUser(tournament.id, user.id);

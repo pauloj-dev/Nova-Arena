@@ -62,6 +62,9 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   FLAG_CHANGED: 'Recurso ligado ou desligado',
   ANNOUNCEMENT_SENT: 'Comunicado enviado',
   ANNOUNCEMENT_DELETED: 'Comunicado apagado',
+  ANNOUNCEMENT_TOGGLED: 'Comunicado ativado ou desativado',
+  ADMIN_REMOVAL_REQUESTED: 'Remoção de administrador solicitada',
+  ADMIN_REMOVAL_REVIEWED: 'Remoção de administrador analisada',
   TWO_FACTOR_CHANGED: 'Verificação em duas etapas alterada',
 };
 

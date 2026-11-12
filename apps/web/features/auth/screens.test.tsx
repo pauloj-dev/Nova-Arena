@@ -12,6 +12,9 @@ const login = { mutate: vi.fn(), isPending: false, isError: false, error: null a
 const devLogin = { mutate: vi.fn(), isPending: false };
 const signUp = { mutate: vi.fn(), isPending: false, isError: false, error: null as unknown };
 
+// O cadastro depende da flag `publicSignup`; nos testes de formulário ela fica ligada.
+const signupFlags = { publicSignup: true };
+vi.mock('@/shared/flags/useFlag', () => ({ useFlags: () => ({ flags: signupFlags, isLoading: false }) }));
 vi.mock('next/navigation', () => ({
   useRouter: () => router,
   useSearchParams: () => new URLSearchParams(search),
@@ -112,6 +115,18 @@ describe('RegisterScreen', () => {
     await user.type(screen.getByLabelText('Senha'), 'arena1234');
     await user.type(screen.getByLabelText('Data de nascimento'), birthDate);
   }
+
+  it('com o cadastro público fechado, explica e oferece entrar, sem formulário', () => {
+    signupFlags.publicSignup = false;
+    try {
+      renderScreen(<RegisterScreen />);
+      expect(screen.getByRole('heading', { name: 'Cadastro fechado no momento' })).toBeInTheDocument();
+      expect(screen.queryByLabelText('Apelido')).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Entrar' })).toBeInTheDocument();
+    } finally {
+      signupFlags.publicSignup = true;
+    }
+  });
 
   it('mostra a força da senha em texto', async () => {
     const user = userEvent.setup();
