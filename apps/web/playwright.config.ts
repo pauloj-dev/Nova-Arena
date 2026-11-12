@@ -8,6 +8,8 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3100';
 
 export default defineConfig({
   testDir: './e2e',
+  // Execuções em paralelo (ex.: duas pessoas, ou CI + local) usam pastas de saída diferentes.
+  outputDir: process.env.PW_OUTPUT_DIR ?? 'test-results',
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,

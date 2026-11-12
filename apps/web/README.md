@@ -58,3 +58,16 @@ Para rodar E2E contra um servidor já no ar: `PLAYWRIGHT_BASE_URL=http://localho
 Para subir uma segunda instância sem conflito de build: `NEXT_DIST_DIR=.next-x pnpm --filter web exec next dev -p 3111`.
 
 Nos testes E2E, importe `test`, `expect`, `loginAs` e `waitForApp` de `./fixtures`. Cada teste começa com o banco simulado limpo (contexto novo do navegador).
+
+## Competição, tempo real e utilidades compartilhadas (F2)
+
+- **Contratos:** `packages/schemas/src/competition.ts` (chave, partidas, classificação, resultados, envios, disputas, uploads, perfil competitivo), `governance.ts` (denúncias, sanções, usuários do Admin, convites, auditoria, estatísticas, configurações, flags, saúde, comunicados, 2FA) e `notification.ts` (notificações e eventos de tempo real).
+- **Hooks de competição:** `shared/api/hooks/competition.ts` — `useBracket`, `useStandings`, `useTournamentMatches`, `useMatch`, `useMatchLobby`, `useCheckIn`, `useGenerateBracket`, `useSwapSeeding`, `useConfirmBracket`, `useAdvancePreview`, `useAdvanceStage`, `useScheduleMatch`, `useScheduleRound`, `useStartMatch`, `useSubmitResult`, `useWalkover`, `useImportResults`, `useWithdraw`, `usePodium`, `useFinishTournament` etc.
+- **API simulada de competição:** `mocks/handlers/competition.ts` sobre `mocks/competition.ts` (usa o motor). O ID da partida é `<stageId>~<nó>`. A chave gerada fica como prévia (`state: 'PREVIEW'`) até ser confirmada; trava depois da 1ª partida concluída.
+- **Tempo real:** `shared/realtime` — `useTournamentChannel(tournamentId)` invalida as consultas quando chega evento; `<LiveIndicator />` mostra "AO VIVO" ou "Reconectando…"; quando a conexão cai, as consultas ao vivo passam a atualizar a cada 10 s. No protótipo, `window.__novaRealtime.setOnline(false)` simula a queda. Handlers publicam com `publish(canal, evento)` de `mocks/bus.ts`, sempre **depois** de gravar e **sem dados sensíveis**.
+- **Auditoria:** toda ação sensível em handler chama `audit(ator, {...})` de `mocks/audit.ts` (somente inserção). O catálogo de ações é `AUDIT_ACTIONS`.
+- **Notificações:** `notify(userIds, tipo, título, corpo, link)` de `mocks/notify.ts` grava para cada destinatário respeitando as preferências e avisa o canal `user:{id}`.
+- **Uploads:** `uploadImage(file, finalidade)` de `shared/api/upload.ts` valida (imagem, 5 MB), comprime no navegador, pede o token e envia direto ao armazenamento. Devolve a URL.
+- **Testes de regra sem navegador:** `mocks/testing.ts` (`setupMockApi`, `as`, `call`, `mutate`) sobe a API simulada inteira no Vitest. Exemplo: `mocks/competition.test.ts`.
+- **E2E em paralelo:** além de `PLAYWRIGHT_BASE_URL`, defina `PW_OUTPUT_DIR=test-results-<seu-nome>` para não apagar a saída de outra execução.
+- **Dados de demonstração de competição:** "Liga Semanal Clash Royale 1v1" (`liga-semanal-clash-royale`) está em andamento, com as oitavas jogadas e a partida da Bianca nas quartas com check-in aberto e sala definida; "Open 8 Ball Pool" (`open-8-ball-pool`) está finalizado, com tabela do suíço e pódio.

@@ -22,6 +22,8 @@ export const keys = {
     staff: (id: string) => ['tournaments', 'staff', id] as const,
     templates: ['tournaments', 'templates'] as const,
     matches: (id: string, params?: Params) => ['tournaments', 'matches', id, params ?? {}] as const,
+    access: (id: string) => ['tournaments', 'detail', id, 'access'] as const,
+    myRegistration: (id: string) => ['tournaments', 'registrations', id, { scope: 'mine' }] as const,
   },
   stages: {
     bracket: (stageId: string) => ['bracket', stageId] as const,
@@ -74,5 +76,6 @@ export const keys = {
     health: ['admin', 'health'] as const,
     announcements: ['admin', 'announcements'] as const,
   },
-  site: { settings: ['site', 'settings'] as const, banner: ['site', 'banner'] as const },
+  site: { settings: ['site', 'settings'] as const, banner: ['site', 'banner'] as const, flags: ['site', 'flags'] as const },
+  twoFactor: ['two-factor'] as const,
 };
