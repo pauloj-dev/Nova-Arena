@@ -1,10 +1,17 @@
 /** Módulo `games` da API simulada: leitura pública do catálogo e ranking por jogo. */
 import { http } from 'msw';
 import type { GameRanking, GameRankingEntry, TournamentStatus } from '@nova/schemas';
-import { db } from '../db';
+import type { Game } from '@nova/schemas';
+import { db, type DbUser } from '../db';
 import { currentUser, handle, isAdmin, json, notFound, param, query, url } from '../http';
 
 export const moduleName = 'games';
+
+/** Modelos de pontuação personalizados só aparecem para quem os criou (e para o Admin). */
+function visibleGame(game: Game, user: DbUser | null): Game {
+  const admin = user !== null && isAdmin(user);
+  return { ...game, scoringModels: game.scoringModels.filter((m) => m.ownerId === null || admin || m.ownerId === user?.id) };
+}
 
 /** Campeonato "disputado": já começou (em andamento, pausado) ou terminou. */
 const PLAYED_STATUSES: TournamentStatus[] = ['IN_PROGRESS', 'PAUSED', 'FINISHED'];
@@ -16,7 +23,9 @@ export const handlers = [
       const user = currentUser();
       // Jogos desativados só aparecem para o Admin (e com `all=1`).
       const includeInactive = query(request).get('all') === '1' && user !== null && isAdmin(user);
-      const games = db().games.filter((g) => includeInactive || g.active);
+      const games = db()
+        .games.filter((g) => includeInactive || g.active)
+        .map((g) => visibleGame(g, user));
       return json(games);
     }),
   ),
@@ -26,7 +35,7 @@ export const handlers = [
       const slug = param(params, 'slug');
       const game = db().games.find((g) => g.slug === slug || g.id === slug);
       if (!game) throw notFound('Jogo');
-      return json(game);
+      return json(visibleGame(game, currentUser()));
     }),
   ),
 

@@ -44,11 +44,12 @@ export function DevSwitcher() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-20 left-3 z-40 flex min-h-11 items-center gap-2 rounded-full border border-border-strong bg-surface px-3 text-xs font-semibold text-text shadow-md md:bottom-4"
+        className="fixed right-0 top-1/2 z-40 flex min-h-11 -translate-y-1/2 items-center gap-2 rounded-l-full border border-r-0 border-border-strong bg-surface py-2 pl-3 pr-2 text-xs font-semibold text-text shadow-md"
         aria-label="Protótipo: entrar como outro usuário"
+        title="Protótipo: entrar como outro usuário"
       >
         <FlaskConical className="size-4" aria-hidden />
-        <span>Entrar como</span>
+        <span className="hidden lg:inline">Entrar como</span>
       </button>
       <Modal
         open={open}
