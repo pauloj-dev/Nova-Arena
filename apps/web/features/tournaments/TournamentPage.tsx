@@ -5,6 +5,8 @@ import { Avatar, Badge, Button, EmptyState, ErrorState, Progress, Skeleton, Stat
 import { CalendarClock, CalendarDays, Compass, Settings, User, Users } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { BracketTab, bracketStages } from '@/features/competition/BracketTab';
+import { COMPETITION_STATUSES } from '@/features/competition/StageSelect';
 import { VerifiedBadge } from '@/features/profile/VerifiedBadge';
 import { RegistrationPanel } from '@/features/registrations/RegistrationPanel';
 import { ApiError, errorMessage } from '@/shared/api/client';
@@ -18,9 +20,14 @@ import { ShareButton } from './ShareButton';
 import { slotsText } from './TournamentCard';
 import { AnnouncementsTab, OverviewTab, RegistrationsTab, RulesTab } from './TournamentTabs';
 
-/** Abas da página pública na F1. Chave/Tabela, Partidas e Resultados entram na F2 (sem aba vazia até lá). */
+/**
+ * Abas da página pública. As de competição só aparecem quando há o que mostrar (sem aba vazia):
+ * "Chave" a partir do fechamento das inscrições, se alguma fase for mata-mata.
+ * Partidas e Resultados entram com o `MatchCard` (F2.4).
+ */
 const TABS = [
   { value: 'visao-geral', label: 'Visão geral' },
+  { value: 'chave', label: 'Chave' },
   { value: 'regulamento', label: 'Regulamento' },
   { value: 'inscritos', label: 'Inscritos' },
   { value: 'comunicados', label: 'Comunicados' },
@@ -28,8 +35,17 @@ const TABS = [
 type TabValue = (typeof TABS)[number]['value'];
 const DEFAULT_TAB: TabValue = 'visao-geral';
 
-export function parseTab(value: string | null): TabValue {
-  return TABS.some((t) => t.value === value) ? (value as TabValue) : DEFAULT_TAB;
+/** Abas visíveis para este campeonato. */
+export function tabsFor(t: Pick<Tournament, 'status' | 'stages'>): (typeof TABS)[number][] {
+  const competing = COMPETITION_STATUSES.has(t.status);
+  return TABS.filter((tab) => {
+    if (tab.value === 'chave') return competing && bracketStages(t).length > 0;
+    return true;
+  });
+}
+
+export function parseTab(value: string | null, available: readonly { value: TabValue }[] = TABS): TabValue {
+  return available.some((t) => t.value === value) ? (value as TabValue) : DEFAULT_TAB;
 }
 
 function PageSkeleton() {
@@ -178,7 +194,8 @@ export function TournamentPage({ slug }: { slug: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const tab = parseTab(searchParams.get('aba'));
+  const tabs = t ? tabsFor(t) : TABS;
+  const tab = parseTab(searchParams.get('aba'), tabs);
 
   if (tournament.isPending) return <PageSkeleton />;
   if (tournament.isError) {
@@ -205,6 +222,7 @@ export function TournamentPage({ slug }: { slug: string }) {
 
   const content: Record<TabValue, React.ReactNode> = {
     'visao-geral': <OverviewTab tournament={t} />,
+    chave: <BracketTab tournament={t} />,
     regulamento: <RulesTab tournament={t} />,
     inscritos: <RegistrationsTab tournament={t} />,
     comunicados: <AnnouncementsTab tournament={t} />,
@@ -221,7 +239,7 @@ export function TournamentPage({ slug }: { slug: string }) {
           <RegistrationPanel tournament={t} />
         </aside>
         <div className="min-w-0 lg:col-start-1">
-          <Tabs label="Seções do campeonato" value={tab} onValueChange={onTabChange} items={TABS.map((x) => ({ value: x.value, label: x.label, content: content[x.value] }))} />
+          <Tabs label="Seções do campeonato" value={tab} onValueChange={onTabChange} items={tabs.map((x) => ({ value: x.value, label: x.label, content: content[x.value] }))} />
         </div>
       </div>
     </PageContainer>
