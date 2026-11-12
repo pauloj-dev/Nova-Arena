@@ -200,6 +200,7 @@ export const SubmitResultInput = z.object({
 export type SubmitResultInput = z.infer<typeof SubmitResultInput>;
 
 export const WalkoverInput = z.object({ winnerRegistrationId: Id, reason: z.string().min(3, 'Informe o motivo') });
+export type WalkoverInput = z.infer<typeof WalkoverInput>;
 
 export const ResultBreakdown = z.object({ registrationId: Id, name: z.string(), points: z.number(), breakdown: z.array(z.object({ label: z.string(), points: z.number() })) });
 export const SubmitResultResponse = z.object({ match: Match, results: z.array(ResultBreakdown) });
@@ -232,6 +233,7 @@ export const AdvancePreview = z.object({
 export type AdvancePreview = z.infer<typeof AdvancePreview>;
 
 export const FinishTournamentInput = z.object({ first: Id, second: Id.nullable(), third: Id.nullable() });
+export type FinishTournamentInput = z.infer<typeof FinishTournamentInput>;
 export const Podium = z.object({
   tournamentId: Id,
   places: z.array(z.object({ place: z.number().int().min(1).max(3), registrationId: Id, name: z.string(), tag: z.string().nullable(), logoUrl: z.string().nullable() })),
@@ -240,6 +242,7 @@ export const Podium = z.object({
 export type Podium = z.infer<typeof Podium>;
 
 export const WithdrawInput = z.object({ kind: z.enum(['WITHDRAWN', 'DISQUALIFIED']), reason: z.string().min(3, 'Informe o motivo') });
+export type WithdrawInput = z.infer<typeof WithdrawInput>;
 export const ReasonInput = z.object({ reason: z.string().min(3, 'Informe o motivo') });
 
 // ── Envio pelo participante e disputas ───────────────────────────────
@@ -328,4 +331,9 @@ export const CompetitiveStats = z.object({
   achievements: z.array(z.object({ id: Id, type: z.enum(['CHAMPION', 'RUNNER_UP', 'THIRD_PLACE', 'FIRST_TOURNAMENT', 'TEN_TOURNAMENTS', 'MVP']), label: z.string(), tournamentName: z.string().nullable(), awardedAt: IsoDateTime })),
   history: z.array(z.object({ tournamentId: Id, tournamentName: z.string(), tournamentSlug: z.string(), gameIcon: z.string(), placement: z.number().int().nullable(), finishedAt: IsoDateTime.nullable(), teamName: z.string().nullable() })),
 });
+export type OpenDisputeInput = z.infer<typeof OpenDisputeInput>;
+export type DisputeMessageInput = z.infer<typeof DisputeMessageInput>;
+export type ResolveDisputeInput = z.infer<typeof ResolveDisputeInput>;
+export type ReviewSubmissionInput = z.infer<typeof ReviewSubmissionInput>;
+export type UploadTokenInput = z.infer<typeof UploadTokenInput>;
 export type CompetitiveStats = z.infer<typeof CompetitiveStats>;

@@ -36,7 +36,7 @@ describe('token de upload', () => {
   it('o armazenamento recusa token de outra pessoa e arquivo maior que o autorizado', async () => {
     as('u_bianca');
     const { data } = await call<{ token: string }>('POST', '/uploads/token', { purpose: 'evidence', contentType: 'image/png', size: 4 });
-    const put = (body: Uint8Array, type = 'image/png') => fetch(`http://localhost:3000/api/v1/uploads/${data.token}`, { method: 'PUT', headers: { 'Content-Type': type }, body });
+    const put = (bytes: Uint8Array<ArrayBuffer>, type = 'image/png') => fetch(`http://localhost:3000/api/v1/uploads/${data.token}`, { method: 'PUT', headers: { 'Content-Type': type }, body: new Blob([bytes]) });
     as('u_lucas');
     expect((await put(new Uint8Array([1, 2, 3]))).status).toBe(403);
     as('u_bianca');
