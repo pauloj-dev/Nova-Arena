@@ -5,6 +5,7 @@
 import type { Game, GameMode, Qualification, ScoringModel, Stage, StageConfig, StageFormat, Tiebreaker } from '@nova/schemas';
 import { StageConfig as StageConfigSchema } from '@nova/schemas';
 import type { Db, DbRegistration, DbTeam, DbTournament, DbUser } from './db';
+import { seedCompetition } from './seed-competition';
 
 /** Senha de todas as contas do protótipo. */
 export const DEMO_PASSWORD = 'arena1234';
@@ -453,7 +454,7 @@ export function buildSeed(): Db {
   teamReg('tn_contra_squad', teams[14] as DbTeam);
   teamReg('tn_contra_squad', teams[15] as DbTeam, { status: 'PENDING_APPROVAL' });
 
-  return {
+  const seeded: Db = {
     version: 1,
     users,
     games,
@@ -570,4 +571,6 @@ export function buildSeed(): Db {
     emailTokens: [],
     extra: {},
   };
+  seedCompetition(seeded, base);
+  return seeded;
 }

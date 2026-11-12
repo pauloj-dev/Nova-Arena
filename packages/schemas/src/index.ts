@@ -4,3 +4,6 @@ export * from './game';
 export * from './tournament';
 export * from './team';
 export * from './registration';
+export * from './competition';
+export * from './governance';
+export * from './notification';
