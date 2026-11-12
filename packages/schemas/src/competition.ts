@@ -32,6 +32,8 @@ export const MatchParticipant = z.object({
   points: z.number().nullable(),
   isWinner: z.boolean().nullable(),
   checkedIn: z.boolean(),
+  /** Quem já fez check-in por esta inscrição (com `requireAllMembers`, a inscrição só conclui quando todos fazem). */
+  checkedInUserIds: z.array(Id).optional(),
   /** Estatísticas extras (ex.: pênaltis). */
   stats: z.record(z.string(), z.number()).default({}),
   /** Kills por jogador (RN-03), quando a fase usa. */

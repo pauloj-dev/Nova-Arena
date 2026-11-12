@@ -19,6 +19,7 @@ import {
 } from '@/features/registrations/lib/rules';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { listMatches, podiums } from '../competition';
+import { applyDueWalkovers } from './competition';
 import { db, nowIso, save, uid, type DbRegistration, type DbTeam, type DbTournament, type DbUser } from '../db';
 import { badRequest, conflict, body, currentUser, findTournament, forbidden, handle, HttpProblem, json, noContent, notFound, param, requireUser, url } from '../http';
 import { findUser, takenSlots, toRegistration, toTournamentSummary } from '../views';
@@ -143,6 +144,8 @@ function competitionInfo(t: DbTournament, registration: DbRegistration): Pick<My
   const finalPlacement = ended ? (podiums().find((p) => p.tournamentId === t.id)?.places.find((p) => p.registrationId === registration.id)?.place ?? null) : null;
   if (registration.status !== 'CONFIRMED' || !MATCH_TOURNAMENT_STATUSES.includes(t.status)) return { nextMatch: null, finalPlacement };
 
+  // Mesmo "job" de W.O. por falta de check-in que a página do campeonato aplica antes de ler.
+  applyDueWalkovers(t);
   const mine = listMatches(t.id)
     .filter((m) => OPEN_MATCH_STATUSES.includes(m.status) && m.participants.some((p) => p.registrationId === registration.id))
     .sort((a, b) => {

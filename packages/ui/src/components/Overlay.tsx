@@ -22,10 +22,12 @@ export interface ModalProps {
  * como aqui a abertura é controlada por `open`, guardamos o elemento focado na hora de abrir.
  */
 function useReturnFocus() {
-  const opener = useRef<HTMLElement | null>(null);
+  // Quem abriu pode ser um elemento SVG focável (um confronto da chave), não só HTML.
+  const opener = useRef<HTMLElement | SVGElement | null>(null);
   return {
     onOpenAutoFocus: () => {
-      opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const active = document.activeElement;
+      opener.current = active instanceof HTMLElement || active instanceof SVGElement ? active : null;
     },
     onCloseAutoFocus: (event: Event) => {
       if (!opener.current?.isConnected) return;
