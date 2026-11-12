@@ -32,6 +32,8 @@ async function dismissToasts(page: Page): Promise<void> {
 }
 
 async function publicGameSlugs(page: Page): Promise<string[]> {
+  // Logo depois de navegar a API simulada ainda pode estar iniciando: sem esperar, a chamada cai no servidor e volta HTML.
+  await waitForApp(page);
   return page.evaluate(async () => {
     const res = await fetch('/api/v1/games');
     const games = (await res.json()) as Array<{ slug: string }>;
