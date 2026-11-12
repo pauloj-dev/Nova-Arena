@@ -393,6 +393,16 @@ export function BracketCanvas({ matches, highlightRegistrationId, onMatchSelect,
   );
   const onNodeBlur = useCallback(() => setFocusedId(null), []);
 
+  // A moldura da chave pode ser mais alta que a janela: depois de enquadrar o confronto dentro dela,
+  // a página rola o mínimo necessário para ele aparecer (WCAG 2.4.11, foco não encoberto).
+  useEffect(() => {
+    if (focusedId === null) return;
+    const nodes = containerRef.current?.querySelectorAll<SVGGElement>('[data-match-id]') ?? [];
+    const el = Array.from(nodes).find((n) => n.dataset.matchId === focusedId);
+    // `scrollIntoView` não existe em todos os ambientes (ex.: jsdom nos testes de componente).
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [focusedId, view.x, view.y]);
+
   const select = useCallback(
     (match: Match) => {
       if (suppressClick.current) return;

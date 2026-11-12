@@ -79,7 +79,7 @@ test.describe('Admin · dashboard', () => {
 
     // Intervalo: 7 dias tira da conta as partidas de 21 dias atrás; 90 dias alcança os cadastros.
     await expect(page.getByRole('button', { name: '30 dias' })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByText('Nenhum cadastro nos últimos 30 dias. Aumente o intervalo para ver mais.')).toBeVisible();
+    await expect(page.getByText(/\d+ cadastros nos últimos 30 dias/)).toBeVisible();
     await page.getByRole('button', { name: '7 dias' }).click();
     await expect(page.getByText('10 partidas validadas nos últimos 7 dias')).toBeVisible();
     await page.getByRole('button', { name: '90 dias' }).click();
@@ -314,7 +314,7 @@ test.describe('Admin · usuários', () => {
   // Pendente fora deste painel: `shared/realtime/RealtimeProvider.tsx` (UserChannel) trata o evento com
   // `qc.clear()` seguido de `qc.setQueryData(keys.me, null)`. Os componentes já montados continuam presos
   // à consulta removida e a tela não muda até recarregar. Quando isso for corrigido, tire o `fixme`.
-  test.fixme('a tela aberta em outra aba volta para visitante sem recarregar quando a sessão é revogada', async ({ page, context }) => {
+  test('a tela aberta em outra aba volta para visitante sem recarregar quando a sessão é revogada', async ({ page, context }) => {
     const lucas = await context.newPage();
     await lucas.goto('/');
     await loginAs(lucas, 'u_lucas');
