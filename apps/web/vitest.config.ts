@@ -7,6 +7,8 @@ export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('.', import.meta.url)) } },
   test: {
     environment: 'jsdom',
+    // Os testes de tela conferem horários no fuso do jogador: fixa o fuso para dar o mesmo resultado em qualquer máquina (o CI roda em UTC).
+    env: { TZ: 'America/Sao_Paulo' },
     include: ['**/*.test.{ts,tsx}'],
     exclude: ['node_modules/**', 'e2e/**', '.next/**'],
     setupFiles: ['./vitest.setup.ts'],

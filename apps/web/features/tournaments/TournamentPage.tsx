@@ -40,7 +40,8 @@ const TABS = [
 type TabValue = (typeof TABS)[number]['value'];
 const DEFAULT_TAB: TabValue = 'visao-geral';
 /** Links antigos e notificações usam `?aba=tabela`. */
-const TAB_ALIASES: Record<string, TabValue> = { tabela: 'chave' };
+// `classificacao` era o nome da aba em uma versão anterior da página: links antigos continuam funcionando.
+const TAB_ALIASES: Record<string, TabValue> = { tabela: 'chave', classificacao: 'chave' };
 
 /** Antes disso não existe chave confirmada: nem vale perguntar à API. */
 const NO_COMPETITION_STATUSES: Tournament['status'][] = ['DRAFT', 'PUBLISHED', 'REGISTRATION_OPEN'];
