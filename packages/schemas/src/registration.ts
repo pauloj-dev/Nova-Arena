@@ -76,3 +76,24 @@ export const MyTournamentEntry = z.object({
   finalPlacement: z.number().int().nullable(),
 });
 export type MyTournamentEntry = z.infer<typeof MyTournamentEntry>;
+
+// ── Acréscimos da F1.9 (inscrições do participante) ──────────────────
+
+/** Status de uma inscrição que ainda está valendo (ocupa vaga ou está na lista de espera). */
+export const ACTIVE_REGISTRATION_STATUSES: RegistrationStatus[] = [...SLOT_HOLDING_STATUSES, 'WAITLIST'];
+
+/** Horas que a vaga fica reservada para o squad promovido incompleto (RN-12). */
+export const WAITLIST_RESERVATION_HOURS = 24;
+
+/** O que a API diz sobre quem está vendo o painel de inscrição, além da própria inscrição. */
+export const RegistrationEligibility = z.object({
+  /** Dono ou equipe do campeonato: não pode se inscrever nele (PRD §6, nota ³). */
+  isOrganizer: z.boolean(),
+});
+export type RegistrationEligibility = z.infer<typeof RegistrationEligibility>;
+
+/** Resposta da revisão de uma inscrição: a inscrição alterada e quem subiu da lista de espera (RN-12). */
+export const ReviewRegistrationResult = z.object({ registration: Registration, promoted: z.array(Registration) });
+export type ReviewRegistrationResult = z.infer<typeof ReviewRegistrationResult>;
+export type ImportRegistrationsInput = z.infer<typeof ImportRegistrationsInput>;
+export type ImportRegistrationsResult = z.infer<typeof ImportRegistrationsResult>;

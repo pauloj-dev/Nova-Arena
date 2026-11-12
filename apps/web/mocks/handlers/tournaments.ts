@@ -87,4 +87,14 @@ export const handlers = [
       return json(list);
     }),
   ),
+
+  /** Papel de quem está vendo neste campeonato (dono, co-organizador, moderador, admin) ou nulo. Usado para o link "Gerenciar campeonato". */
+  http.get(
+    url('/tournaments/:id/access'),
+    handle(({ params }) => {
+      const t = findTournament(param(params, 'id'));
+      if (!canSee(t)) throw notFound('Campeonato');
+      return json({ access: tournamentAccess(currentUser(), t) });
+    }),
+  ),
 ];

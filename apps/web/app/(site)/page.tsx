@@ -1,5 +1,7 @@
-import { ComingSoon } from '@/shared/layout/ComingSoon';
+'use client';
 
-export default function HomePage() {
-  return <ComingSoon title="Home" phase="F1.5" />;
+import { HomePage } from '@/features/home/HomePage';
+
+export default function Home() {
+  return <HomePage />;
 }

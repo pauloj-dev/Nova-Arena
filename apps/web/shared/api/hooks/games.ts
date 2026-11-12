@@ -1,6 +1,6 @@
 'use client';
 
-import { Game } from '@nova/schemas';
+import { Game, GameRanking } from '@nova/schemas';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { api } from '../client';
@@ -23,5 +23,14 @@ export function useGame(slugOrId: string | undefined) {
     queryFn: ({ signal }) => api.get(`/games/${slugOrId}`, { schema: Game, signal }),
     enabled: Boolean(slugOrId),
     staleTime: 5 * 60_000,
+  });
+}
+
+/** Ranking do jogo (campeonatos disputados e finalizados; títulos, vitórias e kills chegam com os resultados, na F2). */
+export function useGameRanking(slug: string | undefined) {
+  return useQuery({
+    queryKey: keys.games.ranking(slug ?? ''),
+    queryFn: ({ signal }) => api.get(`/games/${slug}/ranking`, { schema: GameRanking, signal }),
+    enabled: Boolean(slug),
   });
 }

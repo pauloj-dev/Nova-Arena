@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { Id, IsoDateTime, Slug } from './common';
 import { PublicUser } from './user';
-import { Tiebreaker } from './game';
+import { ScoringModelInput, Tiebreaker } from './game';
 
 export const TournamentStatus = z.enum([
   'DRAFT',
@@ -245,3 +245,54 @@ export const AnnouncementInput = Announcement.pick({ title: true, body: true }).
 export const StaffRole = z.enum(['CO_ORGANIZER', 'MODERATOR']);
 export const TournamentStaff = z.object({ userId: Id, nickname: z.string(), avatarUrl: z.string().nullable(), role: StaffRole, addedAt: IsoDateTime });
 export type TournamentStaff = z.infer<typeof TournamentStaff>;
+
+/** Papel de quem está vendo naquele campeonato (para mostrar "Gerenciar campeonato"). Nulo = visitante ou participante. */
+export const TournamentAccessLevel = z.enum(['OWNER', 'CO_ORGANIZER', 'MODERATOR', 'ADMIN']);
+export type TournamentAccessLevel = z.infer<typeof TournamentAccessLevel>;
+export const TournamentAccess = z.object({ access: TournamentAccessLevel.nullable() });
+export type TournamentAccess = z.infer<typeof TournamentAccess>;
+
+// ── Área do organizador (F1.6) ───────────────────────────────────────
+/** Papel de quem está olhando o campeonato na área do organizador. */
+export const TournamentAccessRole = z.enum(['OWNER', 'CO_ORGANIZER', 'MODERATOR', 'ADMIN']);
+export type TournamentAccessRole = z.infer<typeof TournamentAccessRole>;
+
+/** Linha de "Meus campeonatos" do organizador. */
+export const OrganizerTournament = TournamentSummary.extend({
+  access: TournamentAccessRole,
+  /** Passo do assistente em que o rascunho parou (0 a 6). */
+  draftStep: z.number().int().min(0).max(6),
+  /** Inscrições aguardando aprovação manual. */
+  pendingApprovals: z.number().int(),
+  waitlistCount: z.number().int(),
+  stageCount: z.number().int(),
+});
+export type OrganizerTournament = z.infer<typeof OrganizerTournament>;
+
+/** Detalhe do campeonato para quem organiza (com o papel de quem está olhando). */
+export const OrganizerTournamentDetail = Tournament.extend({
+  access: TournamentAccessRole,
+  pendingApprovals: z.number().int(),
+  /** Motivo informado no cancelamento, quando houver. */
+  cancelReason: z.string().nullable(),
+});
+export type OrganizerTournamentDetail = z.infer<typeof OrganizerTournamentDetail>;
+
+/** Criação do rascunho: os campos do assistente e, opcionalmente, o modelo de origem. */
+export const CreateTournamentInput = TournamentDraftInput.extend({ templateId: Id.optional() });
+export type CreateTournamentInput = z.infer<typeof CreateTournamentInput>;
+
+export const CancelTournamentInput = z.object({ reason: z.string().trim().min(3, 'Informe o motivo do cancelamento').max(500) });
+export type CancelTournamentInput = z.infer<typeof CancelTournamentInput>;
+
+/** Salvar um campeonato meu como modelo. */
+export const SaveTemplateInput = z.object({
+  tournamentId: Id,
+  name: z.string().trim().min(3, 'O nome precisa de pelo menos 3 caracteres').max(80),
+  description: z.string().trim().max(300).default(''),
+});
+export type SaveTemplateInput = z.infer<typeof SaveTemplateInput>;
+
+/** Modelo de pontuação personalizado de um organizador, criado dentro de uma fase. */
+export const CustomScoringModelInput = ScoringModelInput.omit({ isDefault: true }).extend({ gameId: Id });
+export type CustomScoringModelInput = z.infer<typeof CustomScoringModelInput>;

@@ -1,6 +1,6 @@
 'use client';
 
-import { Announcement, page, Registration, Tournament, TournamentSummary, type TournamentListQuery } from '@nova/schemas';
+import { Announcement, page, Registration, Tournament, TournamentAccess, TournamentSummary, type TournamentListQuery } from '@nova/schemas';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { api } from '../client';
@@ -52,5 +52,19 @@ export function useTournamentAnnouncements(tournamentId: string | undefined) {
     queryKey: keys.tournaments.announcements(tournamentId ?? ''),
     queryFn: ({ signal }) => api.get(`/tournaments/${tournamentId}/announcements`, { schema: Announcements, signal }),
     enabled: Boolean(tournamentId),
+  });
+}
+
+/**
+ * Papel de quem está vendo naquele campeonato: 'OWNER' | 'CO_ORGANIZER' | 'MODERATOR' | 'ADMIN' | null.
+ * Só consulta quando `enabled` (ex.: há alguém logado). A permissão que vale continua sendo a da API.
+ */
+export function useTournamentAccess(tournamentId: string | undefined, enabled = true) {
+  return useQuery({
+    // `keys.ts` ainda não tem uma chave própria para isto: deriva da chave do detalhe, para ser invalidada junto.
+    queryKey: [...keys.tournaments.detail(tournamentId ?? ''), 'access'] as const,
+    queryFn: ({ signal }) => api.get(`/tournaments/${tournamentId}/access`, { schema: TournamentAccess, signal }),
+    enabled: Boolean(tournamentId) && enabled,
+    select: (data) => data.access,
   });
 }

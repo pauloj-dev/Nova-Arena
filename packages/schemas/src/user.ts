@@ -127,3 +127,24 @@ export const RoleInvitePreview = z.object({
   expiresAt: IsoDateTime,
 });
 export type RoleInvitePreview = z.infer<typeof RoleInvitePreview>;
+
+// ── Respostas de autenticação (F1.4) ─────────────────────────────────
+/** No protótipo, o "e-mail" de verificação volta na resposta (`devVerifyToken`). A API real não devolve esse campo. */
+export const RegisterResponse = z.object({ user: Me, devVerifyToken: z.string().nullable().optional() });
+export type RegisterResponse = z.infer<typeof RegisterResponse>;
+export const ResendVerificationResponse = z.object({ ok: z.literal(true), devVerifyToken: z.string().nullable().optional() });
+export type ResendVerificationResponse = z.infer<typeof ResendVerificationResponse>;
+/** Sempre 200, exista ou não a conta. `devResetToken` só no protótipo. */
+export const ForgotPasswordResponse = z.object({ ok: z.literal(true), devResetToken: z.string().nullable().optional() });
+export type ForgotPasswordResponse = z.infer<typeof ForgotPasswordResponse>;
+
+/** Resposta de `POST /role-invites/:token/accept`: o papel concedido e a conta já atualizada. */
+export const AcceptRoleInviteResponse = z.object({ role: z.enum(['ADMIN', 'ORGANIZER']), user: Me });
+export type AcceptRoleInviteResponse = z.infer<typeof AcceptRoleInviteResponse>;
+
+// ── Seguir campeonato ou jogo (RN-15) ────────────────────────────────
+export const FollowTargetType = z.enum(['tournament', 'game']);
+export type FollowTargetType = z.infer<typeof FollowTargetType>;
+/** Tudo o que a pessoa segue: ids de campeonatos e de jogos. */
+export const FollowList = z.object({ tournaments: z.array(Id), games: z.array(Id) });
+export type FollowList = z.infer<typeof FollowList>;
