@@ -71,6 +71,26 @@ async function openStory(page: Page, id: string, theme: string, area = 'particip
   await page.waitForLoadState('networkidle');
 }
 
+/** Nome de arquivo sem acento, para o repositório não depender da normalização Unicode do sistema. */
+function fileName(id: string): string {
+  return id.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+test('o Modal prende o foco e devolve ao gatilho quando fecha com Esc', async ({ page }) => {
+  await openStory(page, 'sobreposição-modal--fechado', 'light');
+  const trigger = page.getByRole('button', { name: 'Convidar jogador' });
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: 'Convidar jogador' });
+  await expect(dialog).toBeVisible();
+  for (let i = 0; i < 10; i += 1) {
+    await page.keyboard.press('Tab');
+    expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+  }
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+});
+
 test('as stories com screenshot existem no Storybook', () => {
   const known = new Set(entries.map((e) => e.id));
   expect(screenshotIds.filter((id) => !known.has(id))).toEqual([]);
@@ -81,7 +101,7 @@ for (const theme of themes) {
     for (const id of screenshotIds) {
       test(`screenshot · ${id}`, async ({ page }) => {
         await openStory(page, id, theme);
-        await expect(page).toHaveScreenshot(`${id}--${theme}.png`, { fullPage: true });
+        await expect(page).toHaveScreenshot(`${fileName(id)}--${theme}.png`, { fullPage: true });
       });
     }
 

@@ -49,7 +49,8 @@ export const ScoringRule = z.discriminatedUnion('type', [
 ]);
 export type ScoringRule = z.infer<typeof ScoringRule>;
 
-export const Tiebreaker = z.enum(['points', 'wins', 'score', 'avgPlacement', 'headToHead', 'scoreDiff', 'lastDropKills', 'draw']);
+/** Critérios de desempate (PRD §10.6). Mesma lista do motor (`TIEBREAKERS` em `@nova/engine`). */
+export const Tiebreaker = z.enum(['points', 'wins', 'booyahs', 'kills', 'score', 'avgPlacement', 'headToHead', 'scoreDiff', 'lastDropKills', 'draw']);
 export type Tiebreaker = z.infer<typeof Tiebreaker>;
 
 export const ScoringModel = z.object({
@@ -95,3 +96,93 @@ export const GameInput = z.object({
   modes: z.array(GameMode.omit({ gameId: true }).extend({ id: Id.optional() })).min(1, 'Cadastre pelo menos um modo'),
 });
 export type GameInput = z.infer<typeof GameInput>;
+
+// ── Ranking por jogo (ADR-0001: dados existentes, sem ELO) ───────────
+export const GameRankingEntry = z.object({
+  position: z.number().int().min(1),
+  userId: Id,
+  nickname: z.string(),
+  avatarUrl: z.string().nullable(),
+  /** Campeonatos do jogo em que a pessoa teve inscrição confirmada (em andamento ou finalizados). */
+  tournamentsPlayed: z.number().int(),
+  /** Dos disputados, quantos já terminaram. */
+  tournamentsFinished: z.number().int(),
+  /** Nulos enquanto os resultados de partidas não existem (chegam na F2). */
+  titles: z.number().int().nullable(),
+  wins: z.number().int().nullable(),
+  kills: z.number().int().nullable(),
+});
+export type GameRankingEntry = z.infer<typeof GameRankingEntry>;
+
+export const GameRanking = z.object({
+  gameId: Id,
+  gameSlug: Slug,
+  gameName: z.string(),
+  /** Falso enquanto títulos, vitórias e kills ainda não são contados. */
+  resultsAvailable: z.boolean(),
+  entries: z.array(GameRankingEntry),
+});
+export type GameRanking = z.infer<typeof GameRanking>;
+
+// ── Cadastro pelo Admin (ADM-06) ─────────────────────────────────────
+/** Nomes de estatística que o lançamento de resultado já usa; uma estatística extra não pode repetir. */
+export const RESERVED_STAT_KEYS = ['kills', 'placement', 'score', 'outcome'] as const;
+
+/** A expressão regular compila? Vazio conta como "sem validação". */
+export function isValidPattern(pattern: string | null | undefined): boolean {
+  if (!pattern) return true;
+  try {
+    new RegExp(pattern);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+type GameCatalogFields = Partial<Pick<GameInput, 'requiredAccountFields' | 'extraStatFields' | 'modes'>>;
+
+/** Regras do cadastro que dependem de mais de um campo: regex que compila, chaves e nomes sem repetição, sala só no BR. */
+function checkGameCatalogRules(input: GameCatalogFields, ctx: z.core.$RefinementCtx<GameCatalogFields>): void {
+  const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message });
+
+  const accountKeys = new Set<string>();
+  input.requiredAccountFields?.forEach((field, i) => {
+    if (!isValidPattern(field.pattern)) issue(['requiredAccountFields', i, 'pattern'], 'Esta expressão regular não é válida');
+    const key = field.key.toLowerCase();
+    if (accountKeys.has(key)) issue(['requiredAccountFields', i, 'key'], 'Esta chave já foi usada em outro campo');
+    accountKeys.add(key);
+  });
+
+  const statKeys = new Set<string>();
+  input.extraStatFields?.forEach((field, i) => {
+    const key = field.key.toLowerCase();
+    if ((RESERVED_STAT_KEYS as readonly string[]).includes(field.key)) {
+      issue(['extraStatFields', i, 'key'], 'Esta chave já é usada pelo placar da partida. Escolha outra');
+    } else if (statKeys.has(key)) {
+      issue(['extraStatFields', i, 'key'], 'Esta chave já foi usada em outra estatística');
+    }
+    statKeys.add(key);
+  });
+
+  const modeNames = new Set<string>();
+  input.modes?.forEach((mode, i) => {
+    const name = mode.name.trim().toLowerCase();
+    if (name && modeNames.has(name)) issue(['modes', i, 'name'], 'Já existe um modo com este nome');
+    modeNames.add(name);
+    if (mode.matchType === 'BATTLE_ROYALE' && mode.maxLobbySize === null) {
+      issue(['modes', i, 'maxLobbySize'], 'Informe quantas equipes cabem na sala');
+    }
+  });
+}
+
+/** Corpo de `POST /admin/games`: o `GameInput` mais as regras do cadastro. */
+export const GameAdminInput = GameInput.superRefine(checkGameCatalogRules);
+export type GameAdminInput = z.infer<typeof GameAdminInput>;
+
+/** Corpo de `PATCH /admin/games/:id`: só o que mudou (inclusive `active`, para ativar e desativar). */
+export const GameAdminPatch = GameInput.partial().superRefine(checkGameCatalogRules);
+export type GameAdminPatch = z.infer<typeof GameAdminPatch>;
+
+/** Corpo de `PATCH /admin/games/:id/scoring-models/:modelId`. */
+export const ScoringModelPatch = ScoringModelInput.partial();
+export type ScoringModelPatch = z.infer<typeof ScoringModelPatch>;

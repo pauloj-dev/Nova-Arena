@@ -65,11 +65,11 @@ function buildGames(): Game[] {
         model(ff, 'sm_ff_padrao', 'Free Fire · Padrão (kill 1, Booyah 3)', 'BATTLE_ROYALE', [
           { type: 'PER_UNIT', stat: 'kills', points: 1 },
           { type: 'TABLE', stat: 'placement', table: { '1': 3 } },
-        ], ['points', 'wins', 'score', 'avgPlacement', 'lastDropKills', 'draw'], true),
+        ], ['points', 'booyahs', 'kills', 'avgPlacement', 'lastDropKills', 'draw'], true),
         model(ff, 'sm_ff_liga', 'Free Fire · Liga (tabela de colocação)', 'BATTLE_ROYALE', [
           { type: 'PER_UNIT', stat: 'kills', points: 1 },
           { type: 'TABLE', stat: 'placement', table: { '1': 12, '2': 9, '3': 8, '4': 7, '5': 6, '6': 5, '7': 4, '8': 3, '9': 2, '10': 1, '11': 0, '12': 0 } },
-        ], ['points', 'wins', 'score', 'avgPlacement', 'lastDropKills', 'draw']),
+        ], ['points', 'booyahs', 'kills', 'avgPlacement', 'lastDropKills', 'draw']),
         model(ff, 'sm_ff_cs', 'Contra Squad · Vitória 3', 'TEAM_VS_TEAM', [{ type: 'OUTCOME', win: 3, draw: 0, loss: 0 }], ['points', 'wins', 'scoreDiff', 'headToHead', 'draw'], true),
       ],
     },
@@ -202,7 +202,7 @@ function stage(
   };
 }
 
-const BR_TB: Tiebreaker[] = ['points', 'wins', 'score', 'avgPlacement', 'lastDropKills', 'draw'];
+const BR_TB: Tiebreaker[] = ['points', 'booyahs', 'kills', 'avgPlacement', 'lastDropKills', 'draw'];
 const DUEL_TB: Tiebreaker[] = ['points', 'scoreDiff', 'score', 'headToHead', 'draw'];
 
 const RULES_HTML =

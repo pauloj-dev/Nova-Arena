@@ -44,7 +44,7 @@ export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
       className={cn('inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full bg-accent-soft font-semibold text-accent-soft-text', avatarSizes[size], className)}
     >
       {src && <RAvatar.Image src={src} alt="" className="size-full object-cover" />}
-      <RAvatar.Fallback delayMs={src ? 300 : 0} aria-hidden>
+      <RAvatar.Fallback delayMs={src ? 300 : undefined} aria-hidden>
         {initials(name)}
       </RAvatar.Fallback>
     </RAvatar.Root>

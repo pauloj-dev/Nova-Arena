@@ -2,7 +2,7 @@
 
 import { Dialog } from 'radix-ui';
 import { X } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { cn } from '../lib/cn';
 import { Button } from './Button';
 import { Input } from './Field';
@@ -17,15 +17,35 @@ export interface ModalProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
+/**
+ * Devolve o foco a quem abriu. O Radix só faz isso sozinho quando existe um `Dialog.Trigger`;
+ * como aqui a abertura é controlada por `open`, guardamos o elemento focado na hora de abrir.
+ */
+function useReturnFocus() {
+  const opener = useRef<HTMLElement | null>(null);
+  return {
+    onOpenAutoFocus: () => {
+      opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    },
+    onCloseAutoFocus: (event: Event) => {
+      if (!opener.current?.isConnected) return;
+      event.preventDefault();
+      opener.current.focus();
+    },
+  };
+}
+
 const modalSizes = { sm: 'md:max-w-sm', md: 'md:max-w-lg', lg: 'md:max-w-3xl' };
 
 /** Tela cheia no celular, centralizado a partir de 768 px. Foco preso e devolvido ao fechar (Radix). */
 export function Modal({ open, onOpenChange, title, description, children, footer, size = 'md' }: ModalProps) {
+  const returnFocus = useReturnFocus();
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-overlay animate-fade-in" />
         <Dialog.Content
+          {...returnFocus}
           className={cn(
             'fixed z-50 flex flex-col bg-surface text-text shadow-lg animate-slide-up',
             'inset-0 md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[85vh] md:w-full md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg md:border md:border-border',
@@ -47,8 +67,12 @@ export function Modal({ open, onOpenChange, title, description, children, footer
               </button>
             </Dialog.Close>
           </header>
-          <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6">{children}</div>
-          {footer && <footer className="flex flex-col-reverse gap-2 border-t border-border px-4 py-3 pb-safe md:flex-row md:justify-end md:px-6">{footer}</footer>}
+          {/* Área rolável precisa receber foco para dar para rolar pelo teclado (WCAG 2.1.1). */}
+          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+          <div tabIndex={0} className="flex-1 overflow-y-auto px-4 py-4 focus-visible:-outline-offset-2 md:px-6">
+            {children}
+          </div>
+          {footer && <footer className="flex flex-col-reverse gap-2 border-t border-border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:flex-row md:justify-end md:px-6">{footer}</footer>}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -129,11 +153,12 @@ const drawerSides = {
 };
 
 export function Drawer({ open, onOpenChange, title, children, side = 'right', footer }: DrawerProps) {
+  const returnFocus = useReturnFocus();
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-overlay animate-fade-in" />
-        <Dialog.Content className={cn('fixed z-50 flex flex-col border-border bg-surface text-text shadow-lg animate-fade-in', drawerSides[side])}>
+        <Dialog.Content {...returnFocus} className={cn('fixed z-50 flex flex-col border-border bg-surface text-text shadow-lg animate-fade-in', drawerSides[side])}>
           <header className="flex items-center justify-between gap-4 border-b border-border px-4 py-3">
             <Dialog.Title className="font-display text-lg font-bold">{title}</Dialog.Title>
             <Dialog.Description className="sr-only">{title}</Dialog.Description>
@@ -143,8 +168,11 @@ export function Drawer({ open, onOpenChange, title, children, side = 'right', fo
               </button>
             </Dialog.Close>
           </header>
-          <div className="flex-1 overflow-y-auto px-4 py-4">{children}</div>
-          {footer && <footer className="flex gap-2 border-t border-border px-4 py-3 pb-safe">{footer}</footer>}
+          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- mesma razão do Modal: área rolável */}
+          <div tabIndex={0} className="flex-1 overflow-y-auto px-4 py-4 focus-visible:-outline-offset-2">
+            {children}
+          </div>
+          {footer && <footer className="flex gap-2 border-t border-border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">{footer}</footer>}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

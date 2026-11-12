@@ -15,7 +15,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   reporter: [['list']],
   expect: {
-    toHaveScreenshot: { animations: 'disabled', caret: 'hide', maxDiffPixelRatio: 0.01 },
+    toHaveScreenshot: { animations: 'disabled', caret: 'hide', maxDiffPixelRatio: 0.001 },
   },
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
