@@ -4,6 +4,11 @@ updates:
     directory: /
     schedule: { interval: weekly }
     open-pull-requests-limit: 5
+    ignore:
+      # typescript-eslint ainda não suporta o TypeScript 7 (typescript-eslint/typescript-eslint#10940).
+      # Remover esta regra quando o suporte sair.
+      - dependency-name: typescript
+        versions: [">=7.0.0"]
     groups:
       minor-e-patch:
         update-types: [minor, patch]
