@@ -8,6 +8,7 @@ import { Hono } from 'hono';
 import type { z } from 'zod';
 import { respond, type AppEnv, type DependencyCheck } from '../../context';
 import type { Env } from '../../env';
+import { pingDb } from '@nova/db';
 
 const SERVICES = [
   { key: 'database', name: 'Banco de dados (Neon Postgres)' },
@@ -75,8 +76,9 @@ export const qstashCheck: DependencyCheck = async (env) => {
   return 'ok';
 };
 
-/** O banco entra com `packages/db` (issue #66), que troca esta verificação por uma consulta real. */
+/** Banco: `SELECT 1` pela conexão com pooler (`DATABASE_URL`). */
 export const databaseCheck: DependencyCheck = async (env) => {
   if (!env.DATABASE_URL) return 'not_configured';
-  throw new Error('verificação do banco ainda não implementada (issue #66)');
+  await pingDb();
+  return 'ok';
 };
