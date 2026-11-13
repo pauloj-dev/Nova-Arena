@@ -5,7 +5,7 @@ import { Button, cn, statusLabel } from '@nova/ui';
 import { AlertTriangle, CalendarClock, CheckCircle2, Clock, Hourglass, Maximize2, Radio, Trophy, UserX, XCircle, ZoomIn, ZoomOut, type LucideIcon } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { matchAriaLabel, MATCH_STATUS_PILL_LABEL, shortSchedule, slotText } from '@/features/matches/matchText';
-import { browserTimeZone, timeZoneLabel } from '@/shared/lib/datetime';
+import { timeZoneLabel, userTimeZone } from '@/shared/lib/datetime';
 import { DEFAULT_METRICS, layoutBracket, neighbor, participantPath, type BracketLayout, type Direction, type LayoutNode, type ParticipantPath } from './layout';
 import type { SlotExtension } from './types';
 
@@ -319,7 +319,7 @@ export function BracketCanvas({ matches, highlightRegistrationId, onMatchSelect,
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
-  const timeZone = browserTimeZone();
+  const timeZone = userTimeZone();
 
   /** O confronto que recebe o Tab: o último visitado; senão o pendente de quem está vendo; senão o primeiro. */
   const defaultId = useMemo(() => {

@@ -7,6 +7,7 @@ import { MockGate } from '@/mocks/MockGate';
 import { ApiError } from '@/shared/api/client';
 import { DevSwitcher } from '@/shared/layout/DevSwitcher';
 import { RealtimeProvider } from '@/shared/realtime/RealtimeProvider';
+import { TimeZoneSync } from '@/shared/session/TimeZoneSync';
 
 function makeQueryClient() {
   return new QueryClient({
@@ -28,7 +29,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <ToastProvider>
         <MockGate>
           <RealtimeProvider>
-            {children}
+            <TimeZoneSync>{children}</TimeZoneSync>
             <DevSwitcher />
           </RealtimeProvider>
         </MockGate>

@@ -3,7 +3,7 @@
  * Funções puras: recebem a partida do contrato e devolvem frases prontas.
  */
 import type { Match, MatchParticipant, MatchStatus } from '@nova/schemas';
-import { browserTimeZone, formatDate, formatDateTime, formatTime, timeZoneLabel } from '@/shared/lib/datetime';
+import { formatDate, formatDateTime, formatTime, timeZoneLabel, userTimeZone } from '@/shared/lib/datetime';
 
 /** Texto do status para frases (o `StatusPill` tem o seu próprio rótulo). */
 export const MATCH_STATUS_TEXT: Record<MatchStatus, string> = {
@@ -53,7 +53,7 @@ export function matchHeading(match: Pick<Match, 'stageName' | 'groupName' | 'rou
 
 /** "12/11 · 20h", para espaços pequenos. O fuso vai em outro lugar da mesma tela. */
 export function shortSchedule(iso: string, timeZone?: string): string {
-  const zone = timeZone ?? browserTimeZone();
+  const zone = timeZone ?? userTimeZone();
   return `${formatDate(iso, { timeZone: zone }).slice(0, 5)} · ${formatTime(iso, { timeZone: zone })}`;
 }
 
@@ -91,7 +91,7 @@ export interface AriaLabelOptions {
  * "Quartas de final: Squad Alfa contra Squad Bravo, 12/11 às 20h, horário de Brasília, agendada".
  */
 export function matchAriaLabel(match: Match, opts: AriaLabelOptions = {}): string {
-  const zone = opts.timeZone ?? browserTimeZone();
+  const zone = opts.timeZone ?? userTimeZone();
   const head = [match.groupName, match.roundLabel].filter(Boolean).join(', ');
   const count = match.participants.length;
   const who = match.kind === 'LOBBY' ? `${count} ${count === 1 ? 'equipe' : 'equipes'}` : match.participants.map(slotSpoken).join(' contra ');
