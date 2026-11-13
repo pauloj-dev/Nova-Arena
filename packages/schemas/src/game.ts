@@ -108,10 +108,15 @@ export const GameRankingEntry = z.object({
   tournamentsPlayed: z.number().int(),
   /** Dos disputados, quantos já terminaram. */
   tournamentsFinished: z.number().int(),
-  /** Nulos enquanto os resultados de partidas não existem (chegam na F2). */
+  /** Contados a partir dos resultados das partidas (anulados não contam). Nulos só em respostas antigas, sem resultados. */
   titles: z.number().int().nullable(),
   wins: z.number().int().nullable(),
+  /** Battle Royale: kills somadas nas quedas (as do próprio jogador quando a fase lança kills por jogador). */
   kills: z.number().int().nullable(),
+  /** Duelos: placar a favor somado (gols, coroas, frames, jogos vencidos na série). */
+  score: z.number().nullable().default(null),
+  /** Partidas jogadas (vaga de bye e ausência na queda não contam). */
+  matches: z.number().int().nullable().default(null),
 });
 export type GameRankingEntry = z.infer<typeof GameRankingEntry>;
 
@@ -121,6 +126,8 @@ export const GameRanking = z.object({
   gameName: z.string(),
   /** Falso enquanto títulos, vitórias e kills ainda não são contados. */
   resultsAvailable: z.boolean(),
+  /** Estatística de desempate e destaque do jogo: kills (Battle Royale) ou placar (duelos). */
+  highlight: z.enum(['KILLS', 'SCORE']).default('SCORE'),
   entries: z.array(GameRankingEntry),
 });
 export type GameRanking = z.infer<typeof GameRanking>;

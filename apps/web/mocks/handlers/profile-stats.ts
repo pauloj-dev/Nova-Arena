@@ -73,37 +73,67 @@ function finalPlacement(tournament: DbTournament, registrationId: string): numbe
   return buildStandings(last.id).overall.find((row) => row.registrationId === registrationId)?.position ?? null;
 }
 
-function statsOf(user: DbUser): CompetitiveStats {
+/** Uma inscrição que de fato disputou: entrou em pelo menos uma chave confirmada de campeonato não cancelado. */
+interface Disputed {
+  registration: DbRegistration;
+  tournament: DbTournament;
+  runs: DbStageRun[];
+}
+
+function disputedBy(userId: string): Disputed[] {
   const d = db();
   const runs = stageRuns().filter((r) => r.confirmed);
-  const perGame = new Map<string, PerGame>();
-  const achievements: Achievement[] = [];
-  const history: HistoryEntry[] = [];
-  const played: { tournament: DbTournament; startedAt: string }[] = [];
-
-  for (const registration of registrationsOf(user.id)) {
+  const out: Disputed[] = [];
+  for (const registration of registrationsOf(userId)) {
     const tournament = d.tournaments.find((t) => t.id === registration.tournamentId);
     if (!tournament || tournament.status === 'CANCELLED') continue;
-    // "Disputado" = entrou em pelo menos uma chave confirmada.
     const mine = runs.filter((r) => r.tournamentId === tournament.id && r.structure.entrants.some((e) => e.id === registration.id));
-    if (mine.length === 0) continue;
+    if (mine.length > 0) out.push({ registration, tournament, runs: mine });
+  }
+  return out;
+}
+
+/**
+ * Números por jogo (campeonatos, títulos, vitórias, partidas, kills e placar) a partir dos resultados gravados.
+ * É a mesma conta do perfil competitivo e do `/ranking` (ADR-0001).
+ */
+export function perGameStats(userId: string): Map<string, PerGame> {
+  const d = db();
+  const perGame = new Map<string, PerGame>();
+  for (const { registration, tournament, runs } of disputedBy(userId)) {
     const game = d.games.find((g) => g.id === tournament.gameId);
     const row = perGame.get(tournament.gameId) ?? { gameId: tournament.gameId, gameName: game?.name ?? 'Jogo', gameIcon: game?.icon ?? '🎮', tournaments: 0, titles: 0, wins: 0, matches: 0, kills: 0, score: 0 };
     row.tournaments += 1;
-    for (const run of mine) {
-      const t = totalsInRun(run, registration.id, user.id);
+    for (const run of runs) {
+      const t = totalsInRun(run, registration.id, userId);
       row.matches += t.matches;
       row.wins += t.wins;
       row.kills += t.kills;
       row.score += t.score;
     }
+    const place = podiums()
+      .find((p) => p.tournamentId === tournament.id)
+      ?.places.find((p) => p.registrationId === registration.id)?.place;
+    if (place === 1) row.titles += 1;
     perGame.set(tournament.gameId, row);
+  }
+  return perGame;
+}
+
+function statsOf(user: DbUser): CompetitiveStats {
+  const d = db();
+  const perGame = perGameStats(user.id);
+  const achievements: Achievement[] = [];
+  const history: HistoryEntry[] = [];
+  const played: { tournament: DbTournament; startedAt: string }[] = [];
+
+  for (const { registration, tournament } of disputedBy(user.id)) {
+    const game = d.games.find((g) => g.id === tournament.gameId);
     played.push({ tournament, startedAt: tournament.startsAt ?? registration.createdAt });
 
     const podium = podiums().find((p) => p.tournamentId === tournament.id);
     const finished = tournament.status === 'FINISHED' || tournament.status === 'ARCHIVED';
     const place = podium?.places.find((p) => p.registrationId === registration.id)?.place;
-    if (place === 1) row.titles += 1;
     const medal = place !== undefined ? PODIUM_ACHIEVEMENT[place] : undefined;
     if (podium && medal) achievements.push({ id: `ach_${tournament.id}_${place}`, type: medal.type, label: medal.label, tournamentName: tournament.name, awardedAt: podium.finishedAt });
 
