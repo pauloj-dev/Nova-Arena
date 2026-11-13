@@ -4,6 +4,7 @@ import { TournamentListQuery, type TournamentStatus } from '@nova/schemas';
 import { db, type DbTournament } from '../db';
 import { badRequest, currentUser, findTournament, handle, json, notFound, paginate, param, query, tournamentAccess, url } from '../http';
 import { takenSlots, toRegistration, toTournament, toTournamentSummary } from '../views';
+import { settleWaitlist } from '../waitlist';
 
 export const moduleName = 'tournaments';
 
@@ -66,6 +67,7 @@ export const handlers = [
       const t = findTournament(param(params, 'id'));
       if (!canSee(t)) throw notFound('Campeonato');
       const staff = tournamentAccess(currentUser(), t) !== null;
+      settleWaitlist(t);
       const scope = query(request).get('scope');
       const list = db()
         .registrations.filter((r) => r.tournamentId === t.id)

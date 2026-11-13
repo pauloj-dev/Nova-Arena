@@ -319,6 +319,36 @@ describe('DELETE /registrations/:id (RN-06) e lista de espera (RN-12)', () => {
     expect(najaNow?.reservedUntil).not.toBeNull();
   });
 
+  it('a reserva de 24 h vence também quando a promoção veio de uma remoção feita pela organização (issue 153)', async () => {
+    mutate((d) => {
+      const t = d.tournaments.find((x) => x.id === 'tn_copa_ff');
+      if (t) t.maxParticipants = 12;
+    });
+    as('u_lucas');
+    const alfa = await call<RegistrationT>('POST', '/tournaments/tn_copa_ff/registrations', { ...OK, teamId: 't_alfa' });
+    const najaCaptain = db().teams.find((x) => x.id === 't_13')?.captainId ?? '';
+    as(najaCaptain);
+    const naja = await call<RegistrationT>('POST', '/tournaments/tn_copa_ff/registrations', { ...OK, teamId: 't_13' });
+
+    // A organizadora remove o Squad Bravo: o Alfa sobe incompleto, com a vaga reservada.
+    const bravo = db().registrations.find((r) => r.tournamentId === 'tn_copa_ff' && r.teamId === 't_1');
+    as('u_camila');
+    const removed = await call<{ promoted: RegistrationT[] }>('PATCH', `/registrations/${bravo?.id}`, { action: 'remove', reason: 'Inscrição duplicada' });
+    expect(removed.status).toBe(200);
+    expect(removed.data.promoted.map((r) => r.id)).toEqual([alfa.data.id]);
+    expect(db().registrations.find((r) => r.id === alfa.data.id)?.status).toBe('PENDING_MEMBERS');
+
+    // O prazo vence. A organização abre a lista de inscritos: o Alfa volta ao fim da fila e o Naja sobe.
+    mutate((d) => {
+      const r = d.registrations.find((x) => x.id === alfa.data.id);
+      if (r) r.reservedUntil = new Date(Date.now() - 1000).toISOString();
+    });
+    const list = await call<RegistrationT[]>('GET', '/tournaments/tn_copa_ff/registrations?scope=all');
+    expect(list.status).toBe(200);
+    expect(list.data.find((r) => r.id === alfa.data.id)).toMatchObject({ status: 'WAITLIST', reservedUntil: null, waitlistPosition: 1 });
+    expect(list.data.find((r) => r.id === naja.data.id)?.status).toBe('PENDING_MEMBERS');
+  });
+
   it('squad promovido que completa dentro do prazo é confirmado e perde a marca de reserva', async () => {
     mutate((d) => {
       const t = d.tournaments.find((x) => x.id === 'tn_copa_ff');
