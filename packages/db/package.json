@@ -16,7 +16,6 @@
     "db:deploy": "node scripts/deploy.mjs",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset",
-    "db:local": "prisma dev",
     "postinstall": "prisma generate --no-hints"
   },
   "dependencies": {

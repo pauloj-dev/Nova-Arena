@@ -12,31 +12,25 @@ Postgres no **Neon** (produção, staging e um banco por preview), acessado pelo
 
 ## Rodar localmente
 
-**Sem Docker** (Prisma Postgres local):
+Com Docker (Postgres 17, Redis e a ponte REST do Upstash):
 
 ```bash
-pnpm --filter @nova/db db:local -- --name nova-arena --detach
+docker compose up -d
 ```
 
-O comando mostra a URL `postgres://…`. Coloque em `packages/db/.env` (ignorado pelo git) como `DATABASE_URL` e depois:
+Em `packages/db/.env` (ignorado pelo git): `DATABASE_URL=postgres://nova:nova@localhost:5432/nova`. Para os testes de integração, `TEST_DATABASE_URL=postgres://nova:nova@localhost:5432/nova_test`. Para o Redis local, `KV_REST_API_URL=http://localhost:8079` e `KV_REST_API_TOKEN=nova-local`.
 
 ```bash
-pnpm --filter @nova/db db:migrate
+pnpm --filter @nova/db exec prisma migrate deploy
 ```
 
 ```bash
 pnpm --filter @nova/db db:seed
 ```
 
-O servidor local tem um banco só: para os testes de integração, use um Postgres de verdade (Docker ou o do CI).
+Sem Docker, qualquer PostgreSQL 15 ou mais novo serve (instalado na máquina ou um branch de desenvolvimento do Neon).
 
-**Com Docker** (Postgres, Redis e a ponte REST do Upstash):
-
-```bash
-docker compose up -d
-```
-
-`DATABASE_URL=postgres://nova:nova@localhost:5432/nova`, `TEST_DATABASE_URL=postgres://nova:nova@localhost:5432/nova_test`, `KV_REST_API_URL=http://localhost:8079` e `KV_REST_API_TOKEN=nova-local`.
+> **O `prisma dev` (Prisma Postgres local) não funciona com este schema.** Ele instala um gatilho próprio em toda tabela, e a tabela particionada da auditoria (issue #71) faz essa instalação falhar: o servidor local não sobe mais. Se o servidor-sombra do `migrate dev` ficar em outra porta, defina `SHADOW_DATABASE_URL`.
 
 ## Comandos (`pnpm --filter @nova/db …`)
 
@@ -63,5 +57,13 @@ O rollback da Vercel é instantâneo, o do banco não. Toda migration precisa fu
 
 - `nicknameKey` (minúsculas, única) garante apelido único sem diferenciar maiúsculas, sem depender da extensão `citext`.
 - Quem executou uma ação (`grantedById`, `reviewedById`, `issuedById`…) fica só como ID, sem chave estrangeira: usuário nunca é apagado (a exclusão LGPD anonimiza) e o histórico não pode depender dele.
-- `AuditLog` e `ResultEvent` usam `bigint` sequencial. O bloqueio de `UPDATE`/`DELETE` no `AuditLog` (gatilho e permissões) entra com a issue #71.
+- `AuditLog` e `ResultEvent` usam `bigint` sequencial.
 - `Standing` é uma tabela recalculada pelo motor a cada resultado (não uma view materializada), com cache no Redis.
+
+## Auditoria (issue #71)
+
+- **Somente inserção:** gatilhos recusam `UPDATE`, `DELETE` e `TRUNCATE` em `audit_logs`, e essas permissões são revogadas de `PUBLIC`. Em produção, a aplicação deve conectar com um papel que tenha só `INSERT` e `SELECT` nessa tabela (o dono do banco ignora as permissões, mas não os gatilhos).
+- **Na mesma transação da ação:** `withAudit(db(), { actorId, ip, userAgent, reason }, async (tx) => { ...; await audited(tx, {...}) })`. Ação fora de `AUDIT_ACTIONS` (`@nova/schemas`) é recusada.
+- **Mudança de papel:** registrada pelo próprio banco (gatilho em `user_roles`), com o autor vindo do contexto de `withAudit`. Não chame `audited` para `ROLE_GRANTED`/`ROLE_REVOKED`.
+- **Partições mensais** no schema `audit` (fora do Prisma): `audit.ensure_partitions(3)` cria do mês atual até 3 meses à frente; o Cron mensal da issue #99 chama a função. Enquanto isso, a partição padrão recebe tudo.
+- **Retenção:** `audit.drop_partitions_older_than(meses)` apaga partições inteiras e recusa menos de 12 meses (RNF-15).

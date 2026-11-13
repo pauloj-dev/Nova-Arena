@@ -13,5 +13,7 @@ export default defineConfig({
   },
   datasource: {
     url: process.env.DATABASE_URL_UNPOOLED ?? process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? '',
+    // Só para `migrate dev` quando o servidor local tem um banco-sombra separado (ex.: `prisma dev`).
+    ...(process.env.SHADOW_DATABASE_URL ? { shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL } : {}),
   },
 });
