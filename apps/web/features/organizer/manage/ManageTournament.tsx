@@ -1,29 +1,43 @@
 'use client';
 
-import { Badge, Button, ErrorState, Skeleton, StatusPill, Tabs } from '@nova/ui';
+import { Badge, Button, ErrorState, Skeleton, StatusPill, Tabs, type TabItem } from '@nova/ui';
 import { ExternalLink, Hourglass } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { ApiError, errorMessage } from '@/shared/api/client';
+import { useGames } from '@/shared/api/hooks/games';
 import { useOrganizerTournament } from '@/shared/api/hooks/organizer';
+import { LiveIndicator } from '@/shared/realtime/LiveIndicator';
+import { useTournamentChannel } from '@/shared/realtime/RealtimeProvider';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { NoAccess, TournamentNotFound } from '../components/NoAccess';
+import { permissionsOf } from '../operation/stageUtils';
+import { AnnouncementsTab } from './AnnouncementsTab';
+import { AuditTab } from './AuditTab';
+import { MatchesTab } from './MatchesTab';
 import { PublicPageTab } from './PublicPageTab';
 import { RegistrationsTab } from './RegistrationsTab';
+import { StaffTab } from './StaffTab';
+import { StagesTab } from './StagesTab';
 import { SummaryTab } from './SummaryTab';
+import { ValidationTab } from './ValidationTab';
 
-const TABS = ['resumo', 'inscricoes', 'pagina'] as const;
+const TABS = ['resumo', 'inscricoes', 'fases', 'partidas', 'validacao', 'equipe', 'comunicados', 'auditoria', 'pagina'] as const;
 type TabId = (typeof TABS)[number];
 const isTab = (value: string | null): value is TabId => TABS.includes(value as TabId);
 
 function ManageInner({ tournamentId }: { tournamentId: string }) {
   const params = useSearchParams();
   const query = useOrganizerTournament(tournamentId);
+  const games = useGames({ includeInactive: true });
   const [tab, setTab] = useState<TabId>(() => {
     const initial = params.get('aba');
     return isTab(initial) ? initial : 'resumo';
   });
+  const [celebrate, setCelebrate] = useState(false);
+  // Chave, partidas e tabelas desta tela se atualizam sozinhas com os eventos do campeonato.
+  useTournamentChannel(query.data?.id);
 
   if (!query.data) {
     if (query.error instanceof ApiError && query.error.status === 403) return <NoAccess />;
@@ -44,8 +58,10 @@ function ManageInner({ tournamentId }: { tournamentId: string }) {
   }
 
   const t = query.data;
-  const isModerator = t.access === 'MODERATOR';
+  const perms = permissionsOf(t.access);
   const isDraft = t.status === 'DRAFT';
+  const game = games.data?.find((g) => g.id === t.gameId) ?? null;
+  const running = t.status === 'IN_PROGRESS' || t.status === 'PAUSED';
 
   function changeTab(value: string) {
     if (!isTab(value)) return;
@@ -57,36 +73,19 @@ function ManageInner({ tournamentId }: { tournamentId: string }) {
     window.history.replaceState(null, '', `${url.pathname}${url.search}`);
   }
 
-  return (
-    <PageContainer>
-      <PageHeader
-        title={t.name}
-        description={
-          <span className="flex flex-wrap items-center gap-2">
-            <StatusPill status={t.status} />
-            <span>
-              <span aria-hidden>{t.gameIcon} </span>
-              {t.gameName} · {t.modeName}
-            </span>
-          </span>
-        }
-        actions={
-          !isDraft && (
-            <Button asChild variant="secondary">
-              <Link href={`/c/${t.slug}`}>
-                <ExternalLink className="size-4" aria-hidden />
-                Ver página pública
-              </Link>
-            </Button>
-          )
-        }
-      />
-      <Tabs
-        label="Seções do campeonato"
-        value={tab}
-        onValueChange={changeTab}
-        items={[
-          { value: 'resumo', label: 'Resumo', content: <SummaryTab tournament={t} /> },
+  const items: TabItem[] = [
+          {
+            value: 'resumo',
+            label: 'Resumo',
+            content: (
+              <SummaryTab
+                tournament={t}
+                celebrate={celebrate}
+                onGoToStages={() => changeTab('fases')}
+                onFinished={() => setCelebrate(true)}
+              />
+            ),
+          },
           {
             value: 'inscricoes',
             label: (
@@ -102,8 +101,70 @@ function ManageInner({ tournamentId }: { tournamentId: string }) {
             ),
             content: <RegistrationsTab tournament={t} />,
           },
-          ...(isModerator ? [] : [{ value: 'pagina', label: 'Página pública', content: <PublicPageTab tournament={t} /> }]),
-        ]}
+          ...(isDraft
+            ? []
+            : [
+                {
+                  value: 'fases',
+                  label: 'Fases e chave',
+                  content: (
+                    <StagesTab
+                      tournament={t}
+                      game={game}
+                      onGoToMatches={() => changeTab('partidas')}
+                      onFinished={() => {
+                        setCelebrate(true);
+                        changeTab('resumo');
+                      }}
+                    />
+                  ),
+                },
+                { value: 'partidas', label: 'Partidas e resultados', content: <MatchesTab tournament={t} game={game} onGoToStages={() => changeTab('fases')} /> },
+                { value: 'validacao', label: 'Validação', content: <ValidationTab tournamentId={t.id} /> },
+              ]),
+          // O moderador só vê o que ele opera: agenda, resultados, validação e inscrições (PRD §6).
+          ...(perms.canManage && !isDraft
+            ? [
+                { value: 'equipe', label: 'Equipe', content: <StaffTab tournament={t} /> },
+                { value: 'comunicados', label: 'Comunicados', content: <AnnouncementsTab tournament={t} /> },
+                { value: 'auditoria', label: 'Auditoria', content: <AuditTab tournamentId={t.id} /> },
+              ]
+            : []),
+          ...(perms.canManage ? [{ value: 'pagina', label: 'Página pública', content: <PublicPageTab tournament={t} /> }] : []),
+  ];
+  // Aba pedida no endereço que este papel não enxerga (ex.: moderador em `?aba=equipe`): cai no Resumo.
+  const activeTab = items.some((item) => item.value === tab) ? tab : 'resumo';
+
+  return (
+    <PageContainer>
+      <PageHeader
+        title={t.name}
+        description={
+          <span className="flex flex-wrap items-center gap-2">
+            <StatusPill status={t.status} />
+            <span>
+              <span aria-hidden>{t.gameIcon} </span>
+              {t.gameName} · {t.modeName}
+            </span>
+            {running && <LiveIndicator />}
+          </span>
+        }
+        actions={
+          !isDraft && (
+            <Button asChild variant="secondary">
+              <Link href={`/c/${t.slug}`}>
+                <ExternalLink className="size-4" aria-hidden />
+                Ver página pública
+              </Link>
+            </Button>
+          )
+        }
+      />
+      <Tabs
+        label="Seções do campeonato"
+        value={activeTab}
+        onValueChange={changeTab}
+        items={items}
       />
     </PageContainer>
   );

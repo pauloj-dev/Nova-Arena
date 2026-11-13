@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "public/mockServiceWorker.js",
     ".next-*/**",
+    "test-results-*/**",
     "playwright-report/**",
     "test-results/**",
   ]),

@@ -22,11 +22,13 @@ import {
   type TournamentStatus,
   type TournamentTemplate,
 } from '@nova/schemas';
-import { validateScoringModel } from '@nova/engine';
+import { EngineError, generateStage, validateScoringModel } from '@nova/engine';
 import { UNNAMED_TOURNAMENT } from '@/features/organizer/lib/draft';
 import { checkOrganizerLimits, countActiveTournaments, isGameAllowed, type OrganizerForLimits } from '@/features/organizer/lib/limits';
 import { sanitizeTournamentHtml } from '@/features/organizer/lib/sanitize-html';
 import { validateDraft, type DraftForValidation, type DraftIssue } from '@/features/organizer/validation';
+import { audit } from '../audit';
+import { getRun, newRun, putRun, removeRun, toEngineConfig } from '../competition';
 import { collection, db, nowIso, save, uid, uniqueSlug, type DbTemplate, type DbTournament, type DbUser } from '../db';
 import {
   badRequest,
@@ -64,6 +66,16 @@ interface Cancellation {
 }
 const cancellations = () => collection<Cancellation>('tournamentCancellations');
 
+/** Pausas do campeonato (F2.3). A pausa em vigor é a que ainda não tem `resumedAt`. */
+export interface TournamentPause {
+  tournamentId: string;
+  reason: string;
+  byUserId: string;
+  at: string;
+  resumedAt: string | null;
+}
+export const tournamentPauses = () => collection<TournamentPause>('tournamentPauses');
+
 // ── Conversões ───────────────────────────────────────────────────────
 function pendingApprovals(tournamentId: string): number {
   return db().registrations.filter((r) => r.tournamentId === tournamentId && r.status === 'PENDING_APPROVAL').length;
@@ -76,8 +88,14 @@ function toOrganizerTournament(t: DbTournament, access: TournamentAccess): Organ
   return { ...toTournamentSummary(t), access, draftStep: t.draftStep, pendingApprovals: pendingApprovals(t.id), waitlistCount: waitlistCount(t.id), stageCount: t.stages.length };
 }
 
-function toOrganizerDetail(t: DbTournament, access: TournamentAccess): OrganizerTournamentDetail {
-  return { ...toTournament(t), access, pendingApprovals: pendingApprovals(t.id), cancelReason: cancellations().find((c) => c.tournamentId === t.id)?.reason ?? null };
+export function toOrganizerDetail(t: DbTournament, access: TournamentAccess): OrganizerTournamentDetail {
+  return {
+    ...toTournament(t),
+    access,
+    pendingApprovals: pendingApprovals(t.id),
+    cancelReason: cancellations().find((c) => c.tournamentId === t.id)?.reason ?? null,
+    pauseReason: t.status === 'PAUSED' ? (tournamentPauses().find((p) => p.tournamentId === t.id && p.resumedAt === null)?.reason ?? null) : null,
+  };
 }
 
 function toStageInput(s: Stage): StageInput {
@@ -183,6 +201,32 @@ function buildStages(t: DbTournament, inputs: StageInput[]): Stage[] {
       lockedAt: existing?.lockedAt ?? null,
     };
   });
+}
+
+/**
+ * Uma fase que ainda não começou pode ter uma prévia de chave guardada (gerada pelo organizador ou
+ * pelo avanço da fase anterior). Se a configuração dela mudou, a prévia é refeita com os mesmos
+ * participantes, para a tela nunca mostrar uma chave do formato antigo (US-ORG-05).
+ */
+function refreshStalePreviews(before: Stage[], after: Stage[]): void {
+  for (const stage of after) {
+    if (stage.status !== 'PENDING') continue;
+    const old = before.find((s) => s.id === stage.id);
+    const run = getRun(stage.id);
+    if (!old || !run || run.confirmed) continue;
+    if (old.format === stage.format && sameJson(old.config, stage.config) && sameJson(old.qualification, stage.qualification)) continue;
+    try {
+      const structure = generateStage({ format: stage.format, entrants: run.structure.entrants, config: toEngineConfig(stage), seeding: 'RANKED', seed: run.structure.seedUsed });
+      removeRun(stage.id);
+      putRun(newRun(stage.id, run.tournamentId, structure, false));
+      stage.randomSeed = structure.seedUsed;
+    } catch (error) {
+      if (!(error instanceof EngineError)) throw error;
+      // Na primeira fase basta gerar de novo; nas seguintes os classificados só existem nesta prévia.
+      if (stage.order === 1) removeRun(stage.id);
+      else throw conflict(`A fase "${stage.name}" já recebeu os classificados e a nova configuração não comporta esses participantes: ${error.message}`, 'STAGE_PREVIEW_CONFLICT');
+    }
+  }
 }
 
 /** Copia para o registro os campos presentes no corpo (ausente = não muda). */
@@ -465,6 +509,7 @@ export const handlers = [
         return dates.includes(root) && dates.some((field) => touched.has(field));
       });
       if (issues.length > 0) throw badRequest(issues[0]?.message ?? 'Confira os campos destacados.', 'VALIDATION', issuesToErrors(issues));
+      if (input.stages !== undefined) refreshStalePreviews(t.stages, next.stages);
       Object.assign(t, next);
       save();
       return json(toOrganizerDetail(t, access));
@@ -575,6 +620,7 @@ export const handlers = [
         db().announcements.push(notice);
       }
       save();
+      audit(user, { action: 'TOURNAMENT_STATUS_CHANGED', entityType: 'Tournament', entityId: t.id, entityLabel: t.name, tournamentId: t.id, after: { status: 'CANCELLED' }, reason });
       return json(toOrganizerDetail(t, access));
     }),
   ),

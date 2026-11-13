@@ -55,10 +55,16 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   ENTRANT_WITHDRAWN: 'Desistência registrada',
   ENTRANT_DISQUALIFIED: 'Participante desclassificado',
   DISPUTE_RESOLVED: 'Disputa resolvida',
+  DISPUTE_ESCALATED: 'Disputa escalada para a administração',
+  SUBMISSION_REJECTED: 'Resultado enviado recusado',
   REPORT_HANDLED: 'Denúncia tratada',
   SETTINGS_CHANGED: 'Configurações alteradas',
   FLAG_CHANGED: 'Recurso ligado ou desligado',
   ANNOUNCEMENT_SENT: 'Comunicado enviado',
+  ANNOUNCEMENT_DELETED: 'Comunicado apagado',
+  ANNOUNCEMENT_TOGGLED: 'Comunicado ativado ou desativado',
+  ADMIN_REMOVAL_REQUESTED: 'Remoção de administrador solicitada',
+  ADMIN_REMOVAL_REVIEWED: 'Remoção de administrador analisada',
   TWO_FACTOR_CHANGED: 'Verificação em duas etapas alterada',
 };
 

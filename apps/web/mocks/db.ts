@@ -206,7 +206,18 @@ function storage(): Storage | null {
   }
 }
 
+let listening = false;
+/** Outra aba gravou: esta aba descarta a cópia em memória e relê na próxima consulta. */
+function watchOtherTabs(): void {
+  if (listening || typeof window === 'undefined') return;
+  listening = true;
+  window.addEventListener('storage', (event) => {
+    if (event.key === STORAGE_KEY) state = null;
+  });
+}
+
 export function db(): Db {
+  watchOtherTabs();
   if (state) return state;
   const raw = storage()?.getItem(STORAGE_KEY);
   if (raw) {

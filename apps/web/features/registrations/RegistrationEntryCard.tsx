@@ -1,13 +1,14 @@
 import type { MyTournamentEntry } from '@nova/schemas';
 import { Card, StatusPill } from '@nova/ui';
-import { AlertCircle, CalendarClock, Medal, Swords, Users } from 'lucide-react';
+import { AlertCircle, CalendarClock, Medal, Users } from 'lucide-react';
 import Link from 'next/link';
+import { NextMatch } from '@/features/matches/NextMatch';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { registrationPendencies } from './lib/rules';
 
-/** Uma inscrição minha: campeonato, data com fuso, status e o que falta resolver. Usado na home e em "Meus campeonatos". */
+/** Uma inscrição minha: campeonato, data com fuso, status, próxima partida e o que falta resolver. Usado na home e em "Meus campeonatos". */
 export function RegistrationEntryCard({ entry, viewerId }: { entry: MyTournamentEntry; viewerId: string | null }) {
-  const { tournament: t, registration: r, nextMatch, finalPlacement } = entry;
+  const { tournament: t, registration: r, finalPlacement } = entry;
   const pendencies = registrationPendencies(r, viewerId);
 
   return (
@@ -50,14 +51,8 @@ export function RegistrationEntryCard({ entry, viewerId }: { entry: MyTournament
         {t.startsAt ? `Começa ${formatDateTime(t.startsAt)}` : 'Data de início ainda não definida'}
       </p>
 
-      {nextMatch && (
-        <p className="flex items-center gap-1.5 text-sm text-text">
-          <Swords className="size-4 shrink-0 text-muted" aria-hidden />
-          {nextMatch.label}
-          {nextMatch.opponent ? ` · contra ${nextMatch.opponent}` : ''}
-          {nextMatch.scheduledAt ? ` · ${formatDateTime(nextMatch.scheduledAt)}` : ''}
-        </p>
-      )}
+      {/* Próxima partida (F2): adversário, horário, check-in e link direto para a partida. */}
+      <NextMatch entry={entry} viewerId={viewerId} />
 
       {pendencies.length > 0 && (
         <ul className="flex flex-col gap-1" aria-label="Pendências">

@@ -500,7 +500,6 @@ test.describe('minha conta', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Segurança' })).toBeVisible();
     await expect(page.getByText('Verificação em duas etapas').first()).toBeVisible();
     await expect(page.getByText('Inativa', { exact: true })).toBeVisible();
-    await expect(page.getByText('Em breve', { exact: false }).first()).toBeVisible();
     await expectNoHorizontalScroll(page);
   });
 

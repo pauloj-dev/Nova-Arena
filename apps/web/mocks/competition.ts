@@ -305,6 +305,7 @@ export function buildMatch(run: DbStageRun, node: MatchNode, ctx?: { tournament:
       points,
       isWinner: result ? (node.kind === 'LOBBY' ? entry?.placement === 1 : result.winnerId === slot.entrantId) : null,
       checkedIn: slot.entrantId ? isCheckedIn(tournament, regs.get(slot.entrantId), meta) : false,
+      checkedInUserIds: slot.entrantId ? meta.checkIns.filter((c) => c.registrationId === slot.entrantId).map((c) => c.userId) : [],
       stats,
       playerKills: slot.entrantId ? (meta.playerKills[slot.entrantId] ?? {}) : {},
       status: slot.entrantId ? (run.state.entrantStatus[slot.entrantId] ?? 'ACTIVE') : 'ACTIVE',

@@ -71,3 +71,16 @@ Nos testes E2E, importe `test`, `expect`, `loginAs` e `waitForApp` de `./fixture
 - **Testes de regra sem navegador:** `mocks/testing.ts` (`setupMockApi`, `as`, `call`, `mutate`) sobe a API simulada inteira no Vitest. Exemplo: `mocks/competition.test.ts`.
 - **E2E em paralelo:** além de `PLAYWRIGHT_BASE_URL`, defina `PW_OUTPUT_DIR=test-results-<seu-nome>` para não apagar a saída de outra execução.
 - **Dados de demonstração de competição:** "Liga Semanal Clash Royale 1v1" (`liga-semanal-clash-royale`) está em andamento, com as oitavas jogadas e a partida da Bianca nas quartas com check-in aberto e sala definida; "Open 8 Ball Pool" (`open-8-ball-pool`) está finalizado, com tabela do suíço e pódio.
+
+## Telas de F2 e onde ficam
+
+| Área | Rotas | Código |
+|---|---|---|
+| Participante | `/c/[slug]?aba=chave\|partidas\|resultados`, `/c/[slug]/arte`, `/notificacoes`, `/minha-conta/notificacoes`, `/minha-conta/denuncias`, `/minha-conta/seguranca` (2FA), `/disputas/[id]`, `/termos`, `/privacidade` | `features/brackets`, `features/matches`, `features/notifications`, `features/reports`, `features/disputes`, `features/profile/{competitive,security}`, `features/artwork` |
+| Organizador | `/organizador/campeonatos/[id]?aba=fases\|partidas\|validacao\|equipe\|comunicados\|auditoria` | `features/organizer/{manage,operation,onboarding}` |
+| Admin | `/admin`, `/admin/usuarios`, `/admin/administradores`, `/admin/organizadores`, `/admin/campeonatos`, `/admin/comunicados`, `/admin/auditoria`, `/admin/moderacao`, `/admin/configuracoes`, `/admin/saude` | `features/admin/*` |
+
+- **Feature flags:** `useFlag('ranking' | 'publicSignup' | 'resultSubmission' | 'pushNotifications')` e `<FlagGate flag>` em `shared/flags`. A flag vale também no handler (`isFlagEnabled` em `mocks/handlers/admin-settings.ts`): esconder na tela não basta.
+- **Sessão e papéis na API simulada:** `currentUser()` devolve nulo para quem não está `ACTIVE` (banido, suspenso, mesclado, excluído); `requireAdmin()` exige verificação em duas etapas ativa.
+- **Coleções de F2 no banco simulado** (`db().extra`): `stageRuns`, `matchMeta`, `podiums`, `resultEvents`, `auditLogs`, `notifications`, `notificationPreferences`, `reports`, `submissions`, `disputes`, `sanctions`, `roleGrants`, `globalAnnouncements`, `siteSettings`, `featureFlags`, `twoFactor`.
+- **Atalhos que só existem no protótipo** e não vão para a API real: `POST /auth/dev-login`, `GET /me/2fa/dev-code`, os tokens `devVerifyToken`/`devResetToken` nas respostas e o link de redefinição mostrado ao Admin.

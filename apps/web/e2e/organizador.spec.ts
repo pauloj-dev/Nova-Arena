@@ -277,8 +277,13 @@ test.describe('organizador — criar e publicar', () => {
     }
     await expect(page.getByTestId('stage-card-2')).toContainText('Grande Final');
     await expect(page.getByText('3 fases · configuração válida para as vagas do campeonato.')).toBeVisible();
-    await page.getByRole('button', { name: 'Duplicar a fase Mata-mata 4v4' }).click();
-    await expect(page.getByTestId('stage-card-2')).toContainText('Mata-mata 4v4 (cópia)');
+    // Logo depois de soltar o arrasto com o mouse, a biblioteca de arrastar ignora cliques por um instante
+    // (para o "soltar" não virar clique). Uma pessoa não clica tão rápido; o teste tenta de novo.
+    await expect(async () => {
+      if ((await page.getByTestId('stage-card-2').textContent())?.includes('(cópia)')) return;
+      await page.getByRole('button', { name: 'Duplicar a fase Mata-mata 4v4', exact: true }).click();
+      await expect(page.getByTestId('stage-card-2')).toContainText('Mata-mata 4v4 (cópia)', { timeout: 1500 });
+    }).toPass();
     await page.getByRole('button', { name: 'Remover a fase Mata-mata 4v4 (cópia)' }).click();
     await page.getByRole('dialog', { name: 'Remover esta fase?' }).getByRole('button', { name: 'Remover fase' }).click();
     await expect(page.getByTestId('stage-card-2')).toContainText('Grande Final');

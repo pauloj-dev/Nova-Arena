@@ -11,6 +11,7 @@ import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime';
 import { useSession } from '@/shared/session/useSession';
 import { isActive } from '../lib/status';
+import { EXAMPLE_TOURNAMENT, FirstSteps } from '../onboarding/FirstSteps';
 
 function Stat({ icon: Icon, label, value, href, linkLabel }: { icon: LucideIcon; label: string; value: number; href: string; linkLabel: string }) {
   return (
@@ -80,6 +81,7 @@ export function OrganizerDashboard() {
     return (
       <PageContainer>
         <PageHeader title="Meu painel" description={user ? `Olá, ${user.nickname}. Aqui você acompanha os seus campeonatos.` : undefined} />
+        <FirstSteps tournaments={list} />
         <EmptyState
           icon={<Trophy className="size-7" />}
           title="Seu primeiro campeonato começa aqui"
@@ -90,6 +92,10 @@ export function OrganizerDashboard() {
           Prefere começar por algo pronto?{' '}
           <Link href="/organizador/modelos" className="font-semibold text-text underline">
             Veja os modelos
+          </Link>{' '}
+          ou{' '}
+          <Link href={`/c/${EXAMPLE_TOURNAMENT.slug}`} className="font-semibold text-text underline">
+            explore um campeonato de exemplo
           </Link>
           .
         </p>
@@ -111,6 +117,8 @@ export function OrganizerDashboard() {
   return (
     <PageContainer>
       <PageHeader title="Meu painel" description={user ? `Olá, ${user.nickname}. Veja o que pede a sua atenção.` : undefined} actions={create('Criar campeonato')} />
+
+      <FirstSteps tournaments={list} />
 
       <section aria-label="Resumo" className="grid gap-4 md:grid-cols-3">
         <Stat icon={Radio} label={active.length === 1 ? 'campeonato ativo' : 'campeonatos ativos'} value={active.length} href="/organizador/campeonatos" linkLabel="Ver campeonatos ativos" />

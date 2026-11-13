@@ -6,6 +6,7 @@ import { ArrowLeft, Pencil, SearchX, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
+import { ReportButton } from '@/features/reports/ReportButton';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useDeleteTeam, useRemoveTeamMember, useRevokeTeamInvite, useTeam, useTransferCaptain, useUpdateTeamMember } from '@/shared/api/hooks/teams';
 import { PageContainer } from '@/shared/layout/AreaShell';
@@ -156,10 +157,12 @@ function TeamDetail({ team, viewerId }: { team: Team; viewerId: string | null })
             </span>
           </p>
         </div>
-        {isCaptain && (
+        {isCaptain ? (
           <Button variant="secondary" iconLeft={<Pencil className="size-4" aria-hidden />} onClick={() => setDialog({ kind: 'edit' })}>
             Editar
           </Button>
+        ) : (
+          <ReportButton targetType="TEAM" targetId={team.id} targetLabel={team.name} />
         )}
       </div>
 

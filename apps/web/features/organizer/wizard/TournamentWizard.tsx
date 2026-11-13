@@ -14,6 +14,7 @@ import { useGames } from '@/shared/api/hooks/games';
 import { useOrganizerTournament, usePublishTournament } from '@/shared/api/hooks/organizer';
 import { keys } from '@/shared/api/keys';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
+import { Tip } from '../onboarding/Tip';
 import { formatDate } from '@/shared/lib/datetime';
 import { useSession } from '@/shared/session/useSession';
 import { NoAccess, TournamentNotFound } from '../components/NoAccess';
@@ -318,6 +319,11 @@ export function WizardForm({ games, userId, tournament, template }: WizardFormPr
               </>
             }
           />
+          {!isPublished && (
+            <Tip id="assistente" title="O rascunho se salva sozinho">
+              Pode sair e voltar quando quiser: o campeonato fica em Meus campeonatos como rascunho. Tudo já vem com uma sugestão — mude só o que precisar e publique no último passo.
+            </Tip>
+          )}
 
           <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
             <aside className="hidden lg:block">

@@ -35,6 +35,8 @@ export function isOrganizerUser(user: Pick<Me, 'roles'> | null | undefined): boo
 function useResetOnSessionChange() {
   const qc = useQueryClient();
   return (me: Me | null) => {
+    // Sem avisar quem está montado: quem chama navega em seguida, e a tela nova já nasce com a sessão certa.
+    // (Avisar aqui faria a página protegida redirecionar para o login antes da navegação do "Sair".)
     qc.clear();
     qc.setQueryData(keys.me, me);
   };

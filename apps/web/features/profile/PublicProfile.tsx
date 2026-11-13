@@ -1,14 +1,16 @@
 'use client';
 
 import type { PublicUser } from '@nova/schemas';
-import { Avatar, Button, Card, EmptyState, ErrorState, Skeleton } from '@nova/ui';
-import { CalendarDays, MapPin, Pencil, Trophy, UserX } from 'lucide-react';
+import { Avatar, Button, Card, ErrorState, Skeleton } from '@nova/ui';
+import { CalendarDays, MapPin, Pencil, UserX } from 'lucide-react';
 import Link from 'next/link';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { usePublicProfile } from '@/shared/api/hooks/users';
+import { ReportButton } from '@/features/reports/ReportButton';
 import { PageContainer } from '@/shared/layout/AreaShell';
 import { formatDate } from '@/shared/lib/datetime';
 import { useSession } from '@/shared/session/useSession';
+import { CompetitiveHistory } from './competitive/CompetitiveHistory';
 import { locationLabel, SOCIAL_NETWORKS, socialHref } from './profileLib';
 import { VerifiedBadge } from './VerifiedBadge';
 
@@ -121,30 +123,18 @@ export function PublicProfile({ nickname }: { nickname: string }) {
               </li>
             </ul>
             <Socials socials={user.socials} />
-            {isMine && (
+            {isMine ? (
               <Button asChild variant="secondary" size="sm" iconLeft={<Pencil className="size-4" aria-hidden />}>
                 <Link href="/minha-conta">Editar perfil</Link>
               </Button>
+            ) : (
+              <ReportButton targetType="USER" targetId={user.id} targetLabel={user.nickname} />
             )}
           </div>
         </div>
       </Card>
 
-      <section aria-labelledby="perfil-historico" className="flex flex-col gap-3">
-        <h2 id="perfil-historico" className="text-lg">
-          Histórico competitivo
-        </h2>
-        <EmptyState
-          icon={<Trophy className="size-7" />}
-          title="Ainda sem estatísticas"
-          description="Campeonatos disputados, vitórias e títulos aparecem aqui quando os resultados das partidas começarem a ser registrados na plataforma."
-          action={
-            <Button asChild variant="secondary">
-              <Link href="/campeonatos">Ver campeonatos</Link>
-            </Button>
-          }
-        />
-      </section>
+      <CompetitiveHistory nickname={user.nickname} isMine={isMine} />
     </PageContainer>
   );
 }

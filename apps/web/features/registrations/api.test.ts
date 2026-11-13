@@ -362,14 +362,20 @@ describe('minhas inscrições', () => {
     expect((await call('GET', '/tournaments/tn_copa_ff/registration-eligibility')).data).toEqual({ isOrganizer: false });
   });
 
-  it('GET /me/registrations exige login e lista ativas primeiro, sem partidas nem colocação por enquanto', async () => {
+  it('GET /me/registrations exige login, lista ativas primeiro e traz a próxima partida e a colocação final (F2)', async () => {
     as(null);
     expect((await call('GET', '/me/registrations')).status).toBe(401);
     as('u_bianca');
     const res = await call('GET', '/me/registrations');
     const entries = z.array(MyTournamentEntry).parse(res.data);
     expect(entries.map((e) => e.tournament.slug)).toEqual(['liga-semanal-clash-royale', 'open-8-ball-pool']);
-    expect(entries.every((e) => e.nextMatch === null && e.finalPlacement === null)).toBe(true);
+    // Liga em andamento: a partida das quartas da Bianca, com check-in aberto. Open finalizado: 1º lugar no pódio.
+    const [liga, open] = entries;
+    expect(liga?.nextMatch).toMatchObject({ label: 'Mata-mata · Quartas de final', opponent: 'BrunoPro7', checkInOpen: true });
+    expect(liga?.nextMatch?.scheduledAt).not.toBeNull();
+    expect(liga?.finalPlacement).toBeNull();
+    expect(open?.nextMatch).toBeNull();
+    expect(open?.finalPlacement).toBe(1);
   });
 
   it('membro de squad vê as inscrições do squad em "Meus campeonatos"', async () => {

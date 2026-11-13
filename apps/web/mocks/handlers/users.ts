@@ -12,6 +12,7 @@ import {
   type OrganizerRequest,
   type RoleInvitePreview,
 } from '@nova/schemas';
+import { audit } from '../audit';
 import { db, nowIso, save, uid, type DbOrganizerRequest, type DbRoleInvite, type DbUser } from '../db';
 import { badRequest, body, conflict, forbidden, handle, HttpProblem, json, notFound, param, requireUser, tournamentAccess, url, type HandlerArgs } from '../http';
 import { findUser, toMe, toPublicUser } from '../views';
@@ -291,6 +292,7 @@ export const handlers: HttpHandler[] = [
       if (invite.role === 'ORGANIZER' && !user.organizerLimits) user.organizerLimits = { maxActiveTournaments: 3, allowedGameIds: [] };
       invite.uses += 1;
       save();
+      audit(user, { action: 'INVITE_ACCEPTED', entityType: 'User', entityId: user.id, entityLabel: user.nickname, after: { papel: invite.role, convite: invite.id } });
       return json({ role: invite.role, user: toMe(user) });
     }),
   ),

@@ -15,6 +15,8 @@ export interface DbNotification {
   body: string;
   link: string | null;
   readAt: string | null;
+  /** Falso quando a pessoa desligou o aviso no site para este tipo (só e-mail). */
+  inApp: boolean;
   /** No protótipo o e-mail não é enviado; fica registrado se teria sido. */
   emailQueued: boolean;
   createdAt: string;
@@ -41,7 +43,7 @@ export function notify(userIds: Iterable<string>, type: NotificationType, title:
   for (const userId of new Set(userIds)) {
     const pref = preferenceOf(userId, type);
     if (!pref.inApp && !pref.email) continue;
-    const n: DbNotification = { id: uid('n'), userId, type, title, body, link, readAt: pref.inApp ? null : nowIso(), emailQueued: pref.email, createdAt: nowIso() };
+    const n: DbNotification = { id: uid('n'), userId, type, title, body, link, readAt: pref.inApp ? null : nowIso(), inApp: pref.inApp, emailQueued: pref.email, createdAt: nowIso() };
     list.push(n);
     if (pref.inApp) publish(`user:${userId}`, { type: 'notification.created', id: n.id });
   }

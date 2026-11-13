@@ -6,13 +6,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { NotificationBell } from '@/features/notifications/NotificationBell';
+import { useFlag } from '../flags/useFlag';
 import { useSession } from '../session/useSession';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { Logo } from './Logo';
 import { SiteBanner } from './SiteBanner';
 import { UserMenu } from './UserMenu';
 
-const nav = [
+const allNav = [
   { href: '/campeonatos', label: 'Campeonatos', icon: Trophy },
   { href: '/jogos', label: 'Jogos', icon: Gamepad2 },
   { href: '/ranking', label: 'Ranking', icon: Medal },
@@ -28,6 +29,9 @@ function isActive(pathname: string, href: string): boolean {
 export function SiteShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user } = useSession();
+  // O ranking pode ser desligado nas configurações do site (flag `ranking`).
+  const rankingOn = useFlag('ranking');
+  const nav = allNav.filter((n) => n.href !== '/ranking' || rankingOn);
   const bottom = [{ href: '/', label: 'Início', icon: Home }, ...nav, { href: user ? '/minha-conta' : '/entrar', label: user ? 'Conta' : 'Entrar', icon: User }];
 
   return (
@@ -65,11 +69,19 @@ export function SiteShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-3 px-6 py-6 text-sm text-muted">
           <p>Nova Arena · Onde todo campeonato vira história.</p>
           <p>Plataforma independente, não afiliada às empresas dos jogos.</p>
+          <p className="flex gap-4">
+            <Link href="/termos" className="underline-offset-2 hover:underline">
+              Termos de Uso
+            </Link>
+            <Link href="/privacidade" className="underline-offset-2 hover:underline">
+              Privacidade
+            </Link>
+          </p>
         </div>
       </footer>
 
       <nav aria-label="Principal" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface pb-safe md:hidden">
-        <ul className="grid grid-cols-5">
+        <ul className="grid" style={{ gridTemplateColumns: `repeat(${bottom.length}, minmax(0, 1fr))` }}>
           {bottom.map((n) => {
             const active = isActive(pathname, n.href);
             return (

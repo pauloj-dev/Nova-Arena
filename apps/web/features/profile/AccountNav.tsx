@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@nova/ui';
-import { ShieldCheck, Trophy, User, Users } from 'lucide-react';
+import { Bell, Flag, ShieldCheck, Trophy, User, Users } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
@@ -10,6 +10,8 @@ const items = [
   { href: '/minha-conta', label: 'Conta', icon: User, exact: true },
   { href: '/minha-conta/squads', label: 'Squads', icon: Users, exact: false },
   { href: '/minha-conta/campeonatos', label: 'Campeonatos', icon: Trophy, exact: false },
+  { href: '/minha-conta/notificacoes', label: 'Notificações', icon: Bell, exact: false },
+  { href: '/minha-conta/denuncias', label: 'Denúncias', icon: Flag, exact: false },
   { href: '/minha-conta/seguranca', label: 'Segurança', icon: ShieldCheck, exact: false },
 ];
 
