@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, loginAs, test } from './fixtures';
+import { expect, loginAs, test, waitForApp } from './fixtures';
 
 /**
  * Fluxos que ficaram sem E2E em F2 (issue 155): próxima rodada do suíço, ordem manual da chave,
@@ -73,6 +73,8 @@ async function patchStage(page: Page, stageId: string, patch: { format?: string;
     { key: DB_KEY, id: stageId, change: patch },
   );
   await page.reload();
+  // A API simulada (service worker) precisa assumir de novo antes de qualquer chamada.
+  await waitForApp(page);
 }
 
 /** Joga os duelos prontos: a primeira vaga vence por 2 a 0. */
@@ -100,6 +102,7 @@ test.describe('suíço: gerar a próxima rodada', () => {
 
     expect(await playReadyDuels(page, EF_S1)).toBe(4);
     await page.reload();
+    await waitForApp(page);
     await expect(next).toBeEnabled();
     await next.click();
     await expect(page.getByText('Próxima rodada gerada')).toBeVisible();
@@ -131,6 +134,8 @@ test.describe('chave com ordem manual', () => {
     for (let i = 0; i < 7; i += 1) await form.getByRole('button', { name: `Subir ${last}` }).click();
     await expect(form.getByRole('button', { name: `Subir ${last}` })).toBeDisabled();
     await form.getByRole('button', { name: 'Gerar chave' }).click();
+    // Só lê a chave depois que a tela confirmou a geração (a prévia já aparece para confirmar).
+    await expect(page.getByRole('button', { name: 'Confirmar chave' })).toBeVisible();
 
     const bracket = await bracketOf(page, EF_S1);
     expect(bracket.state).toBe('PREVIEW');
