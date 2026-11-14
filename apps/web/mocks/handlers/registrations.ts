@@ -11,8 +11,6 @@ import {
   checkSquadSize,
   initialRegistrationStatus,
   isCurrentEntry,
-  isReservationExpired,
-  planPromotions,
   registrationWindow,
   squadSizeMessage,
   statusAfterMemberConfirmation,
@@ -23,11 +21,10 @@ import { applyDueWalkovers } from './competition';
 import { db, nowIso, save, uid, type DbRegistration, type DbTeam, type DbTournament, type DbUser } from '../db';
 import { badRequest, conflict, body, currentUser, findTournament, forbidden, handle, HttpProblem, json, noContent, notFound, param, requireUser, url } from '../http';
 import { findUser, takenSlots, toRegistration, toTournamentSummary } from '../views';
+import { settleWaitlist } from '../waitlist';
 
 export const moduleName = 'registrations';
 
-/** Estados em que a fila anda sozinha. Depois do check-in só a organização substitui (RN-06). */
-const AUTO_PROMOTION_STATUSES: TournamentStatus[] = ['REGISTRATION_OPEN', 'REGISTRATION_CLOSED'];
 /** Estados em que um membro ainda pode confirmar ou recusar a participação. */
 const CONFIRMATION_STATUSES: TournamentStatus[] = ['PUBLISHED', 'REGISTRATION_OPEN', 'REGISTRATION_CLOSED'];
 
@@ -77,45 +74,6 @@ function follow(userId: string, tournamentId: string): void {
   }
 }
 
-/**
- * Coloca a fila em dia: devolve à lista de espera o squad promovido que não completou em 24 h
- * e promove os primeiros da fila para as vagas livres (RN-12).
- *
- * No protótipo isso roda "sob demanda", antes de cada leitura ou mudança de inscrição.
- * Na API real (B1) é um job agendado (Vercel Cron), além da chamada no cancelamento.
- */
-function settleWaitlist(t: DbTournament, now: Date = new Date()): void {
-  if (!AUTO_PROMOTION_STATUSES.includes(t.status)) return;
-  const d = db();
-  const { mode } = gameAndMode(t);
-  let changed = false;
-
-  d.registrations
-    .filter((r) => r.tournamentId === t.id && isReservationExpired(r, now))
-    .forEach((r, index) => {
-      r.status = 'WAITLIST';
-      r.reservedUntil = null;
-      // A posição na fila é a ordem de `createdAt`: voltar ao fim da fila é entrar de novo agora.
-      r.createdAt = new Date(now.getTime() + index).toISOString();
-      changed = true;
-    });
-
-  const freeSlots = t.maxParticipants - takenSlots(t.id);
-  if (freeSlots > 0) {
-    const waitlist = d.registrations
-      .filter((r) => r.tournamentId === t.id && r.status === 'WAITLIST')
-      .map((r) => ({ id: r.id, createdAt: r.createdAt, isTeam: r.teamId !== null, confirmedMembers: confirmedCount(r), requiredMembers: mode.teamSize }));
-    for (const promotion of planPromotions({ freeSlots, waitlist, manualApproval: t.manualApproval, registrationClosesAt: t.registrationClosesAt, now })) {
-      const r = d.registrations.find((x) => x.id === promotion.id);
-      if (!r) continue;
-      r.status = promotion.status;
-      r.reservedUntil = promotion.reservedUntil;
-      changed = true;
-      // Ponto de extensão (F2): notificar o promovido ("Sua vaga saiu!") em `collection('notifications')`.
-    }
-  }
-  if (changed) save();
-}
 
 /** A inscrição do usuário neste campeonato: a ativa; senão, a última encerrada pela organização. */
 function myRegistrationIn(t: DbTournament, userId: string): DbRegistration | undefined {

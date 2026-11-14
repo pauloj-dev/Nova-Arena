@@ -10,6 +10,7 @@ import { promoteFromWaitlist, promotionFor, type WaitlistContext, type WaitlistR
 import { collection, db, nowIso, save, uid, type DbRegistration, type DbTournament } from '../db';
 import { body, conflict, findTournament, forbidden, handle, json, notFound, param, requireTournamentAccess, url } from '../http';
 import { takenSlots, toRegistration } from '../views';
+import { settleWaitlist } from '../waitlist';
 
 export const moduleName = 'registrations-manage';
 
@@ -67,6 +68,8 @@ export const handlers = [
       const t = findTournament(r.tournamentId);
       const { access } = requireTournamentAccess(t, { allowModerator: true });
       const input = await body(request, ReviewRegistrationInput);
+      // RN-12: reserva vencida volta para a fila antes de qualquer decisão (inclusive as promoções feitas aqui).
+      settleWaitlist(t);
       if ((input.action === 'remove' || input.action === 'replace') && access === 'MODERATOR') {
         throw forbidden('Moderadores aprovam e recusam inscrições. Remover ou substituir um inscrito é com a organização.');
       }
@@ -143,6 +146,7 @@ export const handlers = [
       const t = findTournament(param(params, 'id'));
       requireTournamentAccess(t);
       const { rows } = await body(request, ImportRegistrationsInput);
+      settleWaitlist(t);
       if (!BEFORE_START.includes(t.status)) {
         throw conflict(t.status === 'DRAFT' ? 'Publique o campeonato antes de importar inscritos.' : 'Só dá para importar inscritos antes de o campeonato começar.', 'REGISTRATIONS_LOCKED');
       }
@@ -212,6 +216,7 @@ export const handlers = [
     handle(({ params }) => {
       const t = findTournament(param(params, 'id'));
       requireTournamentAccess(t, { allowModerator: true });
+      settleWaitlist(t);
       const info = importedInfo();
       const order: RegistrationStatus[] = ['CONFIRMED', 'PENDING_APPROVAL', 'PENDING_MEMBERS', 'WAITLIST', 'REJECTED', 'CANCELLED', 'WITHDRAWN', 'DISQUALIFIED'];
       const rows = db()
