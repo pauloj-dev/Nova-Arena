@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useCreateSubmission } from '@/shared/api/hooks/disputes';
-import { EvidenceUploader } from './evidence/EvidenceUploader';
+import { EvidenceUpload } from '@/features/evidence/EvidenceUpload';
 import { ScoreFields } from './ScoreFields';
 import { ScoreFormSchema, scoreProblems, toResultInput, type ScoreField, type ScoreFormValues, type Side } from './scoreForm';
 import { useTiebreakField } from './useTiebreakField';
@@ -73,7 +73,7 @@ export function SubmitResultDialog({ match, sides, mineRegistrationId, onClose }
     >
       <form id={FORM_ID} onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-5">
         <ScoreFields match={match} sides={sides} mineRegistrationId={mineRegistrationId} register={form.register} errors={form.formState.errors} a={a} b={b} tiebreak={tiebreak.field} />
-        <EvidenceUploader
+        <EvidenceUpload
           label="Print do resultado"
           required
           hint="A tela final da partida, com o placar e os nomes dos dois lados. PNG, JPG ou WebP de até 5 MB."

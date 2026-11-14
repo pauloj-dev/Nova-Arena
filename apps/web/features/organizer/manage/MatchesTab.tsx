@@ -8,7 +8,7 @@ import { MatchCard } from '@/features/matches/MatchCard';
 import type { MatchViewer } from '@/features/matches/viewer';
 import { errorMessage } from '@/shared/api/client';
 import { useStartMatch, useTournamentMatches } from '@/shared/api/hooks/competition';
-import { timeZoneLabel, browserTimeZone } from '@/shared/lib/datetime';
+import { timeZoneLabel, userTimeZone } from '@/shared/lib/datetime';
 import { useSession } from '@/shared/session/useSession';
 import { ScheduleMatchDialog, ScheduleRoundDialog, WalkoverDialog, type RoundScope } from '../operation/MatchDialogs';
 import { ImportResultsDialog } from '../operation/results/ImportResultsDialog';
@@ -204,7 +204,7 @@ export function MatchesTab({ tournament: t, game, onGoToStages }: { tournament: 
           </Button>
         )}
       </div>
-      <p className="text-xs text-muted">Horários no {timeZoneLabel(browserTimeZone())}.</p>
+      <p className="text-xs text-muted">Horários no {timeZoneLabel(userTimeZone())}.</p>
 
       {sections.length === 0 ? (
         <EmptyState icon={<Swords className="size-7" />} title="Nenhuma partida neste filtro" description="Troque o filtro para ver as outras partidas da fase." />

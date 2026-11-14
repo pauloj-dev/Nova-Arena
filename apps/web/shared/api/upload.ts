@@ -35,22 +35,76 @@ export async function compressImage(file: Blob, opts: { maxSide?: number; qualit
   return blob;
 }
 
+/** Andamento de um envio: `preparing` (validando e comprimindo) e `uploading` (bytes indo para o armazenamento). */
+export interface UploadProgress {
+  phase: 'preparing' | 'uploading';
+  /** 0 a 100, sempre crescente. */
+  percent: number;
+}
+
+export interface UploadImageOptions {
+  maxSide?: number;
+  quality?: number;
+  /** Chamado a cada avanço (preparação até 15%, depois o envio dos bytes até 100%). */
+  onProgress?: (progress: UploadProgress) => void;
+}
+
+const PREPARED = 15;
+
+/** PUT com XMLHttpRequest: é o único jeito de saber quantos bytes já subiram (o `fetch` não informa). */
+function putWithProgress(url: string, blob: Blob, onBytes: (loaded: number, total: number) => void): Promise<{ status: number; body: unknown }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url);
+    xhr.setRequestHeader('Content-Type', 'image/jpeg');
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onBytes(e.loaded, e.total);
+    };
+    xhr.onload = () => {
+      let body: unknown = null;
+      try {
+        body = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        body = null;
+      }
+      resolve({ status: xhr.status, body });
+    };
+    xhr.onerror = () => reject(new UploadError('A conexão caiu durante o envio. Tente de novo.'));
+    xhr.onabort = () => reject(new UploadError('O envio foi cancelado.'));
+    xhr.send(blob);
+  });
+}
+
 /**
  * Envio direto do navegador para o armazenamento: valida, comprime, pede o token à API
  * e manda o arquivo sem passar pela função (plano §2.4). Devolve a URL do arquivo.
  * Na produção o destino é o Vercel Blob; a tela não muda.
  */
-export async function uploadImage(file: File, purpose: UploadPurpose, opts: { maxSide?: number; quality?: number } = {}): Promise<string> {
+export async function uploadImage(file: File, purpose: UploadPurpose, opts: UploadImageOptions = {}): Promise<string> {
+  const { onProgress, ...compression } = opts;
+  let last = -1;
+  const report = (phase: UploadProgress['phase'], percent: number) => {
+    const value = Math.max(last, Math.min(100, Math.round(percent)));
+    if (value === last) return;
+    last = value;
+    onProgress?.({ phase, percent: value });
+  };
+
   const invalid = validateImage(file);
   if (invalid) throw new UploadError(invalid);
-  const blob = await compressImage(file, opts);
+  report('preparing', 0);
+  const blob = await compressImage(file, compression);
+  report('preparing', 10);
   const token = await api.post('/uploads/token', { purpose, contentType: 'image/jpeg', size: blob.size }, { schema: UploadToken });
-  const res = await fetch(token.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob, credentials: 'same-origin' });
-  if (!res.ok) {
-    const problem = (await res.json().catch(() => null)) as { title?: string; status?: number } | null;
+  report('uploading', PREPARED);
+  const res = await putWithProgress(token.uploadUrl, blob, (loaded, total) => report('uploading', PREPARED + ((100 - PREPARED) * loaded) / Math.max(1, total)));
+  if (res.status < 200 || res.status >= 300) {
+    const problem = res.body as { title?: string } | null;
     throw new ApiError({ type: 'about:blank', title: problem?.title ?? 'Não foi possível enviar a imagem.', status: res.status });
   }
-  return UploadResult.parse(await res.json()).url;
+  const url = UploadResult.parse(res.body).url;
+  report('uploading', 100);
+  return url;
 }
 
 export function uploadErrorMessage(error: unknown): string {

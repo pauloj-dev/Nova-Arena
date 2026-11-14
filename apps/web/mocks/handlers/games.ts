@@ -4,6 +4,7 @@ import type { GameRanking, GameRankingEntry, TournamentStatus } from '@nova/sche
 import type { Game } from '@nova/schemas';
 import { db, type DbUser } from '../db';
 import { currentUser, handle, isAdmin, json, notFound, param, query, url } from '../http';
+import { perGameStats } from './profile-stats';
 
 export const moduleName = 'games';
 
@@ -40,9 +41,10 @@ export const handlers = [
   ),
 
   /**
-   * Ranking por jogo com os dados que já existem (ADR-0001, sem ELO): campeonatos disputados e finalizados,
-   * contados pelas inscrições confirmadas. Títulos, vitórias e kills ficam nulos até os resultados de partidas
-   * existirem (F2) — a estrutura da resposta já está pronta para eles.
+   * Ranking por jogo com os dados que já existem (ADR-0001, sem ELO). Os números vêm dos resultados das
+   * partidas, com a mesma conta do perfil competitivo (`perGameStats`): títulos, vitórias e kills (Battle
+   * Royale) ou placar (duelos). Ordem: títulos → vitórias → kills ou placar → campeonatos disputados →
+   * finalizados → apelido. Empate em todos os números = mesma posição (1, 1, 3…).
    */
   http.get(
     url('/games/:slug/ranking'),
@@ -51,6 +53,7 @@ export const handlers = [
       const d = db();
       const game = d.games.find((g) => g.slug === slug || g.id === slug);
       if (!game || !game.active) throw notFound('Jogo');
+      const highlight: GameRanking['highlight'] = game.modes.some((m) => m.matchType === 'BATTLE_ROYALE') ? 'KILLS' : 'SCORE';
 
       const played = new Map<string, { tournamentsPlayed: number; tournamentsFinished: number }>();
       for (const t of d.tournaments) {
@@ -70,36 +73,42 @@ export const handlers = [
         }
       }
 
-      const rows = [...played.entries()]
-        .map(([userId, counts]) => ({ user: d.users.find((u) => u.id === userId), counts }))
-        .filter((x) => x.user !== undefined && x.user.status === 'ACTIVE')
-        .sort(
-          (a, b) =>
-            b.counts.tournamentsPlayed - a.counts.tournamentsPlayed ||
-            b.counts.tournamentsFinished - a.counts.tournamentsFinished ||
-            (a.user?.nickname ?? '').localeCompare(b.user?.nickname ?? '', 'pt-BR'),
-        )
-        .slice(0, 100);
-
-      // Empate nos números = mesma posição (1, 1, 3…): sem resultados, não há como desempatar de verdade.
-      const entries: GameRankingEntry[] = [];
-      rows.forEach((row, index) => {
-        const previous = rows[index - 1];
-        const tied = previous !== undefined && previous.counts.tournamentsPlayed === row.counts.tournamentsPlayed && previous.counts.tournamentsFinished === row.counts.tournamentsFinished;
-        entries.push({
-          position: tied ? (entries[index - 1]?.position ?? index + 1) : index + 1,
-          userId: row.user?.id ?? '',
-          nickname: row.user?.nickname ?? 'Jogador',
-          avatarUrl: row.user?.avatarUrl ?? null,
-          tournamentsPlayed: row.counts.tournamentsPlayed,
-          tournamentsFinished: row.counts.tournamentsFinished,
-          titles: null,
-          wins: null,
-          kills: null,
+      type Row = Omit<GameRankingEntry, 'position'>;
+      const rows: Row[] = [];
+      for (const [userId, counts] of played) {
+        const user = d.users.find((u) => u.id === userId);
+        if (!user || user.status !== 'ACTIVE') continue;
+        const stats = perGameStats(userId).get(game.id);
+        rows.push({
+          userId,
+          nickname: user.nickname,
+          avatarUrl: user.avatarUrl ?? null,
+          tournamentsPlayed: counts.tournamentsPlayed,
+          tournamentsFinished: counts.tournamentsFinished,
+          titles: stats?.titles ?? 0,
+          wins: stats?.wins ?? 0,
+          kills: stats?.kills ?? 0,
+          score: stats?.score ?? 0,
+          matches: stats?.matches ?? 0,
         });
+      }
+      const key = (r: Row): number[] => [r.titles ?? 0, r.wins ?? 0, highlight === 'KILLS' ? (r.kills ?? 0) : (r.score ?? 0), r.tournamentsPlayed, r.tournamentsFinished];
+      const compare = (a: Row, b: Row): number => {
+        const ka = key(a);
+        const kb = key(b);
+        for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return (kb[i] ?? 0) - (ka[i] ?? 0);
+        return 0;
+      };
+      const sorted = rows.sort((a, b) => compare(a, b) || a.nickname.localeCompare(b.nickname, 'pt-BR')).slice(0, 100);
+
+      const entries: GameRankingEntry[] = [];
+      sorted.forEach((row, index) => {
+        const previous = sorted[index - 1];
+        const tied = previous !== undefined && compare(previous, row) === 0;
+        entries.push({ ...row, position: tied ? (entries[index - 1]?.position ?? index + 1) : index + 1 });
       });
 
-      const ranking: GameRanking = { gameId: game.id, gameSlug: game.slug, gameName: game.name, resultsAvailable: false, entries };
+      const ranking: GameRanking = { gameId: game.id, gameSlug: game.slug, gameName: game.name, resultsAvailable: true, highlight, entries };
       return json(ranking);
     }),
   ),

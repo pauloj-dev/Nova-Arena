@@ -9,7 +9,7 @@ import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useContestSubmission } from '@/shared/api/hooks/disputes';
-import { EvidenceUploader } from './evidence/EvidenceUploader';
+import { EvidenceUpload } from '@/features/evidence/EvidenceUpload';
 
 const FORM_ID = 'contest-result-form';
 const ReasonSchema = OpenDisputeInput.pick({ reason: true });
@@ -82,7 +82,7 @@ export function ContestDialog({ submission, summary, onClose }: ContestDialogPro
     >
       <form id={FORM_ID} onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-5">
         <Textarea label="O que está errado?" required rows={4} maxLength={1000} hint="Diga qual foi o placar real e o que o print do adversário não mostra." error={form.formState.errors.reason?.message} {...form.register('reason')} />
-        <EvidenceUploader
+        <EvidenceUpload
           label="Prova"
           required
           hint="Obrigatória: print da tela final ou do histórico da partida. PNG, JPG ou WebP de até 5 MB."

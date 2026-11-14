@@ -20,8 +20,10 @@ class Browser {
   constructor(private app: App) {}
 
   async request(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string> } = {}) {
-    const cookie = [...this.jar.entries()].filter(([, c]) => path.startsWith(c.path)).map(([k, c]) => `${k}=${c.value}`).join('; ');
-    const res = await this.app.request(`/api/v1${path}`, {
+    // O `Path` do cookie é comparado com o caminho completo (`/api/v1/...`), como no navegador.
+    const fullPath = `/api/v1${path}`;
+    const cookie = [...this.jar.entries()].filter(([, c]) => fullPath.startsWith(c.path)).map(([k, c]) => `${k}=${c.value}`).join('; ');
+    const res = await this.app.request(fullPath, {
       method: init.method ?? 'GET',
       headers: { Origin: ORIGIN, 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}), ...init.headers },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
