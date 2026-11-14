@@ -25,6 +25,7 @@
     "@tiptap/pm": "^3.33.1",
     "@tiptap/react": "^3.33.1",
     "@tiptap/starter-kit": "^3.33.1",
+    "@vercel/blob": "^2.9.0",
     "botid": "^1.5.13",
     "dompurify": "^3.4.17",
     "lucide-react": "^1.72.0",

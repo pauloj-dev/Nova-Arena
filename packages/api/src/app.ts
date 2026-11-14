@@ -17,7 +17,9 @@ import { vercelBotCheck } from './auth/bot';
 import { arcticFactory } from './auth/oauth';
 import { hibpBreachCheck } from './auth/password-policy';
 import { account } from './modules/account';
+import { uploads } from './modules/uploads';
 import { users } from './modules/users';
+import { vercelBlobStore } from './uploads/store';
 import { auth } from './modules/auth';
 import { oauth } from './modules/oauth';
 import { databaseCheck, health, qstashCheck, redisCheck } from './modules/health';
@@ -29,7 +31,7 @@ export const API_BASE_PATH = '/api/v1';
  * Módulos registrados. Entram, na ordem do B1: auth (#67 ✓, OAuth #68 ✓), users e me (#72), roles e audit (#70: `auth/rbac.ts` ✓; rotas na #72),
  * uploads (#73), games (#74), tournaments (#75, #76), teams (#78), registrations (#79).
  */
-const modules = [health, auth, oauth, account, users];
+const modules = [health, auth, oauth, account, users, uploads];
 
 export interface CreateAppOptions {
   /** Variáveis já validadas; padrão: as do processo, validadas na primeira requisição. */
@@ -59,6 +61,7 @@ export function createApp(options: CreateAppOptions = {}) {
     oauth: options.deps?.oauth ?? arcticFactory,
     breached: options.deps?.breached ?? hibpBreachCheck,
     botCheck: options.deps?.botCheck ?? vercelBotCheck,
+    blob: options.deps?.blob ?? vercelBlobStore,
   };
   const baseLog = createLogger(options.logSink);
 
