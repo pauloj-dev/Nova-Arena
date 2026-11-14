@@ -29,6 +29,10 @@ export const EnvSchema = z
     BLOB_READ_WRITE_TOKEN: optionalSecret,
     EDGE_CONFIG: optionalUrl,
     RESEND_API_KEY: optionalSecret,
+    /** Remetente de um domínio verificado no Resend, ex.: "Nova Arena <nao-responda@novaarena.gg>". */
+    EMAIL_FROM: z.string().min(3).optional(),
+    /** Fora de produção, todos os e-mails vão para esta caixa (com o destinatário original no assunto). */
+    EMAIL_TEST_INBOX: z.email().optional(),
     SENTRY_DSN: optionalUrl,
     ABLY_API_KEY: optionalSecret,
     AUTH_JWT_SECRET: z.string().min(32, 'Use pelo menos 32 caracteres aleatórios.').optional(),
@@ -36,7 +40,7 @@ export const EnvSchema = z
   })
   .superRefine((env, ctx) => {
     if (env.VERCEL_ENV !== 'production') return;
-    for (const key of ['DATABASE_URL', 'KV_REST_API_URL', 'KV_REST_API_TOKEN', 'QSTASH_TOKEN', 'NEXT_PUBLIC_SITE_URL'] as const) {
+    for (const key of ['DATABASE_URL', 'KV_REST_API_URL', 'KV_REST_API_TOKEN', 'QSTASH_TOKEN', 'NEXT_PUBLIC_SITE_URL', 'AUTH_JWT_SECRET', 'RESEND_API_KEY', 'EMAIL_FROM'] as const) {
       if (!env[key]) ctx.addIssue({ code: 'custom', path: [key], message: 'Obrigatória em produção.' });
     }
   });

@@ -1,0 +1,29 @@
+{
+  "name": "@nova/email",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.tsx"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@nova/config": "workspace:*",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19",
+    "eslint": "^10.14.0",
+    "typescript": "^5.9.0",
+    "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.3.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}

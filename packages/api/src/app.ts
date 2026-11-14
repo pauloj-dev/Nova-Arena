@@ -12,7 +12,7 @@ import { EnvError, parseEnv, processEnv, type Env } from './env';
 import { HttpProblem, problemResponse } from './errors';
 import { createLogger, requestIdFrom, type LogSink } from './logger';
 import { db as defaultDb } from '@nova/db';
-import { logMailer } from './mail';
+import { defaultMailer } from './mail';
 import { auth } from './modules/auth';
 import { databaseCheck, health, qstashCheck, redisCheck } from './modules/health';
 import { memoryLimiter, requireSameOrigin, upstashLimiter, type RateLimiter } from './security';
@@ -47,7 +47,7 @@ export function createApp(options: CreateAppOptions = {}) {
         limiter ??= env.KV_REST_API_URL && env.KV_REST_API_TOKEN ? upstashLimiter(env) : memoryLimiter(now);
         return limiter;
       }),
-    mailer: options.deps?.mailer ?? logMailer,
+    mailer: options.deps?.mailer ?? defaultMailer,
   };
   const baseLog = createLogger(options.logSink);
 
