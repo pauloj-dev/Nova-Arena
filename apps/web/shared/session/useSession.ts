@@ -2,7 +2,7 @@
 
 import { Me, type LoginInput, type Role } from '@nova/schemas';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../api/client';
+import { api, renewSession } from '../api/client';
 import { keys } from '../api/keys';
 
 const MeOrNull = Me.nullable();
@@ -11,7 +11,8 @@ const MeOrNull = Me.nullable();
 export function useSession() {
   const query = useQuery({
     queryKey: keys.me,
-    queryFn: ({ signal }) => api.get('/me', { schema: MeOrNull, signal }),
+    // Sem sessão no token de acesso: tenta renovar pelo refresh antes de tratar como visitante.
+    queryFn: async ({ signal }) => (await api.get('/me', { schema: MeOrNull, signal })) ?? (await renewSession()),
     staleTime: 60_000,
   });
   const user = query.data ?? null;

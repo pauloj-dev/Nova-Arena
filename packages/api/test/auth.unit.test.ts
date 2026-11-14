@@ -31,8 +31,8 @@ describe('senha e tokens', () => {
 
   it('JWT de acesso vale 15 min e carrega sessão e versão', async () => {
     const now = new Date('2026-11-13T12:00:00Z');
-    const token = await signAccessToken(env, { sub: 'u1', sid: 's1', sv: 3, tfa: false }, now);
-    expect(await verifyAccessToken(env, token, new Date(now.getTime() + 14 * 60_000))).toEqual({ sub: 'u1', sid: 's1', sv: 3, tfa: false });
+    const token = await signAccessToken(env, { sub: 'u1', sid: 's1', sv: 3, tfa: false, roles: ['ORGANIZER', 'PARTICIPANT'] }, now);
+    expect(await verifyAccessToken(env, token, new Date(now.getTime() + 14 * 60_000))).toEqual({ sub: 'u1', sid: 's1', sv: 3, tfa: false, roles: ['ORGANIZER', 'PARTICIPANT'] });
     expect(await verifyAccessToken(env, token, new Date(now.getTime() + 16 * 60_000))).toBeNull();
     expect(await verifyAccessToken(envFrom({ AUTH_JWT_SECRET: 'outro-segredo-qualquer-com-32-caracteres' }), token, now)).toBeNull();
   });

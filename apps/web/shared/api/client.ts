@@ -1,5 +1,6 @@
-import { Problem } from '@nova/schemas';
+import { Me, Problem } from '@nova/schemas';
 import type { ZodType } from 'zod';
+import { isModuleMocked } from './mode';
 
 /**
  * Cliente único da API. Nenhuma tela chama `fetch` direto: é isso que permite
@@ -50,14 +51,37 @@ function buildUrl(path: string, query?: Query): string {
   return qs ? `${url}?${qs}` : url;
 }
 
-async function request<T>(method: string, path: string, opts: RequestOptions<T> = {}): Promise<T> {
-  const res = await fetch(buildUrl(path, opts.query), {
+let renewing: Promise<Me | null> | null = null;
+
+/**
+ * Renova a sessão pelo refresh token (cookie que só vai para `/api/v1/auth`). Uma renovação por vez, mesmo
+ * com várias telas pedindo ao mesmo tempo. Com a API simulada não há o que renovar.
+ */
+export function renewSession(): Promise<Me | null> {
+  if (isModuleMocked('auth')) return Promise.resolve(null);
+  renewing ??= fetch(`${API_BASE}/auth/refresh`, { method: 'POST', credentials: 'same-origin', headers: { Accept: 'application/json' } })
+    .then(async (res) => (res.ok ? Me.parse(await res.json()) : null))
+    .catch(() => null)
+    .finally(() => {
+      renewing = null;
+    });
+  return renewing;
+}
+
+async function send(method: string, path: string, opts: RequestOptions<unknown>): Promise<Response> {
+  return fetch(buildUrl(path, opts.query), {
     method,
     credentials: 'same-origin',
     signal: opts.signal,
     headers: { Accept: 'application/json', ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...opts.headers },
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   });
+}
+
+async function request<T>(method: string, path: string, opts: RequestOptions<T> = {}): Promise<T> {
+  let res = await send(method, path, opts as RequestOptions<unknown>);
+  // Token de acesso (15 min) vencido: renova uma vez e repete. As rotas de `/auth` respondem por si.
+  if (res.status === 401 && !path.startsWith('/auth/') && (await renewSession())) res = await send(method, path, opts as RequestOptions<unknown>);
 
   if (!res.ok) {
     let problem: Problem = { type: 'about:blank', title: 'Erro inesperado', status: res.status };

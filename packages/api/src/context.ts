@@ -2,13 +2,14 @@
  * Tipos e utilidades compartilhados pelos módulos: o contexto do Hono, a leitura do corpo validada
  * pelo contrato e a resposta validada pelo contrato.
  */
-import type { PrismaClient } from '@nova/db';
+import type { PrismaClient, Role } from '@nova/db';
 import type { Context } from 'hono';
 import type { ZodType } from 'zod';
 import type { Env } from './env';
 import { badRequest, fieldErrors, HttpProblem } from './errors';
 import type { Logger } from './logger';
 import type { OAuthFactory } from './auth/oauth';
+import type { TournamentAccess } from './auth/rbac';
 import type { Mailer } from './mail';
 import type { RateLimiter } from './security';
 
@@ -44,6 +45,10 @@ export interface AppEnv {
     deps: Dependencies;
     /** `undefined` = ainda não carregada; `null` = visitante. */
     session?: SessionInfo | null;
+    /** Papéis globais, carregados por `currentRoles(c)`. */
+    roles?: Role[];
+    /** Preenchido por `requireTournamentAccess`. */
+    tournamentAccess?: TournamentAccess;
   };
 }
 
