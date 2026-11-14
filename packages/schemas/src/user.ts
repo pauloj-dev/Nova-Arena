@@ -54,7 +54,8 @@ export type GameAccount = z.infer<typeof GameAccount>;
 export const Me = PublicUser.extend({
   email: z.email(),
   emailVerified: z.boolean(),
-  birthDate: z.iso.date(),
+  /** Nula enquanto a conta (ex.: só OAuth) não informou a data de nascimento. */
+  birthDate: z.iso.date().nullable(),
   timezone: z.string().nullable(),
   status: UserStatus,
   twoFactorEnabled: z.boolean(),

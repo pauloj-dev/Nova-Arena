@@ -2,11 +2,14 @@
  * Tipos e utilidades compartilhados pelos módulos: o contexto do Hono, a leitura do corpo validada
  * pelo contrato e a resposta validada pelo contrato.
  */
+import type { PrismaClient } from '@nova/db';
 import type { Context } from 'hono';
 import type { ZodType } from 'zod';
 import type { Env } from './env';
 import { badRequest, fieldErrors, HttpProblem } from './errors';
 import type { Logger } from './logger';
+import type { Mailer } from './mail';
+import type { RateLimiter } from './security';
 
 /** Verificação de uma dependência (banco, Redis, QStash): devolve ok ou lança com o motivo. */
 export type DependencyCheck = (env: Env) => Promise<'ok' | 'not_configured'>;
@@ -15,6 +18,19 @@ export interface Dependencies {
   checks: { database: DependencyCheck; redis: DependencyCheck; qstash: DependencyCheck };
   /** Relógio injetável (testes). */
   now: () => Date;
+  /** Banco (padrão: `db()` de `@nova/db`, criado na primeira chamada). */
+  db: () => PrismaClient;
+  /** Limite de tentativas (padrão: Upstash quando configurado; senão, em memória). */
+  limiter: (env: Env) => RateLimiter;
+  /** Envio de e-mail (padrão: só registra no log até a issue #80). */
+  mailer: (log: Logger) => Mailer;
+}
+
+/** Sessão da requisição, carregada sob demanda por `currentUser(c)`. */
+export interface SessionInfo {
+  userId: string;
+  sessionId: string;
+  twoFactorVerified: boolean;
 }
 
 export interface AppEnv {
@@ -23,6 +39,8 @@ export interface AppEnv {
     log: Logger;
     env: Env;
     deps: Dependencies;
+    /** `undefined` = ainda não carregada; `null` = visitante. */
+    session?: SessionInfo | null;
   };
 }
 
