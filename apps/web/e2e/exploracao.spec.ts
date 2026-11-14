@@ -601,11 +601,10 @@ test.describe('jogos e ranking', () => {
     await expect(page.getByRole('link', { name: 'Ver todos os jogos' })).toHaveAttribute('href', '/jogos');
   });
 
-  test('/ranking: seletor de jogo, tabela com link para o perfil e aviso sobre os números', async ({ page }) => {
+  test('/ranking: seletor de jogo, tabela com link para o perfil e números vindos dos resultados', async ({ page }) => {
     await page.goto('/ranking');
     await waitForApp(page);
     await expect(page.getByRole('heading', { level: 1, name: 'Ranking' })).toBeVisible();
-    await expect(page.getByText('Títulos, vitórias e kills passam a contar quando os resultados das partidas entrarem.', { exact: false })).toBeVisible();
 
     // O primeiro jogo (Free Fire) ainda não teve campeonato disputado: estado vazio com ação.
     const selector = page.getByRole('navigation', { name: 'Escolher o jogo do ranking' });
@@ -622,19 +621,21 @@ test.describe('jogos e ranking', () => {
     await expect(bianca).toHaveAttribute('href', '/u/Bianca');
     if (!isMobile(page)) {
       const table = page.getByRole('table', { name: 'Ranking de Clash Royale' });
-      await expect(table.getByRole('columnheader')).toHaveText(['Posição', 'Jogador', 'Campeonatos disputados', 'Finalizados', 'Títulos']);
+      await expect(table.getByRole('columnheader')).toHaveText(['Posição', 'Jogador', 'Títulos', 'Vitórias', 'Placar a favor', 'Partidas', 'Campeonatos']);
       await expect(table.getByRole('row')).toHaveCount(17);
     } else {
       await expect(page.getByRole('list', { name: 'Ranking de Clash Royale' }).getByRole('listitem')).toHaveCount(16);
     }
 
-    // O link com o jogo reproduz a escolha; o 8 Ball tem um campeonato finalizado.
+    // O link com o jogo reproduz a escolha; o 8 Ball tem um campeonato finalizado, com pódio.
     await page.goto('/ranking?jogo=8-ball-pool');
     await expect(page.getByRole('heading', { level: 2, name: 'Ranking de 8 Ball Pool' })).toBeVisible();
+    await expect(page.getByText('A ordem é por títulos, depois vitórias, depois placar a favor', { exact: false })).toBeVisible();
     const api = await apiCall<{ resultsAvailable: boolean; entries: { nickname: string; position: number; tournamentsPlayed: number; tournamentsFinished: number; titles: number | null }[] }>(page, 'GET', '/games/8-ball-pool/ranking');
-    expect(api.data.resultsAvailable).toBe(false);
+    expect(api.data.resultsAvailable).toBe(true);
     expect(api.data.entries).toHaveLength(8);
-    expect(api.data.entries.every((e) => e.position === 1 && e.tournamentsPlayed === 1 && e.tournamentsFinished === 1 && e.titles === null)).toBe(true);
+    expect(api.data.entries[0]?.titles).toBe(1);
+    expect(api.data.entries.every((e) => e.tournamentsPlayed === 1 && e.tournamentsFinished === 1)).toBe(true);
     expect((await apiCall(page, 'GET', '/games/jogo-que-nao-existe/ranking')).status).toBe(404);
   });
 

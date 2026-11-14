@@ -1,6 +1,6 @@
 'use client';
 
-import type { GameRankingEntry } from '@nova/schemas';
+import type { GameRanking, GameRankingEntry } from '@nova/schemas';
 import { Avatar, Button, cn, DataTable, EmptyState, ErrorState, Skeleton, type Column } from '@nova/ui';
 import { Info, Medal } from 'lucide-react';
 import Link from 'next/link';
@@ -20,7 +20,13 @@ function Pending() {
   );
 }
 
-const columns: Column<GameRankingEntry>[] = [
+function count(value: number | null) {
+  return value === null ? <Pending /> : <span className="tabular">{value.toLocaleString('pt-BR')}</span>;
+}
+
+/** Colunas do ranking. A estatística de destaque muda com o jogo: kills no Battle Royale, placar nos duelos. */
+export function rankingColumns(highlight: GameRanking['highlight']): Column<GameRankingEntry>[] {
+  return [
   { id: 'position', header: 'Posição', cell: (r) => <span className="tabular">{r.position}º</span>, className: 'w-20' },
   {
     id: 'player',
@@ -33,10 +39,15 @@ const columns: Column<GameRankingEntry>[] = [
       </Link>
     ),
   },
-  { id: 'played', header: 'Campeonatos disputados', align: 'right', cell: (r) => <span className="tabular">{r.tournamentsPlayed}</span> },
-  { id: 'finished', header: 'Finalizados', align: 'right', cell: (r) => <span className="tabular">{r.tournamentsFinished}</span> },
-  { id: 'titles', header: 'Títulos', align: 'right', cell: (r) => (r.titles === null ? <Pending /> : <span className="tabular">{r.titles}</span>) },
-];
+  { id: 'titles', header: 'Títulos', align: 'right', cell: (r) => count(r.titles) },
+  { id: 'wins', header: 'Vitórias', align: 'right', cell: (r) => count(r.wins) },
+  highlight === 'KILLS'
+    ? { id: 'kills', header: 'Kills', align: 'right', cell: (r) => count(r.kills) }
+    : { id: 'score', header: 'Placar a favor', align: 'right', cell: (r) => count(r.score) },
+  { id: 'matches', header: 'Partidas', align: 'right', cell: (r) => count(r.matches) },
+  { id: 'played', header: 'Campeonatos', align: 'right', cell: (r) => <span className="tabular">{r.tournamentsPlayed}</span> },
+  ];
+}
 
 const chip = 'flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-border-strong bg-surface px-4 text-sm font-semibold text-text transition-colors hover:border-accent';
 
@@ -51,7 +62,7 @@ export function RankingPage() {
     <PageContainer>
       <div>
         <h1 className="text-xl md:text-2xl">Ranking</h1>
-        <p className="mt-1 text-sm text-muted">Quem mais disputa campeonatos em cada jogo.</p>
+        <p className="mt-1 text-sm text-muted">Quem mais vence campeonatos e partidas em cada jogo.</p>
       </div>
 
       {games.isPending ? (
@@ -87,7 +98,11 @@ export function RankingPage() {
 
           <p className="flex items-start gap-2 rounded-md bg-info-soft px-3 py-2 text-sm text-info-soft-text">
             <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <span>Por enquanto o ranking conta campeonatos disputados e finalizados. Títulos, vitórias e kills passam a contar quando os resultados das partidas entrarem.</span>
+            <span>
+              {ranking.data?.resultsAvailable === false
+                ? 'Por enquanto o ranking conta campeonatos disputados e finalizados. Títulos, vitórias e kills passam a contar quando os resultados das partidas entrarem.'
+                : `A ordem é por títulos, depois vitórias, depois ${ranking.data?.highlight === 'KILLS' ? 'kills' : 'placar a favor'} e, por fim, campeonatos disputados. Só contam resultados validados.`}
+            </span>
           </p>
 
           <section aria-labelledby="ranking-jogo" className="flex flex-col gap-3">
@@ -99,7 +114,7 @@ export function RankingPage() {
             ) : (
               <DataTable
                 caption={`Ranking de ${selected.name}`}
-                columns={columns}
+                columns={rankingColumns(ranking.data?.highlight ?? 'SCORE')}
                 rows={ranking.data?.entries ?? []}
                 getRowId={(r) => r.userId}
                 loading={ranking.isPending}
