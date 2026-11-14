@@ -66,7 +66,7 @@ export function AreaShell({ area, title, nav, children }: AreaShellProps) {
           <button type="button" onClick={() => setOpen(true)} aria-label="Abrir menu" className="flex size-11 items-center justify-center rounded-md hover:bg-neutral-soft/30 md:hidden">
             <Menu className="size-5" aria-hidden />
           </button>
-          <Logo href={area === 'admin' ? '/admin' : '/organizador'} />
+          <Logo href={area === 'admin' ? '/admin' : '/organizador'} onColor compact />
           <span className="hidden rounded-full border border-accent-detail px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide xs:inline">{title}</span>
           <div className="ml-auto flex items-center gap-1">
             <ThemeToggle />
