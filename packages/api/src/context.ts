@@ -22,8 +22,8 @@ export interface Dependencies {
   db: () => PrismaClient;
   /** Limite de tentativas (padrão: Upstash quando configurado; senão, em memória). */
   limiter: (env: Env) => RateLimiter;
-  /** Envio de e-mail (padrão: só registra no log até a issue #80). */
-  mailer: (log: Logger) => Mailer;
+  /** Envio de e-mail (padrão: `@nova/email`: Resend em produção, caixa de teste ou log fora dela). */
+  mailer: (env: Env, log: Logger) => Mailer;
 }
 
 /** Sessão da requisição, carregada sob demanda por `currentUser(c)`. */

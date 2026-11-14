@@ -7,7 +7,9 @@ import { createDb, type PrismaClient } from '@nova/db';
 import { Me, Problem, RegisterResponse } from '@nova/schemas';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp, envFrom, type App } from '../src';
-import type { MailMessage } from '../src/mail';
+import type { EmailMessage } from '../src/mail';
+
+type MailMessage = EmailMessage & { to: string };
 
 const url = process.env.TEST_DATABASE_URL;
 const ORIGIN = 'http://localhost';
@@ -57,7 +59,7 @@ describe.skipIf(!url)('autenticação (Postgres)', () => {
     db = createDb({ connectionString: url, max: 3 });
     app = createApp({
       env: envFrom({ NODE_ENV: 'test', AUTH_JWT_SECRET: 'segredo-de-teste-com-mais-de-32-caracteres!!', DATABASE_URL: url }),
-      deps: { db: () => db, mailer: () => ({ send: async (m) => void sent.push(m) }) },
+      deps: { db: () => db, mailer: () => ({ mode: 'log' as const, send: async (to, m) => void sent.push({ ...m, to }) }) },
     });
   });
   afterAll(async () => {

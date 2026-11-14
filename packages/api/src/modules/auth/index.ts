@@ -83,7 +83,7 @@ auth.post('/auth/register', async (c) => {
     throw error;
   }
   const token = await createEmailToken(c, user.id, 'VERIFY');
-  await mailer(c.get('log')).send({ to: email, template: 'VERIFY_EMAIL', data: { nickname: user.nickname, link: linkFor(c, '/verificar-email', token) } });
+  await mailer(c.get('env'), c.get('log')).send(email, { template: 'VERIFY_EMAIL', data: { nickname: user.nickname, link: linkFor(c, '/verificar-email', token) } });
   await startSession(c, user);
   return respond(c, RegisterResponse, { user: toMe(user), devVerifyToken: devToken(c, token) }, 201);
 });
@@ -128,7 +128,7 @@ auth.post('/auth/resend-verification', async (c) => {
   const user = await db().user.findUniqueOrThrow({ where: { id: session.userId } });
   if (user.emailVerified) throw conflict('Seu e-mail já está verificado.');
   const token = await createEmailToken(c, user.id, 'VERIFY');
-  await mailer(c.get('log')).send({ to: user.email, template: 'VERIFY_EMAIL', data: { nickname: user.nickname, link: linkFor(c, '/verificar-email', token) } });
+  await mailer(c.get('env'), c.get('log')).send(user.email, { template: 'VERIFY_EMAIL', data: { nickname: user.nickname, link: linkFor(c, '/verificar-email', token) } });
   return respond(c, ResendVerificationResponse, { ok: true, devVerifyToken: devToken(c, token) });
 });
 
@@ -141,7 +141,7 @@ auth.post('/auth/forgot-password', async (c) => {
   let token: string | null = null;
   if (user && user.status !== 'DELETED' && user.status !== 'MERGED') {
     token = await createEmailToken(c, user.id, 'RESET');
-    await mailer(c.get('log')).send({ to: user.email, template: 'RESET_PASSWORD', data: { nickname: user.nickname, link: linkFor(c, '/redefinir-senha', token) } });
+    await mailer(c.get('env'), c.get('log')).send(user.email, { template: 'RESET_PASSWORD', data: { nickname: user.nickname, link: linkFor(c, '/redefinir-senha', token) } });
   }
   return respond(c, ForgotPasswordResponse, { ok: true, devResetToken: devToken(c, token) });
 });
