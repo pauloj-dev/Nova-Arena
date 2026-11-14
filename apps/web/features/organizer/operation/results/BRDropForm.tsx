@@ -19,7 +19,7 @@ import {
   type DropMember,
   type DropRow,
 } from './brDrop';
-import { EvidenceUpload } from './EvidenceUpload';
+import { EvidenceUpload } from '@/features/evidence/EvidenceUpload';
 import { CELL_INPUT } from './fields';
 
 export interface BRDropSubmit {

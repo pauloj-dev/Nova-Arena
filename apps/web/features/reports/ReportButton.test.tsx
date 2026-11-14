@@ -26,7 +26,8 @@ vi.mock('next/link', () => ({
 }));
 vi.mock('@/shared/session/useSession', () => ({ useSession: () => ({ user: state.user, isLoading: false }) }));
 vi.mock('@/shared/api/hooks/reports', () => ({ useCreateReport: () => state.create }));
-vi.mock('@/shared/api/upload', () => ({
+vi.mock('@/shared/api/upload', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/api/upload')>()),
   uploadImage: (file: File, purpose: string) => state.upload(file, purpose),
   uploadErrorMessage: (e: unknown) => (e instanceof Error ? e.message : 'Não foi possível enviar a imagem. Tente de novo.'),
 }));
@@ -112,14 +113,14 @@ describe('ReportButton', () => {
     // Só cabem mais 1: o excedente é recusado com aviso.
     await user.upload(within(dialog).getByLabelText(/Anexos \(opcional\)/), [png('c.png'), png('d.png')]);
     expect(await within(dialog).findByRole('img', { name: 'Anexo 3' })).toBeInTheDocument();
-    expect(within(dialog).getByText('Só é possível anexar até 3 imagens.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Só cabem 3 imagens. 1 arquivo ficou de fora.')).toBeInTheDocument();
     expect(state.upload).toHaveBeenCalledTimes(3);
-    // Cheio: o botão de anexar some.
-    expect(within(dialog).queryByLabelText(/Anexos \(opcional\)/)).not.toBeInTheDocument();
+    // Cheio: o campo de anexar fica desativado (com "3 de 3" ao lado).
+    expect(within(dialog).getByLabelText(/Anexos \(opcional\)/)).toBeDisabled();
 
     await user.click(within(dialog).getByRole('button', { name: 'Remover anexo 1' }));
     expect(within(dialog).getAllByRole('img')).toHaveLength(2);
-    expect(within(dialog).getByLabelText(/Anexos \(opcional\)/)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/Anexos \(opcional\)/)).toBeEnabled();
   });
 
   it('duas imagens iguais (mesma URL): remover uma não leva a outra junto', async () => {
