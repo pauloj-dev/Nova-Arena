@@ -1,0 +1,1101 @@
+// Nova Arena — schema do banco (Neon Postgres). Fonte: docs/modelo-de-dados.md (issue #5) e PRD §17.
+//
+// Convenções:
+// - `id` UUID, exceto `AuditLog` e `ResultEvent` (bigint sequencial, somente inserção).
+// - Datas em UTC (`timestamptz`). `createdAt`/`updatedAt` em toda tabela mutável.
+// - Tabelas em snake_case no plural (`@@map`); colunas com o nome do campo.
+// - Quem executou uma ação (`grantedById`, `reviewedById`, `issuedById`…) é guardado só como ID, sem chave
+//   estrangeira: usuário nunca é apagado (a exclusão LGPD anonimiza) e o histórico não pode depender dele.
+// - Apelido único sem diferenciar maiúsculas: `nicknameKey` (minúsculas), mantido pela API.
+// - Migrations sempre compatíveis com a versão anterior (docs/banco.md).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Enums ────────────────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  ORGANIZER
+  PARTICIPANT
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  MERGED
+  DELETED
+}
+
+enum MatchType {
+  DUEL
+  TEAM_VS_TEAM
+  BATTLE_ROYALE
+}
+
+enum TournamentStatus {
+  DRAFT
+  PUBLISHED
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  CHECK_IN
+  IN_PROGRESS
+  PAUSED
+  FINISHED
+  ARCHIVED
+  CANCELLED
+}
+
+enum ParticipantType {
+  SOLO
+  TEAM
+}
+
+enum StageFormat {
+  SINGLE_ELIM
+  DOUBLE_ELIM
+  GROUPS
+  ROUND_ROBIN
+  SWISS
+  BATTLE_ROYALE
+  TEAM_VS_TEAM
+}
+
+enum StageStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+}
+
+enum Seeding {
+  RANDOM
+  RANKED
+  MANUAL
+}
+
+enum BracketSide {
+  WINNERS
+  LOSERS
+  FINAL
+  THIRD_PLACE
+}
+
+enum MatchStatus {
+  SCHEDULED
+  CHECK_IN
+  LIVE
+  AWAITING_VALIDATION
+  VALIDATED
+  DISPUTED
+  WALKOVER
+  CANCELLED
+}
+
+enum RegistrationStatus {
+  PENDING_MEMBERS
+  PENDING_APPROVAL
+  CONFIRMED
+  WAITLIST
+  REJECTED
+  CANCELLED
+  WITHDRAWN
+  DISQUALIFIED
+}
+
+enum TeamMemberRole {
+  CAPTAIN
+  MEMBER
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  REVOKED
+}
+
+enum StaffRole {
+  CO_ORGANIZER
+  MODERATOR
+}
+
+enum SubmissionStatus {
+  PENDING
+  CONFIRMED
+  CONTESTED
+  APPROVED
+  REJECTED
+}
+
+enum DisputeStatus {
+  OPEN
+  ESCALATED
+  RESOLVED
+}
+
+enum ReportTarget {
+  USER
+  TEAM
+  MATCH
+  RESULT
+}
+
+enum ReportStatus {
+  OPEN
+  IN_REVIEW
+  ACTIONED
+  DISMISSED
+}
+
+enum SanctionType {
+  WARNING
+  SUSPENSION
+  BAN
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationType {
+  REGISTRATION_CONFIRMED
+  TEAM_INVITE
+  CHECKIN_OPEN
+  MATCH_SOON
+  RESULT_POSTED
+  QUALIFIED
+  ELIMINATED
+  ANNOUNCEMENT
+  ORGANIZER_REQUEST_RESULT
+  DISPUTE_UPDATE
+  SANCTION
+}
+
+enum OAuthProvider {
+  google
+  discord
+}
+
+enum EmailTokenType {
+  VERIFY
+  RESET
+  CHANGE_EMAIL
+}
+
+enum FollowTarget {
+  TOURNAMENT
+  GAME
+}
+
+enum ResultEventType {
+  ENTERED
+  CORRECTED
+  WALKOVER
+  REVERTED
+}
+
+// ── Conta e acesso ───────────────────────────────────────────────────
+
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  /// Sempre em minúsculas (a API normaliza).
+  email           String     @unique
+  nickname        String
+  /// `nickname` em minúsculas: garante apelido único sem diferenciar maiúsculas.
+  nicknameKey     String     @unique
+  /// Nulo para conta só OAuth.
+  passwordHash    String?
+  emailVerified   Boolean    @default(false)
+  birthDate       DateTime?  @db.Date
+  avatarUrl       String?
+  country         String?
+  state           String?
+  bio             String?
+  socials         Json       @default("{}")
+  timezone        String?
+  status          UserStatus @default(ACTIVE)
+  /// Sobe em sanção ou troca de senha para derrubar as sessões abertas.
+  sessionVersion  Int        @default(0)
+  lastSeenAt      DateTime?  @db.Timestamptz(3)
+  /// Conta de destino quando esta foi mesclada (RN-13).
+  mergedIntoId    String?    @db.Uuid
+  createdAt       DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime   @updatedAt @db.Timestamptz(3)
+
+  roles                UserRole[]
+  sessions             Session[]
+  oauthAccounts        OAuthAccount[]
+  twoFactor            TwoFactor?
+  emailTokens          EmailToken[]
+  gameAccounts         GameAccount[]
+  organizerRequests    OrganizerRequest[]
+  organizerLimits      OrganizerLimits?
+  teamMemberships      TeamMember[]
+  captainOf            Team[]                 @relation("TeamCaptain")
+  ownedTournaments     Tournament[]           @relation("TournamentOwner")
+  staffOf              TournamentStaff[]
+  registrations        Registration[]
+  registrationMembers  RegistrationMember[]
+  sanctions            Sanction[]
+  reports              Report[]
+  notifications        Notification[]
+  notificationPrefs    NotificationPreference[]
+  follows              Follow[]
+  achievements         Achievement[]
+  playerStats          PlayerStat[]
+  checkIns             CheckIn[]
+  scoringModels        ScoringModel[]
+  tournamentTemplates  TournamentTemplate[]
+
+  @@index([status])
+  @@map("users")
+}
+
+model UserRole {
+  userId      String   @db.Uuid
+  role        Role
+  grantedById String?  @db.Uuid
+  grantedAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, role])
+  @@index([role])
+  @@map("user_roles")
+}
+
+model Session {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @db.Uuid
+  /// Família de refresh tokens: reuso de um token já trocado revoga a família inteira.
+  familyId          String    @db.Uuid
+  refreshTokenHash  String    @unique
+  userAgent         String?
+  ip                String?
+  twoFactorVerified Boolean   @default(false)
+  /// `User.sessionVersion` no momento da emissão.
+  sessionVersion    Int       @default(0)
+  expiresAt         DateTime  @db.Timestamptz(3)
+  revokedAt         DateTime? @db.Timestamptz(3)
+  replacedById      String?   @db.Uuid
+  lastUsedAt        DateTime? @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("sessions")
+}
+
+model OAuthAccount {
+  id                String        @id @default(uuid()) @db.Uuid
+  userId            String        @db.Uuid
+  provider          OAuthProvider
+  providerAccountId String
+  email             String?
+  emailVerified     Boolean       @default(false)
+  createdAt         DateTime      @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
+model TwoFactor {
+  userId            String    @id @db.Uuid
+  /// Segredo TOTP cifrado (AES-256-GCM).
+  secretEnc         String
+  enabledAt         DateTime? @db.Timestamptz(3)
+  /// Hash de cada código de recuperação (uso único).
+  recoveryCodesHash String[]
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("two_factor")
+}
+
+model EmailToken {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @db.Uuid
+  type      EmailTokenType
+  tokenHash String         @unique
+  /// Troca de e-mail: o endereço novo.
+  newEmail  String?
+  expiresAt DateTime       @db.Timestamptz(3)
+  usedAt    DateTime?      @db.Timestamptz(3)
+  createdAt DateTime       @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@map("email_tokens")
+}
+
+model RoleInvite {
+  id          String    @id @default(uuid()) @db.Uuid
+  role        Role
+  tokenHash   String    @unique
+  email       String?
+  maxUses     Int       @default(1)
+  uses        Int       @default(0)
+  expiresAt   DateTime  @db.Timestamptz(3)
+  revokedAt   DateTime? @db.Timestamptz(3)
+  createdById String    @db.Uuid
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@map("role_invites")
+}
+
+model OrganizerRequest {
+  id            String        @id @default(uuid()) @db.Uuid
+  userId        String        @db.Uuid
+  justification String
+  status        RequestStatus @default(PENDING)
+  reviewedById  String?       @db.Uuid
+  reviewReason  String?
+  reviewedAt    DateTime?     @db.Timestamptz(3)
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@map("organizer_requests")
+}
+
+model OrganizerLimits {
+  userId               String   @id @db.Uuid
+  /// RN-10: 3 simultâneos; organizador verificado, 10.
+  maxActiveTournaments Int      @default(3)
+  allowedGameIds       String[] @db.Uuid
+  verified             Boolean  @default(false)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("organizer_limits")
+}
+
+model AdminRemovalRequest {
+  id            String        @id @default(uuid()) @db.Uuid
+  targetUserId  String        @db.Uuid
+  requestedById String        @db.Uuid
+  status        RequestStatus @default(PENDING)
+  decidedById   String?       @db.Uuid
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
+
+  @@index([status])
+  @@map("admin_removal_requests")
+}
+
+model GameAccount {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  gameId    String   @db.Uuid
+  /// Ex.: `{ "playerId": "123", "nick": "Alfa" }`. Visível só para a organização e os adversários.
+  fields    Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id])
+
+  @@unique([userId, gameId])
+  @@map("game_accounts")
+}
+
+// ── Catálogo ─────────────────────────────────────────────────────────
+
+model Game {
+  id                    String   @id @default(uuid()) @db.Uuid
+  slug                  String   @unique
+  name                  String
+  icon                  String   @default("🎮")
+  coverUrl              String?
+  platform              String   @default("mobile")
+  requiredAccountFields Json     @default("[]")
+  extraStatFields       Json     @default("[]")
+  active                Boolean  @default(true)
+  createdAt             DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime @updatedAt @db.Timestamptz(3)
+
+  modes         GameMode[]
+  scoringModels ScoringModel[]
+  tournaments   Tournament[]
+  accounts      GameAccount[]
+  teams         Team[]
+  templates     TournamentTemplate[]
+
+  @@index([active])
+  @@map("games")
+}
+
+model GameMode {
+  id           String    @id @default(uuid()) @db.Uuid
+  gameId       String    @db.Uuid
+  name         String
+  teamSize     Int
+  maxSubs      Int       @default(0)
+  matchType    MatchType
+  /// Só para Battle Royale.
+  maxLobbySize Int?
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+
+  game        Game         @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  tournaments Tournament[]
+
+  @@index([gameId])
+  @@map("game_modes")
+}
+
+model ScoringModel {
+  id          String    @id @default(uuid()) @db.Uuid
+  gameId      String    @db.Uuid
+  name        String
+  matchType   MatchType
+  /// Regras do motor (`packages/engine`), validadas pelo schema na API.
+  rules       Json
+  tiebreakers Json
+  isDefault   Boolean   @default(false)
+  /// Nulo = modelo do catálogo; preenchido = modelo personalizado de um organizador.
+  ownerId     String?   @db.Uuid
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  game   Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  owner  User?   @relation(fields: [ownerId], references: [id])
+  stages Stage[]
+
+  @@index([gameId])
+  @@index([ownerId])
+  @@map("scoring_models")
+}
+
+// ── Campeonato ───────────────────────────────────────────────────────
+
+model Tournament {
+  id                   String           @id @default(uuid()) @db.Uuid
+  slug                 String           @unique
+  gameId               String           @db.Uuid
+  gameModeId           String           @db.Uuid
+  ownerId              String           @db.Uuid
+  name                 String
+  /// Rich-text sanitizado na API.
+  description          String           @default("")
+  rules                String           @default("")
+  prize                String           @default("")
+  bannerUrl            String?
+  streamUrls           String[]
+  status               TournamentStatus @default(DRAFT)
+  participantType      ParticipantType
+  maxParticipants      Int
+  registrationOpensAt  DateTime?        @db.Timestamptz(3)
+  registrationClosesAt DateTime?        @db.Timestamptz(3)
+  startsAt             DateTime?        @db.Timestamptz(3)
+  manualApproval       Boolean          @default(false)
+  waitlistEnabled      Boolean          @default(true)
+  /// `{ opensMinutesBefore, closesMinutesBefore, requireAllMembers }`.
+  checkInConfig        Json             @default("{}")
+  rosterLockAt         DateTime?        @db.Timestamptz(3)
+  featured             Boolean          @default(false)
+  /// Passo do assistente de criação (rascunho).
+  draftStep            Int?
+  /// Motivo da última pausa ou cancelamento.
+  statusReason         String?
+  createdAt            DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @db.Timestamptz(3)
+
+  game          Game              @relation(fields: [gameId], references: [id])
+  gameMode      GameMode          @relation(fields: [gameModeId], references: [id])
+  owner         User              @relation("TournamentOwner", fields: [ownerId], references: [id])
+  staff         TournamentStaff[]
+  stages        Stage[]
+  registrations Registration[]
+  announcements Announcement[]
+
+  @@index([status, startsAt])
+  @@index([gameId, status])
+  @@index([ownerId])
+  @@index([featured])
+  @@map("tournaments")
+}
+
+model TournamentStaff {
+  tournamentId String    @db.Uuid
+  userId       String    @db.Uuid
+  role         StaffRole
+  addedById    String    @db.Uuid
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@id([tournamentId, userId])
+  @@index([userId])
+  @@map("tournament_staff")
+}
+
+model TournamentTemplate {
+  id         String   @id @default(uuid()) @db.Uuid
+  /// Nulo = modelo da plataforma.
+  ownerId    String?  @db.Uuid
+  name       String
+  gameId     String   @db.Uuid
+  gameModeId String   @db.Uuid
+  /// Fases, inscrições e pontuação.
+  payload    Json
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  owner User? @relation(fields: [ownerId], references: [id])
+  game  Game  @relation(fields: [gameId], references: [id])
+
+  @@index([ownerId])
+  @@map("tournament_templates")
+}
+
+model Stage {
+  id             String      @id @default(uuid()) @db.Uuid
+  tournamentId   String      @db.Uuid
+  order          Int
+  name           String
+  format         StageFormat
+  scoringModelId String      @db.Uuid
+  /// Por formato: bestOf, thirdPlace, grandFinalReset, groupCount, doubleRound, rounds, drops, lobbySize, killsPerPlayer.
+  config         Json        @default("{}")
+  qualification  Json?
+  tiebreakers    Json        @default("[]")
+  seeding        Seeding     @default(RANDOM)
+  /// Seed do sorteio registrada para auditoria (ADR-007).
+  randomSeed     String?
+  status         StageStatus @default(PENDING)
+  /// Chave confirmada (não é mais prévia).
+  confirmedAt    DateTime?   @db.Timestamptz(3)
+  /// Travada depois da 1ª partida concluída; só o Admin destrava.
+  lockedAt       DateTime?   @db.Timestamptz(3)
+  createdAt      DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime    @updatedAt @db.Timestamptz(3)
+
+  tournament   Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  scoringModel ScoringModel   @relation(fields: [scoringModelId], references: [id])
+  groups       Group[]
+  matches      Match[]
+  standings    Standing[]
+  announcements Announcement[]
+
+  @@unique([tournamentId, order])
+  @@map("stages")
+}
+
+model Group {
+  id      String @id @default(uuid()) @db.Uuid
+  stageId String @db.Uuid
+  name    String
+  order   Int
+
+  stage         Stage          @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  members       GroupMember[]
+  matches       Match[]
+  standings     Standing[]
+  announcements Announcement[]
+
+  @@unique([stageId, order])
+  @@map("groups")
+}
+
+/// Quem está em cada grupo/sala (a distribuição gerada pelo motor).
+model GroupMember {
+  groupId        String @db.Uuid
+  registrationId String @db.Uuid
+
+  group        Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, registrationId])
+  @@index([registrationId])
+  @@map("group_members")
+}
+
+model Announcement {
+  id           String    @id @default(uuid()) @db.Uuid
+  /// Nulo = comunicado global do Admin.
+  tournamentId String?   @db.Uuid
+  stageId      String?   @db.Uuid
+  groupId      String?   @db.Uuid
+  authorId     String    @db.Uuid
+  title        String
+  body         String
+  /// Global: `ALL`, `ORGANIZERS` ou `GAME:<gameId>`. No campeonato: `ALL`, uma fase ou um grupo.
+  audience     String    @default("ALL")
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+
+  tournament Tournament? @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  stage      Stage?      @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  group      Group?      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([tournamentId, createdAt])
+  @@map("announcements")
+}
+
+model Follow {
+  userId     String       @db.Uuid
+  targetType FollowTarget
+  targetId   String       @db.Uuid
+  createdAt  DateTime     @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, targetType, targetId])
+  @@index([targetType, targetId])
+  @@map("follows")
+}
+
+// ── Squads e inscrições ──────────────────────────────────────────────
+
+model Team {
+  id         String    @id @default(uuid()) @db.Uuid
+  name       String
+  /// Sempre em maiúsculas (a API normaliza).
+  tag        String    @unique
+  logoUrl    String?
+  captainId  String    @db.Uuid
+  gameId     String?   @db.Uuid
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @db.Timestamptz(3)
+
+  captain       User           @relation("TeamCaptain", fields: [captainId], references: [id])
+  game          Game?          @relation(fields: [gameId], references: [id])
+  members       TeamMember[]
+  invites       TeamInvite[]
+  registrations Registration[]
+
+  @@index([captainId])
+  @@map("teams")
+}
+
+model TeamMember {
+  teamId   String         @db.Uuid
+  userId   String         @db.Uuid
+  role     TeamMemberRole @default(MEMBER)
+  isSub    Boolean        @default(false)
+  joinedAt DateTime       @default(now()) @db.Timestamptz(3)
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@id([teamId, userId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+model TeamInvite {
+  id            String       @id @default(uuid()) @db.Uuid
+  teamId        String       @db.Uuid
+  /// Preenchido no convite por apelido (uso único); nulo no convite por link/código (vale até expirar).
+  invitedUserId String?      @db.Uuid
+  /// 6 caracteres.
+  code          String       @unique
+  status        InviteStatus @default(PENDING)
+  /// 72 h.
+  expiresAt     DateTime     @db.Timestamptz(3)
+  createdById   String       @db.Uuid
+  createdAt     DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime     @updatedAt @db.Timestamptz(3)
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, status])
+  @@index([invitedUserId, status])
+  @@map("team_invites")
+}
+
+model Registration {
+  id               String             @id @default(uuid()) @db.Uuid
+  tournamentId     String             @db.Uuid
+  /// Inscrição solo.
+  userId           String?            @db.Uuid
+  /// Inscrição de squad.
+  teamId           String?            @db.Uuid
+  /// Inscrição importada por CSV (sem conta na plataforma).
+  displayName      String?
+  tag              String?
+  status           RegistrationStatus
+  seed             Int?
+  checkedInAt      DateTime?          @db.Timestamptz(3)
+  rulesAcceptedAt  DateTime?          @db.Timestamptz(3)
+  statusReason     String?
+  /// RN-12: vaga reservada do squad promovido incompleto.
+  reservedUntil    DateTime?          @db.Timestamptz(3)
+  /// Ordem na lista de espera (a ordem de entrada).
+  createdAt        DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime           @updatedAt @db.Timestamptz(3)
+
+  tournament   Tournament           @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user         User?                @relation(fields: [userId], references: [id])
+  team         Team?                @relation(fields: [teamId], references: [id])
+  members      RegistrationMember[]
+  participants MatchParticipant[]
+  standings    Standing[]
+  groups       GroupMember[]
+  checkIns     CheckIn[]
+
+  @@unique([tournamentId, userId])
+  @@unique([tournamentId, teamId])
+  @@index([tournamentId, status, createdAt])
+  @@map("registrations")
+}
+
+model RegistrationMember {
+  id             String    @id @default(uuid()) @db.Uuid
+  registrationId String    @db.Uuid
+  /// Repetido da inscrição para garantir que um jogador esteja em um só squad por campeonato.
+  tournamentId   String    @db.Uuid
+  userId         String    @db.Uuid
+  confirmedAt    DateTime? @db.Timestamptz(3)
+  isSub          Boolean   @default(false)
+  isCaptain      Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([tournamentId, userId])
+  @@index([registrationId])
+  @@map("registration_members")
+}
+
+// ── Competição ───────────────────────────────────────────────────────
+
+model Match {
+  id               String       @id @default(uuid()) @db.Uuid
+  stageId          String       @db.Uuid
+  groupId          String?      @db.Uuid
+  /// ID da partida no motor (`w-r1-m1`, `l-r2-m3`, `drop-g1-3`…).
+  nodeId           String
+  kind             String       @default("DUEL")
+  round            Int
+  position         Int
+  bracket          BracketSide?
+  roundLabel       String       @default("")
+  dropIndex        Int?
+  bestOf           Int          @default(1)
+  ifNecessary      Boolean      @default(false)
+  nextMatchId      String?      @db.Uuid
+  loserNextMatchId String?      @db.Uuid
+  scheduledAt      DateTime?    @db.Timestamptz(3)
+  /// Código e senha da sala cifrados (AES-256-GCM). Nunca vão em evento de tempo real.
+  lobbyCodeEnc     String?
+  status           MatchStatus  @default(SCHEDULED)
+  multiplier       Decimal      @default(1) @db.Decimal(6, 2)
+  evidenceUrls     String[]
+  createdAt        DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime     @updatedAt @db.Timestamptz(3)
+
+  stage        Stage              @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  group        Group?             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  participants MatchParticipant[]
+  checkIns     CheckIn[]
+  submissions  ResultSubmission[]
+  disputes     Dispute[]
+  resultEvents ResultEvent[]
+
+  @@unique([stageId, nodeId])
+  @@index([stageId, round, position])
+  @@index([scheduledAt])
+  @@map("matches")
+}
+
+model MatchParticipant {
+  id             String   @id @default(uuid()) @db.Uuid
+  matchId        String   @db.Uuid
+  registrationId String   @db.Uuid
+  slot           Int
+  placement      Int?
+  kills          Int?
+  /// Generaliza coroas, gols, frames e jogos vencidos na série.
+  score          Decimal? @db.Decimal(10, 2)
+  isWinner       Boolean?
+  absent         Boolean  @default(false)
+  /// Sempre calculado no servidor pelo motor (RN-01).
+  points         Decimal  @default(0) @db.Decimal(10, 2)
+  rawStats       Json     @default("{}")
+  walkover       Boolean  @default(false)
+
+  match        Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  registration Registration @relation(fields: [registrationId], references: [id])
+  playerStats  PlayerStat[]
+
+  @@unique([matchId, registrationId])
+  @@index([registrationId])
+  @@map("match_participants")
+}
+
+model PlayerStat {
+  id                 String @id @default(uuid()) @db.Uuid
+  matchParticipantId String @db.Uuid
+  userId             String @db.Uuid
+  /// Kills por jogador (RN-03) e outras estatísticas individuais.
+  stats              Json
+
+  matchParticipant MatchParticipant @relation(fields: [matchParticipantId], references: [id], onDelete: Cascade)
+  user             User             @relation(fields: [userId], references: [id])
+
+  @@unique([matchParticipantId, userId])
+  @@index([userId])
+  @@map("player_stats")
+}
+
+model CheckIn {
+  matchId        String   @db.Uuid
+  registrationId String   @db.Uuid
+  userId         String   @db.Uuid
+  at             DateTime @default(now()) @db.Timestamptz(3)
+
+  match        Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@id([matchId, registrationId, userId])
+  @@map("check_ins")
+}
+
+/// Tabela recalculada pelo motor a cada resultado; cache no Redis (`standings:{stageId}`).
+model Standing {
+  id             String   @id @default(uuid()) @db.Uuid
+  stageId        String   @db.Uuid
+  groupId        String?  @db.Uuid
+  registrationId String   @db.Uuid
+  position       Int
+  points         Decimal  @default(0) @db.Decimal(10, 2)
+  played         Int      @default(0)
+  wins           Int      @default(0)
+  draws          Int      @default(0)
+  losses         Int      @default(0)
+  booyahs        Int      @default(0)
+  kills          Int      @default(0)
+  scoreFor       Decimal  @default(0) @db.Decimal(10, 2)
+  scoreAgainst   Decimal  @default(0) @db.Decimal(10, 2)
+  avgPlacement   Decimal? @db.Decimal(6, 2)
+  tiebreakNote   String?
+  qualified      Boolean  @default(false)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  stage        Stage        @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  group        Group?       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@unique([stageId, registrationId])
+  @@index([stageId, groupId, position])
+  @@map("standings")
+}
+
+model ResultSubmission {
+  id            String           @id @default(uuid()) @db.Uuid
+  matchId       String           @db.Uuid
+  submittedById String           @db.Uuid
+  payload       Json
+  evidenceUrls  String[]
+  status        SubmissionStatus @default(PENDING)
+  confirmedById String?          @db.Uuid
+  reviewedById  String?          @db.Uuid
+  createdAt     DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime         @updatedAt @db.Timestamptz(3)
+
+  match    Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  disputes Dispute[]
+
+  @@index([matchId, status])
+  @@map("result_submissions")
+}
+
+model Dispute {
+  id           String        @id @default(uuid()) @db.Uuid
+  submissionId String?       @db.Uuid
+  matchId      String        @db.Uuid
+  openedById   String        @db.Uuid
+  reason       String
+  evidenceUrls String[]
+  status       DisputeStatus @default(OPEN)
+  resolution   String?
+  resolvedById String?       @db.Uuid
+  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
+
+  submission ResultSubmission? @relation(fields: [submissionId], references: [id])
+  match      Match             @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  messages   DisputeMessage[]
+
+  @@index([status, createdAt])
+  @@index([matchId])
+  @@map("disputes")
+}
+
+model DisputeMessage {
+  id           String   @id @default(uuid()) @db.Uuid
+  disputeId    String   @db.Uuid
+  authorId     String   @db.Uuid
+  body         String
+  evidenceUrls String[]
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  dispute Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  @@index([disputeId, createdAt])
+  @@map("dispute_messages")
+}
+
+/// Histórico de resultados como eventos: somente inserção.
+model ResultEvent {
+  id        BigInt          @id @default(autoincrement())
+  matchId   String          @db.Uuid
+  actorId   String          @db.Uuid
+  type      ResultEventType
+  before    Json?
+  after     Json?
+  reason    String?
+  createdAt DateTime        @default(now()) @db.Timestamptz(3)
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Restrict)
+
+  @@index([matchId, createdAt])
+  @@map("result_events")
+}
+
+// ── Governança ───────────────────────────────────────────────────────
+
+/// Somente inserção (gatilho e permissões entram com a issue #71). Retenção ≥ 1 ano.
+model AuditLog {
+  id           BigInt   @id @default(autoincrement())
+  actorId      String?  @db.Uuid
+  action       String
+  entityType   String
+  entityId     String
+  /// Permite ao organizador ver só os logs dos próprios campeonatos.
+  tournamentId String?  @db.Uuid
+  before       Json?
+  after        Json?
+  reason       String?
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+  @@index([tournamentId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+model Report {
+  id           String       @id @default(uuid()) @db.Uuid
+  reporterId   String       @db.Uuid
+  targetType   ReportTarget
+  targetId     String       @db.Uuid
+  reason       String
+  description  String
+  evidenceUrls String[]
+  status       ReportStatus @default(OPEN)
+  handledById  String?      @db.Uuid
+  resolution   String?
+  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @db.Timestamptz(3)
+
+  reporter User @relation(fields: [reporterId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+  @@map("reports")
+}
+
+model Sanction {
+  id         String       @id @default(uuid()) @db.Uuid
+  userId     String       @db.Uuid
+  type       SanctionType
+  reason     String
+  issuedById String       @db.Uuid
+  startsAt   DateTime     @default(now()) @db.Timestamptz(3)
+  /// Suspensão expira sozinha aqui.
+  endsAt     DateTime?    @db.Timestamptz(3)
+  liftedAt   DateTime?    @db.Timestamptz(3)
+  reportId   String?      @db.Uuid
+  createdAt  DateTime     @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, startsAt])
+  @@map("sanctions")
+}
+
+model Notification {
+  id          String           @id @default(uuid()) @db.Uuid
+  userId      String           @db.Uuid
+  type        NotificationType
+  title       String
+  body        String
+  link        String?
+  readAt      DateTime?        @db.Timestamptz(3)
+  emailSentAt DateTime?        @db.Timestamptz(3)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  userId String           @db.Uuid
+  type   NotificationType
+  inApp  Boolean          @default(true)
+  email  Boolean          @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, type])
+  @@map("notification_preferences")
+}
+
+model Achievement {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  gameId       String?  @db.Uuid
+  type         String
+  tournamentId String?  @db.Uuid
+  awardedAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, awardedAt])
+  @@map("achievements")
+}
+
+/// Configurações do site (na produção, o Edge Config; aqui fica o padrão e o histórico).
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("site_settings")
+}
