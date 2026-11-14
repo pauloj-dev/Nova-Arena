@@ -5,8 +5,8 @@
  * dentro do handler de cada ação sensível.
  */
 import { http, HttpResponse, type HttpHandler } from 'msw';
-import { ACTIVE_TOURNAMENT_STATUSES, type AdminStats, type AuditLog, type AuditMeta } from '@nova/schemas';
-import { AUDIT_ACTIONS, auditLogs, type DbAuditLog } from '../audit';
+import { ACTIVE_TOURNAMENT_STATUSES, AUDIT_ACTIONS, auditActionLabel, type AdminStats, type AuditLog, type AuditMeta } from '@nova/schemas';
+import { auditLogs, type DbAuditLog } from '../audit';
 import { matchId, matchMetas, stageRuns } from '../competition';
 import { db } from '../db';
 import { findTournament, handle, json, paginateNumbered, param, query, requireTournamentAccess, url } from '../http';
@@ -23,13 +23,7 @@ const DAY = 24 * 3600_000;
 const AUDIT_PAGE_SIZE = 20;
 const CSV_MAX_ROWS = 5000;
 
-/** Ações que este painel audita e que ainda não estão no catálogo comum (`AUDIT_ACTIONS`). */
-const EXTRA_ACTIONS: Record<string, string> = {
-  ADMIN_REMOVAL_REQUESTED: 'Remoção de administrador solicitada',
-  ADMIN_REMOVAL_REVIEWED: 'Pedido de remoção de administrador analisado',
-  ANNOUNCEMENT_TOGGLED: 'Comunicado ativado ou desativado',
-};
-const actionLabel = (action: string) => AUDIT_ACTIONS[action] ?? EXTRA_ACTIONS[action] ?? action;
+const actionLabel = auditActionLabel;
 
 const ENTITY_LABELS: Record<string, string> = {
   User: 'Usuário',
@@ -240,7 +234,7 @@ export const handlers: HttpHandler[] = [
       adminOnly();
       const used = new Set(auditLogs().map((l) => l.entityType));
       const meta: AuditMeta = {
-        actions: Object.entries({ ...AUDIT_ACTIONS, ...EXTRA_ACTIONS })
+        actions: Object.entries(AUDIT_ACTIONS)
           .map(([value, label]) => ({ value, label }))
           .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')),
         entityTypes: [...new Set([...Object.keys(ENTITY_LABELS), ...used])],

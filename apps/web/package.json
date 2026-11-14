@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "pnpm --filter @nova/db db:deploy && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
@@ -16,6 +16,8 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^7.0.6",
+    "@nova/api": "workspace:*",
+    "@nova/db": "workspace:*",
     "@nova/engine": "workspace:*",
     "@nova/schemas": "workspace:*",
     "@nova/ui": "workspace:*",

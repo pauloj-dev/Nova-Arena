@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { formatDateTime, formatTime, isoToLocalInput, localInputToIso, timeZoneLabel } from './datetime';
+import { afterEach, describe, expect, it } from 'vitest';
+import { browserTimeZone, formatDateTime, formatTime, isoToLocalInput, localInputToIso, setPreferredTimeZone, timeZoneLabel, userTimeZone } from './datetime';
 
 describe('datas em UTC exibidas no fuso da pessoa (PRD R8)', () => {
   const instant = '2026-11-14T23:00:00.000Z';
@@ -41,5 +41,38 @@ describe('datas em UTC exibidas no fuso da pessoa (PRD R8)', () => {
 
   it('recusa valor malformado', () => {
     expect(() => localInputToIso('amanhã', 'America/Sao_Paulo')).toThrow();
+  });
+});
+
+describe('fuso salvo no perfil (Me.timezone)', () => {
+  const instant = '2026-11-14T23:00:00.000Z';
+  afterEach(() => setPreferredTimeZone(null));
+
+  it('sem fuso no perfil, usa o fuso do navegador', () => {
+    setPreferredTimeZone(null);
+    expect(userTimeZone()).toBe(browserTimeZone());
+  });
+
+  it('com fuso no perfil, as datas saem nele mesmo com o navegador em outro fuso', () => {
+    setPreferredTimeZone('America/Manaus');
+    expect(userTimeZone()).toBe('America/Manaus');
+    expect(formatTime(instant)).toBe('19h');
+    expect(formatDateTime(instant)).toMatch(/19h · horário de Manaus$/);
+  });
+
+  it('campos de data convertem no fuso do perfil', () => {
+    setPreferredTimeZone('America/Manaus');
+    expect(localInputToIso('2026-11-14T19:00')).toBe(instant);
+    expect(isoToLocalInput(instant)).toBe('2026-11-14T19:00');
+  });
+
+  it('fuso inválido é ignorado', () => {
+    setPreferredTimeZone('Marte/Olympus');
+    expect(userTimeZone()).toBe(browserTimeZone());
+  });
+
+  it('timeZone explícito continua valendo', () => {
+    setPreferredTimeZone('America/Manaus');
+    expect(formatTime(instant, { timeZone: 'America/Sao_Paulo' })).toBe('20h');
   });
 });

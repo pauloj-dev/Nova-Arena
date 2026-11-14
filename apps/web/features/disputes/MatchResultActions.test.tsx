@@ -58,7 +58,8 @@ vi.mock('@/shared/api/hooks/disputes', () => ({
 }));
 vi.mock('@/shared/api/hooks/tournaments', () => ({ useTournament: (id: string | undefined) => ({ data: id ? { gameId: 'g_1' } : undefined, isLoading: false }) }));
 vi.mock('@/shared/api/hooks/games', () => ({ useGame: (id: string | undefined) => ({ data: id ? { extraStatFields: state.tiebreakFields } : undefined, isLoading: false }) }));
-vi.mock('@/shared/api/upload', () => ({
+vi.mock('@/shared/api/upload', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/api/upload')>()),
   uploadImage: (file: File, purpose: string) => state.upload(file, purpose),
   uploadErrorMessage: () => 'Não foi possível enviar a imagem. Tente de novo.',
 }));

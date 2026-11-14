@@ -5,7 +5,7 @@ import { Button, cn, Textarea } from '@nova/ui';
 import { AlertCircle, CheckCircle2, Trophy } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 import { duelFromMatch, duelPayload, scoreLabel, validateDuel, winsNeeded, type DuelState } from './duel';
-import { EvidenceUpload } from './EvidenceUpload';
+import { EvidenceUpload } from '@/features/evidence/EvidenceUpload';
 import { CELL_INPUT } from './fields';
 
 export interface ScoreSubmit {
