@@ -984,13 +984,17 @@ model ResultEvent {
 
 // ── Governança ───────────────────────────────────────────────────────
 
-/// Somente inserção (gatilho e permissões entram com a issue #71). Retenção ≥ 1 ano.
+/// Somente inserção: um gatilho bloqueia UPDATE, DELETE e TRUNCATE (issue #71).
+/// Particionada por mês em `createdAt` (as partições ficam no schema `audit`, fora do Prisma). Retenção ≥ 1 ano.
 model AuditLog {
-  id           BigInt   @id @default(autoincrement())
+  id           BigInt   @default(autoincrement())
   actorId      String?  @db.Uuid
+  /// Uma das ações de `AUDIT_ACTIONS` (`@nova/schemas`).
   action       String
   entityType   String
   entityId     String
+  /// Nome legível do recurso no momento da ação (ex.: o nome do campeonato).
+  entityLabel  String   @default("")
   /// Permite ao organizador ver só os logs dos próprios campeonatos.
   tournamentId String?  @db.Uuid
   before       Json?
@@ -1000,6 +1004,8 @@ model AuditLog {
   userAgent    String?
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
 
+  /// A chave da partição precisa fazer parte da chave primária.
+  @@id([id, createdAt])
   @@index([createdAt])
   @@index([actorId, createdAt])
   @@index([entityType, entityId])
