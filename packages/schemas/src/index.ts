@@ -9,3 +9,4 @@ export * from './governance';
 export * from './notification';
 export * from './password';
 export * from './device';
+export * from './names';
