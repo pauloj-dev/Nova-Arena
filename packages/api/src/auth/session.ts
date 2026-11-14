@@ -35,7 +35,9 @@ async function issue(c: AppContext, db: PrismaClient, user: Pick<User, 'id' | 's
       expiresAt: new Date(now().getTime() + REFRESH_TTL_SECONDS * 1000),
     },
   });
-  const access = await signAccessToken(c.get('env'), { sub: user.id, sid: session.id, sv: user.sessionVersion, tfa: false }, now());
+  // Papéis no token só para a borda (`proxy.ts`); a API sempre confere no banco.
+  const roles = (await db.userRole.findMany({ where: { userId: user.id }, select: { role: true } })).map((r) => r.role);
+  const access = await signAccessToken(c.get('env'), { sub: user.id, sid: session.id, sv: user.sessionVersion, tfa: false, roles }, now());
   setSessionCookies(c, access, refreshToken);
   c.set('session', { userId: user.id, sessionId: session.id, twoFactorVerified: false });
   return session.id;

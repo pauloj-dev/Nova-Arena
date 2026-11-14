@@ -5,9 +5,10 @@
  */
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import type { AppContext } from '../context';
+import { ACCESS_COOKIE } from './edge';
 import { ACCESS_TTL_SECONDS } from './jwt';
 
-export const ACCESS_COOKIE = 'na_at';
+export { ACCESS_COOKIE };
 export const REFRESH_COOKIE = 'na_rt';
 export const REFRESH_PATH = '/api/v1/auth';
 export const REFRESH_TTL_SECONDS = 30 * 24 * 3600;

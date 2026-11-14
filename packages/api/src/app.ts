@@ -22,7 +22,7 @@ import { memoryLimiter, requireSameOrigin, upstashLimiter, type RateLimiter } fr
 export const API_BASE_PATH = '/api/v1';
 
 /**
- * Módulos registrados. Entram, na ordem do B1: auth (#67 ✓, OAuth #68), users e me (#72), roles e audit (#70, #71),
+ * Módulos registrados. Entram, na ordem do B1: auth (#67 ✓, OAuth #68 ✓), users e me (#72), roles e audit (#70: `auth/rbac.ts` ✓; rotas na #72),
  * uploads (#73), games (#74), tournaments (#75, #76), teams (#78), registrations (#79).
  */
 const modules = [health, auth, oauth];
@@ -32,6 +32,8 @@ export interface CreateAppOptions {
   env?: Env | (() => Env);
   deps?: Partial<Dependencies>;
   logSink?: LogSink;
+  /** Só para testes: rotas extras montadas depois dos módulos (ex.: sondas da matriz RBAC). */
+  extraModules?: Hono<AppEnv>[];
 }
 
 export function createApp(options: CreateAppOptions = {}) {
@@ -73,7 +75,7 @@ export function createApp(options: CreateAppOptions = {}) {
   // CSRF: toda mutação precisa vir do próprio site (plano B1.2).
   app.use(requireSameOrigin);
 
-  for (const module of modules) app.route('/', module);
+  for (const module of [...modules, ...(options.extraModules ?? [])]) app.route('/', module);
 
   app.notFound((c) => problemResponse(new HttpProblem(404, 'Rota não encontrada.', 'NOT_FOUND'), c.get('requestId')));
 
