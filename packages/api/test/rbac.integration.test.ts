@@ -49,7 +49,9 @@ describe.skipIf(!url)('matriz RBAC (Postgres)', () => {
 
   beforeAll(async () => {
     db = createDb({ connectionString: url, max: 3 });
-    app = createApp({ env, deps: { db: () => db }, extraModules: [probes] });
+    const ok = async () => 'ok' as const;
+    // Saúde dos serviços não é assunto da matriz: as checagens respondem ok.
+    app = createApp({ env, deps: { db: () => db, checks: { database: ok, redis: ok, qstash: ok } }, extraModules: [probes] });
     await makeUser('participante', ['PARTICIPANT']);
     const moderator = await makeUser('moderador', ['PARTICIPANT']);
     const ownerA = await makeUser('organizadorA', ['ORGANIZER', 'PARTICIPANT']);
