@@ -19,6 +19,9 @@ const env = envFrom({ NODE_ENV: 'test', AUTH_JWT_SECRET: SECRET, DATABASE_URL: u
 type Actor = 'visitante' | 'participante' | 'moderador' | 'organizadorA' | 'organizadorB' | 'admin' | 'superAdmin';
 type Expect = Partial<Record<Actor, number>>;
 
+/** Prefixo único do apelido de cada ator (organizadorA e organizadorB não podem colidir). */
+const ACTOR_CODE: Record<Actor, string> = { visitante: 'vis', participante: 'par', moderador: 'mod', organizadorA: 'orgA', organizadorB: 'orgB', admin: 'adm', superAdmin: 'sup' };
+
 /** Sondas: mesmas checagens das rotas futuras de admin, organizador e campeonato. */
 const probes = new Hono<AppEnv>();
 probes.get('/_rbac/admin', requireRole(...ADMIN_ROLES), (c) => c.json({ ok: true }));
@@ -35,7 +38,7 @@ describe.skipIf(!url)('matriz RBAC (Postgres)', () => {
   const stamp = Date.now();
 
   async function makeUser(actor: Actor, roles: ('SUPER_ADMIN' | 'ADMIN' | 'ORGANIZER' | 'PARTICIPANT')[]) {
-    const nickname = `${actor.slice(0, 8)}${stamp}`.slice(0, 20);
+    const nickname = `${ACTOR_CODE[actor]}${stamp}`.slice(0, 20);
     const user = await db.user.create({ data: { email: `${actor}.${stamp}@exemplo.com`, nickname, nicknameKey: nickname.toLowerCase(), roles: { create: roles.map((role) => ({ role })) } } });
     const session = await db.session.create({ data: { userId: user.id, familyId: randomUUID(), refreshTokenHash: `rbac-${randomUUID()}`, expiresAt: new Date(Date.now() + 3600_000) } });
     // O token carrega os papéis só para a borda: aqui ele vai SEM papéis, para provar que a API lê do banco.
