@@ -227,6 +227,21 @@ export const SystemHealth = z.object({
 });
 export type SystemHealth = z.infer<typeof SystemHealth>;
 
+/**
+ * `GET /health` (público, sem dados sensíveis): estado de cada dependência da API real.
+ * `not_configured` = a variável do serviço ainda não existe naquele ambiente.
+ */
+export const HealthServiceStatus = z.enum(['ok', 'down', 'not_configured']);
+export const ApiHealth = z.object({
+  /** `ok`: tudo no ar · `degraded`: algum serviço sem configuração · `down`: algum serviço fora. */
+  status: z.enum(['ok', 'degraded', 'down']),
+  version: z.string(),
+  environment: z.string(),
+  checkedAt: IsoDateTime,
+  services: z.array(z.object({ key: z.enum(['database', 'redis', 'qstash']), name: z.string(), status: HealthServiceStatus, latencyMs: z.number().nullable(), detail: z.string() })),
+});
+export type ApiHealth = z.infer<typeof ApiHealth>;
+
 export const GlobalAnnouncement = z.object({
   id: Id,
   title: z.string(),
