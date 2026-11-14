@@ -12,7 +12,7 @@
  * O fluxo é de navegação (o navegador vai e volta do provedor): erros viram redirecionamento para
  * `/entrar?erro=<código>`, não JSON.
  */
-import { LoginMethods, Ok,OAuthProviderName, SetPasswordInput } from '@nova/schemas';
+import { LoginMethods, nameBlockReason, Ok, OAuthProviderName, SetPasswordInput } from '@nova/schemas';
 import { generateCodeVerifier, generateState } from 'arctic';
 import { Hono } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
@@ -64,7 +64,9 @@ function provider(c: AppContext) {
 /** Apelido único a partir do nome do provedor: "Bianca", "Bianca2", "Bianca3"… */
 async function uniqueNickname(c: AppContext, profile: OAuthProfile): Promise<string> {
   const db = c.get('deps').db();
-  const base = nicknameBase(profile.name, profile.email);
+  // Nome do provedor que cairia no filtro de nomes (#72) vira "jogador".
+  const raw = nicknameBase(profile.name, profile.email);
+  const base = nameBlockReason(raw) ? 'jogador' : raw;
   for (let i = 0; i < 50; i++) {
     const candidate = i === 0 ? base : `${base.slice(0, 20 - String(i + 1).length)}${i + 1}`;
     if (!(await db.user.findUnique({ where: { nicknameKey: candidate.toLowerCase() }, select: { id: true } }))) return candidate;

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Id, IsoDateTime } from './common';
+import { nameBlockReason } from './names';
 
 export const InviteStatus = z.enum(['PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED', 'REVOKED']);
 export type InviteStatus = z.infer<typeof InviteStatus>;
@@ -47,7 +48,12 @@ export const Team = z.object({
 });
 export type Team = z.infer<typeof Team>;
 
-export const TeamInput = Team.pick({ name: true, tag: true }).extend({ logoUrl: z.string().nullable().optional() });
+/** Criar/editar squad: nome e tag passam pelo filtro de nomes (#72). */
+export const TeamInput = Team.pick({ name: true, tag: true }).extend({
+  name: Team.shape.name.refine((v) => nameBlockReason(v, 'team') === null, { error: (issue) => nameBlockReason(String(issue.input), 'team') ?? 'Nome inválido' }),
+  tag: Team.shape.tag.refine((v) => nameBlockReason(v, 'tag') === null, { error: (issue) => nameBlockReason(String(issue.input), 'tag') ?? 'Tag inválida' }),
+  logoUrl: z.string().nullable().optional(),
+});
 export type TeamInput = z.infer<typeof TeamInput>;
 
 export const TeamInviteInput = z.discriminatedUnion('kind', [

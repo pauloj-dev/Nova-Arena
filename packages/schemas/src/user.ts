@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Id, IsoDateTime } from './common';
+import { nameBlockReason } from './names';
 
 export const Role = z.enum(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'PARTICIPANT']);
 export type Role = z.infer<typeof Role>;
@@ -12,6 +13,9 @@ export const Nickname = z
   .min(3, 'O apelido precisa de pelo menos 3 caracteres')
   .max(20, 'O apelido pode ter no máximo 20 caracteres')
   .regex(/^[A-Za-z0-9_.-]+$/, 'Use só letras, números, ponto, hífen e sublinhado');
+
+/** Apelido escolhido pela pessoa (cadastro e edição): além do formato, passa pelo filtro de nomes (#72). */
+export const NewNickname = Nickname.refine((v) => nameBlockReason(v, 'nickname') === null, { error: (issue) => nameBlockReason(String(issue.input), 'nickname') ?? 'Apelido inválido' });
 
 export const Password = z
   .string()
@@ -75,7 +79,7 @@ function ageOn(birthDate: string, now = new Date()): number {
 
 export const RegisterInput = z.object({
   email: z.email('Informe um e-mail válido'),
-  nickname: Nickname,
+  nickname: NewNickname,
   password: Password,
   birthDate: z.iso.date('Informe sua data de nascimento').refine((d) => ageOn(d) >= MIN_AGE, `É preciso ter pelo menos ${MIN_AGE} anos para se cadastrar`),
   acceptTerms: z.literal(true, 'É preciso aceitar os Termos de Uso e a Política de Privacidade'),
@@ -106,7 +110,7 @@ export const SetPasswordInput = z.object({ password: Password });
 export type SetPasswordInput = z.infer<typeof SetPasswordInput>;
 
 export const UpdateMeInput = z.object({
-  nickname: Nickname.optional(),
+  nickname: NewNickname.optional(),
   avatarUrl: z.string().nullable().optional(),
   country: z.string().max(60).nullable().optional(),
   state: z.string().max(60).nullable().optional(),
