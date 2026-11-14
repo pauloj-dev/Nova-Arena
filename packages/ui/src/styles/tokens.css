@@ -12,6 +12,13 @@
   --color-primary-700: #15803d;
   --color-primary-900: #065f46;
 
+  /* Marca: o verde neon do símbolo (órbita e traço do A) e a tinta do N no fundo claro.
+     Só para a logo; a interface usa as primárias acima. */
+  --brand-glow: #0af24a;
+  --brand-mid: #07c23a;
+  --brand-deep: #067a2b;
+  --brand-ink: #03201a;
+
   /* Neutros */
   --color-white: #ffffff;
   --color-gray-50: #f8faf9;
@@ -69,6 +76,8 @@
   --accent-detail: var(--color-primary-500);
   --chrome-bg: var(--surface);
   --chrome-text: var(--text);
+  /* Tinta do N da logo: escura no claro, clara no escuro; no cabeçalho colorido das áreas vira a cor do texto dele. */
+  --logo-ink: var(--brand-ink);
 
   /* Espaçamento (base 4px) */
   --space-1: 4px;
@@ -117,6 +126,7 @@
   --border-strong: #517e65; /* 3,5:1 sobre --surface e 3,1:1 sobre --neutral-soft */
   --text: #ecfdf5;
   --text-muted: #a3b8ad;
+  --logo-ink: #ecfdf5;
   --text-on-accent: #052e16;
   --overlay: rgba(0, 0, 0, 0.65);
 
