@@ -2,7 +2,7 @@
 
 import { Input } from '@nova/ui';
 import type { ReactNode } from 'react';
-import { browserTimeZone, formatDateTime, isoToLocalInput, localInputToIso, timeZoneLabel } from '@/shared/lib/datetime';
+import { formatDateTime, isoToLocalInput, localInputToIso, timeZoneLabel, userTimeZone } from '@/shared/lib/datetime';
 
 interface DateTimeFieldProps {
   label: ReactNode;
@@ -22,7 +22,7 @@ interface DateTimeFieldProps {
  * O fuso aparece sempre ao lado do campo (PRD §22, risco R8).
  */
 export function DateTimeField({ label, value, onChange, error, hint, required, disabled, id }: DateTimeFieldProps) {
-  const zone = browserTimeZone();
+  const zone = userTimeZone();
   const zoneLabel = timeZoneLabel(zone, value ? new Date(value) : undefined);
   return (
     <Input

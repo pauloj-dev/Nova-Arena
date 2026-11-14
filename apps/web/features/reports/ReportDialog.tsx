@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
-import { EvidenceUploader } from '@/features/disputes/evidence/EvidenceUploader';
+import { EvidenceUpload } from '@/features/evidence/EvidenceUpload';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useCreateReport } from '@/shared/api/hooks/reports';
 import type { ReportButtonProps } from './ReportButton';
@@ -124,7 +124,7 @@ export function ReportDialog({ targetType, targetId, targetLabel, onClose }: Rep
           error={errors.description?.message}
           {...form.register('description')}
         />
-        <EvidenceUploader
+        <EvidenceUpload
           label="Anexos (opcional)"
           hint={`Até ${MAX_REPORT_ATTACHMENTS} imagens PNG, JPG ou WebP de até 5 MB: prints do chat, do placar ou do perfil.`}
           purpose="report"
