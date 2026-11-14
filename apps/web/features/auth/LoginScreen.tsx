@@ -10,13 +10,16 @@ import { useForm } from 'react-hook-form';
 import { errorMessage } from '@/shared/api/client';
 import { useLogin, useSession } from '@/shared/session/useSession';
 import { AuthHeader, AuthSkeleton, FormAlert, textLink } from './AuthParts';
+import { oauthErrorMessage } from './oauthErrors';
 import { safeNext, withNext } from './safeNext';
 import { SocialButtons } from './SocialButtons';
 
 /** `/entrar`: e-mail + senha, com volta para a página de origem (`?next=`). */
 export function LoginScreen() {
   const router = useRouter();
-  const next = safeNext(useSearchParams().get('next'));
+  const params = useSearchParams();
+  const next = safeNext(params.get('next'));
+  const socialError = oauthErrorMessage(params.get('erro'));
   const { user, isLoading } = useSession();
   const login = useLogin();
   const {
@@ -37,7 +40,7 @@ export function LoginScreen() {
       <AuthHeader title="Entrar" description="Acesse sua conta para se inscrever, montar seu squad e acompanhar suas partidas." />
 
       <form noValidate className="flex flex-col gap-4" onSubmit={handleSubmit((input) => login.mutate(input, { onSuccess: () => router.replace(next) }))}>
-        {login.isError && <FormAlert>{errorMessage(login.error)}</FormAlert>}
+        {login.isError ? <FormAlert>{errorMessage(login.error)}</FormAlert> : socialError && <FormAlert>{socialError}</FormAlert>}
         <Input label="E-mail" type="email" autoComplete="email" inputMode="email" autoCapitalize="none" spellCheck={false} error={errors.email?.message} {...register('email')} />
         <div className="flex flex-col gap-1.5">
           <Input label="Senha" type="password" autoComplete="current-password" error={errors.password?.message} {...register('password')} />
@@ -56,7 +59,7 @@ export function LoginScreen() {
         <span className="h-px flex-1 bg-border" aria-hidden />
       </div>
 
-      <SocialButtons onSignedIn={() => router.replace(next)} />
+      <SocialButtons next={next} onSignedIn={() => router.replace(next)} />
 
       <p className="text-center text-sm text-muted">
         Ainda não tem conta?{' '}

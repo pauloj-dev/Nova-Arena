@@ -1,12 +1,14 @@
 'use client';
 
 import { Card, Skeleton } from '@nova/ui';
+import { Suspense } from 'react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { isAdminUser, useSession } from '@/shared/session/useSession';
 import { EmailStatus } from '../EmailStatus';
+import { LoginMethodsSection } from './LoginMethodsSection';
 import { TwoFactorSection } from './TwoFactorSection';
 
-/** `/minha-conta/seguranca`: e-mail da conta e verificação em duas etapas (configurar, códigos de recuperação, desligar). */
+/** `/minha-conta/seguranca`: e-mail da conta, jeitos de entrar (senha, Google, Discord) e verificação em duas etapas (configurar, códigos de recuperação, desligar). */
 export function SecurityPage() {
   const { user } = useSession();
 
@@ -27,6 +29,12 @@ export function SecurityPage() {
               </h2>
               <EmailStatus email={user.email} verified={user.emailVerified} />
             </section>
+          </Card>
+          <Card>
+            {/* `useSearchParams` (retorno do provedor) precisa de Suspense. */}
+            <Suspense fallback={<Skeleton className="h-32 w-full" />}>
+              <LoginMethodsSection />
+            </Suspense>
           </Card>
           <Card>
             <TwoFactorSection isAdmin={isAdminUser(user)} />

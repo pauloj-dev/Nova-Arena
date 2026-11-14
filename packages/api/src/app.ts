@@ -13,7 +13,9 @@ import { HttpProblem, problemResponse } from './errors';
 import { createLogger, requestIdFrom, type LogSink } from './logger';
 import { db as defaultDb } from '@nova/db';
 import { defaultMailer } from './mail';
+import { arcticFactory } from './auth/oauth';
 import { auth } from './modules/auth';
+import { oauth } from './modules/oauth';
 import { databaseCheck, health, qstashCheck, redisCheck } from './modules/health';
 import { memoryLimiter, requireSameOrigin, upstashLimiter, type RateLimiter } from './security';
 
@@ -23,7 +25,7 @@ export const API_BASE_PATH = '/api/v1';
  * Módulos registrados. Entram, na ordem do B1: auth (#67 ✓, OAuth #68), users e me (#72), roles e audit (#70, #71),
  * uploads (#73), games (#74), tournaments (#75, #76), teams (#78), registrations (#79).
  */
-const modules = [health, auth];
+const modules = [health, auth, oauth];
 
 export interface CreateAppOptions {
   /** Variáveis já validadas; padrão: as do processo, validadas na primeira requisição. */
@@ -48,6 +50,7 @@ export function createApp(options: CreateAppOptions = {}) {
         return limiter;
       }),
     mailer: options.deps?.mailer ?? defaultMailer,
+    oauth: options.deps?.oauth ?? arcticFactory,
   };
   const baseLog = createLogger(options.logSink);
 

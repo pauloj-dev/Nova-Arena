@@ -78,4 +78,5 @@ export const keys = {
   },
   site: { settings: ['site', 'settings'] as const, banner: ['site', 'banner'] as const, flags: ['site', 'flags'] as const },
   twoFactor: ['two-factor'] as const,
+  loginMethods: ['login-methods'] as const,
 };

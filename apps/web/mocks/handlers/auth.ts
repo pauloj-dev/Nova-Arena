@@ -1,8 +1,8 @@
 /** Módulo `auth` da API simulada: cadastro, login, sessão, verificação de e-mail e recuperação de senha. */
 import { http } from 'msw';
-import { ForgotPasswordInput, LoginInput, RegisterInput, ResetPasswordInput, VerifyEmailInput } from '@nova/schemas';
+import { ForgotPasswordInput, LoginInput, OAuthProviderName, RegisterInput, ResetPasswordInput, SetPasswordInput, VerifyEmailInput } from '@nova/schemas';
 import { db, nowIso, save, setSessionUserId, uid, type DbUser } from '../db';
-import { badRequest, body, conflict, currentUser, handle, HttpProblem, json, noContent, requireUser, url } from '../http';
+import { badRequest, body, conflict, currentUser, handle, HttpProblem, json, noContent, notFound, requireUser, url } from '../http';
 import { toMe } from '../views';
 import { isFlagEnabled } from './admin-settings';
 
@@ -160,6 +160,42 @@ export const handlers = [
       const user = d.users.find((u) => u.id === record.userId);
       if (!user) throw badRequest('Este link de redefinição é inválido.', 'INVALID_TOKEN');
       record.usedAt = nowIso();
+      user.password = password;
+      save();
+      return json({ ok: true });
+    }),
+  ),
+  // Jeitos de entrar (issue #68). O vínculo em si só acontece com a API real (é uma ida ao provedor).
+  http.get(
+    url('/me/oauth'),
+    handle(() => {
+      const user = requireUser();
+      return json({ hasPassword: user.password !== '', links: user.oauthLinks ?? [] });
+    }),
+  ),
+
+  http.delete(
+    url('/me/oauth/:provider'),
+    handle(({ params }) => {
+      const user = requireUser();
+      const provider = OAuthProviderName.parse(params.provider);
+      const links = user.oauthLinks ?? [];
+      if (!links.some((l) => l.provider === provider)) throw notFound('Vínculo');
+      if (user.password === '' && links.length === 1) {
+        throw new HttpProblem(409, 'Este é o único jeito de entrar na sua conta. Defina uma senha antes de desvincular.', 'LAST_LOGIN_METHOD');
+      }
+      user.oauthLinks = links.filter((l) => l.provider !== provider);
+      save();
+      return noContent();
+    }),
+  ),
+
+  http.post(
+    url('/me/password'),
+    handle(async ({ request }) => {
+      const user = requireUser();
+      const { password } = await body(request, SetPasswordInput);
+      if (user.password !== '') throw conflict('Sua conta já tem senha. Para trocar, informe a senha atual na troca de senha.', 'PASSWORD_ALREADY_SET');
       user.password = password;
       save();
       return json({ ok: true });
