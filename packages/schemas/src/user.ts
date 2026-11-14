@@ -162,3 +162,29 @@ export type FollowTargetType = z.infer<typeof FollowTargetType>;
 /** Tudo o que a pessoa segue: ids de campeonatos e de jogos. */
 export const FollowList = z.object({ tournaments: z.array(Id), games: z.array(Id) });
 export type FollowList = z.infer<typeof FollowList>;
+
+/** Aparelho com sessão aberta (`GET /me/sessions`). */
+export const DeviceSession = z.object({
+  id: z.string(),
+  /** Navegador e sistema, para a pessoa reconhecer o aparelho ("Chrome no Android"). */
+  device: z.string(),
+  /** IP aproximado (último octeto oculto). */
+  ip: z.string().nullable(),
+  createdAt: IsoDateTime,
+  lastUsedAt: IsoDateTime,
+  current: z.boolean(),
+});
+export type DeviceSession = z.infer<typeof DeviceSession>;
+export const DeviceSessions = z.array(DeviceSession);
+
+/** Trocar a senha (`POST /me/password/change`): encerra as outras sessões. */
+export const ChangePasswordInput = z
+  .object({ currentPassword: z.string().min(1, 'Informe a senha atual'), newPassword: Password })
+  .refine((v) => v.currentPassword !== v.newPassword, { message: 'A senha nova precisa ser diferente da atual', path: ['newPassword'] });
+export type ChangePasswordInput = z.infer<typeof ChangePasswordInput>;
+
+/** Trocar o e-mail (`POST /me/email`): o novo só vale depois de confirmado pelo link. */
+export const ChangeEmailInput = z.object({ newEmail: z.email('Informe um e-mail válido'), password: z.string().min(1, 'Informe sua senha') });
+export type ChangeEmailInput = z.infer<typeof ChangeEmailInput>;
+export const ChangeEmailResponse = z.object({ ok: z.literal(true), pendingEmail: z.email(), devConfirmToken: z.string().optional() });
+export type ChangeEmailResponse = z.infer<typeof ChangeEmailResponse>;

@@ -5,10 +5,13 @@ import { Suspense } from 'react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { isAdminUser, useSession } from '@/shared/session/useSession';
 import { EmailStatus } from '../EmailStatus';
+import { ChangeEmailForm } from './ChangeEmailForm';
+import { ChangePasswordSection } from './ChangePasswordSection';
+import { DevicesSection } from './DevicesSection';
 import { LoginMethodsSection } from './LoginMethodsSection';
 import { TwoFactorSection } from './TwoFactorSection';
 
-/** `/minha-conta/seguranca`: e-mail da conta, jeitos de entrar (senha, Google, Discord) e verificação em duas etapas (configurar, códigos de recuperação, desligar). */
+/** `/minha-conta/seguranca`: e-mail da conta (e troca), jeitos de entrar, senha, aparelhos conectados e verificação em duas etapas (configurar, códigos de recuperação, desligar). */
 export function SecurityPage() {
   const { user } = useSession();
 
@@ -28,6 +31,7 @@ export function SecurityPage() {
                 E-mail da conta
               </h2>
               <EmailStatus email={user.email} verified={user.emailVerified} />
+              <ChangeEmailForm />
             </section>
           </Card>
           <Card>
@@ -35,6 +39,12 @@ export function SecurityPage() {
             <Suspense fallback={<Skeleton className="h-32 w-full" />}>
               <LoginMethodsSection />
             </Suspense>
+          </Card>
+          <Card>
+            <ChangePasswordSection />
+          </Card>
+          <Card>
+            <DevicesSection />
           </Card>
           <Card>
             <TwoFactorSection isAdmin={isAdminUser(user)} />

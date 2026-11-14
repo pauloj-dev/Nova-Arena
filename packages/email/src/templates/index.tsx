@@ -38,3 +38,30 @@ export function TeamInvite({ team, captain, link }: { team: string; captain: str
     </Layout>
   );
 }
+
+export function ConfirmEmailChange({ nickname, link }: { nickname: string; link: string }) {
+  const t = m.CONFIRM_EMAIL_CHANGE;
+  return (
+    <Layout preview={t.preview} heading={t.heading(nickname)} action={{ label: t.action, href: link }} note={t.expires}>
+      <Text style={{ margin: 0 }}>{t.body}</Text>
+    </Layout>
+  );
+}
+
+export function EmailChanged({ nickname, newEmail, link }: { nickname: string; newEmail: string; link: string }) {
+  const t = m.EMAIL_CHANGED;
+  return (
+    <Layout preview={t.preview} heading={t.heading(nickname)} action={{ label: t.action, href: link }} note={t.expires}>
+      <Text style={{ margin: 0 }}>{t.body(newEmail)}</Text>
+    </Layout>
+  );
+}
+
+export function PasswordChanged({ nickname, link }: { nickname: string; link: string }) {
+  const t = m.PASSWORD_CHANGED;
+  return (
+    <Layout preview={t.preview} heading={t.heading(nickname)} action={{ label: t.action, href: link }} note={t.expires}>
+      <Text style={{ margin: 0 }}>{t.body}</Text>
+    </Layout>
+  );
+}

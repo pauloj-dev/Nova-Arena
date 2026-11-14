@@ -7,3 +7,5 @@ export * from './registration';
 export * from './competition';
 export * from './governance';
 export * from './notification';
+export * from './password';
+export * from './device';

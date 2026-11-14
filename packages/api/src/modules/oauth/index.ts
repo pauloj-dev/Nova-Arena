@@ -19,6 +19,7 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { body, respond, type AppContext, type AppEnv } from '../../context';
 import { conflict, HttpProblem, notFound } from '../../errors';
 import { hashPassword } from '../../auth/crypto';
+import { assertStrongPassword } from '../../auth/password-policy';
 import type { OAuthProfile } from '../../auth/oauth';
 import { nicknameBase } from '../../auth/oauth';
 import { currentSession, requireSession, startSession } from '../../auth/session';
@@ -183,8 +184,9 @@ oauth.post('/me/password', async (c) => {
   const session = await requireSession(c);
   const { password } = await body(c, SetPasswordInput);
   const db = c.get('deps').db();
-  const user = await db.user.findUniqueOrThrow({ where: { id: session.userId }, select: { passwordHash: true } });
+  const user = await db.user.findUniqueOrThrow({ where: { id: session.userId }, select: { passwordHash: true, nickname: true, email: true } });
   if (user.passwordHash) throw conflict('Sua conta já tem senha. Para trocar, informe a senha atual na troca de senha.', 'PASSWORD_ALREADY_SET');
+  await assertStrongPassword(c, password, { nickname: user.nickname, email: user.email });
   await db.user.update({ where: { id: session.userId }, data: { passwordHash: await hashPassword(password) } });
   return respond(c, Ok, { ok: true as const });
 });

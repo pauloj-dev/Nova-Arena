@@ -42,4 +42,28 @@ export const messages = {
     action: 'Ver convite',
     expires: 'O convite vale por 72 horas.',
   },
+  CONFIRM_EMAIL_CHANGE: {
+    subject: 'Confirme seu novo e-mail na Nova Arena',
+    preview: 'Confirme o endereço novo para concluir a troca.',
+    heading: (nickname: string) => `Oi, ${nickname}`,
+    body: 'Você pediu para usar este endereço na sua conta da Nova Arena. Confirme pelo botão abaixo para concluir a troca.',
+    action: 'Confirmar novo e-mail',
+    expires: 'O link vale por 24 horas. Até lá, o e-mail antigo continua valendo.',
+  },
+  EMAIL_CHANGED: {
+    subject: 'O e-mail da sua conta na Nova Arena mudou',
+    preview: 'Sua conta agora usa outro endereço de e-mail.',
+    heading: (nickname: string) => `Oi, ${nickname}`,
+    body: (newEmail: string) => `O e-mail da sua conta foi trocado para ${newEmail}. A partir de agora, os avisos e o login usam esse endereço.`,
+    action: 'Não fui eu',
+    expires: 'Se não foi você, redefina a senha pelo botão e fale com o suporte para recuperar a conta.',
+  },
+  PASSWORD_CHANGED: {
+    subject: 'Sua senha da Nova Arena foi trocada',
+    preview: 'A senha da sua conta acabou de mudar.',
+    heading: (nickname: string) => `Oi, ${nickname}`,
+    body: 'A senha da sua conta foi trocada e os outros aparelhos saíram da conta.',
+    action: 'Não fui eu',
+    expires: 'Se não foi você, redefina a senha agora pelo botão.',
+  },
 } as const;

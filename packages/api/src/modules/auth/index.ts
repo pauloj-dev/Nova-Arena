@@ -12,42 +12,19 @@
 import { ForgotPasswordInput, ForgotPasswordResponse, LoginInput, Me, Ok, RegisterInput, RegisterResponse, ResendVerificationResponse, ResetPasswordInput, VerifyEmailInput } from '@nova/schemas';
 import { Hono } from 'hono';
 import { body, respond, type AppContext, type AppEnv } from '../../context';
-import { badRequest, conflict, HttpProblem } from '../../errors';
-import { hashPassword, randomToken, sha256, verifyPassword } from '../../auth/crypto';
+import { conflict, HttpProblem } from '../../errors';
+import { assertHuman } from '../../auth/bot';
+import { hashPassword, verifyPassword } from '../../auth/crypto';
+import { createEmailToken, linkFor, useEmailToken } from '../../auth/email-tokens';
+import { assertStrongPassword } from '../../auth/password-policy';
 import { currentSession, endSession, loginGuard, requireSession, revokeAllSessions, rotateSession, startSession } from '../../auth/session';
 import { clientIp, enforceLimit, RULES } from '../../security';
 import { loadMe, meInclude, toMe } from '../../views';
 
-const VERIFY_TTL_MS = 24 * 3600_000;
-const RESET_TTL_MS = 3600_000;
 const MeOrNull = Me.nullable();
 
 /** Fora de produção, o token do e-mail volta na resposta (as telas mostram o link enquanto não há e-mail real). */
 const devToken = (c: AppContext, token: string | null) => (c.get('env').VERCEL_ENV === 'production' ? undefined : token);
-
-async function createEmailToken(c: AppContext, userId: string, type: 'VERIFY' | 'RESET'): Promise<string> {
-  const token = randomToken();
-  const ttl = type === 'VERIFY' ? VERIFY_TTL_MS : RESET_TTL_MS;
-  await c.get('deps').db().emailToken.create({ data: { userId, type, tokenHash: sha256(token), expiresAt: new Date(c.get('deps').now().getTime() + ttl) } });
-  return token;
-}
-
-function linkFor(c: AppContext, path: string, token: string): string {
-  const base = c.get('env').NEXT_PUBLIC_SITE_URL ?? new URL(c.req.url).origin;
-  return `${base}${path}?token=${encodeURIComponent(token)}`;
-}
-
-/** Token de e-mail válido (existe, do tipo certo, não usado e não vencido) → o registro. */
-async function useEmailToken(c: AppContext, token: string, type: 'VERIFY' | 'RESET', invalidMessage: string) {
-  const db = c.get('deps').db();
-  const now = c.get('deps').now();
-  const record = await db.emailToken.findUnique({ where: { tokenHash: sha256(token) } });
-  if (!record || record.type !== type || record.usedAt || record.expiresAt <= now) throw badRequest(invalidMessage, 'INVALID_TOKEN');
-  // Marca como usado só se ninguém usou no meio do caminho (dois cliques no mesmo link).
-  const { count } = await db.emailToken.updateMany({ where: { id: record.id, usedAt: null }, data: { usedAt: now } });
-  if (count === 0) throw badRequest(invalidMessage, 'INVALID_TOKEN');
-  return record;
-}
 
 export const auth = new Hono<AppEnv>();
 
@@ -61,6 +38,7 @@ auth.get('/me', async (c) => {
 auth.post('/auth/register', async (c) => {
   const { db, now, limiter, mailer } = c.get('deps');
   await enforceLimit(limiter(c.get('env')), RULES.register, clientIp(c.req.raw.headers), now());
+  await assertHuman(c);
   const input = await body(c, RegisterInput);
   const email = input.email.toLowerCase();
   const client = db();
@@ -70,6 +48,7 @@ auth.post('/auth/register', async (c) => {
   if (await client.user.findUnique({ where: { nicknameKey: input.nickname.toLowerCase() }, select: { id: true } })) {
     throw new HttpProblem(409, 'Este apelido já está em uso.', 'NICKNAME_TAKEN', { nickname: 'Este apelido já está em uso.' });
   }
+  await assertStrongPassword(c, input.password, { nickname: input.nickname, email });
   const passwordHash = await hashPassword(input.password);
   let user;
   try {
@@ -136,6 +115,7 @@ auth.post('/auth/resend-verification', async (c) => {
 auth.post('/auth/forgot-password', async (c) => {
   const { db, now, limiter, mailer } = c.get('deps');
   await enforceLimit(limiter(c.get('env')), RULES.forgotPassword, clientIp(c.req.raw.headers), now());
+  await assertHuman(c);
   const { email } = await body(c, ForgotPasswordInput);
   const user = await db().user.findUnique({ where: { email: email.toLowerCase() } });
   let token: string | null = null;
@@ -150,6 +130,8 @@ auth.post('/auth/forgot-password', async (c) => {
 auth.post('/auth/reset-password', async (c) => {
   const { db, now } = c.get('deps');
   const { token, password } = await body(c, ResetPasswordInput);
+  // A senha é conferida antes de gastar o link: se for recusada, a pessoa tenta outra com o mesmo link.
+  await assertStrongPassword(c, password);
   const record = await useEmailToken(c, token, 'RESET', 'Este link de redefinição é inválido ou já foi usado.');
   await db().user.update({ where: { id: record.userId }, data: { passwordHash: await hashPassword(password) } });
   await revokeAllSessions(db(), record.userId, now());

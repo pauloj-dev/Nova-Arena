@@ -20,6 +20,9 @@ const cases: [EmailMessage, string, string][] = [
   [{ template: 'RESET_PASSWORD', data: { nickname: 'Bianca', link: LINK } }, 'Redefinir sua senha da Nova Arena', 'Oi, Bianca'],
   [{ template: 'ROLE_INVITE', data: { role: 'ORGANIZER', inviter: 'Ana', link: LINK, expiresAt: '20/11/2026' } }, 'Você foi convidado para ser Organizador na Nova Arena', 'Convite para Organizador'],
   [{ template: 'TEAM_INVITE', data: { team: 'Squad Alfa', captain: 'Lucas', link: LINK } }, 'Convite para o squad Squad Alfa', 'Você foi chamado para o Squad Alfa'],
+  [{ template: 'CONFIRM_EMAIL_CHANGE', data: { nickname: 'Bianca', link: LINK } }, 'Confirme seu novo e-mail na Nova Arena', 'Oi, Bianca'],
+  [{ template: 'EMAIL_CHANGED', data: { nickname: 'Bianca', newEmail: 'nova@exemplo.com', link: LINK } }, 'O e-mail da sua conta na Nova Arena mudou', 'Oi, Bianca'],
+  [{ template: 'PASSWORD_CHANGED', data: { nickname: 'Bianca', link: LINK } }, 'Sua senha da Nova Arena foi trocada', 'Oi, Bianca'],
 ];
 
 describe('templates', () => {

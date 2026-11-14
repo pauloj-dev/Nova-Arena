@@ -57,6 +57,8 @@ export const RULES = {
   register: { name: 'register', tokens: 5, windowSeconds: 60 },
   forgotPassword: { name: 'forgot', tokens: 5, windowSeconds: 60 },
   verifyEmail: { name: 'verify', tokens: 10, windowSeconds: 60 },
+  /** Conferir a senha atual (troca de senha e de e-mail): por conta, contra adivinhação com a sessão roubada. */
+  confirmPassword: { name: 'confirm-password', tokens: 5, windowSeconds: 300 },
 } satisfies Record<string, RateRule>;
 
 /** Upstash Redis (vale para todas as instâncias da função). */

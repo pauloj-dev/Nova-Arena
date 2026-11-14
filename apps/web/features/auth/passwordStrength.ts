@@ -2,6 +2,8 @@
  * Força da senha mostrada no cadastro e na redefinição. É só orientação para a pessoa:
  * a regra que vale (mínimo de 8 caracteres, letra e número) está no schema `Password`.
  */
+import { weakPasswordReason } from '@nova/schemas';
+
 export type PasswordStrengthLabel = 'fraca' | 'razoável' | 'boa' | 'forte';
 
 export interface PasswordStrength {
@@ -13,9 +15,6 @@ export interface PasswordStrength {
 }
 
 const LABELS: Record<1 | 2 | 3 | 4, PasswordStrengthLabel> = { 1: 'fraca', 2: 'razoável', 3: 'boa', 4: 'forte' };
-
-/** Senhas que aparecem em qualquer lista de vazamento, mais as óbvias para este produto. */
-const COMMON = ['12345678', '123456789', '1234567890', 'password', 'password1', 'senha123', 'senha1234', 'qwerty123', 'abc12345', 'novaarena', 'freefire', 'freefire123', 'iloveyou1'];
 
 function variety(password: string): number {
   return [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((re) => re.test(password)).length;
@@ -36,7 +35,7 @@ export function passwordStrength(password: string): PasswordStrength {
 
   if (length < 8) {
     tip = 'Use pelo menos 8 caracteres.';
-  } else if (COMMON.includes(password.toLowerCase()) || isRepetitive(password)) {
+  } else if (weakPasswordReason(password) !== null || isRepetitive(password)) {
     tip = 'Essa senha é fácil de adivinhar. Evite sequências e repetições.';
   } else if (kinds < 2) {
     tip = 'Misture letras e números.';
