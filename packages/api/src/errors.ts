@@ -6,6 +6,9 @@ import type { Problem } from '@nova/schemas';
 import type { ZodError } from 'zod';
 
 export class HttpProblem extends Error {
+  /** Segundos até poder tentar de novo (vira o cabeçalho `Retry-After` no 429). */
+  retryAfter?: number;
+
   constructor(
     readonly status: number,
     readonly title: string,
@@ -40,5 +43,6 @@ export function fieldErrors(error: ZodError): Record<string, string> {
 export function problemResponse(problem: HttpProblem, requestId?: string): Response {
   const headers: Record<string, string> = { 'Content-Type': 'application/problem+json' };
   if (requestId) headers['X-Request-Id'] = requestId;
+  if (problem.retryAfter) headers['Retry-After'] = String(problem.retryAfter);
   return new Response(JSON.stringify(problem.toJSON()), { status: problem.status, headers });
 }

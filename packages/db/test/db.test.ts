@@ -1,11 +1,13 @@
 /**
  * Integração com um Postgres de verdade. Roda quando `TEST_DATABASE_URL` aponta para um banco de teste
  * já migrado (no CI: serviço `postgres` do GitHub Actions + `prisma migrate deploy`). Sem a variável, pula.
- * Nunca aponte para um banco com dados reais: os testes apagam as tabelas que usam.
+ * Os testes não apagam nada: contam só os registros do seed (outros pacotes usam o mesmo banco em paralelo).
+ * Mesmo assim, nunca aponte para um banco com dados reais.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDb, pingDb, type Db } from '../src';
 import { seed } from '../prisma/seed';
+import { DEMO_USERS, GAMES } from '../prisma/seed-data';
 
 const url = process.env.TEST_DATABASE_URL;
 
@@ -14,7 +16,6 @@ describe.skipIf(!url)('banco de dados (Postgres)', () => {
 
   beforeAll(async () => {
     db = createDb({ connectionString: url, max: 2 });
-    await db.$executeRawUnsafe('TRUNCATE TABLE "users", "games" RESTART IDENTITY CASCADE');
   });
   afterAll(async () => {
     await db.$disconnect();
@@ -27,7 +28,15 @@ describe.skipIf(!url)('banco de dados (Postgres)', () => {
   it('banco novo sobe só com migrations + seed, e rodar o seed de novo não duplica nada', async () => {
     const first = await seed(db, 'dev');
     expect(first).toEqual({ games: 4, users: 6 });
-    const counts = async () => ({ games: await db.game.count(), modes: await db.gameMode.count(), models: await db.scoringModel.count(), users: await db.user.count(), roles: await db.userRole.count() });
+    const slugs = GAMES.map((g) => g.slug);
+    const emails = DEMO_USERS.map((u) => u.email);
+    const counts = async () => ({
+      games: await db.game.count({ where: { slug: { in: slugs } } }),
+      modes: await db.gameMode.count({ where: { game: { slug: { in: slugs } } } }),
+      models: await db.scoringModel.count({ where: { game: { slug: { in: slugs } }, ownerId: null } }),
+      users: await db.user.count({ where: { email: { in: emails } } }),
+      roles: await db.userRole.count({ where: { user: { email: { in: emails } } } }),
+    });
     const after1 = await counts();
     await seed(db, 'dev');
     expect(await counts()).toEqual(after1);
@@ -37,7 +46,7 @@ describe.skipIf(!url)('banco de dados (Postgres)', () => {
   it('todo usuário do seed tem o papel PARTICIPANT; o Super Admin também é ADMIN', async () => {
     const rafael = await db.user.findUniqueOrThrow({ where: { email: 'rafael@novaarena.gg' }, include: { roles: true } });
     expect(rafael.roles.map((r) => r.role).sort()).toEqual(['ADMIN', 'PARTICIPANT', 'SUPER_ADMIN']);
-    const withoutParticipant = await db.user.count({ where: { roles: { none: { role: 'PARTICIPANT' } } } });
+    const withoutParticipant = await db.user.count({ where: { email: { in: DEMO_USERS.map((u) => u.email) }, roles: { none: { role: 'PARTICIPANT' } } } });
     expect(withoutParticipant).toBe(0);
   });
 
