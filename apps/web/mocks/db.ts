@@ -35,6 +35,8 @@ export interface DbUser {
   roles: Role[];
   verifiedOrganizer: boolean;
   twoFactorEnabled: boolean;
+  /** Provedores de login social vinculados (protótipo: só para a tela de Segurança). */
+  oauthLinks?: { provider: 'google' | 'discord'; email: string | null; linkedAt: string }[];
   gameAccounts: GameAccount[];
   organizerLimits: { maxActiveTournaments: number; allowedGameIds: string[] } | null;
   createdAt: string;

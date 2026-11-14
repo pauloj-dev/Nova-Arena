@@ -8,6 +8,7 @@ import type { ZodType } from 'zod';
 import type { Env } from './env';
 import { badRequest, fieldErrors, HttpProblem } from './errors';
 import type { Logger } from './logger';
+import type { OAuthFactory } from './auth/oauth';
 import type { Mailer } from './mail';
 import type { RateLimiter } from './security';
 
@@ -24,6 +25,8 @@ export interface Dependencies {
   limiter: (env: Env) => RateLimiter;
   /** Envio de e-mail (padrão: `@nova/email`: Resend em produção, caixa de teste ou log fora dela). */
   mailer: (env: Env, log: Logger) => Mailer;
+  /** Login social (padrão: `arctic` com Google e Discord). */
+  oauth: OAuthFactory;
 }
 
 /** Sessão da requisição, carregada sob demanda por `currentUser(c)`. */

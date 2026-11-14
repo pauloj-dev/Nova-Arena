@@ -92,6 +92,19 @@ export const VerifyEmailInput = z.object({ token: z.string().min(1) });
 export const ForgotPasswordInput = z.object({ email: z.email('Informe um e-mail válido') });
 export const ResetPasswordInput = z.object({ token: z.string().min(1), password: Password });
 
+// ── Login social (issue #68) ─────────────────────────────────────────
+export const OAuthProviderName = z.enum(['google', 'discord']);
+export type OAuthProviderName = z.infer<typeof OAuthProviderName>;
+/** Provedor vinculado à conta (`GET /me/oauth`). */
+export const OAuthLink = z.object({ provider: OAuthProviderName, email: z.string().nullable(), linkedAt: IsoDateTime });
+export type OAuthLink = z.infer<typeof OAuthLink>;
+/** Jeitos de entrar na conta (`GET /me/oauth`): senha e provedores vinculados. */
+export const LoginMethods = z.object({ hasPassword: z.boolean(), links: z.array(OAuthLink) });
+export type LoginMethods = z.infer<typeof LoginMethods>;
+/** Conta criada só com Google/Discord define a primeira senha (`POST /me/password`). */
+export const SetPasswordInput = z.object({ password: Password });
+export type SetPasswordInput = z.infer<typeof SetPasswordInput>;
+
 export const UpdateMeInput = z.object({
   nickname: Nickname.optional(),
   avatarUrl: z.string().nullable().optional(),

@@ -37,6 +37,10 @@ export const EnvSchema = z
     ABLY_API_KEY: optionalSecret,
     AUTH_JWT_SECRET: z.string().min(32, 'Use pelo menos 32 caracteres aleatórios.').optional(),
     LOBBY_ENCRYPTION_KEY: optionalSecret,
+    GOOGLE_CLIENT_ID: optionalSecret,
+    GOOGLE_CLIENT_SECRET: optionalSecret,
+    DISCORD_CLIENT_ID: optionalSecret,
+    DISCORD_CLIENT_SECRET: optionalSecret,
   })
   .superRefine((env, ctx) => {
     if (env.VERCEL_ENV !== 'production') return;

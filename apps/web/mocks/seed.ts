@@ -254,7 +254,7 @@ export function buildSeed(): Db {
       gameAccounts: gameAccounts(902, base),
     }),
     user(DEMO_USERS.captain, 'Lucas', 'lucas@novaarena.gg', base, { bio: 'Capitão do Squad Alfa.', gameAccounts: gameAccounts(903, base) }),
-    user(DEMO_USERS.participant, 'Bianca', 'bianca@novaarena.gg', base, { state: 'MG', bio: 'Sinuca e futebol.', gameAccounts: gameAccounts(904, base).filter((g) => g.gameId !== 'g_freefire') }),
+    user(DEMO_USERS.participant, 'Bianca', 'bianca@novaarena.gg', base, { state: 'MG', bio: 'Sinuca e futebol.', oauthLinks: [{ provider: 'google', email: 'bianca@novaarena.gg', linkedAt: at(base, -30 * DAY) }], gameAccounts: gameAccounts(904, base).filter((g) => g.gameId !== 'g_freefire') }),
   ];
   for (let i = 1; i <= 60; i += 1) {
     const first = FIRST[(i - 1) % FIRST.length] ?? 'Player';
