@@ -37,6 +37,8 @@ export interface DbUser {
   twoFactorEnabled: boolean;
   /** Provedores de login social vinculados (protótipo: só para a tela de Segurança). */
   oauthLinks?: { provider: 'google' | 'discord'; email: string | null; linkedAt: string }[];
+  /** Outros aparelhos com sessão aberta (protótipo: só para a tela de Segurança). `undefined` = demonstração padrão. */
+  otherDevices?: { id: string; device: string; ip: string | null; createdAt: string; lastUsedAt: string }[];
   gameAccounts: GameAccount[];
   organizerLimits: { maxActiveTournaments: number; allowedGameIds: string[] } | null;
   createdAt: string;
@@ -170,7 +172,9 @@ export interface DbFollow {
 export interface DbEmailToken {
   token: string;
   userId: string;
-  type: 'VERIFY' | 'RESET';
+  type: 'VERIFY' | 'RESET' | 'CHANGE_EMAIL';
+  /** Troca de e-mail: o endereço novo. */
+  newEmail?: string;
   usedAt: string | null;
 }
 

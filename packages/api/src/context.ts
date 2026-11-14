@@ -8,7 +8,9 @@ import type { ZodType } from 'zod';
 import type { Env } from './env';
 import { badRequest, fieldErrors, HttpProblem } from './errors';
 import type { Logger } from './logger';
+import type { BotCheck } from './auth/bot';
 import type { OAuthFactory } from './auth/oauth';
+import type { BreachCheck } from './auth/password-policy';
 import type { TournamentAccess } from './auth/rbac';
 import type { Mailer } from './mail';
 import type { RateLimiter } from './security';
@@ -28,6 +30,10 @@ export interface Dependencies {
   mailer: (env: Env, log: Logger) => Mailer;
   /** Login social (padrão: `arctic` com Google e Discord). */
   oauth: OAuthFactory;
+  /** Senha em vazamentos conhecidos (padrão: Have I Been Pwned por k-anonimato). */
+  breached: BreachCheck;
+  /** Robô no cadastro e na recuperação de senha (padrão: Vercel BotID). */
+  botCheck: BotCheck;
 }
 
 /** Sessão da requisição, carregada sob demanda por `currentUser(c)`. */

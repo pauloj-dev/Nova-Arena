@@ -62,7 +62,7 @@ async function fillRegister(page: Page, data: { nickname: string; email: string;
   if (data.accept !== false) await page.getByRole('checkbox', { name: /Li e aceito os Termos de Uso/ }).check();
 }
 
-async function registerNewAccount(page: Page, nickname = 'NovaJogadora', email = 'nova@exemplo.com', password = 'senha1234') {
+async function registerNewAccount(page: Page, nickname = 'NovaJogadora', email = 'nova@exemplo.com', password = 'Jogo-forte-2026') {
   await page.goto('/cadastro');
   await waitForApp(page);
   await fillRegister(page, { nickname, email, password, birthDate: '2000-01-15' });
@@ -107,7 +107,7 @@ test.describe('cadastro, verificação e login', () => {
 
     // Entrar de novo com e-mail e senha.
     await page.goto('/entrar');
-    await login(page, 'nova@exemplo.com', 'senha1234');
+    await login(page, 'nova@exemplo.com', 'Jogo-forte-2026');
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole('button', { name: 'Conta de NovaJogadora' })).toBeVisible();
     expect((await me(page))?.nickname).toBe('NovaJogadora');
@@ -153,7 +153,7 @@ test.describe('cadastro, verificação e login', () => {
   test('apelido e e-mail já usados são recusados no cadastro, com a mensagem no campo', async ({ page }) => {
     await page.goto('/cadastro');
     await waitForApp(page);
-    await fillRegister(page, { nickname: 'bianca', email: 'outra@exemplo.com', password: 'senha1234', birthDate: '2000-01-15' });
+    await fillRegister(page, { nickname: 'bianca', email: 'outra@exemplo.com', password: 'Jogo-forte-2026', birthDate: '2000-01-15' });
     await page.getByRole('button', { name: 'Criar conta', exact: true }).click();
     const nickname = page.getByLabel('Apelido');
     await expect(nickname).toHaveAttribute('aria-invalid', 'true');

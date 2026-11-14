@@ -13,7 +13,10 @@ import { HttpProblem, problemResponse } from './errors';
 import { createLogger, requestIdFrom, type LogSink } from './logger';
 import { db as defaultDb } from '@nova/db';
 import { defaultMailer } from './mail';
+import { vercelBotCheck } from './auth/bot';
 import { arcticFactory } from './auth/oauth';
+import { hibpBreachCheck } from './auth/password-policy';
+import { account } from './modules/account';
 import { auth } from './modules/auth';
 import { oauth } from './modules/oauth';
 import { databaseCheck, health, qstashCheck, redisCheck } from './modules/health';
@@ -25,7 +28,7 @@ export const API_BASE_PATH = '/api/v1';
  * Módulos registrados. Entram, na ordem do B1: auth (#67 ✓, OAuth #68 ✓), users e me (#72), roles e audit (#70: `auth/rbac.ts` ✓; rotas na #72),
  * uploads (#73), games (#74), tournaments (#75, #76), teams (#78), registrations (#79).
  */
-const modules = [health, auth, oauth];
+const modules = [health, auth, oauth, account];
 
 export interface CreateAppOptions {
   /** Variáveis já validadas; padrão: as do processo, validadas na primeira requisição. */
@@ -53,6 +56,8 @@ export function createApp(options: CreateAppOptions = {}) {
       }),
     mailer: options.deps?.mailer ?? defaultMailer,
     oauth: options.deps?.oauth ?? arcticFactory,
+    breached: options.deps?.breached ?? hibpBreachCheck,
+    botCheck: options.deps?.botCheck ?? vercelBotCheck,
   };
   const baseLog = createLogger(options.logSink);
 

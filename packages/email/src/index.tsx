@@ -10,7 +10,7 @@
 import { render } from '@react-email/render';
 import type { ReactElement } from 'react';
 import { messages } from './messages.pt-BR';
-import { ResetPassword, RoleInvite, TeamInvite, VerifyEmail } from './templates';
+import { ConfirmEmailChange, EmailChanged, PasswordChanged, ResetPassword, RoleInvite, TeamInvite, VerifyEmail } from './templates';
 
 export { EMAIL_THEME, THEME_SOURCE } from './theme';
 export { messages } from './messages.pt-BR';
@@ -19,7 +19,10 @@ export type EmailMessage =
   | { template: 'VERIFY_EMAIL'; data: { nickname: string; link: string } }
   | { template: 'RESET_PASSWORD'; data: { nickname: string; link: string } }
   | { template: 'ROLE_INVITE'; data: { role: string; inviter: string; link: string; expiresAt: string } }
-  | { template: 'TEAM_INVITE'; data: { team: string; captain: string; link: string } };
+  | { template: 'TEAM_INVITE'; data: { team: string; captain: string; link: string } }
+  | { template: 'CONFIRM_EMAIL_CHANGE'; data: { nickname: string; link: string } }
+  | { template: 'EMAIL_CHANGED'; data: { nickname: string; newEmail: string; link: string } }
+  | { template: 'PASSWORD_CHANGED'; data: { nickname: string; link: string } };
 
 export type EmailTemplate = EmailMessage['template'];
 
@@ -39,6 +42,12 @@ function build(message: EmailMessage): { subject: string; element: ReactElement 
       return { subject: messages.ROLE_INVITE.subject(messages.ROLE_INVITE.roles[message.data.role] ?? message.data.role), element: <RoleInvite {...message.data} /> };
     case 'TEAM_INVITE':
       return { subject: messages.TEAM_INVITE.subject(message.data.team), element: <TeamInvite {...message.data} /> };
+    case 'CONFIRM_EMAIL_CHANGE':
+      return { subject: messages.CONFIRM_EMAIL_CHANGE.subject, element: <ConfirmEmailChange {...message.data} /> };
+    case 'EMAIL_CHANGED':
+      return { subject: messages.EMAIL_CHANGED.subject, element: <EmailChanged {...message.data} /> };
+    case 'PASSWORD_CHANGED':
+      return { subject: messages.PASSWORD_CHANGED.subject, element: <PasswordChanged {...message.data} /> };
   }
 }
 
