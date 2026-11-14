@@ -11,15 +11,19 @@ import type { Dependencies, AppEnv } from './context';
 import { EnvError, parseEnv, processEnv, type Env } from './env';
 import { HttpProblem, problemResponse } from './errors';
 import { createLogger, requestIdFrom, type LogSink } from './logger';
+import { db as defaultDb } from '@nova/db';
+import { logMailer } from './mail';
+import { auth } from './modules/auth';
 import { databaseCheck, health, qstashCheck, redisCheck } from './modules/health';
+import { memoryLimiter, requireSameOrigin, upstashLimiter, type RateLimiter } from './security';
 
 export const API_BASE_PATH = '/api/v1';
 
 /**
- * Módulos registrados. Entram, na ordem do B1: auth (#67, #68), users e me (#72), roles e audit (#70, #71),
+ * Módulos registrados. Entram, na ordem do B1: auth (#67 ✓, OAuth #68), users e me (#72), roles e audit (#70, #71),
  * uploads (#73), games (#74), tournaments (#75, #76), teams (#78), registrations (#79).
  */
-const modules = [health];
+const modules = [health, auth];
 
 export interface CreateAppOptions {
   /** Variáveis já validadas; padrão: as do processo, validadas na primeira requisição. */
@@ -30,9 +34,20 @@ export interface CreateAppOptions {
 
 export function createApp(options: CreateAppOptions = {}) {
   const getEnv = typeof options.env === 'function' ? options.env : options.env ? () => options.env as Env : processEnv;
+  const now = options.deps?.now ?? (() => new Date());
+  // Um limitador por app: o de memória precisa guardar as tentativas entre requisições.
+  let limiter: RateLimiter | undefined;
   const deps: Dependencies = {
     checks: { database: databaseCheck, redis: redisCheck, qstash: qstashCheck, ...options.deps?.checks },
-    now: options.deps?.now ?? (() => new Date()),
+    now,
+    db: options.deps?.db ?? defaultDb,
+    limiter:
+      options.deps?.limiter ??
+      ((env) => {
+        limiter ??= env.KV_REST_API_URL && env.KV_REST_API_TOKEN ? upstashLimiter(env) : memoryLimiter(now);
+        return limiter;
+      }),
+    mailer: options.deps?.mailer ?? logMailer,
   };
   const baseLog = createLogger(options.logSink);
 
@@ -51,6 +66,9 @@ export function createApp(options: CreateAppOptions = {}) {
     c.header('X-Request-Id', requestId);
     log.info('requisição', { method: c.req.method, path: c.req.path, status: c.res.status, durationMs: Math.round(performance.now() - started) });
   });
+
+  // CSRF: toda mutação precisa vir do próprio site (plano B1.2).
+  app.use(requireSameOrigin);
 
   for (const module of modules) app.route('/', module);
 
