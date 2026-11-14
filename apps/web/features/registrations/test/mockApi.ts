@@ -6,7 +6,9 @@ import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { db, resetDb, save, setSessionUserId, type Db } from '@/mocks/db';
 import { handlers as registrationHandlers } from '@/mocks/handlers/registrations';
+import { handlers as registrationManageHandlers } from '@/mocks/handlers/registrations-manage';
 import { handlers as teamHandlers } from '@/mocks/handlers/teams';
+import { handlers as tournamentHandlers } from '@/mocks/handlers/tournaments';
 
 const ORIGIN = 'http://localhost:3000';
 
@@ -18,7 +20,7 @@ export interface ApiResult<T = unknown> {
 }
 
 export function setupMockApi() {
-  const server = setupServer(...registrationHandlers, ...teamHandlers);
+  const server = setupServer(...registrationHandlers, ...registrationManageHandlers, ...tournamentHandlers, ...teamHandlers);
   beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
   beforeEach(() => resetDb());
   afterEach(() => server.resetHandlers());

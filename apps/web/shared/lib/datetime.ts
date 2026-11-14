@@ -12,6 +12,31 @@ export function browserTimeZone(): string {
   }
 }
 
+/** Fuso salvo no perfil de quem está logado (`Me.timezone`). Nulo = visitante ou perfil sem fuso. */
+let preferredTimeZone: string | null = null;
+
+function isValidTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Define o fuso do perfil (chamado pelo `TimeZoneSync` quando a sessão muda).
+ * Fuso inválido é ignorado: as datas continuam no fuso do navegador.
+ */
+export function setPreferredTimeZone(timeZone: string | null | undefined): void {
+  preferredTimeZone = timeZone && isValidTimeZone(timeZone) ? timeZone : null;
+}
+
+/** Fuso em que as datas são exibidas: o do perfil, ou o do navegador. */
+export function userTimeZone(): string {
+  return preferredTimeZone ?? browserTimeZone();
+}
+
 /** Nome curto e humano do fuso, ex.: "horário de Brasília". */
 export function timeZoneLabel(timeZone: string, at: Date = new Date()): string {
   const known: Record<string, string> = {
@@ -39,7 +64,7 @@ export interface FormatOptions {
 }
 
 function tz(opts?: FormatOptions): string {
-  return opts?.timeZone ?? browserTimeZone();
+  return opts?.timeZone ?? userTimeZone();
 }
 
 /** "12/11/2026" */
@@ -97,7 +122,7 @@ function offsetMinutes(timeZone: string, at: Date): number {
  * Converte o valor de um <input type="datetime-local"> ("2026-11-14T20:00"),
  * digitado no fuso informado, para ISO em UTC.
  */
-export function localInputToIso(value: string, timeZone: string = browserTimeZone()): string {
+export function localInputToIso(value: string, timeZone: string = userTimeZone()): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
   if (!m) throw new Error('Data inválida');
   const [y, mo, d, h, mi] = m.slice(1).map(Number) as [number, number, number, number, number];
@@ -109,7 +134,7 @@ export function localInputToIso(value: string, timeZone: string = browserTimeZon
 }
 
 /** Inverso de `localInputToIso`: ISO em UTC → valor para <input type="datetime-local"> no fuso informado. */
-export function isoToLocalInput(iso: string, timeZone: string = browserTimeZone()): string {
+export function isoToLocalInput(iso: string, timeZone: string = userTimeZone()): string {
   const d = new Date(iso);
   const local = new Date(d.getTime() + offsetMinutes(timeZone, d) * 60000);
   return local.toISOString().slice(0, 16);

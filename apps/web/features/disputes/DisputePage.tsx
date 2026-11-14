@@ -20,7 +20,7 @@ import { useSession } from '@/shared/session/useSession';
 import { useQueryClient } from '@tanstack/react-query';
 import { EscalateDialog, ResolveDialog } from './DisputeDecision';
 import { EvidenceGallery } from './evidence/EvidenceGallery';
-import { EvidenceUploader } from './evidence/EvidenceUploader';
+import { EvidenceUpload } from '@/features/evidence/EvidenceUpload';
 import { scoreLine } from './scoreForm';
 
 type Message = Dispute['messages'][number];
@@ -256,7 +256,7 @@ function MessageBox({ disputeId }: { disputeId: string }) {
         Enviar mensagem
       </h2>
       <Textarea label="Mensagem" required rows={3} maxLength={1000} hint="Todos os envolvidos e a organização leem. Mantenha o respeito." error={form.formState.errors.body?.message} {...form.register('body')} />
-      <EvidenceUploader label="Anexos (opcional)" hint="Até 3 imagens PNG, JPG ou WebP de até 5 MB." purpose="evidence" max={3} value={evidenceUrls} onChange={setEvidenceUrls} onBusyChange={setUploading} />
+      <EvidenceUpload label="Anexos (opcional)" hint="Até 3 imagens PNG, JPG ou WebP de até 5 MB." purpose="evidence" max={3} value={evidenceUrls} onChange={setEvidenceUrls} onBusyChange={setUploading} />
       <Button type="submit" className="self-start" loading={send.isPending} disabled={uploading} iconLeft={<Send className="size-4" aria-hidden />}>
         Enviar mensagem
       </Button>

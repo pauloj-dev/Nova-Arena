@@ -23,6 +23,9 @@ export default defineConfig({
   projects: [
     { name: 'desktop-1440', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
     { name: 'mobile-360', use: { ...devices['Pixel 7'], viewport: { width: 360, height: 780 } } },
+    // A arte de resultado desenha em canvas e baixa PNG: confere também nos motores do Firefox e do Safari.
+    { name: 'firefox-arte', grep: /arte de resultado/, use: { ...devices['Desktop Firefox'], viewport: { width: 1440, height: 900 } } },
+    { name: 'webkit-arte', grep: /arte de resultado/, use: { ...devices['iPhone 13'], viewport: { width: 390, height: 844 } } },
   ],
   webServer: externalURL
     ? undefined

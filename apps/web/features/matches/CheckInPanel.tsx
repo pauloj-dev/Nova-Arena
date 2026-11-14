@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useCheckIn } from '@/shared/api/hooks/competition';
 import { keys } from '@/shared/api/keys';
-import { browserTimeZone, formatRelative, formatTime, timeZoneLabel } from '@/shared/lib/datetime';
+import { formatRelative, formatTime, timeZoneLabel, userTimeZone } from '@/shared/lib/datetime';
 import { checkInDuty, checkInPhase, countdownSpoken, formatCountdown, msUntilClose } from './checkin';
 import { isOver, participantOf } from './matchText';
 import { useNow } from './useNow';
@@ -76,7 +76,7 @@ export function CheckInPanel({ match, viewer, className }: CheckInPanelProps) {
 
   const duty = checkInDuty(registration, viewer.userId, viewer.checkIn?.requireAllMembers ?? null);
   const done = mine.checkedIn || (doneByMe && !team);
-  const zone = timeZoneLabel(browserTimeZone(), new Date(now));
+  const zone = timeZoneLabel(userTimeZone(), new Date(now));
 
   if (phase === 'BEFORE' && match.checkInOpensAt && match.checkInClosesAt) {
     return (

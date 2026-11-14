@@ -1,0 +1,2 @@
+# O Prisma confere o checksum de cada migration: o fim de linha não pode mudar entre Windows e Linux.
+packages/db/prisma/migrations/** text eol=lf
