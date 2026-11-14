@@ -1,6 +1,6 @@
 import { stat } from 'node:fs/promises';
 import type { Locator, Page } from '@playwright/test';
-import { expect, loginAs, test, type DemoUser } from './fixtures';
+import { expect, loginAs, test, waitForApp, type DemoUser } from './fixtures';
 
 /**
  * Operação do campeonato pelo organizador (F2.3, F2.4 e F2.6): chave com prévia e ajuste, agenda,
@@ -783,6 +783,7 @@ test.describe('arte de resultado', () => {
 
   test('página da arte do Open 8 Ball Pool: prévia, baixar PNG e certificado', async ({ page }) => {
     await page.goto('/c/open-8-ball-pool/arte');
+    await waitForApp(page);
     await expect(page.getByRole('heading', { level: 1, name: 'Arte de resultado' })).toBeVisible();
     const podium = await ok<{ places: { place: number; name: string }[] }>(page, '/tournaments/tn_open_8ball/podium');
     const champion = podium.places.find((p) => p.place === 1)?.name as string;
@@ -809,6 +810,7 @@ test.describe('arte de resultado', () => {
 
   test('campeonato que não terminou ainda não tem arte', async ({ page }) => {
     await page.goto(`/c/${LIGA_SLUG}/arte`);
+    await waitForApp(page);
     await expect(page.getByText('A arte fica pronta quando o campeonato termina')).toBeVisible();
     await expect(page.getByTestId('art-preview')).toHaveCount(0);
   });

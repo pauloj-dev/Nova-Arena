@@ -54,7 +54,8 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter web exec playwright install --with-deps chromium
+      # Firefox e WebKit só rodam os testes da arte de resultado (projetos `*-arte` do playwright.config.ts).
+      - run: pnpm --filter web exec playwright install --with-deps chromium firefox webkit
       # Com o projeto conectado à Vercel, defina a variável PLAYWRIGHT_BASE_URL com a URL do preview
       # para os testes rodarem contra ele. Sem ela, o app é construído e servido no próprio runner.
       - name: Playwright
