@@ -12,6 +12,7 @@ import type { BotCheck } from './auth/bot';
 import type { OAuthFactory } from './auth/oauth';
 import type { BreachCheck } from './auth/password-policy';
 import type { BlobStore } from './uploads/store';
+import type { Cache } from './cache';
 import type { TournamentAccess } from './auth/rbac';
 import type { Mailer } from './mail';
 import type { RateLimiter } from './security';
@@ -37,6 +38,8 @@ export interface Dependencies {
   botCheck: BotCheck;
   /** Arquivos (padrão: Vercel Blob). */
   blob: BlobStore;
+  /** Cache das leituras públicas (padrão: Upstash Redis quando configurado; senão, memória). */
+  cache: (env: Env) => Cache;
 }
 
 /** Sessão da requisição, carregada sob demanda por `currentUser(c)`. */
