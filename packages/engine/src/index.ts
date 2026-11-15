@@ -19,3 +19,4 @@ export {
 } from './operations';
 export { DEFAULT_TIEBREAKERS, computeStandings } from './standings';
 export { advanceStage, applyQualification } from './qualification';
+export * from './scoring-fields';

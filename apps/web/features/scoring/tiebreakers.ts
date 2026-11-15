@@ -50,17 +50,10 @@ export function tiebreakerHint(tiebreaker: Tiebreaker, matchType?: MatchType): s
   return null;
 }
 
-/** Tira repetidos e desconhecidos, põe "pontos" em primeiro e "sorteio" (se ligado) por último. */
-export function normalizeTiebreakers(list: readonly Tiebreaker[]): Tiebreaker[] {
-  const seen = new Set<Tiebreaker>();
-  const middle: Tiebreaker[] = [];
-  for (const t of list) {
-    if (!ALL_TIEBREAKERS.includes(t) || seen.has(t)) continue;
-    seen.add(t);
-    if (t !== 'points' && t !== 'draw') middle.push(t);
-  }
-  return ['points', ...middle, ...(seen.has('draw') ? (['draw'] as const) : [])];
-}
+/** Ordem canônica (vem do motor: a API usa a mesma). */
+import { normalizeTiebreakers } from '@nova/engine';
+
+export { normalizeTiebreakers };
 
 /** "Pontos" e "sorteio" têm lugar fixo; os demais podem trocar de posição entre si. */
 export function isFixedTiebreaker(tiebreaker: Tiebreaker): boolean {
