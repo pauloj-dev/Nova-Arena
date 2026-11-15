@@ -560,6 +560,8 @@ model TournamentTemplate {
   /// Nulo = modelo da plataforma.
   ownerId    String?  @db.Uuid
   name       String
+  /// Para que serve o modelo (mostrado na escolha do modelo).
+  description String  @default("")
   gameId     String   @db.Uuid
   gameModeId String   @db.Uuid
   /// Fases, inscrições e pontuação.

@@ -10,3 +10,4 @@ export * from './notification';
 export * from './password';
 export * from './device';
 export * from './names';
+export * from './organizer';
