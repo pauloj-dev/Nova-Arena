@@ -180,6 +180,9 @@ importers:
       '@nova/schemas':
         specifier: workspace:*
         version: link:../schemas
+      '@upstash/qstash':
+        specifier: ^2.12.2
+        version: 2.12.2
       '@upstash/ratelimit':
         specifier: ^2.2.1
         version: 2.2.1(@upstash/redis@1.41.0)
@@ -3531,6 +3534,9 @@ packages:
     resolution: {integrity: sha512-7qJHGxpQgQr9/vmeS1PktEwvNAF7TI4iJDi8Pu2CFZ9YUGHZH4fOP5TfYlZ4aVxfopnELiE4BS4FBjyK7V1/xQ==}
     engines: {node: '>=16.0.0'}
 
+  '@upstash/qstash@2.12.2':
+    resolution: {integrity: sha512-vQR53XR0dM0SpHMEJ8yNmkVnfE/IREvG/kKyWRZwdKOc8GNcMvBPlTImJ9tRSB1EsnPCs2zXZ4F24FtZOdcFXg==}
+
   '@upstash/ratelimit@2.2.1':
     resolution: {integrity: sha512-SE2BU4h4+Ua/5SLKkrXZ8j1hYZt8xge3dGD3mnMeDls1CiOpau8Q8gipdVtbbzjIxBxRutJqCBoeXqSa1HH3lg==}
     peerDependencies:
@@ -5241,6 +5247,10 @@ packages:
 
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
+
+  neverthrow@7.2.0:
+    resolution: {integrity: sha512-iGBUfFB7yPczHHtA8dksKTJ9E8TESNTAx1UQWW6TzMF280vo9jdPYpLUXrMN1BCkPdHFdNG3fxOt2CUad8KhAw==}
+    engines: {node: '>=18'}
 
   next@16.4.6:
     resolution: {integrity: sha512-QZJiYhaZLJMo2KpkQGQIwvmd79WVsAWeYIU554a8d7zArS3si/IRy3lBNV/rtYhE70oLwdLYhPAXLPx8HwcwtA==}
@@ -9198,6 +9208,12 @@ snapshots:
     dependencies:
       '@upstash/redis': 1.41.0
 
+  '@upstash/qstash@2.12.2':
+    dependencies:
+      jose: 5.10.0
+      neverthrow: 7.2.0
+      uncrypto: 0.1.3
+
   '@upstash/ratelimit@2.2.1(@upstash/redis@1.41.0)':
     dependencies:
       '@upstash/core-analytics': 0.0.10
@@ -11061,6 +11077,8 @@ snapshots:
   napi-postinstall@0.3.8: {}
 
   natural-compare@1.4.0: {}
+
+  neverthrow@7.2.0: {}
 
   next@16.4.6(@babel/core@7.29.13(supports-color@7.2.0))(@playwright/test@1.65.0)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
