@@ -22,6 +22,7 @@ import { games } from './modules/games';
 import { tournaments } from './modules/tournaments';
 import { publicTournaments } from './modules/tournaments/public';
 import { jobs } from './modules/jobs';
+import { teams } from './modules/teams';
 import { qstashQueue } from './jobs';
 import { uploads } from './modules/uploads';
 import { users } from './modules/users';
@@ -37,7 +38,7 @@ export const API_BASE_PATH = '/api/v1';
  * Módulos registrados. Entram, na ordem do B1: auth (#67 ✓, OAuth #68 ✓), users e me (#72), roles e audit (#70: `auth/rbac.ts` ✓; rotas na #72),
  * uploads (#73), games (#74), tournaments (#75, #76), teams (#78), registrations (#79).
  */
-const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs];
+const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs, teams];
 
 export interface CreateAppOptions {
   /** Variáveis já validadas; padrão: as do processo, validadas na primeira requisição. */
