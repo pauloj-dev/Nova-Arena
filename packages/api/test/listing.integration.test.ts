@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { createApp, envFrom, type App } from '../src';
 import { signAccessToken } from '../src/auth/jwt';
 import { runRegistrationJob, syncRegistrationWindows } from '../src/jobs/registration';
+import { slugify } from '../src/modules/tournaments';
 import { DUEL_RULES } from './fixtures/tournament';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -48,9 +49,9 @@ describe.skipIf(!url)('listagem, jobs e comunicados (Postgres)', () => {
 
   async function tournament(name: string, status: 'DRAFT' | 'PUBLISHED' | 'REGISTRATION_OPEN' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED' | 'ARCHIVED', extra: Record<string, unknown> = {}) {
     const t = await db.tournament.create({
-      data: { slug: `${name.toLowerCase().replace(/\s+/g, '-')}-${stamp}-${randomUUID().slice(0, 4)}`, name, gameId, gameModeId: modeId, ownerId, status, participantType: 'SOLO', maxParticipants: 8, ...extra },
+      data: { slug: `${slugify(name)}-${stamp}-${randomUUID().slice(0, 4)}`, name, gameId, gameModeId: modeId, ownerId, status, participantType: 'SOLO', maxParticipants: 8, ...extra },
     });
-    await db.stage.create({ data: { tournamentId: t.id, order: 1, name: 'Mata-mata', format: 'SINGLE_ELIM', scoringModelId: modelId } });
+    await db.stage.create({ data: { tournamentId: t.id, order: 1, name: 'Mata-mata', format: 'SINGLE_ELIM', scoringModelId: modelId, tiebreakers: ['points'] } });
     return t;
   }
 
