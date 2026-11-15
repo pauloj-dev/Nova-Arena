@@ -236,6 +236,7 @@ model User {
   roles                UserRole[]
   sessions             Session[]
   oauthAccounts        OAuthAccount[]
+  uploads              Upload[]
   twoFactor            TwoFactor?
   emailTokens          EmailToken[]
   gameAccounts         GameAccount[]
@@ -1104,4 +1105,31 @@ model SiteSetting {
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@map("site_settings")
+}
+
+/// Arquivo enviado direto do navegador para o Vercel Blob (issue #73). Só vale depois de confirmado pela
+/// API (`POST /uploads/complete`); sem recurso associado em 24 h vira órfão e sai na limpeza diária (B2).
+model Upload {
+  id           String    @id @default(uuid()) @db.Uuid
+  ownerId      String    @db.Uuid
+  /// `evidence`, `avatar`, `team-logo`, `banner`, `game-cover`, `report`.
+  purpose      String
+  /// `public` (endereço do Blob) ou `private` (provas e denúncias: só a API lê, por `/files/:id`).
+  access       String    @default("public")
+  blobUrl      String    @unique
+  pathname     String
+  contentType  String
+  size         Int
+  /// Recurso dono do arquivo depois de associado (ex.: `MATCH`, `REPORT`, `USER`).
+  attachedType String?
+  attachedId   String?
+  attachedAt   DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@index([attachedType, attachedId])
+  @@index([attachedAt, createdAt])
+  @@map("uploads")
 }

@@ -306,12 +306,22 @@ export const ReviewSubmissionInput = z.discriminatedUnion('action', [
 // ── Uploads (provas, logos, banners) ─────────────────────────────────
 export const UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
 export const UPLOAD_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const;
+export const UploadPurpose = z.enum(['evidence', 'avatar', 'team-logo', 'banner', 'game-cover', 'report']);
+export type UploadPurpose = z.infer<typeof UploadPurpose>;
+/** Provas e denúncias nunca são públicas (issue #73): ficam no armazenamento privado e saem por `/files/:id`, que confere a permissão. */
+export const PRIVATE_UPLOAD_PURPOSES: readonly UploadPurpose[] = ['evidence', 'report'];
+export const isPrivateUpload = (purpose: UploadPurpose) => PRIVATE_UPLOAD_PURPOSES.includes(purpose);
 export const UploadTokenInput = z.object({
-  purpose: z.enum(['evidence', 'avatar', 'team-logo', 'banner', 'game-cover', 'report']),
+  purpose: UploadPurpose,
   contentType: z.enum(UPLOAD_MIME_TYPES, 'Envie uma imagem PNG, JPG ou WebP'),
   size: z.number().int().positive().max(UPLOAD_MAX_BYTES, 'A imagem pode ter no máximo 5 MB'),
 });
 export const UploadToken = z.object({ uploadUrl: z.string(), token: z.string(), expiresAt: IsoDateTime });
+/** Confirma o envio direto ao Blob (`POST /uploads/complete`): a API confere o arquivo e devolve o endereço a guardar no recurso. */
+export const CompleteUploadInput = z.object({ url: z.url(), purpose: UploadPurpose });
+export type CompleteUploadInput = z.infer<typeof CompleteUploadInput>;
+export const UploadedFile = z.object({ id: Id, url: z.string(), access: z.enum(['public', 'private']) });
+export type UploadedFile = z.infer<typeof UploadedFile>;
 export const UploadResult = z.object({ url: z.string() });
 
 // ── Perfil competitivo ───────────────────────────────────────────────

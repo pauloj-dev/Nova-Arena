@@ -27,6 +27,8 @@ export const EnvSchema = z
     QSTASH_NEXT_SIGNING_KEY: optionalSecret,
     CRON_SECRET: optionalSecret,
     BLOB_READ_WRITE_TOKEN: optionalSecret,
+    /** Loja privada do Blob (provas e denúncias). Sem ela, usa a mesma de `BLOB_READ_WRITE_TOKEN`. */
+    BLOB_PRIVATE_READ_WRITE_TOKEN: optionalSecret,
     EDGE_CONFIG: optionalUrl,
     RESEND_API_KEY: optionalSecret,
     /** Remetente de um domínio verificado no Resend, ex.: "Nova Arena <nao-responda@novaarena.gg>". */

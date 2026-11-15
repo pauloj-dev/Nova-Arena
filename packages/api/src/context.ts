@@ -11,6 +11,7 @@ import type { Logger } from './logger';
 import type { BotCheck } from './auth/bot';
 import type { OAuthFactory } from './auth/oauth';
 import type { BreachCheck } from './auth/password-policy';
+import type { BlobStore } from './uploads/store';
 import type { TournamentAccess } from './auth/rbac';
 import type { Mailer } from './mail';
 import type { RateLimiter } from './security';
@@ -34,6 +35,8 @@ export interface Dependencies {
   breached: BreachCheck;
   /** Robô no cadastro e na recuperação de senha (padrão: Vercel BotID). */
   botCheck: BotCheck;
+  /** Arquivos (padrão: Vercel Blob). */
+  blob: BlobStore;
 }
 
 /** Sessão da requisição, carregada sob demanda por `currentUser(c)`. */

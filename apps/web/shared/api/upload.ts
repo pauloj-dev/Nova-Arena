@@ -1,7 +1,8 @@
-import { UPLOAD_MAX_BYTES, UPLOAD_MIME_TYPES, UploadResult, UploadToken } from '@nova/schemas';
+import { isPrivateUpload, Me, UPLOAD_MAX_BYTES, UPLOAD_MIME_TYPES, UploadedFile, UploadResult, UploadToken, type UploadPurpose } from '@nova/schemas';
 import { api, ApiError } from './client';
+import { isModuleMocked } from './mode';
 
-export type UploadPurpose = 'evidence' | 'avatar' | 'team-logo' | 'banner' | 'game-cover' | 'report';
+export type { UploadPurpose };
 
 export class UploadError extends Error {}
 
@@ -78,8 +79,32 @@ function putWithProgress(url: string, blob: Blob, onBytes: (loaded: number, tota
 /**
  * Envio direto do navegador para o armazenamento: valida, comprime, pede o token à API
  * e manda o arquivo sem passar pela função (plano §2.4). Devolve a URL do arquivo.
- * Na produção o destino é o Vercel Blob; a tela não muda.
+ * Com a API real o destino é o Vercel Blob; com a simulada, o mock. A tela não muda.
  */
+/**
+ * API real (issue #73): o `@vercel/blob/client` pede o token em `/uploads/blob` e manda o arquivo direto para o
+ * Blob; depois a API confirma (`/uploads/complete`) e devolve o endereço a guardar (privado para provas).
+ */
+async function uploadToBlob(blob: Blob, purpose: UploadPurpose, onPercent: (percent: number) => void): Promise<string> {
+  const me = await api.get('/me', { schema: Me.nullable() });
+  if (!me) throw new UploadError('Entre na sua conta para enviar imagens.');
+  const { upload } = await import('@vercel/blob/client');
+  try {
+    const stored = await upload(`${purpose}/${me.id}/imagem.jpg`, blob, {
+      access: isPrivateUpload(purpose) ? 'private' : 'public',
+      handleUploadUrl: '/api/v1/uploads/blob',
+      clientPayload: JSON.stringify({ purpose, contentType: 'image/jpeg', size: blob.size }),
+      contentType: 'image/jpeg',
+      onUploadProgress: ({ percentage }) => onPercent(percentage),
+    });
+    const file = await api.post('/uploads/complete', { url: stored.url, purpose }, { schema: UploadedFile });
+    return file.url;
+  } catch (error) {
+    if (error instanceof ApiError || error instanceof UploadError) throw error;
+    throw new UploadError('Não foi possível enviar a imagem. Confira sua conexão e tente de novo.');
+  }
+}
+
 export async function uploadImage(file: File, purpose: UploadPurpose, opts: UploadImageOptions = {}): Promise<string> {
   const { onProgress, ...compression } = opts;
   let last = -1;
@@ -95,6 +120,11 @@ export async function uploadImage(file: File, purpose: UploadPurpose, opts: Uplo
   report('preparing', 0);
   const blob = await compressImage(file, compression);
   report('preparing', 10);
+  if (!isModuleMocked('uploads')) {
+    const url = await uploadToBlob(blob, purpose, (p) => report('uploading', PREPARED + ((100 - PREPARED) * p) / 100));
+    report('uploading', 100);
+    return url;
+  }
   const token = await api.post('/uploads/token', { purpose, contentType: 'image/jpeg', size: blob.size }, { schema: UploadToken });
   report('uploading', PREPARED);
   const res = await putWithProgress(token.uploadUrl, blob, (loaded, total) => report('uploading', PREPARED + ((100 - PREPARED) * loaded) / Math.max(1, total)));
