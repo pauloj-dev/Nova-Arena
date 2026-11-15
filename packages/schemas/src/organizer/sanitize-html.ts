@@ -39,7 +39,8 @@ function safeCodePoint(code: number): string {
 export function safeHref(raw: string): string | null {
   // Navegadores ignoram espaços e caracteres de controle dentro do protocolo.
   const url = decodeEntities(raw)
-    .replace(/[\u0000- \u007f-\u009f​-‍﻿]/g, '')
+    // eslint-disable-next-line no-control-regex -- remover caracteres de controle é o objetivo
+    .replace(/[\u0000-\u0020\u007f-\u009f\u200b-\u200d\ufeff]/g, '')
     .trim();
   return SAFE_URL.test(url) ? url : null;
 }
