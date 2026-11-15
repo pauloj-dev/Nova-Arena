@@ -8,6 +8,7 @@ import type { AppEnv } from '../../context';
 import { badRequest } from '../../errors';
 import { requireCron, requireQStash } from '../../jobs';
 import { runRegistrationJob, syncRegistrationWindows } from '../../jobs/registration';
+import { revalidateTournaments } from '../../revalidate';
 
 const RegistrationJob = z.object({ tournamentId: z.uuid(), action: z.enum(['open', 'close']) });
 
@@ -21,11 +22,15 @@ jobs.post('/jobs/tournaments/registration', requireQStash, async (c) => {
     throw badRequest('Corpo do job inválido.', 'INVALID_BODY');
   }
   const changed = await runRegistrationJob(c.get('deps').db(), parsed.data.tournamentId, parsed.data.action, c.get('deps').now());
+  if (changed) revalidateTournaments(c);
   return c.json({ ok: true, changed });
 });
 
 jobs.get('/cron/tournaments', requireCron, async (c) => {
   const result = await syncRegistrationWindows(c.get('deps').db(), c.get('deps').now());
-  if (result.opened || result.closed) c.get('log').info('cron de inscrições', result);
+  if (result.opened || result.closed) {
+    c.get('log').info('cron de inscrições', result);
+    revalidateTournaments(c);
+  }
   return c.json({ ok: true, ...result });
 });

@@ -43,6 +43,8 @@ export interface Dependencies {
   cache: (env: Env) => Cache;
   /** Fila de jobs agendados (padrão: QStash; sem ele, só log e o Cron cobre). */
   queue: (env: Env, log: Logger) => Queue;
+  /** Avisa as páginas públicas em cache (ISR) que os dados mudaram. Padrão: nada (fora do Next). */
+  revalidate: (tags: string[]) => void;
 }
 
 /** Sessão da requisição, carregada sob demanda por `currentUser(c)`. */

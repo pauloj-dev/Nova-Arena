@@ -42,6 +42,7 @@ import { badRequest, conflict, forbidden, HttpProblem, notFound } from '../../er
 import { assertTournamentAccess } from '../../auth/rbac';
 import { currentSession, requireSession } from '../../auth/session';
 import { clientIp } from '../../security';
+import { revalidateTournaments } from '../../revalidate';
 import { checkInOf, countsOf, toTournamentSummary, tournamentInclude } from '../tournaments/views';
 import { LOCKED_TX, lockTournament, registrationInclude, releaseMembers, settleWaitlist, takenSlots, toRegistration, toRegistrations, tournamentForRegistration, type TournamentForRegistration, type Tx } from './core';
 
@@ -250,6 +251,7 @@ registrations.post('/tournaments/:id/registrations', async (c) => {
       if (isUniqueViolation(error)) throw conflict('Esta inscrição acabou de ser feita. Atualize a página.', 'ALREADY_REGISTERED');
       throw error;
     });
+  revalidateTournaments(c);
   return respond(c, Registration, await toRegistration(db, tView, id), 201);
 });
 
@@ -281,6 +283,7 @@ registrations.post('/registrations/:id/confirm', async (c) => {
     // O squad completou dentro do prazo: a vaga deixa de ser só uma reserva.
     if (next !== current.status) await tx.registration.update({ where: { id: r.id }, data: { status: next, reservedUntil: null } });
   }, LOCKED_TX);
+  revalidateTournaments(c);
   return respond(c, Registration, await toRegistration(db, r.tournament, r.id));
 });
 
@@ -319,6 +322,7 @@ registrations.delete('/registrations/:id', async (c) => {
       await releaseMembers(tx, r.id);
       await settleWaitlist(tx, t, now);
     }, LOCKED_TX);
+  revalidateTournaments(c);
   return c.body(null, 204);
 });
 
@@ -389,6 +393,7 @@ registrations.patch('/registrations/:id', async (c) => {
     await audited(tx, { action: 'REGISTRATION_REVIEWED', entityType: 'Registration', entityId: r.id, entityLabel: `${t.name} · ${label}`, tournamentId: t.id, before: { status: current.status }, after: { acao: input.action } });
     return input.action === 'approve' ? ([] as string[]) : settleWaitlist(tx, t, now, { force: true });
   });
+  revalidateTournaments(c);
   const t = r.tournament;
   const rows = await db.registration.findMany({ where: { id: { in: [r.id, ...promoted] } }, include: registrationInclude });
   const views = await toRegistrations(db, t, rows);
@@ -453,6 +458,7 @@ registrations.post('/tournaments/:id/registrations/import', async (c) => {
     }
     return out;
   }, LOCKED_TX);
+  revalidateTournaments(c);
   return respond(c, ImportRegistrationsResult, result);
 });
 

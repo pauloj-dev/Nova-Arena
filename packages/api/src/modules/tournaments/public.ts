@@ -17,6 +17,7 @@ import { badRequest, conflict, notFound } from '../../errors';
 import { assertTournamentAccess, currentRoles, tournamentAccessDecision } from '../../auth/rbac';
 import { currentSession, requireSession } from '../../auth/session';
 import { clientIp } from '../../security';
+import { revalidateTournaments } from '../../revalidate';
 import { accessRole, countsOf, toTournament, toTournamentSummary, tournamentInclude } from './views';
 
 const HIDDEN: TournamentStatus[] = ['DRAFT', 'ARCHIVED'];
@@ -151,6 +152,7 @@ publicTournaments.post('/tournaments/:id/announcements', async (c) => {
     await audited(tx, { action: 'ANNOUNCEMENT_SENT', entityType: 'Announcement', entityId: a.id, entityLabel: `${t.name} · ${a.title}`, tournamentId: t.id, after: { publico: audience } });
     return a;
   });
+  revalidateTournaments(c);
   const [view] = await toAnnouncements(c, [created]);
   return respond(c, Announcement, view as Announcement, 201);
 });
@@ -169,6 +171,7 @@ publicTournaments.delete('/announcements/:id', async (c) => {
     await tx.announcement.delete({ where: { id } });
     await audited(tx, { action: 'ANNOUNCEMENT_DELETED', entityType: 'Announcement', entityId: id, entityLabel: `${t.name} · ${announcement.title}`, tournamentId, before: { titulo: announcement.title } });
   });
+  revalidateTournaments(c);
   return c.body(null, 204);
 });
 

@@ -72,6 +72,7 @@ export function createApp(options: CreateAppOptions = {}) {
     botCheck: options.deps?.botCheck ?? vercelBotCheck,
     blob: options.deps?.blob ?? vercelBlobStore,
     queue: options.deps?.queue ?? qstashQueue,
+    revalidate: options.deps?.revalidate ?? (() => undefined),
     cache:
       options.deps?.cache ??
       ((env) => {

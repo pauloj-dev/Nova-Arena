@@ -4,3 +4,4 @@ export { EnvError, EnvSchema, parseEnv, processEnv, type Env } from './env';
 export { badRequest, conflict, fieldErrors, forbidden, HttpProblem, notFound, problemResponse, unauthorized } from './errors';
 export { createLogger, requestIdFrom, type LogEntry, type Logger, type LogSink } from './logger';
 export { createRouteHandler } from './vercel';
+export { TOURNAMENTS_TAG, userTag } from './revalidate';
