@@ -177,7 +177,7 @@ describe.skipIf(!url)('inscrições (Postgres)', () => {
     const approved = ReviewRegistrationResult.parse((await call('dono', `/registrations/${rb.id}`, { method: 'PATCH', body: { action: 'approve' } })).data);
     expect(approved.registration.status).toBe('CONFIRMED');
     const replaced = ReviewRegistrationResult.parse((await call('dono', `/registrations/${rb.id}`, { method: 'PATCH', body: { action: 'replace', withRegistrationId: rc.id } })).data);
-    expect(replaced.registration).toMatchObject({ status: 'CANCELLED', statusReason: `Substituída por rgc${stamp}`.slice(0, 200) });
+    expect(replaced.registration).toMatchObject({ status: 'CANCELLED', statusReason: `Substituída por rgc${stamp}.` });
     expect(Registration.parse((await call('c', `/tournaments/${t.id}/my-registration`)).data).status).toBe('CONFIRMED');
     expect(await db.auditLog.count({ where: { tournamentId: t.id, action: 'REGISTRATION_REVIEWED' } })).toBe(3);
   });
@@ -193,9 +193,10 @@ describe.skipIf(!url)('inscrições (Postgres)', () => {
     const csv = await call('dono', `/tournaments/${t.id}/registrations.csv`);
     expect(csv.status).toBe(200);
     expect(csv.headers.get('content-type')).toContain('text/csv');
-    const text = String(csv.data);
-    expect(text.charCodeAt(0)).toBe(0xfeff);
-    const lines = text.slice(1).trim().split('\r\n');
+    // `text()` tira o BOM ao decodificar: confere nos bytes que o arquivo começa com ele (EF BB BF).
+    const raw = new Uint8Array(await (await app.request(`/api/v1/tournaments/${t.id}/registrations.csv`, { headers: { Cookie: cookies.get('dono') ?? '' } })).arrayBuffer());
+    expect([...raw.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
+    const lines = String(csv.data).trim().split('\r\n');
     expect(lines[0]?.split(';')[0]).toBe('Nome');
     expect(lines.slice(1).map((l) => l.split(';')[0])).toEqual(['Time Um', 'Time Dois', 'Time Três']);
     expect(lines[1]).toContain('um@exemplo.com');
