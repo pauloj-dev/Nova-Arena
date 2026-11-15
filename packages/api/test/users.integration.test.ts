@@ -67,7 +67,7 @@ describe.skipIf(!url)('perfil (Postgres)', () => {
     const t = await db.tournament.create({ data: { slug: `copa-perfil-${stamp}`, name: 'Copa Perfil', gameId, gameModeId: game.modes[0]?.id ?? '', ownerId: owner.id, participantType: 'SOLO', maxParticipants: 8 } });
     const regBia = await db.registration.create({ data: { tournamentId: t.id, userId: ids.get('bia'), status: 'CONFIRMED' } });
     const regOutro = await db.registration.create({ data: { tournamentId: t.id, userId: ids.get('outro'), status: 'CONFIRMED' } });
-    const model = await db.scoringModel.create({ data: { gameId, name: 'Vitória', matchType: 'DUEL', rules: {}, tiebreakers: [] } });
+    const model = await db.scoringModel.create({ data: { gameId, name: 'Vitória', matchType: 'DUEL', rules: [{ type: 'OUTCOME', win: 3, draw: 1, loss: 0 }], tiebreakers: ['points'] } });
     const stage = await db.stage.create({ data: { tournamentId: t.id, name: 'Chave', order: 1, format: 'SINGLE_ELIM', scoringModelId: model.id } });
     await db.match.create({ data: { stageId: stage.id, nodeId: 'w-r1-m1', round: 1, position: 1, participants: { create: [{ registrationId: regBia.id, slot: 1 }, { registrationId: regOutro.id, slot: 2 }] } } });
   });

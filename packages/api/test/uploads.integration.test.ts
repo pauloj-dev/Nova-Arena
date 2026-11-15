@@ -71,7 +71,7 @@ describe.skipIf(!url)('uploads (Postgres)', () => {
     });
     const r1 = await db.registration.create({ data: { tournamentId: t.id, userId: jogadora.id, status: 'CONFIRMED' } });
     const r2 = await db.registration.create({ data: { tournamentId: t.id, userId: rival.id, status: 'CONFIRMED' } });
-    const model = await db.scoringModel.create({ data: { gameId: game.id, name: 'Vitória', matchType: 'DUEL', rules: {}, tiebreakers: [] } });
+    const model = await db.scoringModel.create({ data: { gameId: game.id, name: 'Vitória', matchType: 'DUEL', rules: [{ type: 'OUTCOME', win: 3, draw: 1, loss: 0 }], tiebreakers: ['points'] } });
     const stage = await db.stage.create({ data: { tournamentId: t.id, name: 'Chave', order: 1, format: 'SINGLE_ELIM', scoringModelId: model.id } });
     const match = await db.match.create({ data: { stageId: stage.id, nodeId: 'w-r1-m1', round: 1, position: 1, participants: { create: [{ registrationId: r1.id, slot: 1 }, { registrationId: r2.id, slot: 2 }] } } });
     disputeId = (await db.dispute.create({ data: { matchId: match.id, openedById: jogadora.id, reason: 'O placar enviado está errado.' } })).id;
