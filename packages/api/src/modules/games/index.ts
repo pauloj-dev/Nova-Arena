@@ -24,8 +24,8 @@ import { clientIp } from '../../security';
 export const GAMES_CACHE_KEY = 'games:active:v1';
 const CACHE_TTL_SECONDS = 600;
 
-const gameInclude = { modes: { orderBy: { createdAt: 'asc' } }, scoringModels: { orderBy: { createdAt: 'asc' } } } satisfies Prisma.GameInclude;
-type GameRow = Prisma.GameGetPayload<{ include: typeof gameInclude }>;
+export const gameInclude = { modes: { orderBy: { createdAt: 'asc' } }, scoringModels: { orderBy: { createdAt: 'asc' } } } satisfies Prisma.GameInclude;
+export type GameRow = Prisma.GameGetPayload<{ include: typeof gameInclude }>;
 type ModelRow = GameRow['scoringModels'][number];
 
 const toModel = (m: ModelRow): ScoringModel => ({
@@ -39,7 +39,7 @@ const toModel = (m: ModelRow): ScoringModel => ({
   ownerId: m.ownerId,
 });
 
-const toGame = (g: GameRow): Game => ({
+export const toGame = (g: GameRow): Game => ({
   id: g.id,
   slug: g.slug,
   name: g.name,
