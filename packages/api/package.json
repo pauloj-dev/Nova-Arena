@@ -19,6 +19,7 @@
     "@nova/email": "workspace:*",
     "@nova/engine": "workspace:*",
     "@nova/schemas": "workspace:*",
+    "@upstash/qstash": "^2.12.2",
     "@upstash/ratelimit": "^2.2.1",
     "@upstash/redis": "^1.41.0",
     "@vercel/blob": "^2.9.0",

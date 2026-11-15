@@ -50,6 +50,7 @@ import { badRequest, conflict, forbidden, HttpProblem, notFound } from '../../er
 import { assertTournamentAccess, currentRoles, isAdmin, ORGANIZER_AREA_ROLES, assertRole, type TournamentAccessLevel } from '../../auth/rbac';
 import { requireSession } from '../../auth/session';
 import { clientIp } from '../../security';
+import { scheduleRegistrationWindow } from '../../jobs/registration';
 import { gameInclude, toGame } from '../games';
 import { accessRole, checkInOf, countsOf, toOrganizerDetail, toOrganizerTournament, toStage, tournamentInclude, type TournamentRow } from './views';
 
@@ -533,6 +534,10 @@ tournaments.post('/tournaments/:id/publish', async (c) => {
   // Sem data de abertura (ou com data já passada), as inscrições abrem na hora.
   const opensNow = t.registrationOpensAt === null || t.registrationOpensAt.getTime() <= now.getTime();
   await changeStatus(c, t, opensNow ? 'REGISTRATION_OPEN' : 'PUBLISHED', { draftStep: 6, ...(opensNow && t.registrationOpensAt === null ? { registrationOpensAt: now } : {}) }, null, 'TOURNAMENT_PUBLISHED');
+  // Abertura e fechamento automáticos (#76). Falha na fila não desfaz a publicação: o Cron cobre.
+  await scheduleRegistrationWindow(c.get('deps').queue(c.get('env'), c.get('log')), { id: t.id, registrationOpensAt: opensNow ? null : t.registrationOpensAt, registrationClosesAt: t.registrationClosesAt }, now).catch((error: unknown) =>
+    c.get('log').warn('não foi possível agendar as inscrições; o Cron cobre', { tournamentId: t.id, error: String(error) }),
+  );
   return detail(c, db, t.id, access);
 });
 

@@ -13,6 +13,7 @@ import type { OAuthFactory } from './auth/oauth';
 import type { BreachCheck } from './auth/password-policy';
 import type { BlobStore } from './uploads/store';
 import type { Cache } from './cache';
+import type { Queue } from './jobs';
 import type { TournamentAccess } from './auth/rbac';
 import type { Mailer } from './mail';
 import type { RateLimiter } from './security';
@@ -40,6 +41,8 @@ export interface Dependencies {
   blob: BlobStore;
   /** Cache das leituras públicas (padrão: Upstash Redis quando configurado; senão, memória). */
   cache: (env: Env) => Cache;
+  /** Fila de jobs agendados (padrão: QStash; sem ele, só log e o Cron cobre). */
+  queue: (env: Env, log: Logger) => Queue;
 }
 
 /** Sessão da requisição, carregada sob demanda por `currentUser(c)`. */
@@ -61,6 +64,8 @@ export interface AppEnv {
     roles?: Role[];
     /** Preenchido por `requireTournamentAccess`. */
     tournamentAccess?: TournamentAccess;
+    /** Corpo já lido e verificado de uma mensagem do QStash. */
+    jobBody?: unknown;
   };
 }
 
