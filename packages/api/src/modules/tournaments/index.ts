@@ -50,6 +50,7 @@ import { badRequest, conflict, forbidden, HttpProblem, notFound } from '../../er
 import { assertTournamentAccess, currentRoles, isAdmin, ORGANIZER_AREA_ROLES, assertRole, type TournamentAccessLevel } from '../../auth/rbac';
 import { requireSession } from '../../auth/session';
 import { clientIp } from '../../security';
+import { revalidateTournaments } from '../../revalidate';
 import { scheduleRegistrationWindow } from '../../jobs/registration';
 import { gameInclude, toGame } from '../games';
 import { accessRole, checkInOf, countsOf, toOrganizerDetail, toOrganizerTournament, toStage, tournamentInclude, type TournamentRow } from './views';
@@ -488,6 +489,7 @@ tournaments.patch('/tournaments/:id', async (c) => {
     if (issues.length > 0) throw badRequest(issues[0]?.message ?? 'Confira os campos destacados.', 'VALIDATION', issuesToErrors(issues));
     await audited(tx, { action: 'TOURNAMENT_UPDATED', entityType: 'Tournament', entityId: t.id, entityLabel: next.name, tournamentId: t.id, after: { campos: [...touched] } });
   });
+  revalidateTournaments(c);
   return detail(c, db, t.id, access);
 });
 
@@ -510,6 +512,7 @@ async function changeStatus(c: AppContext, t: TournamentRow, to: TournamentStatu
     if (count === 0) throw conflict('O status do campeonato mudou enquanto você agia. Atualize a página.', 'INVALID_TRANSITION');
     await audited(tx, { action, entityType: 'Tournament', entityId: t.id, entityLabel: t.name, tournamentId: t.id, before: { status: t.status }, after: { status: to } });
   });
+  revalidateTournaments(c);
 }
 
 tournaments.post('/tournaments/:id/publish', async (c) => {

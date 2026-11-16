@@ -18,6 +18,7 @@ import { badRequest, conflict, forbidden, HttpProblem, notFound } from '../../er
 import { currentRoles } from '../../auth/rbac';
 import { requireSession } from '../../auth/session';
 import { canSeeGameAccounts } from '../../auth/visibility';
+import { revalidateUser } from '../../revalidate';
 import { loadMe, meInclude, toMe } from '../../views';
 
 /** Avatar recortado no navegador: data URL de imagem, com folga sobre os ~200 KB que a tela gera. */
@@ -83,6 +84,8 @@ users.patch('/me', async (c) => {
 
   try {
     const updated = await db.user.update({ where: { id: user.id }, data, include: meInclude });
+    // Perfil público em cache: o apelido antigo e o novo.
+    revalidateUser(c, user.nicknameKey, updated.nicknameKey);
     return respond(c, Me, toMe(updated));
   } catch (error) {
     // Corrida entre duas pessoas escolhendo o mesmo apelido: a restrição do banco decide.

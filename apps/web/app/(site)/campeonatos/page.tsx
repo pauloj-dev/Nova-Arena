@@ -1,8 +1,14 @@
-'use client';
-
+/** Lista pública de campeonatos (filtros na URL). A lista carrega no navegador; os metadados vêm do servidor. */
 import { Skeleton } from '@nova/ui';
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { TournamentListPage } from '@/features/tournaments/TournamentListPage';
+
+export const metadata: Metadata = {
+  title: 'Campeonatos',
+  description: 'Campeonatos de Free Fire, Clash Royale, 8 Ball Pool e eFootball com inscrições abertas, ao vivo e encerrados.',
+  alternates: { canonical: '/campeonatos' },
+};
 
 function Fallback() {
   return (
