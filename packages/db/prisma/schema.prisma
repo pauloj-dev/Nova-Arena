@@ -590,6 +590,11 @@ model Stage {
   seeding        Seeding     @default(RANDOM)
   /// Seed do sorteio registrada para auditoria (ADR-007).
   randomSeed     String?
+  /// Retrato do motor (`structure` + `state` de `@nova/engine`): fonte da verdade da chave (ADR-0002). As tabelas
+  /// `groups`, `matches` e `match_participants` são a projeção para consulta.
+  engineSnapshot Json?
+  /// RN-07: Admin destravou a chave depois da 1ª partida concluída.
+  unlocked       Boolean     @default(false)
   status         StageStatus @default(PENDING)
   /// Chave confirmada (não é mais prévia).
   confirmedAt    DateTime?   @db.Timestamptz(3)
