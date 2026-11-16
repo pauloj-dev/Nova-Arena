@@ -19,12 +19,14 @@ import { badRequest, notFound } from '../../errors';
 import { ADMIN_ROLES, requireRole } from '../../auth/rbac';
 import { requireCron, requireQStash } from '../../jobs';
 import { dailyCleanup } from '../../jobs/cleanup';
+import { isCurrentSchedule } from '../../jobs/matches';
 import { runRegistrationJob } from '../../jobs/registration';
 import { recordJobFailure, runJob } from '../../jobs/runner';
 import { sweep } from '../../jobs/sweep';
 import { revalidateTournaments } from '../../revalidate';
 
 const RegistrationJob = z.object({ tournamentId: z.uuid(), action: z.enum(['open', 'close']) });
+const MatchJob = z.object({ matchId: z.uuid(), scheduledAt: z.iso.datetime({ offset: true }) });
 
 /** Corpo do aviso de falha do QStash (o que interessa para registrar). */
 const QStashFailure = z.object({
@@ -78,6 +80,18 @@ jobs.post('/jobs/tournaments/registration', requireQStash, async (c) => {
   const changed = await runJob(c, 'jobs/tournaments/registration', 'qstash', () => runRegistrationJob(c.get('deps').db(), tournamentId, action, c.get('deps').now()));
   if (changed) revalidateTournaments(c);
   return c.json({ ok: true, changed });
+});
+
+/**
+ * Fechamento do check-in de uma partida (#83/#84). Mensagem de um horário antigo (a partida foi reagendada) não faz
+ * nada: é assim que reagendar "cancela" a mensagem anterior. O W.O. automático entra com a #84.
+ */
+jobs.post('/jobs/matches/check-in', requireQStash, async (c) => {
+  const parsed = MatchJob.safeParse(c.get('jobBody'));
+  if (!parsed.success) throw badRequest('Corpo do job inválido.', 'INVALID_BODY');
+  const match = await c.get('deps').db().match.findUnique({ where: { id: parsed.data.matchId }, select: { scheduledAt: true } });
+  const stale = !match || !isCurrentSchedule(match, parsed.data);
+  return c.json({ ok: true, stale });
 });
 
 /** O QStash esgotou as tentativas de uma mensagem: a falha passa a ser definitiva e aparece para o Admin. */
