@@ -1,0 +1,42 @@
+# E2E com a API real contra o preview da Vercel (issue #81).
+# Desligado até o dono configurar: variável do repositório E2E_API_REAL=true e os segredos
+# E2E_DEMO_PASSWORD (a mesma senha de SEED_DEMO_PASSWORD no preview) e VERCEL_AUTOMATION_BYPASS_SECRET
+# (Proteção de deploy da Vercel → "Protection Bypass for Automation").
+name: E2E no preview (API real)
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-api-real:
+    name: E2E com API real (preview)
+    if: github.event.deployment_status.state == 'success' && vars.E2E_API_REAL == 'true' && contains(github.event.deployment.environment, 'Preview')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.deployment.sha }}
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium
+      - name: Playwright (API real)
+        run: pnpm --filter web exec playwright test
+        env:
+          E2E_API_REAL: '1'
+          PLAYWRIGHT_BASE_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+          E2E_DEMO_PASSWORD: ${{ secrets.E2E_DEMO_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report-preview
+          path: apps/web/playwright-report
+          retention-days: 7

@@ -68,8 +68,22 @@ Funções em `gru1` (já no `vercel.json`). Para cada serviço, confirme a regi�
 - [ ] Domínio definitivo (ADR-0001 Q7: `novaarena.gg`, provisório até a compra) apontado para o projeto, com HTTPS.
 - [ ] `NEXT_PUBLIC_SITE_URL` de Production com esse domínio.
 
-### 9. CI contra o preview
-- [ ] Variável do repositório `PLAYWRIGHT_BASE_URL` (GitHub → Settings → Variables → Actions) para os E2E do CI rodarem contra o preview. Enquanto ela estiver vazia, o CI constrói e serve o app no próprio runner.
+### 9. API real no preview e no staging (issue #81)
+Os E2E do CI (`ci.yml`) continuam rodando no próprio runner com a API simulada: **não defina** `PLAYWRIGHT_BASE_URL` no repositório. O preview e o staging usam a API real nas telas do núcleo (F1) e o mock só no que ainda é do B2:
+
+- [ ] Variável `NEXT_PUBLIC_API_MOCK` em **Preview** e **Staging** com os módulos que ainda não têm API real:
+  `competition,submissions,notifications,reports,profile-stats,admin-users,admin-roles,admin-tournaments,admin-audit,admin-moderation,admin-settings`
+  (a lista sai de `previewMockSetting()` em `apps/web/mocks/handlers/index.ts`; com a #102 ela vira `none`). Em **Production**, `none`.
+- [ ] Seed do banco do preview/staging com `SEED_PROFILE=staging` e `SEED_DEMO_PASSWORD` (8+ caracteres): as contas de demonstração (Camila organizadora, Bianca participante…) passam a entrar com essa senha. Nunca em produção.
+- [ ] Vercel → Settings → Deployment Protection → **Protection Bypass for Automation**: gere o segredo.
+- [ ] GitHub → Settings → Secrets and variables → Actions:
+  - variável `E2E_API_REAL` = `true`;
+  - segredo `E2E_DEMO_PASSWORD` (a mesma senha de `SEED_DEMO_PASSWORD`);
+  - segredo `VERCEL_AUTOMATION_BYPASS_SECRET` (o segredo do passo anterior).
+
+Com isso, a cada deploy de preview concluído o workflow **E2E no preview (API real)** (`.github/workflows/e2e-preview.yml`) roda `apps/web/e2e/api-real.spec.ts`: vitrine, organizadora cria e publica um campeonato, página pública vem do servidor com título e imagem de compartilhamento, participante se inscreve. O campeonato do teste é cancelado no fim.
+
+Para o CT-02 contra o preview (várias instâncias de função ao mesmo tempo), rode o teste de carga da #112 apontando para o preview; no CI ele já passa contra o Postgres (`registrations.integration.test.ts`).
 
 ## Como conferir (critérios de aceite da #64)
 

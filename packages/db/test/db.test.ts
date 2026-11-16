@@ -66,6 +66,22 @@ describe.skipIf(!url)('banco de dados (Postgres)', () => {
     await db.tournament.delete({ where: { id: t.id } });
   });
 
+  it('SEED_DEMO_PASSWORD dá senha a quem não tem e nunca troca uma senha já definida', async () => {
+    const lucas = await db.user.findUniqueOrThrow({ where: { email: 'lucas@novaarena.gg' } });
+    await db.user.update({ where: { id: lucas.id }, data: { passwordHash: null } });
+    const camila = await db.user.update({ where: { email: 'camila@novaarena.gg' }, data: { passwordHash: 'hash-definido-pela-pessoa' } });
+    const previous = process.env.SEED_DEMO_PASSWORD;
+    process.env.SEED_DEMO_PASSWORD = 'curta';
+    await expect(seed(db, 'dev')).rejects.toThrow('8 caracteres');
+    process.env.SEED_DEMO_PASSWORD = 'demo-arena-2026';
+    await seed(db, 'dev');
+    expect((await db.user.findUniqueOrThrow({ where: { id: lucas.id } })).passwordHash).toMatch(/^\$argon2id\$/);
+    expect((await db.user.findUniqueOrThrow({ where: { id: camila.id } })).passwordHash).toBe('hash-definido-pela-pessoa');
+    if (previous === undefined) delete process.env.SEED_DEMO_PASSWORD;
+    else process.env.SEED_DEMO_PASSWORD = previous;
+    await db.user.update({ where: { id: camila.id }, data: { passwordHash: null } });
+  });
+
   it('o seed de produção exige o e-mail do Super Admin e não cria contas de demonstração', async () => {
     const previous = process.env.SEED_SUPER_ADMIN_EMAIL;
     delete process.env.SEED_SUPER_ADMIN_EMAIL;

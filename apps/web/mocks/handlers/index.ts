@@ -62,6 +62,20 @@ export const modules: MockModule[] = [
   teams,
 ];
 
+/**
+ * Módulos que já têm API real (B1, issue #81): no preview e no staging eles saem do mock.
+ * Os demais ainda são do B2 (competição e administração) e continuam simulados até a issue #102.
+ */
+export const B1_REAL_MODULES = ['auth', 'users', 'uploads', 'games', 'games-admin', 'tournaments', 'tournaments-manage', 'tournaments-ops', 'registrations', 'registrations-manage', 'teams'] as const;
+
+/** Valor de `NEXT_PUBLIC_API_MOCK` para o preview e o staging: só os módulos que ainda não têm API real. */
+export function previewMockSetting(): string {
+  return modules
+    .map((m) => m.moduleName)
+    .filter((name) => !(B1_REAL_MODULES as readonly string[]).includes(name))
+    .join(',');
+}
+
 export function mockSetting(): string {
   return process.env.NEXT_PUBLIC_API_MOCK ?? 'all';
 }
