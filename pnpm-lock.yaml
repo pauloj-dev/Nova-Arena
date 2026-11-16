@@ -238,6 +238,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@node-rs/argon2':
+        specifier: ^2.2.2
+        version: 2.2.2
       '@nova/schemas':
         specifier: workspace:*
         version: link:../schemas

@@ -77,8 +77,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # Firefox e WebKit só rodam os testes da arte de resultado (projetos `*-arte` do playwright.config.ts).
       - run: pnpm --filter web exec playwright install --with-deps chromium firefox webkit
-      # Com o projeto conectado à Vercel, defina a variável PLAYWRIGHT_BASE_URL com a URL do preview
-      # para os testes rodarem contra ele. Sem ela, o app é construído e servido no próprio runner.
+      # Estes E2E usam a API simulada e rodam no próprio runner. Os E2E com a API real rodam contra o
+      # preview no workflow e2e-preview.yml (issue #81, docs/infra-vercel.md §9).
       - name: Playwright
         run: pnpm e2e
         env:

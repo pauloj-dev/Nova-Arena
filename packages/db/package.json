@@ -19,6 +19,7 @@
     "postinstall": "prisma generate --no-hints"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.2.2",
     "@nova/schemas": "workspace:*",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1"

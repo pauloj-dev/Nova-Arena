@@ -38,7 +38,7 @@ Sem Docker, qualquer PostgreSQL 15 ou mais novo serve (instalado na máquina ou 
 |---|---|
 | `db:migrate` | Cria uma migration a partir do schema e aplica no banco local (`prisma migrate dev`). |
 | `db:deploy` | Aplica as migrations pendentes. Roda sozinho no build da Vercel (fora da Vercel não faz nada). |
-| `db:seed` | Seed idempotente. `SEED_PROFILE=dev` (padrão) ou `staging`: catálogo + contas de demonstração. `production`: catálogo + Super Admin de `SEED_SUPER_ADMIN_EMAIL`. |
+| `db:seed` | Seed idempotente. `SEED_PROFILE=dev` (padrão) ou `staging`: catálogo + contas de demonstração. `production`: catálogo + Super Admin de `SEED_SUPER_ADMIN_EMAIL`. Fora de produção, `SEED_DEMO_PASSWORD` (8+ caracteres) dá essa senha às contas de demonstração que ainda não têm senha (usado pelo E2E com a API real, #81). |
 | `db:generate` | Gera o client em `src/generated` (também roda no `pnpm install`). |
 | `db:reset` | Apaga o banco **local** e refaz tudo. Nunca em staging nem produção. |
 
