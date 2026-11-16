@@ -743,6 +743,9 @@ model Registration {
   /// Inscrição importada por CSV (sem conta na plataforma).
   displayName      String?
   tag              String?
+  /// Importada por CSV: contato e ID no jogo informados na planilha (só a organização vê).
+  importedContact  String?
+  importedGameId   String?
   status           RegistrationStatus
   seed             Int?
   checkedInAt      DateTime?          @db.Timestamptz(3)
