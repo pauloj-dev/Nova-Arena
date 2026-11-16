@@ -23,7 +23,8 @@ describe.skipIf(!url)('check-in e W.O. automático (Postgres)', () => {
   /** Relógio simulado: as rotas leem `deps.now()`. */
   let clock = new Date();
   const stamp = String(Date.now()).slice(-7);
-  const cookies = new Map<string, string>();
+  /** Sessão de cada pessoa; o token é assinado no horário do relógio simulado a cada chamada. */
+  const sessions = new Map<string, { sub: string; sid: string; roles: ('ORGANIZER' | 'PARTICIPANT')[] }>();
   const ids = new Map<string, string>();
   const regOf = new Map<string, string>();
   let tournamentId = '';
@@ -36,16 +37,20 @@ describe.skipIf(!url)('check-in e W.O. automático (Postgres)', () => {
   async function makeUser(key: string, roles: ('ORGANIZER' | 'PARTICIPANT')[]) {
     const nickname = `ck${key}${stamp}`.slice(0, 20);
     const user = await db.user.create({ data: { email: `ck.${key}.${stamp}@exemplo.com`, nickname, nicknameKey: nickname.toLowerCase(), roles: { create: roles.map((role) => ({ role })) } } });
-    const session = await db.session.create({ data: { userId: user.id, familyId: randomUUID(), refreshTokenHash: `ck-${randomUUID()}`, expiresAt: new Date(Date.now() + 3600_000) } });
-    cookies.set(key, `na_at=${await signAccessToken(env, { sub: user.id, sid: session.id, sv: 0, tfa: false, roles }, new Date())}`);
+    const session = await db.session.create({ data: { userId: user.id, familyId: randomUUID(), refreshTokenHash: `ck-${randomUUID()}`, expiresAt: new Date(Date.now() + 2 * 24 * 3600_000) } });
+    sessions.set(key, { sub: user.id, sid: session.id, roles });
     ids.set(key, user.id);
     return user;
   }
 
+  const cookieOf = async (who: string) => {
+    const s = sessions.get(who);
+    return s ? `na_at=${await signAccessToken(env, { ...s, sv: 0, tfa: false }, clock)}` : '';
+  };
   const call = async (who: string | null, path: string, init: { method?: string; body?: unknown } = {}) => {
     const res = await app.request(`/api/v1${path}`, {
       method: init.method ?? 'GET',
-      headers: { Origin: 'http://localhost', 'Content-Type': 'application/json', ...(who ? { Cookie: cookies.get(who) ?? '' } : {}) },
+      headers: { Origin: 'http://localhost', 'Content-Type': 'application/json', ...(who ? { Cookie: await cookieOf(who) } : {}) },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
     });
     const text = await res.text();
