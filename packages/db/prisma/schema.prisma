@@ -1138,3 +1138,20 @@ model Upload {
   @@index([attachedAt, createdAt])
   @@map("uploads")
 }
+
+/// Falha definitiva de um job (issue #99): mensagem do QStash que esgotou as tentativas ou rodada do Cron que
+/// quebrou. Aparece na Saúde do Sistema até alguém marcar como resolvida.
+model JobFailure {
+  id         String    @id @default(uuid()) @db.Uuid
+  /// Nome do job, ex.: `cron:sweep`, `jobs/tournaments/registration`.
+  job        String
+  /// `qstash` (esgotou as tentativas) ou `cron`.
+  source     String
+  error      String
+  payload    Json?
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  resolvedAt DateTime? @db.Timestamptz(3)
+
+  @@index([resolvedAt, createdAt])
+  @@map("job_failures")
+}

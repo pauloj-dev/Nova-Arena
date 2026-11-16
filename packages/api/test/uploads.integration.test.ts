@@ -29,6 +29,7 @@ describe.skipIf(!url)('uploads (Postgres)', () => {
     clientToken: async () => ({}),
     head: async (u) => files.get(u) ?? null,
     read: async (u) => (files.has(u) ? { stream: new Blob(['imagem']).stream(), contentType: 'image/jpeg', size: 6 } : null),
+    remove: async (u) => void files.delete(u),
   };
 
   async function makeUser(key: string, roles: ('ADMIN' | 'ORGANIZER' | 'PARTICIPANT')[] = ['PARTICIPANT']) {

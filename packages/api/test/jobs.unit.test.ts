@@ -28,7 +28,15 @@ const fakeDb = (() => ({
       },
     }),
   tournament: { findMany: async () => [] },
+  registration: { findMany: async () => [] },
+  jobFailure: {
+    create: async ({ data }: { data: { job: string; source: string; error: string } }) => {
+      failures.push(data);
+      return data;
+    },
+  },
 })) as unknown as () => PrismaClient;
+const failures: { job: string; source: string; error: string }[] = [];
 
 async function sign(body: string, key = KEYS.QSTASH_CURRENT_SIGNING_KEY, url = `https://novaarena.gg${JOB}`) {
   const hash = createHash('sha256').update(body).digest('base64url');
@@ -76,7 +84,9 @@ describe('Cron', () => {
     expect((await app.request('/api/v1/cron/tournaments')).status).toBe(401);
     expect((await app.request('/api/v1/cron/tournaments', { headers: { Authorization: 'Bearer outro' } })).status).toBe(401);
     const ok = await app.request('/api/v1/cron/tournaments', { headers: { Authorization: 'Bearer segredo-do-cron-de-teste' } });
-    expect(await ok.json()).toEqual({ ok: true, opened: 0, closed: 0 });
+    expect(await ok.json()).toEqual({ ok: true, opened: 0, closed: 0, waitlistsSettled: 0 });
+    // A limpeza diária também só com o segredo.
+    expect((await app.request('/api/v1/cron/daily-cleanup')).status).toBe(401);
   });
 
   it('sem CRON_SECRET configurado, ninguém entra', async () => {
@@ -100,5 +110,38 @@ describe('agendamento', () => {
     await scheduleRegistrationWindow({ schedule }, { id: 't1', registrationOpensAt: new Date('2026-11-13T12:00:00Z'), registrationClosesAt: new Date('2026-11-20T12:00:00Z') }, now);
     expect(schedule).toHaveBeenCalledTimes(1);
     expect(schedule).toHaveBeenCalledWith(expect.objectContaining({ body: { tournamentId: 't1', action: 'close' }, dedupId: `close-t1-${new Date('2026-11-20T12:00:00Z').getTime()}` }));
+  });
+});
+
+describe('falhas definitivas (#99)', () => {
+  const FAILURES = '/api/v1/jobs/failures';
+  const signFor = async (raw: string) => sign(raw, KEYS.QSTASH_CURRENT_SIGNING_KEY, `https://novaarena.gg${FAILURES}`);
+
+  it('aviso de falha do QStash sem assinatura = 401', async () => {
+    const res = await app.request(FAILURES, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    expect(res.status).toBe(401);
+  });
+
+  it('aviso assinado vira falha registrada, com o job e a última resposta', async () => {
+    const raw = JSON.stringify({ url: 'https://novaarena.gg/api/v1/jobs/tournaments/registration', status: 500, retried: 3, body: Buffer.from('banco fora').toString('base64'), sourceMessageId: 'msg_1' });
+    const res = await app.request(FAILURES, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Upstash-Signature': await signFor(raw) }, body: raw });
+    expect(res.status).toBe(200);
+    expect(failures.at(-1)).toMatchObject({ job: 'jobs/tournaments/registration', source: 'qstash' });
+    expect(failures.at(-1)?.error).toContain('HTTP 500');
+    expect(failures.at(-1)?.error).toContain('banco fora');
+  });
+
+  it('rodada do Cron que quebra fica registrada e responde 500', async () => {
+    const broken = (() => ({
+      tournament: {
+        findMany: async () => {
+          throw new Error('conexão perdida');
+        },
+      },
+      jobFailure: { create: async ({ data }: { data: { job: string; source: string; error: string } }) => void failures.push(data) },
+    })) as unknown as () => PrismaClient;
+    const res = await createApp({ env, deps: { db: broken } }).request('/api/v1/cron/sweep', { headers: { Authorization: 'Bearer segredo-do-cron-de-teste' } });
+    expect(res.status).toBe(500);
+    expect(failures.at(-1)).toMatchObject({ job: 'cron:sweep', source: 'cron', error: 'conexão perdida' });
   });
 });

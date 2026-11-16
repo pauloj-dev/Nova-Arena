@@ -43,6 +43,8 @@ export function qstashQueue(env: Env, log: Logger): Queue {
         notBefore: Math.max(Math.floor(job.at.getTime() / 1000), Math.floor(Date.now() / 1000)),
         deduplicationId: job.dedupId,
         retries: 3,
+        // Esgotou as tentativas: o QStash avisa e a falha aparece na Saúde do Sistema (#99).
+        failureCallback: `${base}/api/v1/jobs/failures`,
       });
     },
   };

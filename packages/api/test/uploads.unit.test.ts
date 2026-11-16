@@ -36,6 +36,7 @@ describe('token de envio', () => {
     },
     head: async () => null,
     read: async () => null,
+    remove: async () => undefined,
   };
   const app = createApp({ env, deps: { db: sessionDb, blob: spy } });
   const ok = { purpose: 'evidence', contentType: 'image/jpeg', size: 300_000 };
