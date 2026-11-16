@@ -29,6 +29,7 @@ const fakeDb = (() => ({
     }),
   tournament: { findMany: async () => [] },
   registration: { findMany: async () => [] },
+  match: { findMany: async () => [] },
   jobFailure: {
     create: async ({ data }: { data: { job: string; source: string; error: string } }) => {
       failures.push(data);
@@ -84,7 +85,7 @@ describe('Cron', () => {
     expect((await app.request('/api/v1/cron/tournaments')).status).toBe(401);
     expect((await app.request('/api/v1/cron/tournaments', { headers: { Authorization: 'Bearer outro' } })).status).toBe(401);
     const ok = await app.request('/api/v1/cron/tournaments', { headers: { Authorization: 'Bearer segredo-do-cron-de-teste' } });
-    expect(await ok.json()).toEqual({ ok: true, opened: 0, closed: 0, waitlistsSettled: 0 });
+    expect(await ok.json()).toEqual({ ok: true, opened: 0, closed: 0, waitlistsSettled: 0, walkovers: 0 });
     // A limpeza diária também só com o segredo.
     expect((await app.request('/api/v1/cron/daily-cleanup')).status).toBe(401);
   });

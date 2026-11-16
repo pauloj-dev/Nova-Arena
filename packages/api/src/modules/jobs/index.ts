@@ -3,9 +3,10 @@
  * Vercel chama `/cron/*` (com `CRON_SECRET`). Sem assinatura ou segredo = 401. `/jobs/*` fica fora da checagem
  * de `Origin` (não vem de navegador).
  *
- * - `GET /cron/sweep` (a cada minuto): janelas de inscrição e reservas vencidas da lista de espera.
+ * - `GET /cron/sweep` (a cada minuto): janelas de inscrição, reservas vencidas da lista de espera e W.O. atrasado.
  * - `GET /cron/daily-cleanup` (todo dia): convites vencidos, uploads órfãos, tokens e sessões velhos.
  * - `POST /jobs/tournaments/registration`: abre ou fecha as inscrições de um campeonato na data marcada.
+ * - `POST /jobs/matches/check-in`: fechamento do check-in de uma partida; aplica o W.O. automático (#84).
  * - `POST /jobs/failures`: aviso do QStash de mensagem que esgotou as tentativas (falha definitiva).
  * - `GET /admin/system/job-failures` e `POST …/:id/resolve`: as falhas na Saúde do Sistema (Admin).
  *
@@ -19,6 +20,7 @@ import { badRequest, notFound } from '../../errors';
 import { ADMIN_ROLES, requireRole } from '../../auth/rbac';
 import { requireCron, requireQStash } from '../../jobs';
 import { dailyCleanup } from '../../jobs/cleanup';
+import { applyDueWalkover } from '../../competition/walkover';
 import { isCurrentSchedule } from '../../jobs/matches';
 import { runRegistrationJob } from '../../jobs/registration';
 import { recordJobFailure, runJob } from '../../jobs/runner';
@@ -51,7 +53,7 @@ export const jobs = new Hono<AppEnv>();
 
 async function runSweep(c: AppContext) {
   const result = await runJob(c, 'cron:sweep', 'cron', () => sweep(c.get('deps').db(), c.get('deps').now()));
-  if (result.opened || result.closed || result.waitlistsSettled) {
+  if (result.opened || result.closed || result.waitlistsSettled || result.walkovers) {
     c.get('log').info('varredura do cron', { ...result });
     revalidateTournaments(c);
   }
@@ -84,14 +86,22 @@ jobs.post('/jobs/tournaments/registration', requireQStash, async (c) => {
 
 /**
  * Fechamento do check-in de uma partida (#83/#84). Mensagem de um horário antigo (a partida foi reagendada) não faz
- * nada: é assim que reagendar "cancela" a mensagem anterior. O W.O. automático entra com a #84.
+ * nada: é assim que reagendar "cancela" a mensagem anterior. Na hora certa, aplica o W.O. de quem não fez check-in
+ * (idempotente: entregue duas vezes, aplica uma). Se a mensagem não chegar, a varredura do Cron aplica.
  */
 jobs.post('/jobs/matches/check-in', requireQStash, async (c) => {
   const parsed = MatchJob.safeParse(c.get('jobBody'));
   if (!parsed.success) throw badRequest('Corpo do job inválido.', 'INVALID_BODY');
   const match = await c.get('deps').db().match.findUnique({ where: { id: parsed.data.matchId }, select: { scheduledAt: true } });
   const stale = !match || !isCurrentSchedule(match, parsed.data);
-  return c.json({ ok: true, stale });
+  if (stale) return c.json({ ok: true, stale, outcome: null });
+  const { db, now } = c.get('deps');
+  const result = await runJob(c, 'jobs/matches/check-in', 'qstash', () => applyDueWalkover(db(), parsed.data.matchId, now()));
+  if (result.outcome === 'APPLIED') {
+    c.get('log').info('W.O. automático aplicado', { matchId: parsed.data.matchId });
+    revalidateTournaments(c);
+  }
+  return c.json({ ok: true, stale, outcome: result.outcome });
 });
 
 /** O QStash esgotou as tentativas de uma mensagem: a falha passa a ser definitiva e aparece para o Admin. */

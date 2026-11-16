@@ -6,11 +6,14 @@ import type { Prisma, PrismaClient } from '@nova/db';
 import { computePoints, getMatchStatus, isStageComplete, type MatchNode, type ResultEntry, type Rule } from '@nova/engine';
 import type { Bracket, Match, MatchParticipant, MatchStatus } from '@nova/schemas';
 import { checkInOf, toStage } from '../modules/tournaments/views';
+import { isComplete, loadRoster } from './check-in';
 import { isLocked, readRun, type StageRun } from './run';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 type StageRow = Prisma.StageGetPayload<{ include: { tournament: true; scoringModel: { select: { rules: true; matchType: true } } } }>;
-type MatchRow = { id: string; nodeId: string; scheduledAt: Date | null; lobbyCodeEnc: string | null; evidenceUrls: string[]; status: MatchStatus; updatedAt: Date };
+type MatchRow = { id: string; nodeId: string; scheduledAt: Date | null; lobbyCodeEnc: string | null; evidenceUrls: string[]; status: MatchStatus; updatedAt: Date; checkIns: { registrationId: string; userId: string }[] };
+/** Colunas da partida que a tela usa (com os check-ins feitos). */
+const matchRowSelect = { id: true, nodeId: true, scheduledAt: true, lobbyCodeEnc: true, evidenceUrls: true, status: true, updatedAt: true, checkIns: { select: { registrationId: true, userId: true } } } as const;
 interface Named {
   name: string;
   tag: string | null;
@@ -65,7 +68,7 @@ function sourceLabel(run: StageRun, source: { matchId: string; outcome: 'winner'
 /** Vagas de bye (duelo de uma vaga só no suíço) não são partidas para a tela. */
 const visibleNodes = (run: StageRun) => run.structure.matches.filter((m) => !(m.kind === 'DUEL' && m.slots.length === 1));
 
-export function buildMatches(stage: StageRow, run: StageRun, rows: Map<string, MatchRow>, names: Map<string, Named>, groupIds: Map<string, string>): Match[] {
+export function buildMatches(stage: StageRow, run: StageRun, rows: Map<string, MatchRow>, names: Map<string, Named>, groupIds: Map<string, string>, roster: Map<string, string[]> = new Map()): Match[] {
   const rules = (stage.scoringModel.rules ?? []) as Rule[];
   const seeds = new Map(run.structure.entrants.map((e) => [e.id, e.seed ?? null]));
   const now = Date.now();
@@ -94,9 +97,8 @@ export function buildMatches(stage: StageRow, run: StageRun, rows: Map<string, M
         absent: entry?.absent ?? false,
         points: entry && result && !result.voided ? entryPoints(entry, node, result, rules, dropCount) : null,
         isWinner: result ? (node.kind === 'LOBBY' ? entry?.placement === 1 : result.winnerId === slot.entrantId) : null,
-        // Check-in entra com a #84.
-        checkedIn: false,
-        checkedInUserIds: [],
+        checkedIn: slot.entrantId ? isComplete(roster.get(slot.entrantId), row?.checkIns ?? [], slot.entrantId) : false,
+        checkedInUserIds: slot.entrantId ? (row?.checkIns ?? []).filter((c) => c.registrationId === slot.entrantId).map((c) => c.userId) : [],
         stats,
         playerKills: {},
         status: slot.entrantId ? (run.state.entrantStatus[slot.entrantId] ?? 'ACTIVE') : 'ACTIVE',
@@ -143,9 +145,10 @@ export async function buildBracket(db: Db, stage: StageRow, opts: { includePrevi
   if (!run || (!run.confirmed && !opts.includePreview)) {
     return { stageId: stage.id, tournamentId: stage.tournamentId, format, state: 'NONE', seeding: null, seedUsed: null, locked: false, rounds: 0, groups: [], entrants: [], matches: [], complete: false };
   }
-  const [names, matchRows, groupRows] = await Promise.all([
+  const [names, roster, matchRows, groupRows] = await Promise.all([
     namesFor(db, stage.tournamentId),
-    db.match.findMany({ where: { stageId: stage.id }, select: { id: true, nodeId: true, scheduledAt: true, lobbyCodeEnc: true, evidenceUrls: true, status: true, updatedAt: true } }),
+    loadRoster(db, stage.tournament),
+    db.match.findMany({ where: { stageId: stage.id }, select: matchRowSelect }),
     db.group.findMany({ where: { stageId: stage.id }, orderBy: { order: 'asc' }, select: { id: true } }),
   ]);
   const rows = new Map(matchRows.map((m) => [m.nodeId, m]));
@@ -162,7 +165,7 @@ export async function buildBracket(db: Db, stage: StageRow, opts: { includePrevi
     rounds: run.structure.rounds,
     groups: run.structure.groups.map((g) => ({ id: groupIds.get(g.id) ?? g.id, name: g.name, registrationIds: g.entrantIds })),
     entrants: run.structure.entrants.map((e, i) => ({ registrationId: e.id, name: names.get(e.id)?.name ?? e.name ?? 'Inscrito', tag: names.get(e.id)?.tag ?? null, seed: e.seed ?? i + 1 })),
-    matches: buildMatches(stage, run, rows, names, groupIds),
+    matches: buildMatches(stage, run, rows, names, groupIds, roster),
     complete: run.confirmed && isStageComplete(run.structure, run.state),
   };
 }
@@ -173,17 +176,17 @@ const stageInclude = { tournament: true, scoringModel: { select: { rules: true, 
 export async function listMatches(db: Db, tournamentId: string, stageId?: string | null): Promise<Match[]> {
   const stages = await db.stage.findMany({ where: { tournamentId, confirmedAt: { not: null }, ...(stageId ? { id: stageId } : {}) }, include: stageInclude, orderBy: { order: 'asc' } });
   if (stages.length === 0) return [];
-  const names = await namesFor(db, tournamentId);
+  const [names, roster] = await Promise.all([namesFor(db, tournamentId), loadRoster(db, stages[0]?.tournament ?? { id: tournamentId, checkInConfig: null })]);
   const out: Match[] = [];
   for (const stage of stages) {
     const run = readRun(stage);
     if (!run) continue;
     const [matchRows, groupRows] = await Promise.all([
-      db.match.findMany({ where: { stageId: stage.id }, select: { id: true, nodeId: true, scheduledAt: true, lobbyCodeEnc: true, evidenceUrls: true, status: true, updatedAt: true } }),
+      db.match.findMany({ where: { stageId: stage.id }, select: matchRowSelect }),
       db.group.findMany({ where: { stageId: stage.id }, orderBy: { order: 'asc' }, select: { id: true } }),
     ]);
     const groupIds = new Map(run.structure.groups.map((g, i) => [g.id, groupRows[i]?.id ?? g.id]));
-    out.push(...buildMatches(stage, run, new Map(matchRows.map((m) => [m.nodeId, m])), names, groupIds));
+    out.push(...buildMatches(stage, run, new Map(matchRows.map((m) => [m.nodeId, m])), names, groupIds, roster));
   }
   return out;
 }
