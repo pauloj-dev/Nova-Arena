@@ -6,9 +6,12 @@
  *   moderador. Reagendar zera os check-ins e recria as mensagens do QStash (a antiga se descarta sozinha).
  * - Código e senha da sala **cifrados** (AES-256-GCM). `GET /matches/:id/lobby` só para quem está na partida (e perto
  *   do horário) ou para a organização. O código **nunca** vai para auditoria, log nem evento: só "sala definida".
+ * - Check-in (#84): `POST /matches/:id/check-in` dentro da janela; no squad, o capitão ou todos os titulares.
+ * - `POST /matches/:id/start` (organização e moderador) marca "ao vivo" ou devolve para "agendada" (RN-08).
+ * - `POST /matches/:id/walkover`: W.O. manual com motivo. O automático vem do QStash/Cron (`competition/walkover`).
  */
 import { audited, withAudit } from '@nova/db';
-import { Match, MatchLobby, ScheduleMatchInput, ScheduleRoundInput, ACTIVE_REGISTRATION_STATUSES } from '@nova/schemas';
+import { Match, MatchLobby, ScheduleMatchInput, ScheduleRoundInput, WalkoverInput, ACTIVE_REGISTRATION_STATUSES } from '@nova/schemas';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { body, respond, type AppContext, type AppEnv } from '../../context';
@@ -16,7 +19,10 @@ import { badRequest, forbidden, HttpProblem, notFound } from '../../errors';
 import { assertTournamentAccess, currentRoles, tournamentAccessDecision } from '../../auth/rbac';
 import { currentSession, requireSession } from '../../auth/session';
 import { checkInWindow, findMatch, listMatches, matchView } from '../../competition/bracket';
+import { requiredUsers, rosterSelect } from '../../competition/check-in';
 import { decryptLobby, encryptLobby } from '../../competition/lobby-crypto';
+import { applyManualWalkover } from '../../competition/walkover';
+import { checkInOf } from '../tournaments/views';
 import { scheduleMatchJobs } from '../../jobs/matches';
 import { revalidateTournaments } from '../../revalidate';
 import { clientIp } from '../../security';
@@ -169,4 +175,70 @@ matches.get('/matches/:id/lobby', async (c) => {
   // Resposta pessoal: sem cache compartilhado.
   c.header('Cache-Control', 'private, no-store');
   return respond(c, MatchLobby, { code: secret.code, password: secret.password, revealedAt: now.toISOString() });
+});
+
+/** Check-in da partida, dentro da janela. Repetir não duplica. */
+matches.post('/matches/:id/check-in', async (c) => {
+  const session = await requireSession(c);
+  const db = c.get('deps').db();
+  const found = await findMatch(db, c.req.param('id'));
+  if (!found) throw notFound('Partida');
+  const { row, stage, run, node } = found;
+  const regId = await myRegistration(c, stage.tournamentId, session.userId);
+  if (!regId || !node.slots.some((s) => s.entrantId === regId)) throw forbidden('Você não está nesta partida.');
+  if (run.state.results[node.id]) throw new HttpProblem(409, 'Esta partida já foi concluída.', 'MATCH_FINISHED');
+  const window = checkInWindow(stage.tournament, row.scheduledAt);
+  const now = c.get('deps').now().getTime();
+  if (!window) throw new HttpProblem(409, 'Esta partida não tem check-in.', 'CHECKIN_DISABLED');
+  if (now < Date.parse(window.opensAt)) throw new HttpProblem(409, 'O check-in ainda não abriu.', 'CHECKIN_NOT_OPEN');
+  if (now >= Date.parse(window.closesAt)) throw new HttpProblem(409, 'A janela de check-in já fechou.', 'CHECKIN_CLOSED');
+  const reg = await db.registration.findUniqueOrThrow({ where: { id: regId }, select: rosterSelect });
+  if (!requiredUsers(reg, stage.tournament.checkInConfig).includes(session.userId)) {
+    throw forbidden(checkInOf(stage.tournament.checkInConfig).requireAllMembers ? 'Só titulares confirmados fazem check-in.' : 'Neste campeonato, quem faz o check-in do squad é o capitão.');
+  }
+  await db.checkIn.upsert({
+    where: { matchId_registrationId_userId: { matchId: row.id, registrationId: regId, userId: session.userId } },
+    create: { matchId: row.id, registrationId: regId, userId: session.userId },
+    update: {},
+  });
+  return respond(c, Match, (await matchView(db, row.id)) as Match);
+});
+
+/** A organização inicia a partida ("ao vivo") ou devolve para agendada (RN-08). Moderador também pode. */
+matches.post('/matches/:id/start', async (c) => {
+  const db = c.get('deps').db();
+  const found = await findMatch(db, c.req.param('id'));
+  if (!found) throw notFound('Partida');
+  const { row, stage, run, node } = found;
+  await assertTournamentAccess(c, stage.tournamentId, 'moderate');
+  // Corpo opcional: sem corpo = iniciar.
+  const text = await c.req.text();
+  let raw: unknown;
+  try {
+    raw = text.trim() ? JSON.parse(text) : {};
+  } catch {
+    throw badRequest('Corpo da requisição inválido.', 'INVALID_BODY');
+  }
+  const parsed = z.object({ live: z.boolean().default(true) }).safeParse(raw);
+  if (!parsed.success) throw badRequest('Corpo da requisição inválido.', 'INVALID_BODY');
+  const input = parsed.data;
+  if (run.state.results[node.id]) throw new HttpProblem(409, 'Esta partida já foi concluída.', 'MATCH_FINISHED');
+  if (node.slots.some((s) => s.entrantId === null)) throw new HttpProblem(409, 'A partida ainda espera o resultado de partidas anteriores.', 'MATCH_NOT_READY');
+  await db.match.update({ where: { id: row.id }, data: { status: input.live ? 'LIVE' : 'SCHEDULED' } });
+  revalidateTournaments(c);
+  return respond(c, Match, (await matchView(db, row.id)) as Match);
+});
+
+/** W.O. manual (organização ou moderador), com motivo na auditoria. O vencedor avança na chave. */
+matches.post('/matches/:id/walkover', async (c) => {
+  const db = c.get('deps').db();
+  const found = await findMatch(db, c.req.param('id'));
+  if (!found) throw notFound('Partida');
+  const { row, stage, node } = found;
+  await assertTournamentAccess(c, stage.tournamentId, 'moderate');
+  const input = await body(c, WalkoverInput);
+  if (!node.slots.some((s) => s.entrantId === input.winnerRegistrationId)) throw badRequest('O vencedor precisa ser um dos participantes da partida.', 'NOT_IN_MATCH');
+  await applyManualWalkover(db, { ...(await auditCtx(c)), reason: input.reason }, row.id, stage.id, input.winnerRegistrationId);
+  revalidateTournaments(c);
+  return respond(c, Match, (await matchView(db, row.id)) as Match);
 });
