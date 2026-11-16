@@ -17,6 +17,8 @@ const url = process.env.TEST_DATABASE_URL;
 const env = envFrom({ NODE_ENV: 'test', AUTH_JWT_SECRET: 'segredo-de-teste-com-mais-de-32-caracteres!!', DATABASE_URL: url, LOBBY_ENCRYPTION_KEY: randomBytes(32).toString('base64') });
 const CODE = 'SALA-SECRETA-777';
 const PASSWORD = 'senha-da-sala-123';
+/** O id do log de auditoria é BigInt: o JSON padrão não sabe serializar. */
+const stringifyAudit = (rows: unknown) => JSON.stringify(rows, (_k, v: unknown) => (typeof v === 'bigint' ? v.toString() : v));
 
 describe.skipIf(!url)('agenda e sala (Postgres)', () => {
   let db: PrismaClient;
@@ -101,8 +103,8 @@ describe.skipIf(!url)('agenda e sala (Postgres)', () => {
     expect(row.lobbyCodeEnc).not.toContain(CODE);
     const audit = await db.auditLog.findMany({ where: { entityId: matchId } });
     expect(audit.map((l) => l.action)).toContain('MATCH_SCHEDULED');
-    expect(JSON.stringify(audit)).not.toContain(CODE);
-    expect(JSON.stringify(audit)).toContain('definida');
+    expect(stringifyAudit(audit)).not.toContain(CODE);
+    expect(stringifyAudit(audit)).toContain('definida');
     expect(JSON.stringify(logs)).not.toContain(CODE);
     expect(JSON.stringify(logs)).not.toContain(PASSWORD);
     // Mensagem do QStash para o fechamento do check-in (10 min antes).
