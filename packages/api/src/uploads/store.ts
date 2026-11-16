@@ -6,7 +6,7 @@
  * (`BLOB_PRIVATE_READ_WRITE_TOKEN`, ou a mesma com acesso privado: provas e denúncias).
  */
 import { isPrivateUpload, type UploadPurpose } from '@nova/schemas';
-import { get, head } from '@vercel/blob';
+import { del, get, head } from '@vercel/blob';
 import { handleUpload, type HandleUploadBody, type HandleUploadOptions } from '@vercel/blob/client';
 import type { Env } from '../env';
 import { HttpProblem } from '../errors';
@@ -25,6 +25,8 @@ export interface BlobStore {
   head(url: string, token: string): Promise<StoredBlob | null>;
   /** Conteúdo de um arquivo privado. */
   read(url: string, token: string): Promise<{ stream: ReadableStream<Uint8Array>; contentType: string; size: number } | null>;
+  /** Apaga o arquivo (limpeza de órfãos, #99). Arquivo que já não existe conta como apagado. */
+  remove(url: string, token: string): Promise<void>;
 }
 
 export const vercelBlobStore: BlobStore = {
@@ -41,6 +43,9 @@ export const vercelBlobStore: BlobStore = {
     const result = await get(url, { access: 'private', token, useCache: false });
     if (!result || result.statusCode !== 200) return null;
     return { stream: result.stream, contentType: result.blob.contentType, size: result.blob.size };
+  },
+  async remove(url, token) {
+    await del(url, { token });
   },
 };
 

@@ -284,6 +284,12 @@ export const SystemHealth = z.object({
 });
 export type SystemHealth = z.infer<typeof SystemHealth>;
 
+/** Falha definitiva de um job (issue #99), mostrada na Saúde do Sistema. */
+export const JobFailure = z.object({ id: Id, job: z.string(), source: z.enum(['qstash', 'cron']), error: z.string(), createdAt: IsoDateTime, resolvedAt: IsoDateTime.nullable() });
+export type JobFailure = z.infer<typeof JobFailure>;
+export const JobFailureList = z.object({ open: z.number().int(), items: z.array(JobFailure) });
+export type JobFailureList = z.infer<typeof JobFailureList>;
+
 /**
  * `GET /health` (público, sem dados sensíveis): estado de cada dependência da API real.
  * `not_configured` = a variável do serviço ainda não existe naquele ambiente.
