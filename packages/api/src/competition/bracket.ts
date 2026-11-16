@@ -166,3 +166,40 @@ export async function buildBracket(db: Db, stage: StageRow, opts: { includePrevi
     complete: run.confirmed && isStageComplete(run.structure, run.state),
   };
 }
+
+const stageInclude = { tournament: true, scoringModel: { select: { rules: true, matchType: true } } } as const;
+
+/** Partidas das fases com chave confirmada (todas, ou só de uma fase). */
+export async function listMatches(db: Db, tournamentId: string, stageId?: string | null): Promise<Match[]> {
+  const stages = await db.stage.findMany({ where: { tournamentId, confirmedAt: { not: null }, ...(stageId ? { id: stageId } : {}) }, include: stageInclude, orderBy: { order: 'asc' } });
+  if (stages.length === 0) return [];
+  const names = await namesFor(db, tournamentId);
+  const out: Match[] = [];
+  for (const stage of stages) {
+    const run = readRun(stage);
+    if (!run) continue;
+    const [matchRows, groupRows] = await Promise.all([
+      db.match.findMany({ where: { stageId: stage.id }, select: { id: true, nodeId: true, scheduledAt: true, lobbyCodeEnc: true, evidenceUrls: true, status: true, updatedAt: true } }),
+      db.group.findMany({ where: { stageId: stage.id }, orderBy: { order: 'asc' }, select: { id: true } }),
+    ]);
+    const groupIds = new Map(run.structure.groups.map((g, i) => [g.id, groupRows[i]?.id ?? g.id]));
+    out.push(...buildMatches(stage, run, new Map(matchRows.map((m) => [m.nodeId, m])), names, groupIds));
+  }
+  return out;
+}
+
+/** Uma partida (pelo `id` da tabela) com a fase, o retrato e o nó do motor. Partida de chave não confirmada = 404. */
+export async function findMatch(db: Db, matchId: string) {
+  const row = /^[0-9a-f-]{36}$/i.test(matchId) ? await db.match.findUnique({ where: { id: matchId }, include: { stage: { include: stageInclude } } }) : null;
+  const run = row ? readRun(row.stage) : null;
+  const node = run?.structure.matches.find((m) => m.id === row?.nodeId);
+  if (!row || !run || !run.confirmed || !node) return null;
+  return { row, stage: row.stage, run, node };
+}
+
+export async function matchView(db: Db, matchId: string): Promise<Match | null> {
+  const found = await findMatch(db, matchId);
+  if (!found) return null;
+  const all = await listMatches(db, found.stage.tournamentId, found.stage.id);
+  return all.find((m) => m.id === matchId) ?? null;
+}
