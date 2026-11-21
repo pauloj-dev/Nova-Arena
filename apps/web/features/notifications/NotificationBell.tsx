@@ -9,6 +9,7 @@ import { errorMessage } from '@/shared/api/client';
 import { useMarkAllNotificationsRead, useRecentNotifications, useUnreadCount } from '@/shared/api/hooks/notifications';
 import { useSession } from '@/shared/session/useSession';
 import { NotificationItem } from './NotificationItem';
+import { PushPrompt } from './push/PushPrompt';
 import { useOpenNotification } from './useOpenNotification';
 
 const PANEL_SIZE = 6;
@@ -58,6 +59,7 @@ export function NotificationBell() {
           {open && <BellPanel unreadCount={count} onClose={() => setOpen(false)} />}
         </Popover.Content>
       </Popover.Portal>
+      {user && <PushPrompt />}
     </Popover.Root>
   );
 }

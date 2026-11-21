@@ -39,6 +39,13 @@ export const EnvSchema = z
     ABLY_API_KEY: optionalSecret,
     AUTH_JWT_SECRET: z.string().min(32, 'Use pelo menos 32 caracteres aleatórios.').optional(),
     LOBBY_ENCRYPTION_KEY: optionalSecret,
+    /** Segredo TOTP do 2FA cifrado com AES-256-GCM (32 bytes em base64), issue #95. */
+    TWO_FACTOR_ENCRYPTION_KEY: optionalSecret,
+    /** Web Push (issue #109): par de chaves VAPID (`npx web-push generate-vapid-keys`) e o contato do remetente. */
+    VAPID_PUBLIC_KEY: optionalSecret,
+    VAPID_PRIVATE_KEY: optionalSecret,
+    /** `mailto:` ou URL de contato exigido pelos serviços de push (ex.: `mailto:suporte@novaarena.gg`). */
+    VAPID_SUBJECT: z.string().regex(/^(mailto:|https:\/\/)/, 'Use mailto: ou https://').optional(),
     GOOGLE_CLIENT_ID: optionalSecret,
     GOOGLE_CLIENT_SECRET: optionalSecret,
     DISCORD_CLIENT_ID: optionalSecret,

@@ -91,6 +91,12 @@ export const LoginInput = z.object({
   password: z.string().min(1, 'Informe a senha'),
 });
 export type LoginInput = z.infer<typeof LoginInput>;
+/**
+ * `POST /auth/login`: a conta (`Me`) ou, para quem tem 2FA ativo, `{ twoFactorRequired: true }` — o código vai
+ * em `POST /auth/2fa/verify` (issue #95).
+ */
+export const LoginResult = z.union([z.object({ twoFactorRequired: z.literal(true) }), Me]);
+export type LoginResult = z.infer<typeof LoginResult>;
 
 export const VerifyEmailInput = z.object({ token: z.string().min(1) });
 export const ForgotPasswordInput = z.object({ email: z.email('Informe um e-mail válido') });

@@ -66,4 +66,26 @@ export const messages = {
     action: 'Não fui eu',
     expires: 'Se não foi você, redefina a senha agora pelo botão.',
   },
+  /** Avisos (notificações por e-mail, issue #98): o título e o texto vêm da notificação; aqui, o que muda por tipo. */
+  NOTIFICATION: {
+    greeting: (nickname: string) => `Oi, ${nickname}!`,
+    preferences: 'Para parar de receber este tipo de aviso por e-mail, ajuste suas preferências:',
+    preferencesLink: 'Preferências de notificação',
+    sanctionNote: 'Avisos da moderação são sempre enviados.',
+    types: {
+      REGISTRATION_CONFIRMED: { kicker: 'Inscrição', action: 'Ver campeonato' },
+      TEAM_INVITE: { kicker: 'Squad', action: 'Ver convite' },
+      CHECKIN_OPEN: { kicker: 'Check-in aberto', action: 'Fazer check-in' },
+      MATCH_SOON: { kicker: 'Partida em breve', action: 'Ver partida' },
+      RESULT_POSTED: { kicker: 'Resultado', action: 'Ver resultado' },
+      QUALIFIED: { kicker: 'Classificação', action: 'Ver chave' },
+      ELIMINATED: { kicker: 'Fim de campanha', action: 'Ver classificação' },
+      ANNOUNCEMENT: { kicker: 'Comunicado', action: 'Ler comunicado' },
+      ORGANIZER_REQUEST_RESULT: { kicker: 'Pedido de organizador', action: 'Ver resposta' },
+      DISPUTE_UPDATE: { kicker: 'Disputa', action: 'Ver disputa' },
+      SANCTION: { kicker: 'Aviso da moderação', action: 'Ver detalhes' },
+    } as Record<string, { kicker: string; action: string }>,
+    fallback: { kicker: 'Aviso', action: 'Abrir a Nova Arena' },
+    subject: (kicker: string, title: string) => `${kicker}: ${title}`,
+  },
 } as const;

@@ -32,11 +32,15 @@ export async function readAccessClaims(secret: string, token: string, now: Date 
   }
 }
 
-/** Para onde a borda manda quem abre uma área protegida. `null` = deixa passar (a página e a API decidem o resto). */
-export function edgeRedirect(pathname: string, claims: EdgeClaims | null): 'login' | 'forbidden' | null {
+/**
+ * Para onde a borda manda quem abre uma área protegida. `null` = deixa passar (a página e a API decidem o resto).
+ * `two-factor`: Admin sem a verificação em duas etapas feita nesta sessão (RNF-08, issue #95) → página Segurança.
+ */
+export function edgeRedirect(pathname: string, claims: EdgeClaims | null): 'login' | 'forbidden' | 'two-factor' | null {
   const area = pathname === '/admin' || pathname.startsWith('/admin/') ? 'admin' : pathname === '/organizador' || pathname.startsWith('/organizador/') ? 'organizer' : null;
   if (!area) return null;
   if (!claims) return 'login';
   const allowed: EdgeRole[] = area === 'admin' ? ['SUPER_ADMIN', 'ADMIN'] : ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'];
-  return claims.roles.some((r) => allowed.includes(r)) ? null : 'forbidden';
+  if (!claims.roles.some((r) => allowed.includes(r))) return 'forbidden';
+  return area === 'admin' && !claims.tfa ? 'two-factor' : null;
 }

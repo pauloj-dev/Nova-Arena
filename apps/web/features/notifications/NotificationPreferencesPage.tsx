@@ -6,13 +6,15 @@ import { Lock } from 'lucide-react';
 import { Switch } from 'radix-ui';
 import { useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
+import { isModuleMocked } from '@/shared/api/mode';
 import { useNotificationPreferences, useSaveNotificationPreferences } from '@/shared/api/hooks/notifications';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 
-type Channel = 'inApp' | 'email';
+type Channel = 'inApp' | 'email' | 'push';
 const CHANNELS: { key: Channel; label: string; aria: string }[] = [
   { key: 'inApp', label: 'No site', aria: 'no site' },
   { key: 'email', label: 'E-mail', aria: 'por e-mail' },
+  { key: 'push', label: 'Celular', aria: 'no celular (push)' },
 ];
 
 /** Avisos da moderação não podem ser desligados (a API também recusa). */
@@ -34,7 +36,7 @@ function Toggle({ checked, disabled, label, onChange }: { checked: boolean; disa
   );
 }
 
-/** `/minha-conta/notificacoes`: preferências por tipo, com os canais "No site" e "E-mail". */
+/** `/minha-conta/notificacoes`: preferências por tipo, com os canais "No site", "E-mail" e (com a API real) "Celular". */
 export function NotificationPreferencesPage() {
   const preferences = useNotificationPreferences();
   return (
@@ -60,7 +62,9 @@ function PreferencesForm({ saved }: { saved: NotificationPreference[] }) {
   // Rascunho local: só as linhas que a pessoa mexeu. O que não mudou continua vindo do servidor.
   const [draft, setDraft] = useState<Partial<Record<NotificationType, NotificationPreference>>>({});
   const rows = saved.map((p) => draft[p.type] ?? p);
-  const changed = rows.filter((row, i) => row.inApp !== saved[i]?.inApp || row.email !== saved[i]?.email);
+  const changed = rows.filter((row, i) => row.inApp !== saved[i]?.inApp || row.email !== saved[i]?.email || row.push !== saved[i]?.push);
+  // A coluna do push (issue #109) só aparece quando a API a oferece (a simulada não tem push).
+  const channels = CHANNELS.filter((c) => c.key !== 'push' || saved.some((p) => p.push !== undefined));
 
   function set(row: NotificationPreference, channel: Channel, value: boolean) {
     setDraft((d) => ({ ...d, [row.type]: { ...row, [channel]: value } }));
@@ -86,7 +90,7 @@ function PreferencesForm({ saved }: { saved: NotificationPreference[] }) {
               <th scope="col" className="px-3 py-2 md:px-6">
                 Aviso
               </th>
-              {CHANNELS.map((c) => (
+              {channels.map((c) => (
                 <th key={c.key} scope="col" className="w-16 px-1 py-2 text-center md:w-24">
                   {c.label}
                 </th>
@@ -106,9 +110,9 @@ function PreferencesForm({ saved }: { saved: NotificationPreference[] }) {
                     </span>
                     <span className="mt-0.5 block text-xs text-muted">{meta.description}</span>
                   </th>
-                  {CHANNELS.map((c) => (
+                  {channels.map((c) => (
                     <td key={c.key} className="px-1 py-1 align-middle">
-                      <Toggle checked={locked ? true : row[c.key]} disabled={locked || save.isPending} label={`${meta.label}: ${c.aria}`} onChange={(v) => set(row, c.key, v)} />
+                      <Toggle checked={locked ? true : (row[c.key] ?? true)} disabled={locked || save.isPending} label={`${meta.label}: ${c.aria}`} onChange={(v) => set(row, c.key, v)} />
                     </td>
                   ))}
                 </tr>
@@ -118,7 +122,11 @@ function PreferencesForm({ saved }: { saved: NotificationPreference[] }) {
         </table>
       </Card>
 
-      <p className="text-xs text-muted">No protótipo os e-mails não são enviados de verdade: a preferência fica gravada e passa a valer quando o envio de e-mail entrar no ar.</p>
+      {isModuleMocked('notifications') ? (
+        <p className="text-xs text-muted">No protótipo os e-mails não são enviados de verdade: a preferência fica gravada e passa a valer quando o envio de e-mail entrar no ar.</p>
+      ) : (
+        channels.some((c) => c.key === 'push') && <p className="text-xs text-muted">Os avisos no celular chegam nos aparelhos em que você ativou as notificações. No iPhone, só com a Nova Arena instalada na tela de início.</p>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={submit} disabled={changed.length === 0} loading={save.isPending}>

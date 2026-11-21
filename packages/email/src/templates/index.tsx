@@ -1,4 +1,4 @@
-import { Text } from '@react-email/components';
+import { Link, Text } from '@react-email/components';
 import { messages as m } from '../messages.pt-BR';
 import { Layout } from './Layout';
 
@@ -62,6 +62,41 @@ export function PasswordChanged({ nickname, link }: { nickname: string; link: st
   return (
     <Layout preview={t.preview} heading={t.heading(nickname)} action={{ label: t.action, href: link }} note={t.expires}>
       <Text style={{ margin: 0 }}>{t.body}</Text>
+    </Layout>
+  );
+}
+
+export interface NotificationEmailProps {
+  /** Tipo da notificação (`NotificationType` de `@nova/schemas`). */
+  type: string;
+  nickname: string;
+  title: string;
+  body: string;
+  /** Endereço completo do que a notificação abre. */
+  link: string;
+  /** Endereço completo das preferências de notificação. */
+  preferencesLink: string;
+}
+
+/** Um aviso da plataforma por e-mail: o mesmo título e texto do sino, com o botão do que fazer a seguir. */
+export function NotificationEmail({ type, nickname, title, body, link, preferencesLink }: NotificationEmailProps) {
+  const t = m.NOTIFICATION;
+  const kind = t.types[type] ?? t.fallback;
+  return (
+    <Layout
+      preview={body}
+      heading={title}
+      action={{ label: kind.action, href: link }}
+      note={type === 'SANCTION' ? t.sanctionNote : undefined}
+      footerNote={
+        <>
+          {t.preferences} <Link href={preferencesLink}>{t.preferencesLink}</Link>
+        </>
+      }
+    >
+      <Text style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{kind.kicker}</Text>
+      <Text style={{ margin: '0 0 8px' }}>{t.greeting(nickname)}</Text>
+      <Text style={{ margin: 0 }}>{body}</Text>
     </Layout>
   );
 }

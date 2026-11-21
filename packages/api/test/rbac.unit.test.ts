@@ -72,7 +72,7 @@ describe('inscrição (nota ³ da matriz)', () => {
 describe('borda (proxy.ts)', () => {
   const env = envFrom({ AUTH_JWT_SECRET: SECRET });
   const now = new Date('2026-11-14T12:00:00Z');
-  const token = (roles: ('SUPER_ADMIN' | 'ADMIN' | 'ORGANIZER' | 'PARTICIPANT')[]) => signAccessToken(env, { sub: 'u', sid: 's', sv: 0, tfa: false, roles }, now);
+  const token = (roles: ('SUPER_ADMIN' | 'ADMIN' | 'ORGANIZER' | 'PARTICIPANT')[], tfa = false) => signAccessToken(env, { sub: 'u', sid: 's', sv: 0, tfa, roles }, now);
 
   it('lê os papéis do token; token vencido, de outro segredo ou adulterado = sem sessão', async () => {
     const t = await token(['ORGANIZER', 'PARTICIPANT']);
@@ -83,11 +83,14 @@ describe('borda (proxy.ts)', () => {
   });
 
   it('redireciona por área: visitante → login; papel errado → início; papel certo passa', async () => {
-    const claims = async (roles: Parameters<typeof token>[0]) => readAccessClaims(SECRET, await token(roles), now);
+    const claims = async (roles: Parameters<typeof token>[0], tfa = false) => readAccessClaims(SECRET, await token(roles, tfa), now);
     expect(edgeRedirect('/admin', null)).toBe('login');
     expect(edgeRedirect('/organizador/campeonatos', null)).toBe('login');
     expect(edgeRedirect('/admin/usuarios', await claims(['ORGANIZER', 'PARTICIPANT']))).toBe('forbidden');
-    expect(edgeRedirect('/admin', await claims(['ADMIN', 'PARTICIPANT']))).toBeNull();
+    expect(edgeRedirect('/admin', await claims(['ADMIN', 'PARTICIPANT'], true))).toBeNull();
+    // Admin sem o 2FA feito nesta sessão (issue #95) vai para a página Segurança.
+    expect(edgeRedirect('/admin/usuarios', await claims(['ADMIN', 'PARTICIPANT']))).toBe('two-factor');
+    expect(edgeRedirect('/organizador', await claims(['ADMIN']))).toBeNull();
     expect(edgeRedirect('/organizador', await claims(['PARTICIPANT']))).toBe('forbidden');
     expect(edgeRedirect('/organizador', await claims(['ORGANIZER', 'PARTICIPANT']))).toBeNull();
     expect(edgeRedirect('/organizador', await claims(['SUPER_ADMIN']))).toBeNull();

@@ -9,12 +9,14 @@ export interface LayoutProps {
   children: ReactNode;
   action: { label: string; href: string };
   note?: string;
+  /** Troca o "se não foi você" do rodapé (ex.: avisos, que dizem como parar de recebê-los). */
+  footerNote?: ReactNode;
 }
 
 const font = "'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 /** Moldura comum: marca, título, texto, botão (com o link em texto por baixo) e rodapé. */
-export function Layout({ preview, heading, children, action, note }: LayoutProps) {
+export function Layout({ preview, heading, children, action, note, footerNote }: LayoutProps) {
   return (
     <Html lang="pt-BR">
       <Head />
@@ -43,7 +45,7 @@ export function Layout({ preview, heading, children, action, note }: LayoutProps
           </Text>
           <Hr style={{ borderColor: c.border, margin: '24px 0 16px' }} />
           <Text style={{ fontSize: 12, lineHeight: '18px', color: c.muted, margin: 0 }}>
-            {messages.common.ignore}
+            {footerNote ?? messages.common.ignore}
             <br />
             {messages.common.footer}
           </Text>

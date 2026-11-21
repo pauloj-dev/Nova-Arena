@@ -20,6 +20,11 @@ export function setSessionCookies(c: AppContext, accessToken: string, refreshTok
   setCookie(c, REFRESH_COOKIE, refreshToken, { httpOnly: true, secure: secure(c), sameSite: 'Lax', path: REFRESH_PATH, maxAge: REFRESH_TTL_SECONDS });
 }
 
+/** Troca só o token de acesso (ex.: o 2FA acabou de ser feito); o refresh token continua o mesmo. */
+export function setAccessCookie(c: AppContext, accessToken: string): void {
+  setCookie(c, ACCESS_COOKIE, accessToken, { httpOnly: true, secure: secure(c), sameSite: 'Lax', path: '/', maxAge: ACCESS_TTL_SECONDS });
+}
+
 export function clearSessionCookies(c: AppContext): void {
   deleteCookie(c, ACCESS_COOKIE, { path: '/', secure: secure(c) });
   deleteCookie(c, REFRESH_COOKIE, { path: REFRESH_PATH, secure: secure(c) });

@@ -18,6 +18,7 @@ import type { TournamentAccess } from './auth/rbac';
 import type { Mailer } from './mail';
 import type { RateLimiter } from './security';
 import type { Realtime } from './realtime';
+import type { PushSender } from './modules/push/sender';
 
 /** Verificação de uma dependência (banco, Redis, QStash): devolve ok ou lança com o motivo. */
 export type DependencyCheck = (env: Env) => Promise<'ok' | 'not_configured'>;
@@ -46,6 +47,8 @@ export interface Dependencies {
   queue: (env: Env, log: Logger) => Queue;
   /** Tempo real (padrão: Ably pela API REST; sem chave, só log). Publique depois do commit (`publish` de `notify.ts`). */
   realtime: (env: Env, log: Logger) => Realtime;
+  /** Web Push no PWA (padrão: `web-push` com as chaves VAPID; sem elas, só log). Issue #109. */
+  push: (env: Env, log: Logger) => PushSender;
   /** Avisa as páginas públicas em cache (ISR) que os dados mudaram. Padrão: nada (fora do Next). */
   revalidate: (tags: string[]) => void;
 }

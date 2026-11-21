@@ -44,6 +44,8 @@ Gere um valor **diferente por ambiente** e cadastre como *Sensitive*:
 - [ ] `AUTH_JWT_SECRET`
 - [ ] `CRON_SECRET`
 - [ ] `LOBBY_ENCRYPTION_KEY`
+- [ ] `TWO_FACTOR_ENCRYPTION_KEY` (2FA, issue #95 — trocar invalida o 2FA de todas as contas)
+- [ ] `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` (push no PWA, issue #109)
 
 Os comandos para gerar estão no `.env.example`.
 
@@ -74,6 +76,7 @@ Os E2E do CI (`ci.yml`) continuam rodando no próprio runner com a API simulada:
 - [ ] Variável `NEXT_PUBLIC_API_MOCK` em **Preview** e **Staging** com os módulos que ainda não têm API real:
   `competition,submissions,notifications,reports,profile-stats,admin-users,admin-roles,admin-tournaments,admin-audit,admin-moderation,admin-settings`
   (a lista sai de `previewMockSetting()` em `apps/web/mocks/handlers/index.ts`; com a #102 ela vira `none`). Em **Production**, `none`.
+  O tempo real segue o módulo `realtime` (issue #97): fora da lista, o site usa o Ably e precisa de `ABLY_API_KEY` no ambiente; sem a chave, as páginas ao vivo mostram "Reconectando… atualizando a cada 10 s". Para manter o tempo real simulado num ambiente sem Ably, acrescente `realtime` à lista.
 - [ ] Seed do banco do preview/staging com `SEED_PROFILE=staging` e `SEED_DEMO_PASSWORD` (8+ caracteres): as contas de demonstração (Camila organizadora, Bianca participante…) passam a entrar com essa senha. Nunca em produção.
 - [ ] Vercel → Settings → Deployment Protection → **Protection Bypass for Automation**: gere o segredo.
 - [ ] GitHub → Settings → Secrets and variables → Actions:

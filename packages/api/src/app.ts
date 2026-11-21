@@ -28,6 +28,11 @@ import { competition } from './modules/competition';
 import { matches } from './modules/competition/matches';
 import { qstashQueue } from './jobs';
 import { ablyRealtime } from './realtime';
+import { notifications, notificationJobs } from './modules/notifications';
+import { push, pushJobs } from './modules/push';
+import { webPushSender } from './modules/push/sender';
+import { realtime } from './modules/realtime';
+import { twoFactor } from './modules/two-factor';
 import { uploads } from './modules/uploads';
 import { users } from './modules/users';
 import { vercelBlobStore } from './uploads/store';
@@ -42,7 +47,7 @@ export const API_BASE_PATH = '/api/v1';
  * Módulos registrados. Entram, na ordem do B1: auth (#67 ✓, OAuth #68 ✓), users e me (#72), roles e audit (#70: `auth/rbac.ts` ✓; rotas na #72),
  * uploads (#73), games (#74), tournaments (#75, #76), teams (#78), registrations (#79).
  */
-const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs, teams, registrations, competition, matches];
+const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs, teams, registrations, competition, matches, twoFactor, realtime, notifications, notificationJobs, push, pushJobs];
 
 export interface CreateAppOptions {
   /** Variáveis já validadas; padrão: as do processo, validadas na primeira requisição. */
@@ -77,6 +82,7 @@ export function createApp(options: CreateAppOptions = {}) {
     queue: options.deps?.queue ?? qstashQueue,
     revalidate: options.deps?.revalidate ?? (() => undefined),
     realtime: options.deps?.realtime ?? ablyRealtime,
+    push: options.deps?.push ?? webPushSender,
     cache:
       options.deps?.cache ??
       ((env) => {

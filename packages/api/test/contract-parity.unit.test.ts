@@ -21,9 +21,6 @@ const EXPECTED_GAPS: Record<string, string> = {
   'PUT /uploads/:param': 'o arquivo vai direto para o Blob; a confirmação é `/uploads/complete` (#73)',
   'GET /games/:param/ranking': 'ranking por jogo sai dos resultados das partidas (B2)',
   'PATCH /stages/:param/scoring': 'troca do modelo de pontuação com a fase em andamento e recálculo (#87)',
-  'GET /me/follows': 'seguir campeonato ou jogo (RN-15) entra com as notificações (#98)',
-  'PUT /me/follows/:param/:param': 'seguir campeonato ou jogo (RN-15) entra com as notificações (#98)',
-  'DELETE /me/follows/:param/:param': 'seguir campeonato ou jogo (RN-15) entra com as notificações (#98)',
   'GET /role-invites/:param': 'convites de Admin e Organizador (#92)',
   'POST /role-invites/:param/accept': 'convites de Admin e Organizador (#92)',
 };
@@ -31,9 +28,9 @@ const EXPECTED_GAPS: Record<string, string> = {
 /** `/teams/:id/members/:userId` → `/teams/:param/members/:param` (o nome do parâmetro não importa). */
 const normalize = (path: string) => path.replace(/:[A-Za-z]+/g, ':param');
 
-function mockRoutes(): Set<string> {
+function mockRoutes(modules: string[] = B1_MODULES): Set<string> {
   const routes = new Set<string>();
-  for (const name of B1_MODULES) {
+  for (const name of modules) {
     const source = readFileSync(`${HANDLERS}${name}.ts`, 'utf8');
     for (const match of source.matchAll(/http\.(get|post|put|patch|delete)\(\s*url\('([^']+)'\)/g)) {
       routes.add(`${(match[1] ?? '').toUpperCase()} ${normalize(match[2] ?? '')}`);
@@ -70,5 +67,26 @@ describe('paridade de contrato do B1', () => {
     expect(closed).toEqual([]);
     // E nenhuma lacuna inventada: cada uma existe de verdade na API simulada.
     expect(Object.keys(EXPECTED_GAPS).filter((route) => !mock.has(route))).toEqual([]);
+  });
+});
+
+/**
+ * B2: notificações (#98) e a verificação em duas etapas (#95, parte de `admin-settings`). O resto de
+ * `admin-settings` (configurações, flags, saúde) é de outra issue e não entra aqui.
+ */
+describe('paridade de contrato: notificações e 2FA', () => {
+  const real = realRoutes();
+
+  it('toda rota de notificações da API simulada existe na API real', () => {
+    const mock = mockRoutes(['notifications']);
+    expect(mock.size).toBeGreaterThanOrEqual(6);
+    expect([...mock].filter((route) => !real.has(route))).toEqual([]);
+  });
+
+  it('as rotas de 2FA existem; o código de demonstração (`/me/2fa/dev-code`) não', () => {
+    const mock = [...mockRoutes(['admin-settings'])].filter((route) => route.includes('/2fa'));
+    expect(mock.length).toBeGreaterThanOrEqual(6);
+    expect(mock.filter((route) => !real.has(route))).toEqual(['GET /me/2fa/dev-code']);
+    expect(real.has('POST /auth/2fa/verify')).toBe(true);
   });
 });

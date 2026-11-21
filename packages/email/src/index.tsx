@@ -10,7 +10,7 @@
 import { render } from '@react-email/render';
 import type { ReactElement } from 'react';
 import { messages } from './messages.pt-BR';
-import { ConfirmEmailChange, EmailChanged, PasswordChanged, ResetPassword, RoleInvite, TeamInvite, VerifyEmail } from './templates';
+import { ConfirmEmailChange, EmailChanged, NotificationEmail, PasswordChanged, ResetPassword, RoleInvite, TeamInvite, VerifyEmail, type NotificationEmailProps } from './templates';
 
 export { EMAIL_THEME, THEME_SOURCE } from './theme';
 export { messages } from './messages.pt-BR';
@@ -22,7 +22,9 @@ export type EmailMessage =
   | { template: 'TEAM_INVITE'; data: { team: string; captain: string; link: string } }
   | { template: 'CONFIRM_EMAIL_CHANGE'; data: { nickname: string; link: string } }
   | { template: 'EMAIL_CHANGED'; data: { nickname: string; newEmail: string; link: string } }
-  | { template: 'PASSWORD_CHANGED'; data: { nickname: string; link: string } };
+  | { template: 'PASSWORD_CHANGED'; data: { nickname: string; link: string } }
+  /** Aviso da plataforma (notificação por e-mail, issue #98): um texto por tipo em `messages.NOTIFICATION`. */
+  | { template: 'NOTIFICATION'; data: NotificationEmailProps };
 
 export type EmailTemplate = EmailMessage['template'];
 
@@ -48,6 +50,10 @@ function build(message: EmailMessage): { subject: string; element: ReactElement 
       return { subject: messages.EMAIL_CHANGED.subject, element: <EmailChanged {...message.data} /> };
     case 'PASSWORD_CHANGED':
       return { subject: messages.PASSWORD_CHANGED.subject, element: <PasswordChanged {...message.data} /> };
+    case 'NOTIFICATION': {
+      const kind = messages.NOTIFICATION.types[message.data.type] ?? messages.NOTIFICATION.fallback;
+      return { subject: messages.NOTIFICATION.subject(kind.kicker, message.data.title), element: <NotificationEmail {...message.data} /> };
+    }
   }
 }
 

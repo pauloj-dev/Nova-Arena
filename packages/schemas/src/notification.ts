@@ -42,7 +42,13 @@ export const Notification = z.object({
 });
 export type Notification = z.infer<typeof Notification>;
 
-export const NotificationPreference = z.object({ type: NotificationType, inApp: z.boolean(), email: z.boolean() });
+export const NotificationPreference = z.object({
+  type: NotificationType,
+  inApp: z.boolean(),
+  email: z.boolean(),
+  /** Push no aparelho (PWA, issue #109). Só a API real devolve; ausente = a tela não mostra a coluna. */
+  push: z.boolean().optional(),
+});
 export type NotificationPreference = z.infer<typeof NotificationPreference>;
 export const NotificationPreferencesInput = z.object({ preferences: z.array(NotificationPreference) });
 export const UnreadCount = z.object({ count: z.number().int() });
@@ -66,3 +72,36 @@ export type RealtimeEvent = z.infer<typeof RealtimeEvent>;
 
 /** Canais: `tournament:{id}` (público), `match:{id}` (participantes e staff), `user:{id}` (só o dono). */
 export type RealtimeChannel = `tournament:${string}` | `match:${string}` | `user:${string}`;
+
+// ── Tempo real com Ably (issue #97) ──────────────────────────────────
+/**
+ * Pedido de token: os canais `match:{id}` que a tela quer assinar além do padrão (`tournament:*` e o próprio
+ * `user:{id}`). A API confere cada um e descarta os que a pessoa não pode ver.
+ */
+export const RealtimeTokenInput = z.object({ channels: z.array(z.string().max(80)).max(50).optional() });
+export type RealtimeTokenInput = z.infer<typeof RealtimeTokenInput>;
+/** "Token request" assinado do Ably: o navegador troca por um token só com os canais permitidos. */
+export const RealtimeTokenRequest = z.object({
+  keyName: z.string(),
+  clientId: z.string().optional(),
+  capability: z.string(),
+  ttl: z.number().optional(),
+  timestamp: z.number(),
+  nonce: z.string(),
+  mac: z.string(),
+});
+export type RealtimeTokenRequest = z.infer<typeof RealtimeTokenRequest>;
+
+// ── Push no PWA (issue #109) ─────────────────────────────────────────
+/** Chave pública VAPID para o navegador assinar o push (`GET /push/public-key`). */
+export const PushPublicKey = z.object({ publicKey: z.string() });
+export type PushPublicKey = z.infer<typeof PushPublicKey>;
+/** Assinatura do navegador (`PushSubscription.toJSON()`), enviada em `POST /me/push-subscriptions`. */
+export const PushSubscriptionInput = z.object({
+  endpoint: z.url().max(1000),
+  keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
+});
+export type PushSubscriptionInput = z.infer<typeof PushSubscriptionInput>;
+/** O que chega no service worker em cada push (sem dado sensível: o mesmo texto da notificação do site). */
+export const PushPayload = z.object({ id: Id, type: NotificationType, title: z.string(), body: z.string(), link: z.string().nullable() });
+export type PushPayload = z.infer<typeof PushPayload>;

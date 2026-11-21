@@ -199,6 +199,26 @@ test.describe('cadastro, verificação e login', () => {
     await expect(page).toHaveURL(/\/$/);
     expect((await me(page))?.nickname).toBe('Bianca');
   });
+
+  test('conta com verificação em duas etapas: a senha leva ao código, e o código abre a sessão (issue #95)', async ({ page }) => {
+    await page.goto('/entrar?next=%2Fminha-conta%2Fseguranca');
+    await waitForApp(page);
+    await login(page, 'ana@novaarena.gg', 'arena1234');
+    await expect(page.getByRole('heading', { level: 1, name: 'Verificação em duas etapas' })).toBeVisible();
+    expect(await me(page)).toBeNull();
+
+    await page.getByRole('button', { name: 'Confirmar' }).click();
+    await expect(page.getByText('O código tem 6 dígitos')).toBeVisible();
+    await page.getByLabel('Código do aplicativo').fill('000000');
+    await page.getByRole('button', { name: 'Confirmar' }).click();
+    await expect(page.getByText('Código incorreto ou vencido. Confira o aplicativo e tente de novo.')).toBeVisible();
+
+    // No protótipo, o código do momento aparece na tela (na versão final, só no celular).
+    await page.getByTestId('prototype-code').getByRole('button', { name: 'Usar este código' }).click();
+    await page.getByRole('button', { name: 'Confirmar' }).click();
+    await expect(page).toHaveURL(/\/minha-conta\/seguranca$/);
+    expect((await me(page))?.nickname).toBe('Ana');
+  });
 });
 
 test.describe('recuperar senha', () => {

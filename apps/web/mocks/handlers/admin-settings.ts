@@ -23,7 +23,7 @@ import { generateRecoveryCodes, generateSecret, otpauthUrl, secondsToNextStep, t
 import { qrSvg } from '../../features/profile/security/qr';
 import { audit } from '../audit';
 import { collection, db, nowIso, save, type DbUser } from '../db';
-import { badRequest, body, conflict, forbidden, handle, hasRole, HttpProblem, isAdmin, json, notFound, param, requireAdmin, requireUser, url } from '../http';
+import { badRequest, body, conflict, currentUser, forbidden, handle, hasRole, HttpProblem, isAdmin, json, notFound, param, requireAdmin, requireUser, unauthorized, url } from '../http';
 import { notify } from '../notify';
 
 export const moduleName = 'admin-settings';
@@ -179,6 +179,48 @@ function clearTwoFactor(user: DbUser): void {
   save();
 }
 
+// ── Passo do código no login (issue #95) ─────────────────────────────
+/**
+ * Login de quem tem 2FA ativo: a senha só leva ao passo do código (como na API real, onde o passo fica num cookie
+ * de 5 minutos). Aqui o passo pendente fica no banco simulado; `/auth/2fa/verify` (módulo `auth`) o confere.
+ */
+interface DbTwoFactorLogin {
+  userId: string;
+  at: string;
+}
+const LOGIN_CHALLENGE_MS = 5 * 60_000;
+const loginChallenges = () => collection<DbTwoFactorLogin>('twoFactorLogin');
+
+export function startTwoFactorLogin(user: DbUser): void {
+  loginChallenges().splice(0, Infinity, { userId: user.id, at: nowIso() });
+  save();
+}
+
+/** Quem está no passo do código (até 5 minutos depois da senha), ou `null`. */
+export function pendingTwoFactorLogin(): DbUser | null {
+  const challenge = loginChallenges()[0];
+  if (!challenge || Date.now() - Date.parse(challenge.at) > LOGIN_CHALLENGE_MS) return null;
+  return db().users.find((u) => u.id === challenge.userId) ?? null;
+}
+
+export function clearTwoFactorLogin(): void {
+  loginChallenges().splice(0, Infinity);
+  save();
+}
+
+/** Confere o código do aplicativo ou gasta um código de recuperação (uso único). */
+export async function verifyTwoFactorLogin(user: DbUser, code: string): Promise<boolean> {
+  const record = twoFactorOf(user);
+  const typed = code.trim().toLowerCase();
+  const recoveryIndex = record.recoveryCodes.indexOf(typed);
+  if (recoveryIndex >= 0) {
+    record.recoveryCodes.splice(recoveryIndex, 1);
+    save();
+    return true;
+  }
+  return record.secret !== null && (await verifyTotp(record.secret, typed));
+}
+
 export const handlers: HttpHandler[] = [
   // ── Configurações ──────────────────────────────────────────────────
   http.get(
@@ -320,11 +362,15 @@ export const handlers: HttpHandler[] = [
     }),
   ),
 
-  /** Só no protótipo: o código do momento, para a demonstração funcionar sem aplicativo autenticador. */
+  /**
+   * Só no protótipo: o código do momento, para a demonstração funcionar sem aplicativo autenticador.
+   * Também no passo do código do login (ainda sem sessão).
+   */
   http.get(
     url('/me/2fa/dev-code'),
     handle(async () => {
-      const user = requireUser();
+      const user = currentUser() ?? pendingTwoFactorLogin();
+      if (!user) throw unauthorized();
       const record = twoFactorOf(user);
       const secret = record.pendingSecret ?? record.secret;
       if (!secret) throw notFound('Configuração de duas etapas');
