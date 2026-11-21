@@ -15,6 +15,7 @@ import { NoAccess, TournamentNotFound } from '../components/NoAccess';
 import { permissionsOf } from '../operation/stageUtils';
 import { AnnouncementsTab } from './AnnouncementsTab';
 import { AuditTab } from './AuditTab';
+import { DiscordTab } from './DiscordTab';
 import { MatchesTab } from './MatchesTab';
 import { PublicPageTab } from './PublicPageTab';
 import { RegistrationsTab } from './RegistrationsTab';
@@ -23,7 +24,7 @@ import { StagesTab } from './StagesTab';
 import { SummaryTab } from './SummaryTab';
 import { ValidationTab } from './ValidationTab';
 
-const TABS = ['resumo', 'inscricoes', 'fases', 'partidas', 'validacao', 'equipe', 'comunicados', 'auditoria', 'pagina'] as const;
+const TABS = ['resumo', 'inscricoes', 'fases', 'partidas', 'validacao', 'equipe', 'comunicados', 'auditoria', 'pagina', 'discord'] as const;
 type TabId = (typeof TABS)[number];
 const isTab = (value: string | null): value is TabId => TABS.includes(value as TabId);
 
@@ -131,6 +132,8 @@ function ManageInner({ tournamentId }: { tournamentId: string }) {
               ]
             : []),
           ...(perms.canManage ? [{ value: 'pagina', label: 'Página pública', content: <PublicPageTab tournament={t} /> }] : []),
+          // Bot do Discord (issue 121): só quem gerencia vincula o servidor.
+          ...(perms.canManage ? [{ value: 'discord', label: 'Discord', content: <DiscordTab tournamentId={t.id} /> }] : []),
   ];
   // Aba pedida no endereço que este papel não enxerga (ex.: moderador em `?aba=equipe`): cai no Resumo.
   const activeTab = items.some((item) => item.value === tab) ? tab : 'resumo';

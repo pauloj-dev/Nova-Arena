@@ -43,9 +43,10 @@ export interface Call {
   detail: string | undefined;
 }
 
-export async function createHarness(url: string, prefix: string) {
+/** `extraEnv`: variáveis a mais para o cenário (ex.: as do bot do Discord). */
+export async function createHarness(url: string, prefix: string, extraEnv: Record<string, string> = {}) {
   const db: PrismaClient = createDb({ connectionString: url, max: 4 });
-  const env = envFrom({ NODE_ENV: 'test', AUTH_JWT_SECRET: SECRET, DATABASE_URL: url });
+  const env = envFrom({ NODE_ENV: 'test', AUTH_JWT_SECRET: SECRET, DATABASE_URL: url, ...extraEnv });
   const clock = { now: new Date() };
   const realtime = memoryRealtime();
   const cache: Cache = memoryCache(() => clock.now);

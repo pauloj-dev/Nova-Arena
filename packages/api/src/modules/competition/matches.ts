@@ -25,6 +25,8 @@ import { applyManualWalkover, type WalkoverApplied } from '../../competition/wal
 import { publishStage, usersOfRegistrations } from '../../competition/results';
 import { standingsKey } from '../../competition/standings';
 import { notify } from '../../notify';
+import { announceResult } from '../discord/announce';
+import { scheduleDiscordReminder } from '../../discord';
 import { checkInOf } from '../tournaments/views';
 import { scheduleMatchJobs } from '../../jobs/matches';
 import { revalidateTournaments } from '../../revalidate';
@@ -55,7 +57,8 @@ async function auditCtx(c: AppContext) {
 }
 
 /** Reagendou: as mensagens antigas se descartam (horário diferente) e as novas entram. Falha na fila não desfaz a agenda. */
-async function rescheduleJobs(c: AppContext, match: { id: string; scheduledAt: Date | null }, tournament: { checkInConfig: unknown }) {
+async function rescheduleJobs(c: AppContext, match: { id: string; scheduledAt: Date | null }, tournament: { id: string; checkInConfig: unknown }) {
+  await scheduleDiscordReminder(c, match, tournament.id);
   await scheduleMatchJobs(c.get('deps').queue(c.get('env'), c.get('log')), match, checkInWindow(tournament, match.scheduledAt)?.closesAt ?? null).catch((error: unknown) =>
     c.get('log').warn('não foi possível agendar as mensagens da partida; o Cron cobre', { matchId: match.id, error: String(error) }),
   );
@@ -74,6 +77,7 @@ export async function afterWalkover(c: AppContext, matchId: string, applied: Wal
     await notify(c, [...users.values()].flat(), { type: 'RESULT_POSTED', title: 'W.O. aplicado', body: `${applied.label} · ${applied.tournament.name}`, link });
   }
   await publishStage(c, applied.tournament.id, applied.stageId, { matchId, status: 'WALKOVER' });
+  await announceResult(c, { tournamentId: applied.tournament.id, tournamentName: applied.tournament.name, slug: applied.tournament.slug, matchId, label: applied.label, walkover: true });
   revalidateTournaments(c);
 }
 

@@ -23,6 +23,7 @@ import { lockStage, publishStage, recordStateChanges, usersOfRegistrations, writ
 import { engine, readRun, stageWithTournament } from '../../competition/run';
 import { buildStandings, standingsKey, type StandingsStage } from '../../competition/standings';
 import { followersOf, notify, publish } from '../../notify';
+import { announceChampion } from '../discord/announce';
 import { revalidateTournaments, revalidateUser } from '../../revalidate';
 import { toRegistration, tournamentForRegistration } from '../registrations/core';
 import { auditCtx, isUuid } from './access';
@@ -198,6 +199,7 @@ closing.post('/tournaments/:id/finish', async (c) => {
     link: `/c/${t.slug}`,
   });
   await publish(c, `tournament:${t.id}`, { type: 'tournament.updated', tournamentId: t.id });
+  await announceChampion(c, { tournamentId: t.id, tournamentName: t.name, slug: t.slug, places: podium.places.map((p) => ({ place: p.place, name: p.name })) });
   revalidateTournaments(c);
   // Perfis competitivos de quem jogou mudaram (histórico, colocação e conquistas).
   const nicknames = await db.user.findMany({ where: { id: { in: [...players.values()].flat() } }, select: { nicknameKey: true } });
