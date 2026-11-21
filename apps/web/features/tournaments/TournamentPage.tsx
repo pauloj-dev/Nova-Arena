@@ -17,10 +17,12 @@ import { useTournament, useTournamentAccess } from '@/shared/api/hooks/tournamen
 import { PageContainer } from '@/shared/layout/AreaShell';
 import { BlobImage } from '@/shared/lib/blob-image';
 import { formatDateTime } from '@/shared/lib/datetime';
+import { useT } from '@/shared/i18n/react';
 import { LiveIndicator } from '@/shared/realtime/LiveIndicator';
 import { useTournamentChannel } from '@/shared/realtime/RealtimeProvider';
 import { useSession } from '@/shared/session/useSession';
 import { FollowButton } from './FollowButton';
+import { messages } from './messages';
 import { ShareButton } from './ShareButton';
 import { slotsText } from './TournamentCard';
 import { AnnouncementsTab, OverviewTab, RegistrationsTab, RulesTab } from './TournamentTabs';
@@ -28,8 +30,9 @@ import { AnnouncementsTab, OverviewTab, RegistrationsTab, RulesTab } from './Tou
 // Chave, partidas e resultados (chave, tabela, modal da partida, envio de resultado) só descem quando a aba abre:
 // fora do JS inicial da página pública (#111).
 function CompetitionTabLoading() {
+  const t = useT(messages, 'TournamentPage');
   return (
-    <div className="flex flex-col gap-3" role="status" aria-label="Carregando">
+    <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
       <Skeleton className="h-11 w-full" />
       <Skeleton className="h-64 w-full" />
     </div>
@@ -44,13 +47,13 @@ const ResultsTab = dynamic(() => import('./CompetitionTabs').then((m) => m.Resul
  * campeonato já tem chave confirmada ou terminou — sem aba vazia antes disso.
  */
 const TABS = [
-  { value: 'visao-geral', label: 'Visão geral', competition: false },
-  { value: 'regulamento', label: 'Regulamento', competition: false },
-  { value: 'inscritos', label: 'Inscritos', competition: false },
-  { value: 'chave', label: 'Chave/Tabela', competition: true },
-  { value: 'partidas', label: 'Partidas', competition: true },
-  { value: 'resultados', label: 'Resultados', competition: true },
-  { value: 'comunicados', label: 'Comunicados', competition: false },
+  { value: 'visao-geral', label: 'visaoGeral', competition: false },
+  { value: 'regulamento', label: 'regulamento', competition: false },
+  { value: 'inscritos', label: 'inscritos', competition: false },
+  { value: 'chave', label: 'chave', competition: true },
+  { value: 'partidas', label: 'partidas', competition: true },
+  { value: 'resultados', label: 'resultados', competition: true },
+  { value: 'comunicados', label: 'comunicados', competition: false },
 ] as const;
 type TabValue = (typeof TABS)[number]['value'];
 const DEFAULT_TAB: TabValue = 'visao-geral';
@@ -73,9 +76,10 @@ function wantsCompetitionTab(value: string | null): boolean {
 }
 
 function PageSkeleton() {
+  const t = useT(messages, 'TournamentPage');
   return (
     <PageContainer>
-      <div role="status" aria-label="Carregando campeonato" className="flex flex-col gap-6">
+      <div role="status" aria-label={t('carregandoCampeonato')} className="flex flex-col gap-6">
         <div className="overflow-hidden rounded-lg border border-border bg-surface">
           <Skeleton className="h-28 w-full rounded-none md:h-40" />
           <div className="flex flex-col gap-3 p-4 md:p-6">
@@ -93,16 +97,17 @@ function PageSkeleton() {
 }
 
 function NotFound() {
+  const t = useT(messages, 'TournamentPage');
   return (
     <PageContainer narrow>
-      <h1 className="sr-only">Campeonato não encontrado</h1>
+      <h1 className="sr-only">{t('naoEncontrado')}</h1>
       <EmptyState
         icon={<Compass className="size-7" />}
-        title="Campeonato não encontrado"
-        description="O link pode estar errado, ou o campeonato ainda não foi publicado ou já foi arquivado."
+        title={t('naoEncontrado')}
+        description={t('naoEncontradoDescricao')}
         action={
           <Button asChild>
-            <Link href="/campeonatos">Ver campeonatos</Link>
+            <Link href="/campeonatos">{t('verCampeonatos')}</Link>
           </Button>
         }
       />
@@ -110,20 +115,29 @@ function NotFound() {
   );
 }
 
-function Header({ t, canManage }: { t: Tournament; canManage: boolean }) {
-  const solo = t.participantType === 'SOLO';
+function Header({ tournament, canManage }: { tournament: Tournament; canManage: boolean }) {
+  const t = useT(messages, 'TournamentPage');
+  const solo = tournament.participantType === 'SOLO';
   const ModeIcon = solo ? User : Users;
   // O resumo do campeonato traz só o id do jogo; o slug da página do jogo vem do catálogo.
-  const game = useGame(t.gameId);
+  const game = useGame(tournament.gameId);
+  const organizedBy = t.rich('organizadoPor', {
+    nickname: tournament.organizer.nickname,
+    link: (chunks) => (
+      <Link href={`/u/${encodeURIComponent(tournament.organizer.nickname)}`} className="font-semibold text-text underline-offset-2 hover:underline">
+        {chunks}
+      </Link>
+    ),
+  });
   return (
     <header className="overflow-hidden rounded-lg border border-border bg-surface shadow-sm">
       <div className="relative flex h-28 items-end bg-hero p-4 md:h-40 md:p-6">
-        {t.bannerUrl && (
+        {tournament.bannerUrl && (
           // Banner do organizador: otimizado quando vem do Vercel Blob; é o topo da página (candidato a LCP).
-          <BlobImage src={t.bannerUrl} alt="" sizes="(min-width: 1280px) 1200px, 100vw" className="object-cover" priority />
+          <BlobImage src={tournament.bannerUrl} alt="" sizes="(min-width: 1280px) 1200px, 100vw" className="object-cover" priority />
         )}
         <span className="relative flex size-14 items-center justify-center rounded-lg border border-border bg-surface text-3xl shadow-md" aria-hidden>
-          {t.gameIcon}
+          {tournament.gameIcon}
         </span>
       </div>
 
@@ -132,30 +146,25 @@ function Header({ t, canManage }: { t: Tournament; canManage: boolean }) {
           <div className="flex flex-wrap items-center gap-2 text-sm">
             {game.data ? (
               <Link href={`/jogos/${game.data.slug}`} className="-my-3 inline-block py-3 font-semibold text-primary-text underline-offset-2 hover:underline">
-                {t.gameName}
+                {tournament.gameName}
               </Link>
             ) : (
-              <span className="font-semibold text-text">{t.gameName}</span>
+              <span className="font-semibold text-text">{tournament.gameName}</span>
             )}
             <span className="flex items-center gap-1 text-muted">
               <ModeIcon className="size-4" aria-hidden />
-              {solo ? 'Solo' : 'Equipe'}
-              {t.modeName && ` · ${t.modeName}`}
+              {solo ? t('solo') : t('equipe')}
+              {tournament.modeName && ` · ${tournament.modeName}`}
             </span>
-            <StatusPill status={t.status} />
-            {t.status === 'IN_PROGRESS' && <LiveIndicator />}
-            {t.free && <Badge tone="gold">Gratuito</Badge>}
+            <StatusPill status={tournament.status} />
+            {tournament.status === 'IN_PROGRESS' && <LiveIndicator />}
+            {tournament.free && <Badge tone="gold">{t('gratuito')}</Badge>}
           </div>
-          <h1 className="text-xl break-words md:text-2xl">{t.name}</h1>
+          <h1 className="text-xl break-words md:text-2xl">{tournament.name}</h1>
           <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
-            <Avatar name={t.organizer.nickname} src={t.organizer.avatarUrl} size="sm" />
-            <span>
-              Organizado por{' '}
-              <Link href={`/u/${encodeURIComponent(t.organizer.nickname)}`} className="font-semibold text-text underline-offset-2 hover:underline">
-                {t.organizer.nickname}
-              </Link>
-            </span>
-            {t.organizer.verifiedOrganizer && <VerifiedBadge />}
+            <Avatar name={tournament.organizer.nickname} src={tournament.organizer.avatarUrl} size="sm" />
+            <span>{organizedBy}</span>
+            {tournament.organizer.verifiedOrganizer && <VerifiedBadge />}
           </p>
         </div>
 
@@ -163,44 +172,44 @@ function Header({ t, canManage }: { t: Tournament; canManage: boolean }) {
           <div className="relative pl-6">
             <dt className="text-xs text-muted">
               <CalendarDays className="absolute left-0 top-0.5 size-4 text-muted" aria-hidden />
-              Início
+              {t('inicio')}
             </dt>
-            <dd className="font-medium">{t.startsAt ? formatDateTime(t.startsAt) : 'A definir'}</dd>
+            <dd className="font-medium">{tournament.startsAt ? formatDateTime(tournament.startsAt) : t('aDefinir')}</dd>
           </div>
           <div className="relative pl-6">
             <dt className="text-xs text-muted">
               <CalendarClock className="absolute left-0 top-0.5 size-4 text-muted" aria-hidden />
-              Inscrições
+              {t('inscricoes')}
             </dt>
             <dd className="font-medium">
-              {t.registrationOpensAt && t.registrationClosesAt
-                ? `De ${formatDateTime(t.registrationOpensAt, { withZone: false })} até ${formatDateTime(t.registrationClosesAt)}`
-                : t.registrationClosesAt
-                  ? `Até ${formatDateTime(t.registrationClosesAt)}`
-                  : 'Período a definir'}
+              {tournament.registrationOpensAt && tournament.registrationClosesAt
+                ? t('periodoInscricoes', { abre: formatDateTime(tournament.registrationOpensAt, { withZone: false }), fecha: formatDateTime(tournament.registrationClosesAt) })
+                : tournament.registrationClosesAt
+                  ? t('inscricoesAte', { fecha: formatDateTime(tournament.registrationClosesAt) })
+                  : t('periodoADefinir')}
             </dd>
           </div>
         </dl>
 
         <div className="flex flex-col gap-1">
           <div className="flex items-baseline justify-between gap-2 text-sm">
-            <span className="font-medium">Vagas</span>
+            <span className="font-medium">{t('vagas')}</span>
             <span className="text-muted">
-              {slotsText(t.takenSlots, t.maxParticipants)}
-              {t.waitlistCount > 0 && ` · ${t.waitlistCount} na lista de espera`}
+              {slotsText(tournament.takenSlots, tournament.maxParticipants)}
+              {tournament.waitlistCount > 0 && ` · ${t('listaDeEspera', { n: tournament.waitlistCount })}`}
             </span>
           </div>
-          <Progress value={t.takenSlots} max={t.maxParticipants} label="Vagas preenchidas" />
+          <Progress value={tournament.takenSlots} max={tournament.maxParticipants} label={t('vagasPreenchidas')} />
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <FollowButton type="tournament" id={t.id} name={t.name} />
-          <ShareButton title={t.name} text={`${t.name} — ${t.gameName} na Nova Arena`} />
+          <FollowButton type="tournament" id={tournament.id} name={tournament.name} />
+          <ShareButton title={tournament.name} text={t('textoCompartilhar', { nome: tournament.name, jogo: tournament.gameName })} />
           {canManage && (
             <Button asChild variant="ghost">
-              <Link href={`/organizador/campeonatos/${t.id}`}>
+              <Link href={`/organizador/campeonatos/${tournament.id}`}>
                 <Settings className="size-4" aria-hidden />
-                Gerenciar campeonato
+                {t('gerenciar')}
               </Link>
             </Button>
           )}
@@ -211,10 +220,11 @@ function Header({ t, canManage }: { t: Tournament; canManage: boolean }) {
 }
 
 export function TournamentPage({ slug }: { slug: string }) {
+  const t = useT(messages, 'TournamentPage');
   const { user } = useSession();
-  const tournament = useTournament(slug);
-  const t = tournament.data;
-  const access = useTournamentAccess(t?.id, Boolean(user));
+  const query = useTournament(slug);
+  const tournament = query.data;
+  const access = useTournamentAccess(tournament?.id, Boolean(user));
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -222,30 +232,30 @@ export function TournamentPage({ slug }: { slug: string }) {
 
   // Competição (F2): partidas das fases com chave confirmada, minha inscrição e tempo real.
   // Cada evento do canal invalida as consultas; se a conexão cair, elas passam a atualizar a cada 10 s (CT-10).
-  const mayHaveMatches = t !== undefined && !NO_COMPETITION_STATUSES.includes(t.status);
-  const matches = useTournamentMatches(mayHaveMatches ? t.id : undefined);
-  const myRegistration = useMyRegistration(t?.id, { enabled: Boolean(user) });
-  useTournamentChannel(t?.id);
+  const mayHaveMatches = tournament !== undefined && !NO_COMPETITION_STATUSES.includes(tournament.status);
+  const matches = useTournamentMatches(mayHaveMatches ? tournament.id : undefined);
+  const myRegistration = useMyRegistration(tournament?.id, { enabled: Boolean(user) });
+  useTournamentChannel(tournament?.id);
 
-  if (tournament.isPending) return <PageSkeleton />;
-  if (tournament.isError) {
-    if (tournament.error instanceof ApiError && tournament.error.status === 404) return <NotFound />;
+  if (query.isPending) return <PageSkeleton />;
+  if (query.isError) {
+    if (query.error instanceof ApiError && query.error.status === 404) return <NotFound />;
     return (
       <PageContainer narrow>
-        <h1 className="sr-only">Campeonato</h1>
-        <ErrorState title="Não foi possível carregar o campeonato" description={errorMessage(tournament.error)} onRetry={() => void tournament.refetch()} />
+        <h1 className="sr-only">{t('campeonato')}</h1>
+        <ErrorState title={t('erroCarregar')} description={errorMessage(query.error)} onRetry={() => void query.refetch()} />
       </PageContainer>
     );
   }
-  if (!t) return <NotFound />;
+  if (!tournament) return <NotFound />;
 
   // Dono, co-organizador e admin gerenciam; moderador não tem a área de gestão.
   const canManage = access.data === 'OWNER' || access.data === 'CO_ORGANIZER' || access.data === 'ADMIN';
 
-  const hasCompetition = t.status === 'FINISHED' || (matches.data?.length ?? 0) > 0;
+  const hasCompetition = tournament.status === 'FINISHED' || (matches.data?.length ?? 0) > 0;
   const showCompetition = hasCompetition || (mayHaveMatches && matches.isPending && wantsCompetitionTab(requestedTab));
   const tab = parseTab(requestedTab, showCompetition);
-  const viewer: MatchViewer = { userId: user?.id ?? null, registration: (user && myRegistration.data) || null, checkIn: t.checkIn, isStaff: user !== null && access.data != null };
+  const viewer: MatchViewer = { userId: user?.id ?? null, registration: (user && myRegistration.data) || null, checkIn: tournament.checkIn, isStaff: user !== null && access.data != null };
 
   function onTabChange(value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -258,13 +268,13 @@ export function TournamentPage({ slug }: { slug: string }) {
   }
 
   const content: Record<TabValue, React.ReactNode> = {
-    'visao-geral': <OverviewTab tournament={t} />,
-    regulamento: <RulesTab tournament={t} />,
-    inscritos: <RegistrationsTab tournament={t} />,
-    chave: <BracketTab tournament={t} />,
-    partidas: <MatchesTab tournament={t} matches={matches} />,
-    resultados: <ResultsTab tournament={t} matches={matches} />,
-    comunicados: <AnnouncementsTab tournament={t} />,
+    'visao-geral': <OverviewTab tournament={tournament} />,
+    regulamento: <RulesTab tournament={tournament} />,
+    inscritos: <RegistrationsTab tournament={tournament} />,
+    chave: <BracketTab tournament={tournament} />,
+    partidas: <MatchesTab tournament={tournament} matches={matches} />,
+    resultados: <ResultsTab tournament={tournament} matches={matches} />,
+    comunicados: <AnnouncementsTab tournament={tournament} />,
   };
   const tabs = TABS.filter((x) => showCompetition || !x.competition);
 
@@ -273,14 +283,14 @@ export function TournamentPage({ slug }: { slug: string }) {
       {/* Celular: cabeçalho, inscrição, abas. Desktop: a inscrição vai para a lateral (quando o painel tem conteúdo). */}
       <div className="grid grid-cols-1 gap-6 lg:has-[[data-registration-panel]:not(:empty)]:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 lg:col-start-1">
-          <Header t={t} canManage={canManage} />
+          <Header tournament={tournament} canManage={canManage} />
         </div>
-        <aside data-registration-panel aria-label="Inscrição" className="min-w-0 empty:hidden lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
-          <RegistrationPanel tournament={t} />
+        <aside data-registration-panel aria-label={t('inscricao')} className="min-w-0 empty:hidden lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
+          <RegistrationPanel tournament={tournament} />
         </aside>
         <div className="min-w-0 lg:col-start-1">
           <MatchViewerProvider value={viewer}>
-            <Tabs label="Seções do campeonato" value={tab} onValueChange={onTabChange} items={tabs.map((x) => ({ value: x.value, label: x.label, content: content[x.value] }))} />
+            <Tabs label={t('secoes')} value={tab} onValueChange={onTabChange} items={tabs.map((x) => ({ value: x.value, label: t(`abas.${x.label}`), content: content[x.value] }))} />
           </MatchViewerProvider>
         </div>
       </div>

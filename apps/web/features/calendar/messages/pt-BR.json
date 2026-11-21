@@ -1,0 +1,46 @@
+{
+  "FeedBody": {
+    "ajuda": {
+      "google": {
+        "app": "Google Agenda",
+        "passos": "no computador, \"Outras agendas\" → \"+\" → \"Do URL\" e cole o endereço."
+      },
+      "apple": {
+        "app": "Apple (iPhone e Mac)",
+        "passos": "toque em \"Abrir no aplicativo de calendário\" ou, no Mac, Arquivo → Nova assinatura de calendário."
+      },
+      "outlook": {
+        "app": "Outlook",
+        "passos": "\"Adicionar calendário\" → \"Assinar da Web\" e cole o endereço."
+      }
+    },
+    "copiado": "Endereço copiado",
+    "copiadoDescricao": "Cole no seu aplicativo de calendário para assinar.",
+    "erroCopiar": "Não foi possível copiar",
+    "erroCopiarDescricao": "Selecione o endereço no campo e copie.",
+    "erroBaixar": "Não foi possível baixar o calendário",
+    "semPartidas": "Ainda não há partidas com horário marcado. Se você assinar agora, elas aparecem sozinhas quando forem marcadas.",
+    "partidas": "{eventos, plural, =1 {{eventos} partida com horário marcado} other {{eventos} partidas com horário marcado}}{escopo, select, mine { para você} other {}}. Horários no seu fuso, com lembrete 15 minutos antes.",
+    "assinar": "Assinar no calendário",
+    "assinarDescricao": "Assinando, o calendário se atualiza sozinho quando uma partida muda de horário.",
+    "abrirNoAplicativo": "Abrir no aplicativo de calendário",
+    "copiarEndereco": "Copiar endereço",
+    "endereco": "Endereço do calendário",
+    "enderecoPessoal": "Este endereço é pessoal: não compartilhe.",
+    "comoAssinar": "Como assinar em cada aplicativo",
+    "prototipo": "No protótipo, o endereço só funciona neste navegador. Para testar no seu calendário, baixe o arquivo.",
+    "baixarIcs": "Baixar arquivo .ics",
+    "baixarDescricao": "Uma cópia das partidas de agora, para importar uma vez. Não se atualiza sozinha."
+  },
+  "FeedState": {
+    "carregando": "Carregando o calendário",
+    "erro": "Não foi possível preparar o calendário"
+  },
+  "CalendarExport": {
+    "adicionar": "Adicionar ao calendário",
+    "tituloMinhas": "Minhas partidas no calendário",
+    "tituloCampeonato": "Partidas no calendário",
+    "descricaoMinhas": "Todas as suas partidas marcadas, de todos os campeonatos.",
+    "descricaoCampeonato": "Todas as partidas marcadas de {nome}."
+  }
+}

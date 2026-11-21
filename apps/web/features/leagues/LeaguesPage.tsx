@@ -7,12 +7,15 @@ import { CalendarRange, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { errorMessage } from '@/shared/api/client';
 import { useLeagues } from '@/shared/api/hooks/seasons';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { LEAGUE_STATUS, periodText } from './leagueText';
+import { messages } from './messages';
 
 export function LeagueCard({ league, href }: { league: League; href: string }) {
+  const t = useT(messages, 'LeagueCard');
   const status = LEAGUE_STATUS[league.status];
-  const counted = league.tournaments.filter((t) => t.counted).length;
+  const counted = league.tournaments.filter((item) => item.counted).length;
   return (
     <Card interactive className="flex h-full flex-col gap-2">
       <p className="flex items-center gap-2 text-sm text-muted">
@@ -34,7 +37,7 @@ export function LeagueCard({ league, href }: { league: League; href: string }) {
         {periodText(league.startsAt, league.endsAt)}
       </p>
       <p className="text-sm text-muted">
-        {league.tournaments.length} {league.tournaments.length === 1 ? 'campeonato' : 'campeonatos'} · {counted} {counted === 1 ? 'encerrado' : 'encerrados'} · por {league.owner.nickname}
+        {t('resumo', { total: league.tournaments.length, encerrados: counted, dono: league.owner.nickname })}
       </p>
     </Card>
   );
@@ -42,19 +45,20 @@ export function LeagueCard({ league, href }: { league: League; href: string }) {
 
 export function LeaguesPage() {
   const q = useLeagues();
+  const t = useT(messages, 'LeaguesPage');
   return (
     <PageContainer>
-      <PageHeader title="Ligas semanais" description="Campeonatos toda semana que somam pontos numa tabela da temporada." />
+      <PageHeader title={t('titulo')} description={t('descricao')} />
       {q.isPending ? (
-        <div role="status" aria-label="Carregando as ligas" className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div role="status" aria-label={t('carregando')} className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-36 w-full" />
           ))}
         </div>
       ) : q.isError ? (
-        <ErrorState title="Não foi possível carregar as ligas" description={errorMessage(q.error)} onRetry={() => void q.refetch()} />
+        <ErrorState title={t('erro')} description={errorMessage(q.error)} onRetry={() => void q.refetch()} />
       ) : q.data.length === 0 ? (
-        <EmptyState icon={<Trophy className="size-7" />} title="Nenhuma liga por enquanto" description="Quando uma organização criar uma liga semanal, ela aparece aqui." />
+        <EmptyState icon={<Trophy className="size-7" />} title={t('vazioTitulo')} description={t('vazioDescricao')} />
       ) : (
         <ul className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {q.data.map((league) => (

@@ -1,0 +1,79 @@
+{
+  "scoringText": {
+    "tipoPartida": {
+      "DUEL": "Duelo 1 contra 1",
+      "TEAM_VS_TEAM": "Equipe contra equipe",
+      "BATTLE_ROYALE": "Battle Royale"
+    },
+    "individual": "Individual",
+    "equipes": "Equipes de {jogadores} jogadores{reservas, plural, =0 {, sem reservas} =1 { + {reservas} reserva} other { + {reservas} reservas}}",
+    "porSala": "{base} · até {maximo} {tipo, select, individual {jogadores} other {equipes}} por sala"
+  },
+  "GamesPage": {
+    "titulo": "Jogos",
+    "descricao": "Veja os modos, como a pontuação funciona e os campeonatos abertos de cada jogo.",
+    "carregando": "Carregando jogos",
+    "erro": "Não foi possível carregar os jogos",
+    "vazioTitulo": "Nenhum jogo disponível no momento",
+    "vazioDescricao": "O catálogo está sendo atualizado. Enquanto isso, veja os campeonatos.",
+    "verCampeonatos": "Ver campeonatos",
+    "lista": "Jogos",
+    "verJogo": "Ver jogo"
+  },
+  "Pending": {
+    "naoContabilizado": "ainda não contabilizado"
+  },
+  "rankingColumns": {
+    "posicao": "Posição",
+    "posicaoValor": "{posicao}º",
+    "jogador": "Jogador",
+    "titulos": "Títulos",
+    "vitorias": "Vitórias",
+    "kills": "Kills",
+    "placarAFavor": "Placar a favor",
+    "partidas": "Partidas",
+    "campeonatos": "Campeonatos"
+  },
+  "RankingPage": {
+    "titulo": "Ranking",
+    "descricao": "Quem mais vence campeonatos e partidas em cada jogo.",
+    "carregando": "Carregando ranking",
+    "erroJogos": "Não foi possível carregar os jogos",
+    "semJogosTitulo": "Nenhum jogo disponível no momento",
+    "semJogosDescricao": "O ranking aparece quando houver jogos no catálogo.",
+    "escolherJogo": "Escolher o jogo do ranking",
+    "verLigas": "Ver as ligas semanais",
+    "ligasDescricao": "— campeonatos que somam pontos ao longo da temporada.",
+    "semResultados": "Por enquanto o ranking conta campeonatos disputados e finalizados. Títulos, vitórias e kills passam a contar quando os resultados das partidas entrarem.",
+    "ordem": "A ordem é por títulos, depois vitórias, depois {destaque, select, KILLS {kills} other {placar a favor}} e, por fim, campeonatos disputados. Só contam resultados validados.",
+    "rankingDe": "Ranking de {jogo}",
+    "erroRanking": "Não foi possível carregar o ranking",
+    "vazioTitulo": "Ninguém no ranking de {jogo} ainda",
+    "vazioDescricao": "O ranking começa quando o primeiro campeonato deste jogo entrar em andamento. Inscreva-se em um para aparecer aqui.",
+    "verCampeonatosDe": "Ver campeonatos de {jogo}"
+  },
+  "NotFound": {
+    "titulo": "Jogo não encontrado",
+    "descricao": "Este jogo não está no catálogo da Nova Arena, ou o link está errado.",
+    "verTodos": "Ver todos os jogos"
+  },
+  "OpenTournaments": {
+    "titulo": "Campeonatos com inscrições abertas",
+    "todosDe": "Todos os campeonatos de {jogo}",
+    "erro": "Não foi possível carregar os campeonatos",
+    "vazioTitulo": "Nenhum campeonato de {jogo} com inscrições abertas",
+    "vazioDescricao": "Siga o jogo e a gente avisa quando um campeonato novo abrir inscrições.",
+    "lista": "Campeonatos de {jogo} com inscrições abertas"
+  },
+  "GamePage": {
+    "carregando": "Carregando jogo",
+    "jogo": "Jogo",
+    "erro": "Não foi possível carregar o jogo",
+    "plataforma": "Plataforma: {plataforma}",
+    "verRanking": "Ver ranking",
+    "modos": "Modos de jogo",
+    "comoFunciona": "Como a pontuação funciona",
+    "comoFuncionaDescricao": "Estes são os modelos padrão do jogo. Cada campeonato diz, na própria página, qual modelo usa em cada fase.",
+    "semModelo": "Este jogo ainda não tem um modelo de pontuação padrão. A pontuação é definida em cada campeonato."
+  }
+}

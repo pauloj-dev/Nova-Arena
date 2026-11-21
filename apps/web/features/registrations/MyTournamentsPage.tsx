@@ -8,16 +8,21 @@ import type { ReactNode } from 'react';
 import { CalendarExport } from '@/features/calendar/CalendarExport';
 import { errorMessage } from '@/shared/api/client';
 import { useMyRegistrations } from '@/shared/api/hooks/registrations';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { useSession } from '@/shared/session/useSession';
 import { isCurrentEntry } from './lib/rules';
+import { messages } from './messages';
 import { RegistrationEntryCard } from './RegistrationEntryCard';
 
-const explore = (
-  <Button asChild>
-    <Link href="/campeonatos">Explorar campeonatos</Link>
-  </Button>
-);
+function Explore() {
+  const t = useT(messages, 'MyTournamentsPage');
+  return (
+    <Button asChild>
+      <Link href="/campeonatos">{t('explorar')}</Link>
+    </Button>
+  );
+}
 
 function EntryList({ entries, viewerId, empty }: { entries: MyTournamentEntry[]; viewerId: string | null; empty: ReactNode }) {
   if (entries.length === 0) return <>{empty}</>;
@@ -37,25 +42,26 @@ export function MyTournamentsPage() {
   const { user } = useSession();
   const entries = useMyRegistrations({ enabled: Boolean(user) });
   const viewerId = user?.id ?? null;
+  const t = useT(messages, 'MyTournamentsPage');
 
   return (
     <PageContainer>
-      <PageHeader title="Meus campeonatos" description="Suas inscrições, o que falta resolver em cada uma e o histórico do que você já jogou." actions={user ? <CalendarExport scope={{ kind: 'mine' }} /> : undefined} />
+      <PageHeader title={t('titulo')} description={t('descricao')} actions={user ? <CalendarExport scope={{ kind: 'mine' }} /> : undefined} />
       {entries.isPending ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Carregando seus campeonatos">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" role="status" aria-label={t('carregando')}>
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-40 w-full" />
           <Skeleton className="hidden h-40 w-full xl:block" />
         </div>
       ) : entries.isError ? (
-        <ErrorState title="Não foi possível carregar seus campeonatos" description={errorMessage(entries.error)} onRetry={() => void entries.refetch()} />
+        <ErrorState title={t('erroCarregar')} description={errorMessage(entries.error)} onRetry={() => void entries.refetch()} />
       ) : (
         <Tabs
-          label="Meus campeonatos"
+          label={t('titulo')}
           items={[
             {
               value: 'atuais',
-              label: 'Em andamento e próximos',
+              label: t('abaAtuais'),
               content: (
                 <EntryList
                   entries={entries.data.filter(isCurrentEntry)}
@@ -63,9 +69,9 @@ export function MyTournamentsPage() {
                   empty={
                     <EmptyState
                       icon={<Trophy className="size-7" />}
-                      title="Você não está inscrito em nenhum campeonato"
-                      description="Encontre um campeonato com inscrições abertas e garanta a sua vaga."
-                      action={explore}
+                      title={t('atuaisVazioTitulo')}
+                      description={t('atuaisVazioDescricao')}
+                      action={<Explore />}
                     />
                   }
                 />
@@ -73,7 +79,7 @@ export function MyTournamentsPage() {
             },
             {
               value: 'historico',
-              label: 'Histórico',
+              label: t('abaHistorico'),
               content: (
                 <EntryList
                   entries={entries.data.filter((e) => !isCurrentEntry(e))}
@@ -81,9 +87,9 @@ export function MyTournamentsPage() {
                   empty={
                     <EmptyState
                       icon={<History className="size-7" />}
-                      title="Seu histórico ainda está vazio"
-                      description="Os campeonatos que você terminar de jogar aparecem aqui, com a sua colocação."
-                      action={explore}
+                      title={t('historicoVazioTitulo')}
+                      description={t('historicoVazioDescricao')}
+                      action={<Explore />}
                     />
                   }
                 />

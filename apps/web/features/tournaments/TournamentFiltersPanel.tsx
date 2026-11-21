@@ -3,7 +3,9 @@
 import type { Game } from '@nova/schemas';
 import { Button, Checkbox, Input, Select } from '@nova/ui';
 import { FilterX } from 'lucide-react';
-import { countActiveFilters, MODE_OPTIONS, STATUS_OPTIONS, type ListFilters, type ModeFilter, type StatusFilter } from './filters';
+import { useT } from '@/shared/i18n/react';
+import { countActiveFilters, MODE_VALUES, STATUS_VALUES, type ListFilters, type ModeFilter, type StatusFilter } from './filters';
+import { messages } from './messages';
 
 interface TournamentFiltersPanelProps {
   filters: ListFilters;
@@ -16,24 +18,27 @@ interface TournamentFiltersPanelProps {
 
 /** Campos de filtro da lista. Os mesmos na barra lateral (desktop) e no drawer (celular). */
 export function TournamentFiltersPanel({ filters, games, onChange, onClear, hideClear = false }: TournamentFiltersPanelProps) {
+  const t = useT(messages, 'TournamentFiltersPanel');
   // O jogo da URL aparece mesmo antes do catálogo carregar (ou se o jogo foi desativado).
   const gameOptions = (games ?? []).map((g) => ({ value: g.slug, label: `${g.icon} ${g.name}` }));
   if (filters.game && !gameOptions.some((o) => o.value === filters.game)) gameOptions.push({ value: filters.game, label: filters.game });
+  const modeOptions = MODE_VALUES.map((value) => ({ value, label: t('opcaoModo', { modo: value }) }));
+  const statusOptions = STATUS_VALUES.map((value) => ({ value, label: t('opcaoStatus', { status: value }) }));
   const active = countActiveFilters(filters);
 
   return (
     <div className="flex flex-col gap-4">
-      <Select label="Jogo" placeholder="Todos os jogos" options={gameOptions} value={filters.game} onChange={(e) => onChange({ game: e.target.value })} />
-      <Select label="Modo" placeholder="Solo e equipe" options={MODE_OPTIONS} value={filters.mode} onChange={(e) => onChange({ mode: e.target.value as ModeFilter })} />
-      <Select label="Status" placeholder="Todos" options={STATUS_OPTIONS} value={filters.status} onChange={(e) => onChange({ status: e.target.value as StatusFilter })} />
-      <Input label="Começa a partir de" type="date" value={filters.from} onChange={(e) => onChange({ from: e.target.value })} />
+      <Select label={t('jogo')} placeholder={t('todosOsJogos')} options={gameOptions} value={filters.game} onChange={(e) => onChange({ game: e.target.value })} />
+      <Select label={t('modo')} placeholder={t('soloEEquipe')} options={modeOptions} value={filters.mode} onChange={(e) => onChange({ mode: e.target.value as ModeFilter })} />
+      <Select label={t('status')} placeholder={t('todos')} options={statusOptions} value={filters.status} onChange={(e) => onChange({ status: e.target.value as StatusFilter })} />
+      <Input label={t('comecaAPartirDe')} type="date" value={filters.from} onChange={(e) => onChange({ from: e.target.value })} />
       <div className="flex flex-col">
-        <Checkbox label="Só com vagas" hint="Inscrições abertas e vaga livre." checked={filters.slots} onCheckedChange={(slots) => onChange({ slots })} />
-        <Checkbox label="Só organizador verificado" checked={filters.verified} onCheckedChange={(verified) => onChange({ verified })} />
+        <Checkbox label={t('soComVagas')} hint={t('soComVagasDica')} checked={filters.slots} onCheckedChange={(slots) => onChange({ slots })} />
+        <Checkbox label={t('soVerificado')} checked={filters.verified} onCheckedChange={(verified) => onChange({ verified })} />
       </div>
       {!hideClear && (
         <Button variant="ghost" onClick={onClear} disabled={active === 0} iconLeft={<FilterX className="size-4" aria-hidden />}>
-          Limpar filtros
+          {t('limparFiltros')}
         </Button>
       )}
     </div>

@@ -2,6 +2,8 @@
  * Prepara a logo no navegador: lê o arquivo, corta um quadrado central e reduz para 256 px.
  * O resultado é um data URL pequeno — é o "upload simulado" do protótipo (em B1 o arquivo vai para o Vercel Blob).
  */
+import { getT } from '@/shared/i18n/core';
+import { messages } from '../messages';
 import { validateLogoFile } from './rules';
 
 const LOGO_PX = 256;
@@ -34,7 +36,7 @@ export async function fileToLogoDataUrl(file: File): Promise<string> {
     // WebP mantém a transparência da logo; navegador sem WebP devolve PNG, que também é aceito.
     return canvas.toDataURL('image/webp', 0.9);
   } catch {
-    throw new Error('Não foi possível ler esta imagem. Tente outro arquivo.');
+    throw new Error(getT(messages, 'logoImage')('erroLer'));
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
