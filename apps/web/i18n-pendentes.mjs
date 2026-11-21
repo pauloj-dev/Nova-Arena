@@ -3,6 +3,4 @@
  * fica desligada só nelas; ao migrar uma área, apague a linha dela. A lista vazia é o critério de aceite da #108:
  * "nenhum texto de interface fixo no código". Conferir uma área: `pnpm --filter web check:i18n features/<área>`.
  */
-export const I18N_PENDENTES = [
-  'features/admin/**',
-];
+export const I18N_PENDENTES = [];
