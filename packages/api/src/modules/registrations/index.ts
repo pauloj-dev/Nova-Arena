@@ -45,7 +45,7 @@ import { clientIp } from '../../security';
 import { replaceEntrantInPreview } from '../../competition/maintenance';
 import { revalidateTournaments } from '../../revalidate';
 import { checkInOf, countsOf, toTournamentSummary, tournamentInclude } from '../tournaments/views';
-import { LOCKED_TX, lockTournament, registrationInclude, releaseMembers, settleWaitlist, takenSlots, toRegistration, toRegistrations, tournamentForRegistration, type TournamentForRegistration, type Tx } from './core';
+import { LOCKED_TX, lockTournament, registrationIdsOfUser, registrationInclude, releaseMembers, settleWaitlist, takenSlots, toRegistration, toRegistrations, tournamentForRegistration, type TournamentForRegistration, type Tx } from './core';
 
 /** Estados em que um membro ainda pode confirmar ou recusar a participação. */
 const CONFIRMATION_STATUSES: TournamentStatus[] = ['PUBLISHED', 'REGISTRATION_OPEN', 'REGISTRATION_CLOSED'];
@@ -112,7 +112,8 @@ export const registrations = new Hono<AppEnv>();
 registrations.get('/me/registrations', async (c) => {
   const session = await requireSession(c);
   const db = c.get('deps').db();
-  const rows = await db.registration.findMany({ where: { ...involves(session.userId), tournament: { status: { not: 'DRAFT' } } }, include: registrationInclude, orderBy: { createdAt: 'desc' } });
+  const mineIds = await registrationIdsOfUser(db, session.userId);
+  const rows = await db.registration.findMany({ where: { id: { in: mineIds }, tournament: { status: { not: 'DRAFT' } } }, include: registrationInclude, orderBy: { createdAt: 'desc' } });
   // Uma inscrição por campeonato: a ativa; sem ativa, a mais recente (inclusive cancelada, para o histórico).
   const byTournament = new Map<string, (typeof rows)[number]>();
   for (const r of rows) {

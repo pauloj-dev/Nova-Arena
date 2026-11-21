@@ -13,6 +13,7 @@ import { Hono } from 'hono';
 import { respond, type AppEnv } from '../../context';
 import { notFound } from '../../errors';
 import { EDGE_CACHE, publicCache } from '../../http-cache';
+import { registrationIdsOfUser } from '../registrations/core';
 import { readRun, type StageRun } from '../../competition/run';
 
 type PerGame = CompetitiveStats['perGame'][number];
@@ -70,7 +71,7 @@ stats.get('/users/:nickname/stats', async (c) => {
   const registrations = await db.registration.findMany({
     where: {
       status: { in: ['CONFIRMED', 'WITHDRAWN', 'DISQUALIFIED'] },
-      OR: [{ userId: user.id }, { members: { some: { userId: user.id, confirmedAt: { not: null } } } }],
+      id: { in: await registrationIdsOfUser(db, user.id, { confirmedMember: true }) },
       tournament: { status: { not: 'CANCELLED' } },
     },
     select: {

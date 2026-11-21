@@ -792,6 +792,10 @@ model Registration {
   @@unique([tournamentId, userId])
   @@unique([tournamentId, teamId])
   @@index([tournamentId, status, createdAt])
+  /// "Minhas inscrições", perfil e disputas de uma pessoa em todos os campeonatos (revisão R2, #111).
+  @@index([userId])
+  /// Cron: reservas de vaga vencidas (`status = PENDING_MEMBERS` e `reservedUntil` no passado).
+  @@index([status, reservedUntil])
   @@map("registrations")
 }
 
@@ -811,6 +815,8 @@ model RegistrationMember {
 
   @@unique([tournamentId, userId])
   @@index([registrationId])
+  /// Elencos de que a pessoa faz parte, em qualquer campeonato (revisão R2, #111).
+  @@index([userId])
   @@map("registration_members")
 }
 

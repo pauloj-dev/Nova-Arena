@@ -33,6 +33,7 @@ import { ADMIN_ROLES, assertTournamentAccess, currentRoles, isAdmin } from '../.
 import { requireSession } from '../../auth/session';
 import { findMatch, namesFor } from '../../competition/bracket';
 import { afterResult, applyMatchResult, attachEvidence, matchLabelOf, tiebreakWinner, toEngineInput, usersOfRegistrations } from '../../competition/results';
+import { registrationIdsOfUser } from '../registrations/core';
 import { engine } from '../../competition/run';
 import { isFlagEnabled } from '../site';
 import { notify, publish } from '../../notify';
@@ -283,8 +284,7 @@ submissions.get('/tournaments/:id/disputes', async (c) => {
 submissions.get('/me/disputes', async (c) => {
   const session = await requireSession(c);
   const db = c.get('deps').db();
-  const regs = await db.registration.findMany({ where: { OR: [{ userId: session.userId }, { members: { some: { userId: session.userId, confirmedAt: { not: null } } } }] }, select: { id: true } });
-  const ids = regs.map((r) => r.id);
+  const ids = await registrationIdsOfUser(db, session.userId, { confirmedMember: true });
   const rows = ids.length ? await db.dispute.findMany({ where: { match: { participants: { some: { registrationId: { in: ids } } } } }, include: disputeInclude, orderBy: { createdAt: 'desc' } }) : [];
   return respond(c, z.array(Dispute), await toDisputes(db, rows));
 });
