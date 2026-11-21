@@ -21,6 +21,7 @@ import { revalidateTournaments } from '../../revalidate';
 import { releaseTournamentsOf } from './rn09';
 import { applySanction, dropSessions, expireSuspensions, liftSanction } from './sanctions';
 import { adminUserInclude, AfterCommit, assertCanModerate, findTargetUser, hasRole, isAdminUser, isUuid, normalize, pageOf, toAdminUserDetail, toAdminUsers, type AdminUserRow } from './shared';
+import { messages } from '../../messages/pt-BR';
 
 const RESET_TTL_MS = 3600_000;
 const LIVE_TOURNAMENT = { notIn: ['FINISHED', 'ARCHIVED', 'CANCELLED'] as ('FINISHED' | 'ARCHIVED' | 'CANCELLED')[] };
@@ -120,7 +121,7 @@ adminUsers.post('/admin/users/:id/reset-password', async (c) => {
     c.get('log').error('não foi possível enviar o e-mail de redefinição', { userId: target.id, error: error instanceof Error ? error.message : String(error) });
   }
   await new AfterCommit()
-    .notify([target.id], { type: 'SANCTION', title: 'Redefinição de senha', body: 'A administração gerou um link para você criar uma senha nova. Se não foi você quem pediu, fale com o suporte.', link: null })
+    .notify([target.id], { type: 'SANCTION', title: messages.account.passwordReset.title, body: messages.account.passwordReset.body, link: null })
     .flush(c);
   // O link só vai por e-mail: o Admin nunca o vê.
   return respond(c, PasswordResetLink, { link: '' });
@@ -269,7 +270,7 @@ adminUsers.post('/admin/users/:id/merge', async (c) => {
     return { moved, affected };
   });
   after.publish(`user:${source.id}`, { type: 'session.revoked', reason: 'MERGED' });
-  after.notify([target.id], { type: 'SANCTION', title: 'Contas mescladas', body: `A conta ${source.nickname} foi mesclada na sua. Inscrições, squads e IDs de jogo agora estão aqui.`, link: '/minha-conta' });
+  after.notify([target.id], { type: 'SANCTION', title: messages.account.merged.title, body: messages.account.merged.body(source.nickname), link: '/minha-conta' });
   await after.flush(c);
   if (result.affected.length > 0 || result.moved.registrations > 0) revalidateTournaments(c);
   return respond(c, MergeUsersResult, { target: await toAdminUserDetail(db, target.id, now()), moved: result.moved });

@@ -40,6 +40,7 @@ import { revalidateTournaments } from '../../revalidate';
 import { markUnchanged } from '../site/events';
 import { countsOf } from '../tournaments/views';
 import { AfterCommit, findTournamentRow, isActiveTournament, isUuid, normalize, paginate } from './shared';
+import { messages } from '../../messages/pt-BR';
 
 const HOUR_MS = 3600_000;
 /** O aviso de manutenção aparece no site 48 h antes do início. */
@@ -152,8 +153,8 @@ adminTournaments.post('/admin/tournaments/:id/owner', async (c) => {
       reason: input.reason,
     });
   });
-  const after = new AfterCommit().notify([next.id], { type: 'ANNOUNCEMENT', title: 'Você agora é responsável por um campeonato', body: `A administração passou "${t.name}" para você. Motivo: ${input.reason}`, link: `/organizador/campeonatos/${t.id}` });
-  if (t.ownerId !== next.id) after.notify([t.ownerId], { type: 'ANNOUNCEMENT', title: 'Você deixou de ser responsável por um campeonato', body: `A administração passou "${t.name}" para ${next.nickname}. Motivo: ${input.reason}`, link: null });
+  const after = new AfterCommit().notify([next.id], { type: 'ANNOUNCEMENT', title: messages.tournaments.transferredToYou.title, body: messages.tournaments.transferredToYou.body(t.name, input.reason), link: `/organizador/campeonatos/${t.id}` });
+  if (t.ownerId !== next.id) after.notify([t.ownerId], { type: 'ANNOUNCEMENT', title: messages.tournaments.transferredAway.title, body: messages.tournaments.transferredAway.body(t.name, next.nickname, input.reason), link: null });
   await after.publish(`tournament:${t.id}`, { type: 'tournament.updated', tournamentId: t.id }).flush(c);
   revalidateTournaments(c);
   return respond(c, AdminTournament, await viewOf(c, t.id));
@@ -174,11 +175,11 @@ adminTournaments.post('/admin/tournaments/:id/cancel', async (c) => {
     if (count === 0) throw conflict('O status do campeonato mudou enquanto você agia. Atualize a página.', 'INVALID_TRANSITION');
     await tx.orphanTournament.deleteMany({ where: { tournamentId: t.id } });
     // Quem acompanha a página pública fica sabendo o motivo.
-    if (wasPublic) await tx.announcement.create({ data: { tournamentId: t.id, authorId: actor.id, title: 'Campeonato cancelado', body: reason } });
+    if (wasPublic) await tx.announcement.create({ data: { tournamentId: t.id, authorId: actor.id, title: messages.tournaments.cancelledAnnouncement, body: reason } });
     await audited(tx, { action: 'TOURNAMENT_STATUS_CHANGED', entityType: 'Tournament', entityId: t.id, entityLabel: t.name, tournamentId: t.id, before: { status: t.status }, after: { status: 'CANCELLED' }, reason });
   });
-  const after = new AfterCommit().notify([t.ownerId], { type: 'ANNOUNCEMENT', title: 'Campeonato cancelado pela administração', body: `${t.name}: ${reason}`, link: `/c/${t.slug}` });
-  if (wasPublic) after.publish(`tournament:${t.id}`, { type: 'announcement.created', tournamentId: t.id, title: 'Campeonato cancelado' });
+  const after = new AfterCommit().notify([t.ownerId], { type: 'ANNOUNCEMENT', title: messages.tournaments.cancelled.title, body: messages.tournaments.cancelled.body(t.name, reason), link: `/c/${t.slug}` });
+  if (wasPublic) after.publish(`tournament:${t.id}`, { type: 'announcement.created', tournamentId: t.id, title: messages.tournaments.cancelledAnnouncement });
   await after.publish(`tournament:${t.id}`, { type: 'tournament.updated', tournamentId: t.id }).flush(c);
   revalidateTournaments(c);
   return respond(c, AdminTournament, await viewOf(c, t.id));

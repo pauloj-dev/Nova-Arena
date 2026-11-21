@@ -24,6 +24,7 @@ import { notify } from '../../notify';
 import { anonymizeAccount, buildPersonalExport, deletionBlockers, exportSize } from '../../privacy';
 import { enforceLimit, type RateRule } from '../../security';
 import type { DataExport } from '@nova/db';
+import { messages } from '../../messages/pt-BR';
 
 /** Acima disto, a exportação vai para um job (o arquivo pode passar de alguns MB). */
 export const EXPORT_INLINE_LIMIT = 5000;
@@ -105,7 +106,7 @@ export async function runExportJob(c: AppContext, exportId: string): Promise<'re
   const data = await buildPersonalExport(db, record.userId, clock());
   const saved = await blob.putPrivate(`data-export/${record.userId}/${record.id}.json`, JSON.stringify(data), 'application/json', token);
   await db.dataExport.update({ where: { id: record.id }, data: { status: 'READY', blobUrl: saved.url, size: saved.size, readyAt: clock() } });
-  await notify(c, [record.userId], { type: 'ANNOUNCEMENT', title: 'Seus dados estão prontos para baixar', body: 'O arquivo com os seus dados pessoais fica disponível por 7 dias em Minha conta → Privacidade.', link: '/minha-conta/privacidade' });
+  await notify(c, [record.userId], { type: 'ANNOUNCEMENT', title: messages.account.dataExportReady.title, body: messages.account.dataExportReady.body, link: '/minha-conta/privacidade' });
   return 'ready';
 }
 

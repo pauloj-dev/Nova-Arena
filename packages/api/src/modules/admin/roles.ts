@@ -46,6 +46,7 @@ import { releaseTournamentsOf } from './rn09';
 import { expireSuspensions } from './sanctions';
 import { activeAdminIds, adminUserInclude, AfterCommit, DEFAULT_LIMITS, findTargetUser, hasRole, isUuid, nicknames, normalize, pageOf, toAdminUserDetail, toAdminUsers, tournamentsPlayed, type AdminUserRow } from './shared';
 import { optionalReason } from './users';
+import { messages } from '../../messages/pt-BR';
 
 const HOUR_MS = 3600_000;
 const VALIDITY_MS: Record<CreateRoleInviteInput['validity'], number> = { '1h': HOUR_MS, '24h': 24 * HOUR_MS, '7d': 7 * 24 * HOUR_MS };
@@ -244,9 +245,9 @@ adminRoles.post('/admin/users/:id/roles', async (c) => {
   });
   const after = new AfterCommit();
   if (input.role === 'ORGANIZER') {
-    after.notify([target.id], { type: 'ORGANIZER_REQUEST_RESULT', title: 'Você agora é organizador', body: 'A administração liberou a área de organização para você. Já dá para criar o seu primeiro campeonato.', link: '/organizador' });
+    after.notify([target.id], { type: 'ORGANIZER_REQUEST_RESULT', title: messages.roles.organizerGranted.title, body: messages.roles.organizerGranted.body, link: '/organizador' });
   } else {
-    after.notify([target.id], { type: 'SANCTION', title: 'Você agora é administrador', body: 'Para entrar na área de administração, ative a verificação em duas etapas.', link: '/minha-conta/seguranca' });
+    after.notify([target.id], { type: 'SANCTION', title: messages.roles.adminGranted.title, body: messages.roles.adminGranted.body, link: '/minha-conta/seguranca' });
   }
   await after.flush(c);
   return respond(c, AdminUserDetail, await toAdminUserDetail(db, target.id, now()));
@@ -254,7 +255,7 @@ adminRoles.post('/admin/users/:id/roles', async (c) => {
 
 async function removeAdminRole(tx: Tx, target: AdminUserRow, after: AfterCommit, reason: string | null): Promise<void> {
   await revokeRole(tx, target.id, 'ADMIN');
-  after.notify([target.id], { type: 'SANCTION', title: 'Você não é mais administrador', body: reason ? `Seu acesso à área de administração foi removido. Motivo: ${reason}` : 'Seu acesso à área de administração foi removido.', link: null });
+  after.notify([target.id], { type: 'SANCTION', title: messages.roles.adminRevoked.title, body: messages.roles.adminRevoked.body(reason), link: null });
 }
 
 adminRoles.delete('/admin/users/:id/roles/:role', async (c) => {
@@ -276,8 +277,8 @@ adminRoles.delete('/admin/users/:id/roles/:role', async (c) => {
     });
     after.notify([target.id], {
       type: 'ORGANIZER_REQUEST_RESULT',
-      title: 'Você não é mais organizador',
-      body: reason ? `A administração removeu o seu acesso à área de organização. Motivo: ${reason}` : 'A administração removeu o seu acesso à área de organização.',
+      title: messages.roles.organizerRevoked.title,
+      body: messages.roles.organizerRevoked.body(reason),
       link: null,
     });
     await after.flush(c);
@@ -313,12 +314,12 @@ adminRoles.delete('/admin/users/:id/roles/:role', async (c) => {
     await audited(tx, { action: 'ADMIN_REMOVAL_REQUESTED', entityType: 'User', entityId: target.id, entityLabel: target.nickname, after: { pedido: created.id, situacao: 'PENDING' }, reason });
     return created;
   });
-  const actorName = (await nicknames(db, [actor.id])).get(actor.id) ?? 'Um administrador';
+  const actorName = (await nicknames(db, [actor.id])).get(actor.id);
   await after
     .notify(await activeAdminIds(db, true), {
       type: 'ANNOUNCEMENT',
-      title: 'Pedido de remoção de administrador',
-      body: `${actorName} pediu a remoção de ${target.nickname}, que é administrador há mais tempo. A decisão é sua.`,
+      title: messages.roles.removalRequested.title,
+      body: messages.roles.removalRequested.body(actorName, target.nickname),
       link: '/admin/administradores',
     })
     .flush(c);
@@ -398,8 +399,8 @@ adminRoles.post('/admin/admin-removal-requests/:id/:decision', async (c) => {
   });
   after.notify([record.requestedById], {
     type: 'ANNOUNCEMENT',
-    title: decision === 'approve' ? 'Pedido de remoção aprovado' : 'Pedido de remoção recusado',
-    body: decision === 'approve' ? `${targetName} não é mais administrador.` : `${targetName} continua como administrador.`,
+    title: messages.roles.removalDecided.title(decision === 'approve'),
+    body: messages.roles.removalDecided.body(decision === 'approve', targetName),
     link: '/admin/administradores',
   });
   await after.flush(c);
@@ -532,12 +533,12 @@ adminRoles.patch('/admin/organizer-requests/:id', async (c) => {
   if (input.action === 'approve') {
     after.notify([record.userId], {
       type: 'ORGANIZER_REQUEST_RESULT',
-      title: 'Pedido de organizador aprovado',
-      body: reason ? `Você já pode criar campeonatos. Recado da administração: ${reason}` : 'Você já pode criar campeonatos na área de organização.',
+      title: messages.roles.organizerRequestApproved.title,
+      body: messages.roles.organizerRequestApproved.body(reason),
       link: '/organizador',
     });
   } else {
-    after.notify([record.userId], { type: 'ORGANIZER_REQUEST_RESULT', title: 'Pedido de organizador recusado', body: `Motivo: ${reason}. Você pode enviar um novo pedido quando quiser.`, link: '/minha-conta' });
+    after.notify([record.userId], { type: 'ORGANIZER_REQUEST_RESULT', title: messages.roles.organizerRequestRejected.title, body: messages.roles.organizerRequestRejected.body(reason), link: '/minha-conta' });
   }
   await after.flush(c);
   const saved = await db.organizerRequest.findUniqueOrThrow({ where: { id: record.id }, include: requestInclude });

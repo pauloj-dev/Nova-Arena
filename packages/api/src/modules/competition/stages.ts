@@ -27,6 +27,7 @@ import { notify, publish } from '../../notify';
 import { revalidateTournaments } from '../../revalidate';
 import { toStage } from '../tournaments/views';
 import { auditCtx, isUuid, staffVia } from './access';
+import { messages } from '../../messages/pt-BR';
 
 type StageRow = NonNullable<Awaited<ReturnType<typeof stageWithTournament>>>;
 
@@ -195,8 +196,8 @@ stages.post('/stages/:id/advance', async (c) => {
   const users = await usersOfRegistrations(db, plan.preview.eliminated.map((e) => e.registrationId));
   await notify(c, [...users.values()].flat(), {
     type: 'ELIMINATED',
-    title: 'Fim da linha neste campeonato',
-    body: `Você não avançou da fase "${stage.name}" em ${t.name}. Valeu pela participação!`,
+    title: messages.competition.eliminated.title,
+    body: messages.competition.eliminated.body(stage.name, t.name),
     link: `/c/${t.slug}?aba=tabela`,
   });
   await publish(c, `tournament:${t.id}`, { type: 'stage.advanced', fromStageId: stage.id, toStageId: plan.next.id });

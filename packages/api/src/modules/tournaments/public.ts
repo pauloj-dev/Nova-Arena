@@ -22,6 +22,7 @@ import { followersOf, notify, publish } from '../../notify';
 import { EDGE_CACHE, noStore, publicCache } from '../../http-cache';
 import { revalidateTournaments } from '../../revalidate';
 import { accessRole, countsOf, toTournament, toTournamentSummary, tournamentInclude } from './views';
+import { messages } from '../../messages/pt-BR';
 
 const HIDDEN: TournamentStatus[] = ['DRAFT', 'ARCHIVED'];
 const STATUS_GROUPS: Record<string, TournamentStatus[]> = {
@@ -189,7 +190,7 @@ publicTournaments.post('/tournaments/:id/announcements', async (c) => {
   // Depois do commit (como na API simulada): quem está no público recebe a notificação e a página ao vivo é avisada.
   const recipients = new Set(await announcementAudience(db, t.id, input.stageId, input.groupId));
   recipients.delete(session.userId);
-  await notify(c, recipients, { type: 'ANNOUNCEMENT', title: `${t.name}: ${created.title}`, body: created.body.length > 200 ? `${created.body.slice(0, 197)}…` : created.body, link: `/c/${t.slug}` });
+  await notify(c, recipients, { type: 'ANNOUNCEMENT', title: messages.tournaments.announcement.title(t.name, created.title), body: messages.tournaments.announcement.body(created.body), link: `/c/${t.slug}` });
   await publish(c, `tournament:${t.id}`, { type: 'announcement.created', tournamentId: t.id, title: created.title });
   const [view] = await toAnnouncements(c, [created]);
   return respond(c, Announcement, view as Announcement, 201);

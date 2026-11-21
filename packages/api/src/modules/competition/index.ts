@@ -31,6 +31,7 @@ import { clientIp } from '../../security';
 import { EDGE_CACHE, isSettled, visitorCache } from '../../http-cache';
 import { toStage } from '../tournaments/views';
 import { entrantRatings } from '../seasons/ratings';
+import { messages } from '../../messages/pt-BR';
 
 const isUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 const LOCKED_MESSAGE = 'A chave está travada porque a fase já tem partida concluída. Só um administrador pode destravar.';
@@ -197,8 +198,8 @@ competition.post('/stages/:id/confirm', async (c) => {
   const players = await usersOfRegistrations(db, run.structure.entrants.map((e) => e.id));
   await notify(c, [...[...players.values()].flat(), ...(await followersOf(db, 'TOURNAMENT', t.id))], {
     type: 'QUALIFIED',
-    title: previous ? `Você está na fase "${stage.name}"` : 'A chave saiu!',
-    body: `${t.name}: confira seus confrontos.`,
+    title: messages.competition.bracket.title(previous ? stage.name : null),
+    body: messages.competition.bracket.body(t.name),
     link: `/c/${t.slug}?aba=chave`,
   });
   await publishStage(c, t.id, stage.id);

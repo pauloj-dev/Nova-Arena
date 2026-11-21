@@ -21,6 +21,7 @@ import { namesFor } from './bracket';
 import { dropCountOf, entryPoints } from './points';
 import { engine, projectRun, readRun, snapshotOf, type StageRun } from './run';
 import { persistStandings, standingsKey, type StandingsStage } from './standings';
+import { messages } from '../messages/pt-BR';
 
 type Tx = Prisma.TransactionClient;
 type Db = PrismaClient | Tx;
@@ -296,8 +297,8 @@ export async function afterResult(c: AppContext, applied: AppliedResult, status:
   const users = await usersOfRegistrations(db, applied.registrationIds).catch(() => new Map<string, string[]>());
   await notify(c, [...users.values()].flat(), {
     type: 'RESULT_POSTED',
-    title: applied.corrected ? 'Resultado corrigido' : 'Resultado lançado',
-    body: `${applied.label} · ${applied.tournament.name}`,
+    title: messages.results.posted.title(applied.corrected),
+    body: messages.results.posted.body(applied.label, applied.tournament.name),
     link: `/c/${applied.tournament.slug}?aba=partidas`,
   });
   await publishStage(c, applied.tournament.id, applied.stageId, { matchId: applied.matchId, status });

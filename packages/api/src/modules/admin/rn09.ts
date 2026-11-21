@@ -10,6 +10,7 @@
 import { audited, type Tx } from '@nova/db';
 import { ACTIVE_TOURNAMENT_STATUSES, type OrphanOutcome } from '@nova/schemas';
 import { activeAdminIds, type AfterCommit } from './shared';
+import { messages } from '../../messages/pt-BR';
 
 export async function releaseTournamentsOf(tx: Tx, owner: { id: string; nickname: string }, cause: string, after: AfterCommit): Promise<OrphanOutcome[]> {
   const tournaments = await tx.tournament.findMany({ where: { ownerId: owner.id, status: { in: ACTIVE_TOURNAMENT_STATUSES } }, select: { id: true, name: true, status: true }, orderBy: { createdAt: 'asc' } });
@@ -37,8 +38,8 @@ export async function releaseTournamentsOf(tx: Tx, owner: { id: string; nickname
       });
       after.notify([successor.userId], {
         type: 'ANNOUNCEMENT',
-        title: 'Você agora é responsável por um campeonato',
-        body: `${t.name}: ${owner.nickname} deixou a organização e você, como co-organizador mais antigo, assumiu.`,
+        title: messages.tournaments.successor.title,
+        body: messages.tournaments.successor.body(t.name, owner.nickname),
         link: `/organizador/campeonatos/${t.id}`,
       });
       outcomes.push({ id: t.id, name: t.name, outcome: 'TRANSFERRED', newOwnerNickname: successor.user.nickname });
@@ -67,8 +68,8 @@ export async function releaseTournamentsOf(tx: Tx, owner: { id: string; nickname
     const paused = outcomes.filter((o) => o.outcome === 'PAUSED').length;
     after.notify(await activeAdminIds(tx), {
       type: 'ANNOUNCEMENT',
-      title: paused > 0 ? `${paused} campeonato(s) sem responsável` : 'Responsável de campeonato trocado',
-      body: `${owner.nickname} deixou de organizar ${outcomes.length} campeonato(s) em curso: ${outcomes.map((o) => (o.outcome === 'PAUSED' ? `${o.name} (pausado)` : `${o.name} (assumido por ${o.newOwnerNickname})`)).join('; ')}.`,
+      title: messages.tournaments.orphans.title(paused),
+      body: messages.tournaments.orphans.body(owner.nickname, outcomes),
       link: paused > 0 ? '/admin/campeonatos?fila=sem-responsavel' : '/admin/campeonatos',
     });
   }

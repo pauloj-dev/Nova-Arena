@@ -18,6 +18,7 @@ import { randomUUID } from 'node:crypto';
 import { getCookie, setCookie } from 'hono/cookie';
 import type { AppContext } from './context';
 import { notify } from './notify';
+import { messages } from './messages/pt-BR';
 
 const HOUR_MS = 3600_000;
 const DEVICE_COOKIE = 'na_dev';
@@ -176,8 +177,8 @@ export async function checkMassAdminActions(c: AppContext, actorId: string): Pro
       supers.map((s) => s.id),
       {
         type: 'SANCTION',
-        title: 'Alerta: ações administrativas em massa',
-        body: `${actor?.nickname ?? 'Um Admin'} fez ${counts[kind]} ${MASS_ACTION_LABELS[kind]} em ${FRAUD_THRESHOLDS.massWindowSeconds} s. Confira na moderação.`,
+        title: messages.moderation.massAdminActions.title,
+        body: messages.moderation.massAdminActions.body(actor?.nickname, counts[kind], MASS_ACTION_LABELS[kind], FRAUD_THRESHOLDS.massWindowSeconds),
         link: '/admin/moderacao?aba=alertas',
       },
     );
