@@ -27,6 +27,8 @@ async function alvosPequenos(page: Page): Promise<string[]> {
     for (const el of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
       if (el.closest('nextjs-portal')) continue;
       if (el.getAttribute('href') === '#conteudo') continue;
+      // Seletor "Entrar como" (só existe no protótipo, não vai para produção).
+      if (el.getAttribute('aria-label') === 'Protótipo: entrar como outro usuário') continue;
       if ((el as HTMLButtonElement).disabled || el.getAttribute('aria-hidden') === 'true') continue;
       const style = getComputedStyle(el);
       if (style.visibility === 'hidden' || style.display === 'none') continue;
