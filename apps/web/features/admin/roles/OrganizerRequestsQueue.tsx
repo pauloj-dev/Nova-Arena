@@ -7,15 +7,17 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useAdminOrganizerRequests, useReviewOrganizerRequest } from '@/shared/api/hooks/admin';
+import { useT } from '@/shared/i18n/react';
 import { formatDate, formatRelative } from '@/shared/lib/datetime';
-import { plural } from '../common/format';
 import { ReasonModal } from '../common/ReasonModal';
+import { adminRolesMessages } from './messages';
 
 /**
  * Fila de pedidos para virar organizador (US-ADM-03): perfil, histórico de participação e justificativa.
  * Aprovar aceita um recado opcional; recusar exige o motivo. Nos dois casos a pessoa é notificada.
  */
 export function OrganizerRequestsQueue() {
+  const t = useT(adminRolesMessages, 'OrganizerRequestsQueue');
   const toast = useToast();
   const requests = useAdminOrganizerRequests();
   const review = useReviewOrganizerRequest();
@@ -23,7 +25,7 @@ export function OrganizerRequestsQueue() {
 
   if (requests.isPending) {
     return (
-      <div className="flex flex-col gap-3" role="status" aria-label="Carregando pedidos">
+      <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-40 w-full" />
       </div>
@@ -31,7 +33,7 @@ export function OrganizerRequestsQueue() {
   }
   if (requests.isError) return <ErrorState description={errorMessage(requests.error)} onRetry={() => void requests.refetch()} />;
   if (requests.data.length === 0) {
-    return <EmptyState icon={<Inbox className="size-7" />} title="Nenhum pedido na fila" description="Quando alguém pedir para virar organizador, o pedido aparece aqui com o histórico da conta." />;
+    return <EmptyState icon={<Inbox className="size-7" />} title={t('vazioTitulo')} description={t('vazioDescricao')} />;
   }
 
   function decide(reason: string) {
@@ -41,17 +43,17 @@ export function OrganizerRequestsQueue() {
       { requestId: request.id, action, reason },
       {
         onSuccess: () => {
-          toast.success(action === 'approve' ? 'Pedido aprovado' : 'Pedido recusado', action === 'approve' ? `${request.nickname} agora é organizador e foi avisado.` : `${request.nickname} foi avisado do motivo.`);
+          toast.success(action === 'approve' ? t('aprovado') : t('recusado'), action === 'approve' ? t('aprovadoDescricao', { nome: request.nickname }) : t('recusadoDescricao', { nome: request.nickname }));
           setDeciding(null);
         },
-        onError: (error) => toast.error('Não foi possível registrar a decisão', errorMessage(error)),
+        onError: (error) => toast.error(t('erroDecisao'), errorMessage(error)),
       },
     );
   }
 
   return (
     <>
-      <ul className="flex flex-col gap-3" aria-label="Pedidos para virar organizador">
+      <ul className="flex flex-col gap-3" aria-label={t('lista')}>
         {requests.data.map((request) => (
           <li key={request.id}>
             <Card className="flex flex-col gap-3" data-testid="organizer-request">
@@ -62,41 +64,41 @@ export function OrganizerRequestsQueue() {
                     <Link href={`/admin/usuarios/${request.userId}`} className="font-semibold hover:underline">
                       {request.nickname}
                     </Link>
-                    <p className="text-xs text-muted">Pedido {formatRelative(request.createdAt)}</p>
+                    <p className="text-xs text-muted">{t('pedido', { quando: formatRelative(request.createdAt) })}</p>
                   </div>
                 </div>
-                <StatusPill status={request.status} label={request.status === 'PENDING' ? 'Aguardando análise' : request.status === 'APPROVED' ? 'Aprovado' : 'Recusado'} />
+                <StatusPill status={request.status} label={t('status', { status: request.status })} />
               </div>
               <dl className="grid grid-cols-1 gap-2 text-sm xs:grid-cols-3">
                 <div>
-                  <dt className="text-xs text-muted">Histórico de participação</dt>
-                  <dd>{plural(request.tournamentsPlayed, 'campeonato jogado', 'campeonatos jogados')}</dd>
+                  <dt className="text-xs text-muted">{t('historico')}</dt>
+                  <dd>{t('campeonatosJogados', { count: request.tournamentsPlayed })}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted">Na Nova Arena desde</dt>
+                  <dt className="text-xs text-muted">{t('membroDesde')}</dt>
                   <dd>{formatDate(request.memberSince)}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted">Sanções</dt>
-                  <dd>{request.sanctions === 0 ? 'Nenhuma' : plural(request.sanctions, 'sanção', 'sanções')}</dd>
+                  <dt className="text-xs text-muted">{t('sancoes')}</dt>
+                  <dd>{t('sancoesValor', { count: request.sanctions })}</dd>
                 </div>
               </dl>
               <div>
-                <h3 className="text-xs font-medium text-muted">Justificativa</h3>
+                <h3 className="text-xs font-medium text-muted">{t('justificativa')}</h3>
                 <p className="text-sm [overflow-wrap:anywhere]">{request.justification}</p>
               </div>
               {request.reviewReason && (
                 <p className="rounded-md bg-surface-2 px-3 py-2 text-sm [overflow-wrap:anywhere]">
-                  <span className="font-medium">{request.status === 'APPROVED' ? 'Recado da aprovação' : 'Motivo da recusa'}:</span> {request.reviewReason}
+                  <span className="font-medium">{t('rotuloRevisao', { status: request.status })}</span> {request.reviewReason}
                 </p>
               )}
               {request.status === 'PENDING' && (
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={() => setDeciding({ request, action: 'approve' })} iconLeft={<Check className="size-4" aria-hidden />}>
-                    Aprovar<span className="sr-only"> pedido de {request.nickname}</span>
+                    {t('aprovar')}<span className="sr-only">{t('pedidoDeSr', { nome: request.nickname })}</span>
                   </Button>
                   <Button variant="secondary" onClick={() => setDeciding({ request, action: 'reject' })} iconLeft={<X className="size-4" aria-hidden />}>
-                    Recusar<span className="sr-only"> pedido de {request.nickname}</span>
+                    {t('recusar')}<span className="sr-only">{t('pedidoDeSr', { nome: request.nickname })}</span>
                   </Button>
                 </div>
               )}
@@ -109,15 +111,15 @@ export function OrganizerRequestsQueue() {
         onOpenChange={(open) => {
           if (!open) setDeciding(null);
         }}
-        title={deciding?.action === 'approve' ? `Aprovar o pedido de ${deciding.request.nickname}` : `Recusar o pedido de ${deciding?.request.nickname ?? ''}`}
+        title={deciding?.action === 'approve' ? t('aprovarTitulo', { nome: deciding.request.nickname }) : t('recusarTitulo', { nome: deciding?.request.nickname ?? '' })}
         description={
           deciding?.action === 'approve'
-            ? 'A conta vira organizadora, com limite de 3 campeonatos simultâneos e todos os jogos. A pessoa é notificada.'
-            : 'A pessoa é notificada com o motivo e pode enviar um novo pedido depois.'
+            ? t('aprovarDescricao')
+            : t('recusarDescricao')
         }
-        reasonLabel={deciding?.action === 'approve' ? 'Recado para a pessoa' : 'Motivo da recusa'}
+        reasonLabel={deciding?.action === 'approve' ? t('recadoRotulo') : t('motivoRecusa')}
         minLength={deciding?.action === 'approve' ? 0 : 5}
-        confirmLabel={deciding?.action === 'approve' ? 'Aprovar pedido' : 'Recusar pedido'}
+        confirmLabel={deciding?.action === 'approve' ? t('aprovarConfirmar') : t('recusarConfirmar')}
         variant={deciding?.action === 'approve' ? 'primary' : 'danger'}
         loading={review.isPending}
         onConfirm={decide}

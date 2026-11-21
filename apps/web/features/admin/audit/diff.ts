@@ -2,7 +2,9 @@
  * Comparação campo a campo do "antes" e do "depois" de um registro de auditoria.
  * Função pura: a tela (`AuditDiff`) só desenha o resultado.
  */
+import { getFormat, getT } from '@/shared/i18n/core';
 import { formatDateTime } from '@/shared/lib/datetime';
+import { adminAuditMessages } from './messages';
 
 export type AuditValues = Record<string, unknown> | null | undefined;
 
@@ -15,108 +17,19 @@ export interface DiffRow {
   kind: 'added' | 'removed' | 'changed' | 'same';
 }
 
-const FIELD_LABELS: Record<string, string> = {
-  status: 'Status',
-  featured: 'Destaque na home',
-  ownerId: 'ID do responsável',
-  responsavel: 'Responsável',
-  semResponsavel: 'Sem responsável',
-  papeis: 'Papéis',
-  papel: 'Papel',
-  papelRemovido: 'Papel removido',
-  limite: 'Limite de campeonatos',
-  simultaneos: 'Campeonatos simultâneos',
-  jogos: 'Jogos permitidos',
-  verificado: 'Selo verificado',
-  sancao: 'Sanção',
-  ate: 'Até',
-  denuncia: 'Denúncia',
-  situacao: 'Situação',
-  pedido: 'Pedido',
-  estado: 'Estado',
-  usos: 'Usos',
-  validade: 'Validade',
-  email: 'E-mail',
-  enabled: 'Ligado',
-  active: 'Ativo',
-  tipo: 'Tipo',
-  publico: 'Público',
-  destinatarios: 'Destinatários',
-  inicio: 'Início',
-  fim: 'Fim',
-  twoFactorEnabled: 'Verificação em duas etapas',
-  siteName: 'Nome do site',
-  logoUrl: 'Logo',
-  homeBanners: 'Banners da home',
-  termsHtml: 'Termos de uso',
-  privacyHtml: 'Política de privacidade',
-  supportEmail: 'E-mail de suporte',
-  minAge: 'Idade mínima',
-  requireApprovalForSeniorAdminRemoval: 'Aprovação para remover Admin mais antigo',
-  origem: 'Conta de origem',
-  origemId: 'ID da origem',
-  origemStatus: 'Status da origem',
-  origemPapeis: 'Papéis da origem',
-  destino: 'Conta de destino',
-  inscricoesTransferidas: 'Inscrições transferidas',
-  squadsTransferidos: 'Squads transferidos',
-  idsDeJogoTransferidos: 'IDs de jogo transferidos',
-  linkEnviadoPara: 'Link enviado para',
-  seed: 'Seed do sorteio',
-  trocou: 'Trocou de lugar',
-  rodada: 'Rodada',
-};
+/** Rótulos dos campos e dos valores "de máquina" que aparecem nos registros: `diff.campos` e `diff.valores` do catálogo. */
+const DIFF_TEXTS = adminAuditMessages['pt-BR'].diff;
 
-/** Valores "de máquina" que aparecem nos registros, traduzidos para a tela. */
-const VALUE_LABELS: Record<string, string> = {
-  ACTIVE: 'Ativo',
-  SUSPENDED: 'Suspenso',
-  BANNED: 'Banido',
-  MERGED: 'Mesclado',
-  DELETED: 'Excluído',
-  DRAFT: 'Rascunho',
-  PUBLISHED: 'Publicado',
-  REGISTRATION_OPEN: 'Inscrições abertas',
-  REGISTRATION_CLOSED: 'Inscrições encerradas',
-  CHECK_IN: 'Check-in',
-  IN_PROGRESS: 'Em andamento',
-  PAUSED: 'Pausado',
-  FINISHED: 'Finalizado',
-  ARCHIVED: 'Arquivado',
-  CANCELLED: 'Cancelado',
-  PENDING: 'Pendente',
-  APPROVED: 'Aprovado',
-  REJECTED: 'Recusado',
-  OPEN: 'Aberta',
-  IN_REVIEW: 'Em análise',
-  ACTIONED: 'Tratada',
-  DISMISSED: 'Improcedente',
-  VALID: 'Válido',
-  EXPIRED: 'Expirado',
-  REVOKED: 'Revogado',
-  EXHAUSTED: 'Esgotado',
-  WARNING: 'Advertência',
-  SUSPENSION: 'Suspensão',
-  BAN: 'Banimento',
-  SUPER_ADMIN: 'Super Admin',
-  ADMIN: 'Administrador',
-  ORGANIZER: 'Organizador',
-  PARTICIPANT: 'Participante',
-  BANNER: 'Banner',
-  NOTIFICATION: 'Notificação',
-  MAINTENANCE: 'Manutenção',
-  '1h': '1 hora',
-  '24h': '24 horas',
-  '7d': '7 dias',
-};
+function hasKey<T extends object>(map: T, key: string): key is Extract<keyof T, string> {
+  return Object.prototype.hasOwnProperty.call(map, key);
+}
 
 const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 const EMPTY = '—';
 
 /** "maxActiveTournaments" → "Max active tournaments" (para campos que ainda não têm rótulo). */
 export function fieldLabel(key: string): string {
-  const known = FIELD_LABELS[key];
-  if (known) return known;
+  if (hasKey(DIFF_TEXTS.campos, key)) return getT(adminAuditMessages, 'diff')(`campos.${key}`);
   const spaced = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').toLowerCase();
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
@@ -124,11 +37,12 @@ export function fieldLabel(key: string): string {
 /** Valor legível: sim/não, datas no fuso da pessoa, listas separadas por vírgula. */
 export function formatAuditValue(value: unknown): string {
   if (value === null || value === undefined || value === '') return EMPTY;
-  if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
-  if (typeof value === 'number') return new Intl.NumberFormat('pt-BR').format(value);
+  const t = getT(adminAuditMessages, 'diff');
+  if (typeof value === 'boolean') return value ? t('sim') : t('nao');
+  if (typeof value === 'number') return getFormat().number(value);
   if (typeof value === 'string') {
     if (ISO_DATE_TIME.test(value)) return formatDateTime(value);
-    return VALUE_LABELS[value] ?? value;
+    return hasKey(DIFF_TEXTS.valores, value) ? t(`valores.${value}`) : value;
   }
   if (Array.isArray(value)) return value.length === 0 ? EMPTY : value.map(formatAuditValue).join(', ');
   return Object.entries(value as Record<string, unknown>)

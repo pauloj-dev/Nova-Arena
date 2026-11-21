@@ -6,9 +6,12 @@ import { useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useUpdateOrganizerLimits } from '@/shared/api/hooks/admin';
 import { useGames } from '@/shared/api/hooks/games';
+import { useT } from '@/shared/i18n/react';
+import { adminRolesMessages } from './messages';
 
 /** Limites do organizador (RN-10): campeonatos simultâneos, jogos permitidos (nenhum marcado = todos) e selo verificado. */
 export function OrganizerLimitsModal({ organizer, onClose }: { organizer: AdminOrganizer; onClose: () => void }) {
+  const t = useT(adminRolesMessages, 'OrganizerLimitsModal');
   const toast = useToast();
   const games = useGames();
   const update = useUpdateOrganizerLimits();
@@ -16,7 +19,7 @@ export function OrganizerLimitsModal({ organizer, onClose }: { organizer: AdminO
   const [allowed, setAllowed] = useState<string[]>(organizer.organizerLimits.allowedGameIds);
   const [verified, setVerified] = useState(organizer.verifiedOrganizer);
   const maxNumber = Number(max);
-  const maxError = max.trim() === '' || !Number.isInteger(maxNumber) || maxNumber < 0 || maxNumber > 100 ? 'Informe um número inteiro de 0 a 100' : undefined;
+  const maxError = max.trim() === '' || !Number.isInteger(maxNumber) || maxNumber < 0 || maxNumber > 100 ? t('erroMaximo') : undefined;
 
   function save() {
     if (maxError) return;
@@ -24,10 +27,10 @@ export function OrganizerLimitsModal({ organizer, onClose }: { organizer: AdminO
       { userId: organizer.id, input: { maxActiveTournaments: maxNumber, allowedGameIds: allowed, verified } },
       {
         onSuccess: () => {
-          toast.success('Limites atualizados', `${organizer.nickname}: até ${maxNumber} campeonato(s) simultâneo(s).`);
+          toast.success(t('atualizados'), t('atualizadosDescricao', { nome: organizer.nickname, max: String(maxNumber) }));
           onClose();
         },
-        onError: (error) => toast.error('Não foi possível salvar os limites', errorMessage(error)),
+        onError: (error) => toast.error(t('erroSalvar'), errorMessage(error)),
       },
     );
   }
@@ -38,22 +41,22 @@ export function OrganizerLimitsModal({ organizer, onClose }: { organizer: AdminO
       onOpenChange={(open) => {
         if (!open && !update.isPending) onClose();
       }}
-      title={`Limites de ${organizer.nickname}`}
-      description={`Hoje tem ${organizer.activeTournaments} campeonato(s) em curso. O limite é conferido quando um campeonato é publicado.`}
+      title={t('titulo', { nome: organizer.nickname })}
+      description={t('descricao', { ativos: String(organizer.activeTournaments) })}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={update.isPending}>
-            Voltar
+            {t('voltar')}
           </Button>
           <Button onClick={save} loading={update.isPending} disabled={Boolean(maxError)}>
-            Salvar limites
+            {t('salvar')}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-5">
         <Input
-          label="Campeonatos simultâneos"
+          label={t('simultaneos')}
           type="number"
           inputMode="numeric"
           min={0}
@@ -61,12 +64,12 @@ export function OrganizerLimitsModal({ organizer, onClose }: { organizer: AdminO
           value={max}
           onChange={(event) => setMax(event.target.value)}
           error={maxError}
-          hint="Contam os publicados, com inscrições abertas ou fechadas, em check-in, em andamento e pausados. Padrão: 3 (verificado: 10)."
+          hint={t('simultaneosDica')}
         />
-        <Switch label="Selo de organizador verificado" hint="Aparece ao lado do nome nos campeonatos e no perfil." checked={verified} onCheckedChange={setVerified} />
+        <Switch label={t('selo')} hint={t('seloDica')} checked={verified} onCheckedChange={setVerified} />
         <fieldset className="flex flex-col gap-1">
-          <legend className="text-sm font-medium text-text">Jogos permitidos</legend>
-          <p className="text-xs text-muted">Sem nenhum marcado, o organizador pode criar campeonatos de todos os jogos ativos.</p>
+          <legend className="text-sm font-medium text-text">{t('jogosPermitidos')}</legend>
+          <p className="text-xs text-muted">{t('jogosPermitidosDica')}</p>
           {games.isPending ? (
             <Skeleton className="h-24 w-full" />
           ) : games.isError ? (

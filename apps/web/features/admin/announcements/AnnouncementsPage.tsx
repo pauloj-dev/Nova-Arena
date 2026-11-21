@@ -9,8 +9,11 @@ import { useForm, useWatch } from 'react-hook-form';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useCreateGlobalAnnouncement, useGlobalAnnouncements, useToggleGlobalAnnouncement } from '@/shared/api/hooks/admin-tournaments';
 import { useGames } from '@/shared/api/hooks/games';
+import { getT } from '@/shared/i18n/core';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { formatDateTime, formatRelative, localInputToIso } from '@/shared/lib/datetime';
+import { adminAnnouncementsMessages } from './messages';
 
 type Kind = GlobalAnnouncement['kind'];
 type Audience = GlobalAnnouncement['audience'];
@@ -26,12 +29,9 @@ interface FormValues {
   endsAt: string;
 }
 
-const KIND: Record<Kind, { label: string; hint: string; icon: typeof Megaphone; submit: string }> = {
-  BANNER: { label: 'Banner no topo do site', hint: 'Fica no topo até você desativar (ou até a data final). Quem vê pode dispensar.', icon: Megaphone, submit: 'Publicar banner' },
-  NOTIFICATION: { label: 'Notificação', hint: 'Vai uma vez para o sino de cada pessoa do público escolhido.', icon: BellRing, submit: 'Enviar notificação' },
-  MAINTENANCE: { label: 'Aviso de manutenção', hint: 'Aparece no topo 48 horas antes do início. Durante a manutenção, não pode ser dispensado.', icon: Wrench, submit: 'Agendar aviso' },
-};
-const AUDIENCE: Record<Audience, string> = { ALL: 'Todos', ORGANIZERS: 'Organizadores', GAME: 'Inscritos de um jogo' };
+const KIND_ICON: Record<Kind, typeof Megaphone> = { BANNER: Megaphone, NOTIFICATION: BellRing, MAINTENANCE: Wrench };
+const KINDS = Object.keys(KIND_ICON) as Kind[];
+const AUDIENCES: Audience[] = ['ALL', 'ORGANIZERS', 'GAME'];
 
 function toInput(values: FormValues): unknown {
   const iso = (value: string) => {
@@ -56,6 +56,8 @@ function toInput(values: FormValues): unknown {
 const baseResolver = zodResolver(GlobalAnnouncementInput);
 
 function AnnouncementForm() {
+  const t = useT(adminAnnouncementsMessages, 'AnnouncementForm');
+  const labels = useT(adminAnnouncementsMessages);
   const toast = useToast();
   const games = useGames();
   const create = useCreateGlobalAnnouncement();
@@ -65,12 +67,12 @@ function AnnouncementForm() {
     resolver: async (values, context, options) => {
       const result = await baseResolver(toInput(values) as never, context, options as never);
       const errors: Record<string, { type: string; message: string }> = { ...(result.errors as Record<string, { type: string; message: string }>) };
-      if (values.audience === 'GAME' && !values.gameId) errors.gameId = { type: 'required', message: 'Escolha o jogo' };
+      if (values.audience === 'GAME' && !values.gameId) errors.gameId = { type: 'required', message: t('escolhaJogo') };
       if (values.kind === 'MAINTENANCE') {
-        if (!values.startsAt) errors.startsAt = { type: 'required', message: 'Informe quando a manutenção começa' };
-        if (!values.endsAt) errors.endsAt = { type: 'required', message: 'Informe quando a manutenção termina' };
+        if (!values.startsAt) errors.startsAt = { type: 'required', message: t('informeInicio') };
+        if (!values.endsAt) errors.endsAt = { type: 'required', message: t('informeFim') };
       }
-      if (values.kind !== 'NOTIFICATION' && values.startsAt && values.endsAt && values.endsAt <= values.startsAt) errors.endsAt = { type: 'validate', message: 'O fim precisa ser depois do início' };
+      if (values.kind !== 'NOTIFICATION' && values.startsAt && values.endsAt && values.endsAt <= values.startsAt) errors.endsAt = { type: 'validate', message: t('fimDepoisInicio') };
       return Object.keys(errors).length > 0 ? { values: {}, errors } : { values, errors: {} };
     },
   });
@@ -78,65 +80,77 @@ function AnnouncementForm() {
   const audience = useWatch({ control, name: 'audience' });
   const body = useWatch({ control, name: 'body' });
   const errors = formState.errors;
+  const kindOptions = KINDS.map((k) => ({ value: k, label: labels(`tipos.${k}.rotulo`) }));
+  const audienceOptions = AUDIENCES.map((a) => ({ value: a, label: labels(`publicos.${a}`) }));
+  // Registro dos campos fora do JSX (o nome do campo não é texto de interface).
+  const fields = {
+    kind: register('kind'),
+    audience: register('audience'),
+    gameId: register('gameId'),
+    title: register('title'),
+    body: register('body'),
+    startsAt: register('startsAt'),
+    endsAt: register('endsAt'),
+  };
 
   function submit(values: FormValues) {
     create.mutate(GlobalAnnouncementInput.parse(toInput(values)), {
       onSuccess: (created) => {
-        toast.success(created.kind === 'NOTIFICATION' ? 'Notificação enviada' : created.kind === 'MAINTENANCE' ? 'Aviso de manutenção agendado' : 'Banner publicado', created.title);
+        toast.success(created.kind === 'NOTIFICATION' ? t('toastNotificacao') : created.kind === 'MAINTENANCE' ? t('toastManutencao') : t('toastBanner'), created.title);
         reset();
       },
       onError: (error) => {
         if (error instanceof ApiError) {
           for (const [field, message] of Object.entries(error.fieldErrors)) setError(field as keyof FormValues, { message });
         }
-        toast.error('Não foi possível criar o comunicado', errorMessage(error));
+        toast.error(t('toastErro'), errorMessage(error));
       },
     });
   }
 
   return (
     <Card>
-      <form onSubmit={(event) => void handleSubmit(submit)(event)} className="flex flex-col gap-4" noValidate aria-label="Novo comunicado">
-        <h2 className="text-lg">Novo comunicado</h2>
+      <form onSubmit={(event) => void handleSubmit(submit)(event)} className="flex flex-col gap-4" noValidate aria-label={t('titulo')}>
+        <h2 className="text-lg">{t('titulo')}</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Select label="Tipo" options={(Object.keys(KIND) as Kind[]).map((k) => ({ value: k, label: KIND[k].label }))} hint={KIND[kind].hint} {...register('kind')} />
-          <Select label="Público" options={(Object.keys(AUDIENCE) as Audience[]).map((a) => ({ value: a, label: AUDIENCE[a] }))} {...register('audience')} />
+          <Select label={t('tipo')} options={kindOptions} hint={labels(`tipos.${kind}.dica`)} {...fields.kind} />
+          <Select label={t('publico')} options={audienceOptions} {...fields.audience} />
         </div>
         {audience === 'GAME' && (
           <Select
-            label="Jogo"
+            label={t('jogo')}
             required
-            placeholder={games.isPending ? 'Carregando jogos…' : 'Escolha o jogo'}
+            placeholder={games.isPending ? t('carregandoJogos') : t('escolhaJogo')}
             options={(games.data ?? []).map((g) => ({ value: g.id, label: g.name }))}
-            hint="Recebe quem tem inscrição ativa em campeonato do jogo ou segue o jogo."
+            hint={t('jogoDica')}
             error={errors.gameId?.message}
-            {...register('gameId')}
+            {...fields.gameId}
           />
         )}
-        <Input label="Título" required maxLength={80} error={errors.title?.message} {...register('title')} />
-        <Textarea label="Mensagem" required rows={3} maxLength={500} hint={`${body.length}/500 caracteres. Texto simples, sem formatação.`} error={errors.body?.message} {...register('body')} />
+        <Input label={t('tituloCampo')} required maxLength={80} error={errors.title?.message} {...fields.title} />
+        <Textarea label={t('mensagem')} required rows={3} maxLength={500} hint={t('mensagemDica', { n: String(body.length) })} error={errors.body?.message} {...fields.body} />
         {kind !== 'NOTIFICATION' && (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Input
-              label={kind === 'MAINTENANCE' ? 'Início da manutenção' : 'Começa a aparecer em (opcional)'}
+              label={kind === 'MAINTENANCE' ? t('inicioManutencao') : t('comecaEm')}
               type="datetime-local"
               required={kind === 'MAINTENANCE'}
-              hint="No seu fuso horário."
+              hint={t('fuso')}
               error={errors.startsAt?.message}
-              {...register('startsAt')}
+              {...fields.startsAt}
             />
             <Input
-              label={kind === 'MAINTENANCE' ? 'Fim da manutenção' : 'Some em (opcional)'}
+              label={kind === 'MAINTENANCE' ? t('fimManutencao') : t('someEm')}
               type="datetime-local"
               required={kind === 'MAINTENANCE'}
-              hint="No seu fuso horário."
+              hint={t('fuso')}
               error={errors.endsAt?.message}
-              {...register('endsAt')}
+              {...fields.endsAt}
             />
           </div>
         )}
         <Button type="submit" loading={create.isPending} className="self-start" iconLeft={<Send className="size-4" aria-hidden />}>
-          {KIND[kind].submit}
+          {labels(`tipos.${kind}.enviar`)}
         </Button>
       </form>
     </Card>
@@ -144,21 +158,24 @@ function AnnouncementForm() {
 }
 
 function situation(a: GlobalAnnouncement, now: number): { text: string; tone: 'primary' | 'neutral' | 'warning' | 'info' } {
-  if (a.kind === 'NOTIFICATION') return { text: 'Enviada', tone: 'neutral' };
-  if (!a.active) return { text: 'Desativado', tone: 'neutral' };
+  const t = getT(adminAnnouncementsMessages, 'situacao');
+  if (a.kind === 'NOTIFICATION') return { text: t('enviada'), tone: 'neutral' };
+  if (!a.active) return { text: t('desativado'), tone: 'neutral' };
   const start = a.startsAt ? new Date(a.startsAt).getTime() : null;
   const end = a.endsAt ? new Date(a.endsAt).getTime() : null;
-  if (end !== null && now >= end) return { text: 'Encerrado', tone: 'neutral' };
+  if (end !== null && now >= end) return { text: t('encerrado'), tone: 'neutral' };
   if (a.kind === 'MAINTENANCE' && start !== null) {
-    if (now >= start) return { text: 'Manutenção em curso', tone: 'warning' };
-    return now >= start - 48 * 3600_000 ? { text: 'No ar (aviso prévio)', tone: 'primary' } : { text: 'Agendado', tone: 'info' };
+    if (now >= start) return { text: t('emCurso'), tone: 'warning' };
+    return now >= start - 48 * 3600_000 ? { text: t('avisoPrevio'), tone: 'primary' } : { text: t('agendado'), tone: 'info' };
   }
-  if (start !== null && now < start) return { text: 'Agendado', tone: 'info' };
-  return { text: 'No ar', tone: 'primary' };
+  if (start !== null && now < start) return { text: t('agendado'), tone: 'info' };
+  return { text: t('noAr'), tone: 'primary' };
 }
 
 /** Comunicados globais (ADM-11): banner no topo, notificação para um segmento e aviso de manutenção. */
 export function AnnouncementsPage() {
+  const t = useT(adminAnnouncementsMessages, 'AnnouncementsPage');
+  const labels = useT(adminAnnouncementsMessages);
   const toast = useToast();
   const announcements = useGlobalAnnouncements();
   const games = useGames({ includeInactive: true });
@@ -168,26 +185,26 @@ export function AnnouncementsPage() {
 
   return (
     <PageContainer>
-      <PageHeader title="Comunicados" description="Fale com a plataforma inteira ou com um grupo: banner no topo do site, notificação no sino ou aviso de manutenção." />
+      <PageHeader title={t('titulo')} description={t('descricao')} />
       <AnnouncementForm />
 
       <section aria-labelledby="comunicados-lista" className="flex flex-col gap-3">
         <h2 id="comunicados-lista" className="text-lg">
-          Comunicados criados
+          {t('criados')}
         </h2>
         {announcements.isPending ? (
-          <div className="flex flex-col gap-3" role="status" aria-label="Carregando comunicados">
+          <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
           </div>
         ) : announcements.isError ? (
           <ErrorState description={errorMessage(announcements.error)} onRetry={() => void announcements.refetch()} />
         ) : announcements.data.length === 0 ? (
-          <EmptyState icon={<Megaphone className="size-7" />} title="Nenhum comunicado ainda" description="Crie o primeiro no formulário acima. Banners e avisos de manutenção aparecem no topo do site." />
+          <EmptyState icon={<Megaphone className="size-7" />} title={t('nenhum')} description={t('nenhumDescricao')} />
         ) : (
           <ul className="flex flex-col gap-3">
             {announcements.data.map((a) => {
-              const Icon = KIND[a.kind].icon;
+              const Icon = KIND_ICON[a.kind];
               const state = situation(a, now);
               const gameName = a.gameId ? games.data?.find((g) => g.id === a.gameId)?.name : undefined;
               return (
@@ -202,13 +219,19 @@ export function AnnouncementsPage() {
                     </div>
                     <p className="text-sm [overflow-wrap:anywhere]">{a.body}</p>
                     <p className="text-xs text-muted">
-                      {KIND[a.kind].label} · Público: {AUDIENCE[a.audience]}
-                      {gameName ? ` (${gameName})` : ''} · por {a.authorNickname}, {formatRelative(a.createdAt)}
+                      {t('detalhes', {
+                        tipo: labels(`tipos.${a.kind}.rotulo`),
+                        publico: labels(`publicos.${a.audience}`),
+                        temJogo: gameName ? 'sim' : 'nao',
+                        jogo: gameName ?? '',
+                        autor: a.authorNickname,
+                        quando: formatRelative(a.createdAt),
+                      })}
                     </p>
                     {(a.startsAt || a.endsAt) && (
                       <p className="text-xs text-muted">
-                        {a.startsAt && `De ${formatDateTime(a.startsAt, { withZone: false })}`}
-                        {a.endsAt && ` até ${formatDateTime(a.endsAt)}`}
+                        {a.startsAt && t('de', { data: formatDateTime(a.startsAt, { withZone: false }) })}
+                        {a.endsAt && t('ate', { data: formatDateTime(a.endsAt) })}
                       </p>
                     )}
                     {a.kind !== 'NOTIFICATION' && (
@@ -216,7 +239,8 @@ export function AnnouncementsPage() {
                         className="self-start gap-3"
                         label={
                           <>
-                            Ativo<span className="sr-only">: {a.title}</span>
+                            {t('ativo')}
+                            <span className="sr-only">{t('ativoSr', { titulo: a.title })}</span>
                           </>
                         }
                         checked={a.active}
@@ -225,8 +249,8 @@ export function AnnouncementsPage() {
                           toggle.mutate(
                             { id: a.id, active },
                             {
-                              onSuccess: () => toast.success(active ? 'Comunicado ativado' : 'Comunicado desativado', a.title),
-                              onError: (error) => toast.error('Não foi possível alterar o comunicado', errorMessage(error)),
+                              onSuccess: () => toast.success(active ? t('toastAtivado') : t('toastDesativado'), a.title),
+                              onError: (error) => toast.error(t('toastErro'), errorMessage(error)),
                             },
                           )
                         }

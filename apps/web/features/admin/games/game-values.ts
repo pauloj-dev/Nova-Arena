@@ -1,6 +1,8 @@
 /** Partes puras do formulário de jogo: slug, valores iniciais, limpeza antes de enviar e validação da capa. */
 import type { Game, GameAdminInput, MatchType } from '@nova/schemas';
 import type { z } from 'zod';
+import { getT } from '@/shared/i18n/core';
+import { adminGamesMessages } from './messages';
 
 /** O que o formulário guarda (antes dos valores padrão do schema). */
 export type GameFormValues = z.input<typeof GameAdminInput>;
@@ -62,8 +64,9 @@ export const MAX_COVER_BYTES = 5 * 1024 * 1024;
 
 /** Mensagem de erro da capa, ou `null` se o arquivo serve: precisa ser imagem e ter até 5 MB. */
 export function coverFileError(file: Pick<File, 'type' | 'size'>): string | null {
-  if (!file.type.startsWith('image/')) return 'Escolha um arquivo de imagem (PNG, JPG ou WebP).';
-  if (file.size > MAX_COVER_BYTES) return 'A imagem passa de 5 MB. Escolha uma menor.';
+  const t = getT(adminGamesMessages, 'gameValues');
+  if (!file.type.startsWith('image/')) return t('capaNaoImagem');
+  if (file.size > MAX_COVER_BYTES) return t('capaGrande');
   return null;
 }
 
@@ -71,7 +74,7 @@ function readAsDataUrl(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error ?? new Error('Falha ao ler o arquivo'));
+    reader.onerror = () => reject(reader.error ?? new Error(getT(adminGamesMessages, 'gameValues')('falhaLeitura')));
     reader.readAsDataURL(file);
   });
 }
@@ -101,6 +104,6 @@ export async function coverToDataUrl(file: File): Promise<string> {
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL('image/jpeg', 0.82);
   } catch {
-    throw new Error('Não foi possível ler esta imagem. Tente outro arquivo.');
+    throw new Error(getT(adminGamesMessages, 'gameValues')('imagemIlegivel'));
   }
 }

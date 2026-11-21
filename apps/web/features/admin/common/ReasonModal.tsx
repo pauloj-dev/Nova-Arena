@@ -2,6 +2,8 @@
 
 import { Button, Modal, Textarea } from '@nova/ui';
 import { useState, type ReactNode } from 'react';
+import { useT } from '@/shared/i18n/react';
+import { adminCommonMessages } from './messages';
 
 interface ReasonModalProps {
   open: boolean;
@@ -21,7 +23,9 @@ interface ReasonModalProps {
 }
 
 /** Confirmação de ação sensível com motivo (o motivo vai para a auditoria e, quando cabe, para o usuário afetado). */
-export function ReasonModal({ open, onOpenChange, title, description, reasonLabel = 'Motivo', reasonHint, minLength = 5, confirmLabel, variant = 'primary', loading, onConfirm, children }: ReasonModalProps) {
+export function ReasonModal({ open, onOpenChange, title, description, reasonLabel, reasonHint, minLength = 5, confirmLabel, variant = 'primary', loading, onConfirm, children }: ReasonModalProps) {
+  const t = useT(adminCommonMessages, 'ReasonModal');
+  const label = reasonLabel ?? t('motivo');
   const [reason, setReason] = useState('');
   const [touched, setTouched] = useState(false);
   // Fechou: o texto não pode sobrar para a próxima abertura.
@@ -31,7 +35,7 @@ export function ReasonModal({ open, onOpenChange, title, description, reasonLabe
   }
   const trimmed = reason.trim();
   const valid = trimmed.length >= minLength;
-  const error = touched && !valid ? (minLength > 0 && trimmed.length === 0 ? 'Informe o motivo' : `Escreva pelo menos ${minLength} caracteres`) : undefined;
+  const error = touched && !valid ? (minLength > 0 && trimmed.length === 0 ? t('informeMotivo') : t('minimo', { min: String(minLength) })) : undefined;
 
   function submit() {
     setTouched(true);
@@ -51,7 +55,7 @@ export function ReasonModal({ open, onOpenChange, title, description, reasonLabe
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={loading}>
-            Voltar
+            {t('voltar')}
           </Button>
           <Button variant={variant} loading={loading} onClick={submit}>
             {confirmLabel}
@@ -62,7 +66,7 @@ export function ReasonModal({ open, onOpenChange, title, description, reasonLabe
       <div className="flex flex-col gap-4">
         {children}
         <Textarea
-          label={minLength > 0 ? reasonLabel : `${reasonLabel} (opcional)`}
+          label={minLength > 0 ? label : t('opcional', { rotulo: label })}
           hint={reasonHint}
           required={minLength > 0}
           value={reason}

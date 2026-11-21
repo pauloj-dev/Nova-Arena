@@ -8,7 +8,11 @@ import { useMemo, useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useGames } from '@/shared/api/hooks/games';
 import { useUpdateGame } from '@/shared/api/hooks/games-admin';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
+import { adminGamesMessages } from './messages';
+
+type CatalogT = ReturnType<typeof useT<(typeof adminGamesMessages)['pt-BR'], 'GamesCatalog'>>;
 
 function normalize(text: string): string {
   return text
@@ -17,10 +21,11 @@ function normalize(text: string): string {
     .toLowerCase();
 }
 
-const columns: Column<Game>[] = [
+function buildColumns(t: CatalogT): Column<Game>[] {
+  return [
   {
     id: 'name',
-    header: 'Jogo',
+    header: t('colunaJogo'),
     primary: true,
     cell: (game) => (
       <Link href={`/admin/jogos/${game.id}`} className="inline-flex min-h-11 items-center gap-3 rounded-sm font-semibold text-text hover:underline md:min-h-0">
@@ -31,14 +36,17 @@ const columns: Column<Game>[] = [
       </Link>
     ),
   },
-  { id: 'platform', header: 'Plataforma', cell: (game) => game.platform },
-  { id: 'modes', header: 'Modos', cell: (game) => <span title={game.modes.map((m) => m.name).join(', ')}>{game.modes.map((m) => m.name).join(', ')}</span> },
-  { id: 'models', header: 'Modelos de pontuação', align: 'right', cell: (game) => <span className="tabular">{game.scoringModels.filter((m) => m.ownerId === null).length}</span> },
-  { id: 'status', header: 'Situação', cell: (game) => (game.active ? <StatusPill status="ACTIVE" /> : <StatusPill status="PAUSED" label="Inativo" />) },
-];
+  { id: 'platform', header: t('colunaPlataforma'), cell: (game) => game.platform },
+  { id: 'modes', header: t('colunaModos'), cell: (game) => <span title={game.modes.map((m) => m.name).join(', ')}>{game.modes.map((m) => m.name).join(', ')}</span> },
+  { id: 'models', header: t('colunaModelos'), align: 'right', cell: (game) => <span className="tabular">{game.scoringModels.filter((m) => m.ownerId === null).length}</span> },
+  { id: 'status', header: t('colunaSituacao'), cell: (game) => (game.active ? <StatusPill status="ACTIVE" /> : <StatusPill status="PAUSED" label={t('inativo')} />) },
+  ];
+}
 
 /** Catálogo de jogos do Admin (ADM-06): lista com busca e liga/desliga de cada jogo. */
 export function GamesCatalog() {
+  const t = useT(adminGamesMessages, 'GamesCatalog');
+  const columns = useMemo(() => buildColumns(t), [t]);
   const toast = useToast();
   const games = useGames({ includeInactive: true });
   const update = useUpdateGame();
@@ -58,9 +66,9 @@ export function GamesCatalog() {
       {
         onSuccess: () => {
           setDeactivating(null);
-          toast.success(active ? 'Jogo ativado' : 'Jogo desativado', active ? `${game.name} voltou para a criação de campeonatos.` : `${game.name} saiu da criação de campeonatos.`);
+          toast.success(active ? t('toastAtivado') : t('toastDesativado'), active ? t('toastAtivadoDetalhe', { nome: game.name }) : t('toastDesativadoDetalhe', { nome: game.name }));
         },
-        onError: (error) => toast.error(active ? 'Não foi possível ativar o jogo' : 'Não foi possível desativar o jogo', errorMessage(error)),
+        onError: (error) => toast.error(active ? t('erroAtivar') : t('erroDesativar'), errorMessage(error)),
       },
     );
   }
@@ -69,30 +77,30 @@ export function GamesCatalog() {
     <Button asChild>
       <Link href="/admin/jogos/novo">
         <Plus className="size-4" aria-hidden />
-        Novo jogo
+        {t('novoJogo')}
       </Link>
     </Button>
   );
 
   return (
     <PageContainer>
-      <PageHeader title="Jogos e regras" description="Jogos do catálogo, seus modos e os modelos de pontuação que os organizadores usam nos campeonatos." actions={newGame} />
+      <PageHeader title={t('titulo')} description={t('descricao')} actions={newGame} />
 
       {games.isError ? (
         <ErrorState description={errorMessage(games.error)} onRetry={() => void games.refetch()} />
       ) : (
         <>
           <Input
-            label="Buscar jogo"
+            label={t('buscar')}
             type="search"
-            placeholder="Nome, plataforma ou modo"
+            placeholder={t('buscarExemplo')}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="max-w-md"
             autoComplete="off"
           />
           <DataTable
-            caption="Jogos do catálogo"
+            caption={t('legenda')}
             columns={columns}
             rows={rows}
             getRowId={(game) => game.id}
@@ -103,7 +111,8 @@ export function GamesCatalog() {
                   className="gap-2"
                   label={
                     <>
-                      <span className="sr-only">{game.name}: </span>Ativo
+                      <span className="sr-only">{t('ativoSr', { nome: game.name })}</span>
+                      {t('ativo')}
                     </>
                   }
                   checked={game.active}
@@ -111,9 +120,9 @@ export function GamesCatalog() {
                   onCheckedChange={(active) => (active ? setActive(game, true) : setDeactivating(game))}
                 />
                 <Button variant="secondary" size="sm" asChild>
-                  <Link href={`/admin/jogos/${game.id}`} aria-label={`Editar ${game.name}`}>
+                  <Link href={`/admin/jogos/${game.id}`} aria-label={t('editarRotulo', { nome: game.name })}>
                     <Pencil className="size-4" aria-hidden />
-                    Editar
+                    {t('editar')}
                   </Link>
                 </Button>
               </div>
@@ -122,21 +131,21 @@ export function GamesCatalog() {
               search.trim() ? (
                 <EmptyState
                   icon={<SearchX className="size-7" />}
-                  title="Nenhum jogo encontrado"
-                  description={`Nada no catálogo combina com "${search.trim()}".`}
+                  title={t('nenhumEncontrado')}
+                  description={t('nadaCombina', { busca: search.trim() })}
                   action={
                     <Button variant="secondary" onClick={() => setSearch('')}>
-                      Limpar busca
+                      {t('limparBusca')}
                     </Button>
                   }
                 />
               ) : (
-                <EmptyState icon={<Gamepad2 className="size-7" />} title="Nenhum jogo no catálogo" description="Cadastre o primeiro jogo para os organizadores poderem criar campeonatos." action={newGame} />
+                <EmptyState icon={<Gamepad2 className="size-7" />} title={t('catalogoVazio')} description={t('catalogoVazioDescricao')} action={newGame} />
               )
             }
           />
           <p className="sr-only" role="status" aria-live="polite">
-            {games.isPending ? '' : `${rows.length} ${rows.length === 1 ? 'jogo' : 'jogos'} na lista.`}
+            {games.isPending ? '' : t('naLista', { count: rows.length, n: String(rows.length) })}
           </p>
         </>
       )}
@@ -146,16 +155,16 @@ export function GamesCatalog() {
         onOpenChange={(open) => {
           if (!open && !update.isPending) setDeactivating(null);
         }}
-        title={deactivating ? `Desativar ${deactivating.name}?` : 'Desativar jogo?'}
-        description="O jogo some da criação de campeonatos e da lista pública de jogos. Os campeonatos que já existem continuam no ar, e você pode reativar quando quiser."
+        title={deactivating ? t('desativarTitulo', { nome: deactivating.name }) : t('desativarTituloGenerico')}
+        description={t('desativarDescricao')}
         size="sm"
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeactivating(null)} disabled={update.isPending}>
-              Voltar
+              {t('voltar')}
             </Button>
             <Button variant="danger" loading={update.isPending} onClick={() => deactivating && setActive(deactivating, false)}>
-              Desativar jogo
+              {t('desativar')}
             </Button>
           </>
         }

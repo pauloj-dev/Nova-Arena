@@ -1,0 +1,44 @@
+{
+  "AlertStatusBadge": {
+    "aberto": "Aberto",
+    "tratado": "Tratado",
+    "improcedente": "Improcedente"
+  },
+  "FraudAlertsQueue": {
+    "filtro": {
+      "OPEN": "Abertos",
+      "ACTIONED": "Tratados",
+      "DISMISSED": "Improcedentes"
+    },
+    "gravidade": "{nivel, select, HIGH {Gravidade alta} MEDIUM {Gravidade média} other {Gravidade baixa}}",
+    "explicacao": "Sinais automáticos de conta duplicada, ID de jogo repetido e ações administrativas em massa. Um alerta não é prova: confira as contas antes de agir.",
+    "situacao": "Situação",
+    "todos": "Todos",
+    "tipo": "Tipo",
+    "todosTipos": "Todos os tipos",
+    "carregando": "Carregando alertas",
+    "nenhumAberto": "Nenhum alerta aberto",
+    "nenhumFiltro": "Nenhum alerta neste filtro",
+    "nenhumAbertoDescricao": "Quando o sistema notar contas repetidas ou ações em massa, o alerta aparece aqui.",
+    "trocarFiltro": "Troque o filtro para ver os outros.",
+    "verTodos": "Ver todos",
+    "lista": "Alertas antifraude",
+    "admin": "Admin:",
+    "contas": "Contas envolvidas",
+    "vistoPrimeira": "Visto pela primeira vez ",
+    "repetiu": "· repetiu {n} vezes, a última ",
+    "decisao": "Decisão{temAutor, select, sim { de {autor}} other {}}:",
+    "acoes": "Ações para o alerta: {tipo}",
+    "marcarTratado": "Marcar como tratado",
+    "improcedente": "Improcedente",
+    "paginacao": "Paginação dos alertas",
+    "tituloTratado": "Marcar alerta como tratado",
+    "tituloImprocedente": "Marcar alerta como improcedente",
+    "modalDescricao": "A decisão fica na auditoria. Para sancionar uma conta, abra o perfil dela pelo alerta.",
+    "decidido": "O que foi decidido",
+    "fecharImprocedente": "Fechar como improcedente",
+    "toastTratado": "Alerta tratado",
+    "toastImprocedente": "Alerta fechado como improcedente",
+    "toastErro": "Não foi possível atualizar o alerta"
+  }
+}

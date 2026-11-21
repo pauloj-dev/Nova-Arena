@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useAdminReports, useEscalatedDisputes, useHandleReport } from '@/shared/api/hooks/admin-moderation';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime';
 import { Pager } from '../common/Pager';
@@ -14,20 +15,18 @@ import { ReasonModal } from '../common/ReasonModal';
 import { UserStatusPill } from '../common/UserBits';
 import { SanctionModal, type SanctionType } from '../users/SanctionModal';
 import { FraudAlertsQueue, useOpenFraudAlerts } from '../fraud/FraudAlertsQueue';
-
-const TARGET_LABEL: Record<AdminReport['targetType'], string> = { USER: 'Usuário', TEAM: 'Squad', MATCH: 'Partida', RESULT: 'Resultado', CHAT_MESSAGE: 'Mensagem no chat' };
-const STATUS_LABEL: Record<AdminReport['status'], string> = { OPEN: 'Abertas', IN_REVIEW: 'Em análise', ACTIONED: 'Tratadas', DISMISSED: 'Improcedentes' };
-const STATUS_OPTIONS = ReportStatus.options.map((status) => ({ value: status, label: STATUS_LABEL[status] }));
+import { adminModerationMessages } from './messages';
 
 function ReportStatusBadge({ status }: { status: AdminReport['status'] }) {
+  const t = useT(adminModerationMessages, 'ReportStatusBadge');
   if (status === 'OPEN' || status === 'IN_REVIEW') return <StatusPill status={status} />;
   return status === 'ACTIONED' ? (
     <Badge tone="primary" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>
-      Tratada
+      {t('tratada')}
     </Badge>
   ) : (
     <Badge tone="neutral" icon={<XCircle className="size-3.5" aria-hidden />}>
-      Improcedente
+      {t('improcedente')}
     </Badge>
   );
 }
@@ -35,6 +34,8 @@ function ReportStatusBadge({ status }: { status: AdminReport['status'] }) {
 type Action = { kind: 'sanction'; type: SanctionType; report: AdminReport } | { kind: 'dismiss'; report: AdminReport } | null;
 
 function ReportsQueue() {
+  const t = useT(adminModerationMessages, 'ReportsQueue');
+  const statusOptions = ReportStatus.options.map((value) => ({ value, label: t(`filtro.${value}`) }));
   const toast = useToast();
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
@@ -47,9 +48,9 @@ function ReportsQueue() {
   return (
     <div className="flex flex-col gap-4">
       <Select
-        label="Mostrar"
-        placeholder="Todas as denúncias"
-        options={STATUS_OPTIONS}
+        label={t('mostrar')}
+        placeholder={t('todas')}
+        options={statusOptions}
         value={status}
         onChange={(event) => {
           setStatus(event.target.value);
@@ -58,25 +59,25 @@ function ReportsQueue() {
         className="max-w-xs"
       />
       {reports.isPending ? (
-        <div className="flex flex-col gap-3" role="status" aria-label="Carregando denúncias">
+        <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
           <Skeleton className="h-44 w-full" />
           <Skeleton className="h-44 w-full" />
         </div>
       ) : reports.data.items.length === 0 ? (
         <EmptyState
           icon={<Flag className="size-7" />}
-          title={status ? 'Nenhuma denúncia neste filtro' : 'Nenhuma denúncia'}
-          description={status ? 'Troque o filtro para ver as outras.' : 'Quando alguém denunciar um usuário, squad, partida ou resultado, a denúncia aparece aqui.'}
+          title={status ? t('nenhumaFiltro') : t('nenhuma')}
+          description={status ? t('trocarFiltro') : t('nenhumaDescricao')}
           action={
             status ? (
               <Button variant="secondary" onClick={() => setStatus('')}>
-                Ver todas
+                {t('verTodas')}
               </Button>
             ) : undefined
           }
         />
       ) : (
-        <ul className="flex flex-col gap-3" aria-label="Denúncias">
+        <ul className="flex flex-col gap-3" aria-label={t('lista')}>
           {reports.data.items.map((report) => {
             const open = report.status === 'OPEN' || report.status === 'IN_REVIEW';
             const canSanction = open && report.targetUserId !== null && report.targetUserStatus !== 'BANNED' && report.targetUserStatus !== 'MERGED' && report.targetUserStatus !== 'DELETED';
@@ -87,7 +88,7 @@ function ReportsQueue() {
                     <div className="min-w-0">
                       <p className="font-semibold [overflow-wrap:anywhere]">{REPORT_REASON_LABELS[report.reason]}</p>
                       <p className="text-sm text-muted [overflow-wrap:anywhere]">
-                        {TARGET_LABEL[report.targetType]}:{' '}
+                        {t(`alvo.${report.targetType}`)}:{' '}
                         {report.targetLink ? (
                           <Link href={report.targetLink} className="inline-flex items-center gap-1 font-medium text-primary-text hover:underline">
                             {report.targetLabel}
@@ -102,23 +103,24 @@ function ReportsQueue() {
                   </div>
                   <p className="text-sm [overflow-wrap:anywhere]">{report.description}</p>
                   {report.evidenceUrls.length > 0 && (
-                    <ul className="flex flex-wrap gap-2" aria-label="Anexos da denúncia">
+                    <ul className="flex flex-wrap gap-2" aria-label={t('anexos')}>
                       {report.evidenceUrls.map((url, index) => (
                         <li key={url}>
                           <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1 rounded-md border border-border-strong px-3 text-sm font-medium hover:bg-surface-2 md:min-h-8">
                             <Eye className="size-4" aria-hidden />
-                            Anexo {index + 1}
+                            {t('anexo', { n: String(index + 1) })}
                           </a>
                         </li>
                       ))}
                     </ul>
                   )}
                   <p className="text-xs text-muted">
-                    Denunciado por {report.reporterNickname} · <time dateTime={report.createdAt} title={formatDateTime(report.createdAt)}>{formatRelative(report.createdAt)}</time>
+                    {t('denunciadoPor', { nome: report.reporterNickname })}
+                    <time dateTime={report.createdAt} title={formatDateTime(report.createdAt)}>{formatRelative(report.createdAt)}</time>
                   </p>
                   {report.targetUserId && (
                     <p className="flex flex-wrap items-center gap-2 text-sm">
-                      Responde pelo alvo:
+                      {t('respondePeloAlvo')}
                       <Link href={`/admin/usuarios/${report.targetUserId}`} className="font-semibold hover:underline">
                         {report.targetUserNickname}
                       </Link>
@@ -127,37 +129,37 @@ function ReportsQueue() {
                   )}
                   {report.resolution && (
                     <p className="rounded-md bg-surface-2 px-3 py-2 text-sm [overflow-wrap:anywhere]">
-                      <span className="font-medium">Decisão{report.handledByNickname ? ` de ${report.handledByNickname}` : ''}:</span> {report.resolution}
+                      <span className="font-medium">{t('decisao', { temAutor: report.handledByNickname ? 'sim' : 'nao', autor: report.handledByNickname ?? '' })}</span> {report.resolution}
                     </p>
                   )}
                   {open && (
-                    <div className="flex flex-wrap gap-2" role="group" aria-label={`Ações rápidas para a denúncia sobre ${report.targetLabel}`}>
+                    <div className="flex flex-wrap gap-2" role="group" aria-label={t('acoesRapidas', { alvo: report.targetLabel })}>
                       {report.status === 'OPEN' && (
                         <Button
                           size="sm"
                           variant="secondary"
                           loading={handle.isPending && handle.variables?.reportId === report.id && handle.variables.status === 'IN_REVIEW'}
-                          onClick={() => handle.mutate({ reportId: report.id, status: 'IN_REVIEW' }, { onError: (error) => toast.error('Não foi possível atualizar a denúncia', errorMessage(error)) })}
+                          onClick={() => handle.mutate({ reportId: report.id, status: 'IN_REVIEW' }, { onError: (error) => toast.error(t('toastErroAtualizar'), errorMessage(error)) })}
                           iconLeft={<Eye className="size-4" aria-hidden />}
                         >
-                          Marcar em análise
+                          {t('marcarAnalise')}
                         </Button>
                       )}
                       {canSanction && (
                         <>
                           <Button size="sm" variant="secondary" onClick={() => setAction({ kind: 'sanction', type: 'WARNING', report })} iconLeft={<MessageSquareWarning className="size-4" aria-hidden />}>
-                            Advertir
+                            {t('advertir')}
                           </Button>
                           <Button size="sm" variant="secondary" onClick={() => setAction({ kind: 'sanction', type: 'SUSPENSION', report })} iconLeft={<PauseCircle className="size-4" aria-hidden />}>
-                            Suspender
+                            {t('suspender')}
                           </Button>
                           <Button size="sm" variant="danger" onClick={() => setAction({ kind: 'sanction', type: 'BAN', report })} iconLeft={<Ban className="size-4" aria-hidden />}>
-                            Banir
+                            {t('banir')}
                           </Button>
                         </>
                       )}
                       <Button size="sm" variant="secondary" onClick={() => setAction({ kind: 'dismiss', report })} iconLeft={<ThumbsDown className="size-4" aria-hidden />}>
-                        Improcedente
+                        {t('improcedente')}
                       </Button>
                     </div>
                   )}
@@ -167,7 +169,7 @@ function ReportsQueue() {
           })}
         </ul>
       )}
-      {reports.data && <Pager page={reports.data.page} pageCount={reports.data.pageCount} total={reports.data.total} onPageChange={setPage} label="Paginação das denúncias" />}
+      {reports.data && <Pager page={reports.data.page} pageCount={reports.data.pageCount} total={reports.data.total} onPageChange={setPage} label={t('paginacao')} />}
 
       {action?.kind === 'sanction' && action.report.targetUserId && (
         <SanctionModal
@@ -185,10 +187,10 @@ function ReportsQueue() {
         onOpenChange={(open) => {
           if (!open) setAction(null);
         }}
-        title="Marcar como improcedente"
-        description="A denúncia é fechada sem sanção. Quem denunciou recebe a explicação."
-        reasonLabel="Explicação para quem denunciou"
-        confirmLabel="Fechar como improcedente"
+        title={t('improcedenteTitulo')}
+        description={t('improcedenteDescricao')}
+        reasonLabel={t('explicacao')}
+        confirmLabel={t('fecharImprocedente')}
         loading={handle.isPending}
         onConfirm={(resolution) => {
           if (action?.kind !== 'dismiss') return;
@@ -196,10 +198,10 @@ function ReportsQueue() {
             { reportId: action.report.id, status: 'DISMISSED', resolution },
             {
               onSuccess: () => {
-                toast.success('Denúncia fechada como improcedente', 'Quem denunciou foi avisado.');
+                toast.success(t('toastFechada'), t('toastFechadaDetalhe'));
                 setAction(null);
               },
-              onError: (error) => toast.error('Não foi possível fechar a denúncia', errorMessage(error)),
+              onError: (error) => toast.error(t('toastErroFechar'), errorMessage(error)),
             },
           );
         }}
@@ -209,20 +211,21 @@ function ReportsQueue() {
 }
 
 function DisputesQueue() {
+  const t = useT(adminModerationMessages, 'DisputesQueue');
   const disputes = useEscalatedDisputes();
   if (disputes.isPending) {
     return (
-      <div className="flex flex-col gap-3" role="status" aria-label="Carregando disputas">
+      <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
         <Skeleton className="h-32 w-full" />
       </div>
     );
   }
   if (disputes.isError) return <ErrorState description={errorMessage(disputes.error)} onRetry={() => void disputes.refetch()} />;
   if (disputes.data.length === 0) {
-    return <EmptyState icon={<Gavel className="size-7" />} title="Nenhuma disputa escalada" description="Quando um organizador não consegue resolver um resultado contestado, ele escala a disputa e ela aparece aqui." />;
+    return <EmptyState icon={<Gavel className="size-7" />} title={t('nenhuma')} description={t('nenhumaDescricao')} />;
   }
   return (
-    <ul className="flex flex-col gap-3" aria-label="Disputas escaladas">
+    <ul className="flex flex-col gap-3" aria-label={t('lista')}>
       {disputes.data.map((dispute: Dispute) => (
         <li key={dispute.id}>
           <Card className="flex flex-col gap-2" data-testid="dispute">
@@ -235,11 +238,12 @@ function DisputesQueue() {
             </div>
             <p className="text-sm [overflow-wrap:anywhere]">{dispute.reason}</p>
             <p className="text-xs text-muted">
-              Aberta por {dispute.openedByNickname} · {formatRelative(dispute.createdAt)} · {dispute.messages.length} mensagem(ns)
+              {t('abertaPor', { nome: dispute.openedByNickname, quando: formatRelative(dispute.createdAt), n: String(dispute.messages.length) })}
             </p>
             <Button asChild size="sm" className="self-start">
               <Link href={`/disputas/${dispute.id}`}>
-                Abrir a disputa<span className="sr-only">: {dispute.matchLabel}</span>
+                {t('abrir')}
+                <span className="sr-only">{t('abrirSr', { partida: dispute.matchLabel })}</span>
               </Link>
             </Button>
           </Card>
@@ -251,26 +255,27 @@ function DisputesQueue() {
 
 /** Moderação (ADM-07): fila de denúncias com ações rápidas e disputas escaladas pelos organizadores. */
 export function ModerationPage({ initialTab }: { initialTab?: string }) {
+  const t = useT(adminModerationMessages, 'ModerationPage');
   const disputes = useEscalatedDisputes();
   const count = disputes.data?.length ?? 0;
   const openAlerts = useOpenFraudAlerts();
   return (
     <PageContainer>
-      <PageHeader title="Moderação" description="Denúncias da comunidade, disputas que os organizadores escalaram e alertas antifraude. Toda decisão fica na auditoria e quem denunciou é avisado." />
+      <PageHeader title={t('titulo')} description={t('descricao')} />
       <Tabs
-        label="Filas da moderação"
+        label={t('filas')}
         defaultValue={initialTab === 'disputas' || initialTab === 'alertas' ? initialTab : 'denuncias'}
         items={[
-          { value: 'denuncias', label: 'Denúncias', content: <ReportsQueue /> },
+          { value: 'denuncias', label: t('denuncias'), content: <ReportsQueue /> },
           {
             value: 'disputas',
             label: (
               <span className="inline-flex items-center gap-2">
-                Disputas escaladas
+                {t('disputas')}
                 {count > 0 && (
                   <Badge tone="danger">
                     {count}
-                    <span className="sr-only"> na fila</span>
+                    <span className="sr-only">{t('naFila')}</span>
                   </Badge>
                 )}
               </span>
@@ -283,12 +288,13 @@ export function ModerationPage({ initialTab }: { initialTab?: string }) {
               <span className="inline-flex items-center gap-2">
                 {/* Rótulo curto: as três abas cabem em 360 px. */}
                 <span>
-                  Alertas<span className="sr-only"> antifraude</span>
+                  {t('alertas')}
+                  <span className="sr-only">{t('alertasSr')}</span>
                 </span>
                 {openAlerts > 0 && (
                   <Badge tone="danger">
                     {openAlerts}
-                    <span className="sr-only"> abertos</span>
+                    <span className="sr-only">{t('abertos')}</span>
                   </Badge>
                 )}
               </span>
