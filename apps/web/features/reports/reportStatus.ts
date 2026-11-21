@@ -14,4 +14,5 @@ export const REPORT_TARGET_LABELS: Record<Report['targetType'], string> = {
   TEAM: 'Squad',
   MATCH: 'Partida',
   RESULT: 'Resultado',
+  CHAT_MESSAGE: 'Mensagem no chat da partida',
 };

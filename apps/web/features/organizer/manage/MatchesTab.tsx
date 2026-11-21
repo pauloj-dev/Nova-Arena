@@ -2,9 +2,10 @@
 
 import type { Game, Match, OrganizerTournamentDetail } from '@nova/schemas';
 import { Button, EmptyState, ErrorState, Select, Skeleton, useToast } from '@nova/ui';
-import { CalendarClock, CalendarPlus, FileUp, Flag, PencilLine, Play, Swords, Undo2 } from 'lucide-react';
+import { CalendarClock, CalendarPlus, FileUp, Flag, MessagesSquare, PencilLine, Play, Swords, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { MatchCard } from '@/features/matches/MatchCard';
+import { MatchChatDialog } from '@/features/matches/chat/MatchChatDialog';
 import type { MatchViewer } from '@/features/matches/viewer';
 import { errorMessage } from '@/shared/api/client';
 import { useStartMatch, useTournamentMatches } from '@/shared/api/hooks/competition';
@@ -65,7 +66,7 @@ function groupByRound(matches: Match[]): RoundSection[] {
     .map((s) => ({ ...s, matches: s.matches.sort((a, b) => (a.groupName ?? '').localeCompare(b.groupName ?? '', 'pt-BR', { numeric: true }) || a.position - b.position) }));
 }
 
-type Dialog = { kind: 'schedule'; match: Match } | { kind: 'walkover'; match: Match } | { kind: 'round'; scope: RoundScope } | { kind: 'import' } | null;
+type Dialog = { kind: 'chat'; match: Match } | { kind: 'schedule'; match: Match } | { kind: 'walkover'; match: Match } | { kind: 'round'; scope: RoundScope } | { kind: 'import' } | null;
 
 /**
  * Aba Partidas e resultados (ORG-06 e ORG-07): partidas por fase e rodada, com filtros; agenda da
@@ -135,8 +136,14 @@ export function MatchesTab({ tournament: t, game, onGoToStages }: { tournament: 
   }
 
   function actions(match: Match) {
-    if (closed) return null;
     const name = matchName(match);
+    // Chat da partida (issue 125): continua aberto para leitura depois do encerramento.
+    const chatButton = (
+      <Button key="chat" size="sm" variant="ghost" iconLeft={<MessagesSquare className="size-4" aria-hidden />} aria-label={`Chat da partida: ${name}`} onClick={() => setDialog({ kind: 'chat', match })}>
+        Chat
+      </Button>
+    );
+    if (closed) return match.waitingPrevious ? null : <div className="flex flex-wrap gap-2">{chatButton}</div>;
     const ready = !match.waitingPrevious;
     const buttons = [];
     if (!isOver(match) && ready) {
@@ -181,6 +188,7 @@ export function MatchesTab({ tournament: t, game, onGoToStages }: { tournament: 
         );
       }
     }
+    if (!match.waitingPrevious) buttons.push(chatButton);
     return buttons.length > 0 ? <div className="flex flex-wrap gap-2">{buttons}</div> : null;
   }
 
@@ -243,6 +251,7 @@ export function MatchesTab({ tournament: t, game, onGoToStages }: { tournament: 
         })
       )}
 
+      {dialog?.kind === 'chat' && <MatchChatDialog key={dialog.match.id} match={dialog.match} viewer={viewer} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'schedule' && <ScheduleMatchDialog key={dialog.match.id} match={dialog.match} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'walkover' && <WalkoverDialog key={dialog.match.id} match={dialog.match} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'round' && <ScheduleRoundDialog key={`${dialog.scope.stageId}-${dialog.scope.round}`} scope={dialog.scope} onClose={() => setDialog(null)} />}

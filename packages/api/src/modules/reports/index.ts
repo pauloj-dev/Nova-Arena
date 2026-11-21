@@ -17,12 +17,14 @@ import { AdminReport, CreateReportInput, Dispute, DisputeStatus, HandleReportInp
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { auditContext, requireAdmin } from '../../auth/admin';
+import { currentRoles } from '../../auth/rbac';
 import { requireSession } from '../../auth/session';
 import { matchView } from '../../competition/bracket';
 import { body, respond, type AppContext, type AppEnv } from '../../context';
 import { badRequest, conflict, notFound } from '../../errors';
 import { AfterCommit, isUuid, nicknames, paginate } from '../admin/shared';
 import { expireSuspensions } from '../admin/sanctions';
+import { chatAccess } from '../chat';
 
 /** Máximo de denúncias em aberto do mesmo autor para o mesmo alvo. */
 export const MAX_OPEN_REPORTS_PER_TARGET = 5;
@@ -89,7 +91,7 @@ async function resolveMatch(db: PrismaClient, matchId: string): Promise<{ label:
   return { label: `${what} · ${t.name}`, link: `/c/${t.slug}?aba=partidas` };
 }
 
-async function resolveTarget(db: PrismaClient, input: CreateReportInput): Promise<ResolvedTarget> {
+async function resolveTarget(db: PrismaClient, input: CreateReportInput, viewer: { userId: string; roles: Awaited<ReturnType<typeof currentRoles>> }): Promise<ResolvedTarget> {
   switch (input.targetType) {
     case 'USER': {
       const nicknameKey = input.targetId.toLowerCase();
@@ -114,6 +116,16 @@ async function resolveTarget(db: PrismaClient, input: CreateReportInput): Promis
       if (!match) throw notFound('Resultado');
       return { targetId: input.targetId, targetLabel: `Resultado de ${match.label}`, targetLink: match.link, targetOwnerUserId: submission?.submittedById ?? null };
     }
+    case 'CHAT_MESSAGE': {
+      // Só denuncia quem enxerga o chat da partida (issue 125); a moderação vê o texto como estava.
+      const message = isUuid(input.targetId) ? await db.matchChatMessage.findUnique({ where: { id: input.targetId } }) : null;
+      const access = message ? await chatAccess(db, viewer, message.matchId) : null;
+      const match = message && access ? await resolveMatch(db, message.matchId) : null;
+      if (!message || !match) throw notFound('Mensagem');
+      const author = await db.user.findUnique({ where: { id: message.authorId }, select: { nickname: true } });
+      const excerpt = message.body.length > 120 ? `${message.body.slice(0, 117)}…` : message.body;
+      return { targetId: message.id, targetLabel: `Mensagem de ${author?.nickname ?? 'usuário'} no chat de ${match.label}: “${excerpt}”`, targetLink: match.link, targetOwnerUserId: message.authorId };
+    }
   }
 }
 
@@ -133,7 +145,7 @@ reports.post('/reports', async (c) => {
   const session = await requireSession(c);
   const input = await body(c, CreateReportInput);
   const db = c.get('deps').db();
-  const target = await resolveTarget(db, input);
+  const target = await resolveTarget(db, input, { userId: session.userId, roles: await currentRoles(c) });
   if (target.targetOwnerUserId === session.userId) {
     throw badRequest(input.targetType === 'USER' ? 'Você não pode denunciar a si mesmo.' : 'Você não pode denunciar algo que é seu.', 'REPORT_SELF');
   }

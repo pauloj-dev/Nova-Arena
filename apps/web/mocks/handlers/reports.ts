@@ -8,6 +8,7 @@ import { findStage, getRun, splitMatchId } from '../competition';
 import { collection, db, nowIso, save, uid, type DbUser } from '../db';
 import { badRequest, body, conflict, handle, HttpProblem, json, notFound, requireUser, url } from '../http';
 import { toRegistration } from '../views';
+import { chatAccess, chatMessages } from './chat';
 import { submissions } from './submissions';
 
 export const moduleName = 'reports';
@@ -152,7 +153,7 @@ function resolveMatch(matchId: string): { label: string; link: string } | null {
 }
 
 /** Confere se o alvo existe e resolve o nome e o link que a moderação vai ver. */
-function resolveTarget(input: CreateReportInput): ResolvedTarget {
+function resolveTarget(input: CreateReportInput, viewer: DbUser): ResolvedTarget {
   const d = db();
   switch (input.targetType) {
     case 'USER': {
@@ -177,11 +178,20 @@ function resolveTarget(input: CreateReportInput): ResolvedTarget {
       if (!match) throw notFound('Resultado');
       return { targetId: input.targetId, targetLabel: `Resultado de ${match.label}`, targetLink: match.link, targetOwnerUserId: submission?.submittedByUserId ?? null };
     }
+    case 'CHAT_MESSAGE': {
+      // Só denuncia quem enxerga o chat da partida (issue 125); a moderação vê o texto como estava.
+      const message = chatMessages().find((m) => m.id === input.targetId);
+      const match = message && chatAccess(viewer, message.matchId) ? resolveMatch(message.matchId) : null;
+      if (!message || !match) throw notFound('Mensagem');
+      const author = d.users.find((u) => u.id === message.authorId);
+      const excerpt = message.body.length > 120 ? `${message.body.slice(0, 117)}…` : message.body;
+      return { targetId: message.id, targetLabel: `Mensagem de ${author?.nickname ?? 'usuário'} no chat de ${match.label}: “${excerpt}”`, targetLink: match.link, targetOwnerUserId: message.authorId };
+    }
   }
 }
 
 function create(user: DbUser, input: CreateReportInput): DbReport {
-  const target = resolveTarget(input);
+  const target = resolveTarget(input, user);
   if (target.targetOwnerUserId === user.id) {
     throw badRequest(input.targetType === 'USER' ? 'Você não pode denunciar a si mesmo.' : 'Você não pode denunciar algo que é seu.', 'REPORT_SELF');
   }

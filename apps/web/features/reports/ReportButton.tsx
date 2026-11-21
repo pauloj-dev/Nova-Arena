@@ -8,7 +8,7 @@ import { useSession } from '@/shared/session/useSession';
 import { ReportDialog } from './ReportDialog';
 
 export interface ReportButtonProps {
-  targetType: 'USER' | 'TEAM' | 'MATCH' | 'RESULT';
+  targetType: 'USER' | 'TEAM' | 'MATCH' | 'RESULT' | 'CHAT_MESSAGE';
   targetId: string;
   /** Nome do que está sendo denunciado, para o título do formulário. */
   targetLabel: string;
