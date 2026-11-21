@@ -17,6 +17,7 @@ import type { Queue } from './jobs';
 import type { TournamentAccess } from './auth/rbac';
 import type { Mailer } from './mail';
 import type { RateLimiter } from './security';
+import type { Realtime } from './realtime';
 
 /** Verificação de uma dependência (banco, Redis, QStash): devolve ok ou lança com o motivo. */
 export type DependencyCheck = (env: Env) => Promise<'ok' | 'not_configured'>;
@@ -43,6 +44,8 @@ export interface Dependencies {
   cache: (env: Env) => Cache;
   /** Fila de jobs agendados (padrão: QStash; sem ele, só log e o Cron cobre). */
   queue: (env: Env, log: Logger) => Queue;
+  /** Tempo real (padrão: Ably pela API REST; sem chave, só log). Publique depois do commit (`publish` de `notify.ts`). */
+  realtime: (env: Env, log: Logger) => Realtime;
   /** Avisa as páginas públicas em cache (ISR) que os dados mudaram. Padrão: nada (fora do Next). */
   revalidate: (tags: string[]) => void;
 }

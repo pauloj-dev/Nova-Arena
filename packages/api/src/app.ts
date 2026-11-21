@@ -27,6 +27,7 @@ import { registrations } from './modules/registrations';
 import { competition } from './modules/competition';
 import { matches } from './modules/competition/matches';
 import { qstashQueue } from './jobs';
+import { ablyRealtime } from './realtime';
 import { uploads } from './modules/uploads';
 import { users } from './modules/users';
 import { vercelBlobStore } from './uploads/store';
@@ -75,6 +76,7 @@ export function createApp(options: CreateAppOptions = {}) {
     blob: options.deps?.blob ?? vercelBlobStore,
     queue: options.deps?.queue ?? qstashQueue,
     revalidate: options.deps?.revalidate ?? (() => undefined),
+    realtime: options.deps?.realtime ?? ablyRealtime,
     cache:
       options.deps?.cache ??
       ((env) => {
