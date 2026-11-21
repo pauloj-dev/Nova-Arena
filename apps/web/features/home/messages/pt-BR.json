@@ -1,0 +1,33 @@
+{
+  "Hero": {
+    "acaoListaDeEspera": "Entrar na lista de espera",
+    "acaoInscreverSquad": "Inscrever squad",
+    "acaoInscrever": "Quero me inscrever",
+    "acaoAcompanhar": "Acompanhar campeonato",
+    "acaoVer": "Ver campeonato",
+    "carregando": "Carregando o campeonato em destaque",
+    "emDestaque": "Campeonato em destaque",
+    "modo": " · {modo}",
+    "comeca": "Começa {data}",
+    "vagas": "{ocupadas}/{total} vagas <detalhe>· {situacao}</detalhe>",
+    "vazioTitulo": "Onde todo campeonato vira história",
+    "vazioDescricao": "Campeonatos de Free Fire, Clash Royale, 8 Ball Pool, eFootball e mais. Ache um e entre na disputa.",
+    "verCampeonatos": "Ver campeonatos"
+  },
+  "GameShortcuts": {
+    "rotulo": "Campeonatos por jogo",
+    "todos": "Todos"
+  },
+  "Showcase": {
+    "erro": "Não foi possível carregar os campeonatos"
+  },
+  "HomePage": {
+    "titulo": "Nova Arena: campeonatos de eSports mobile",
+    "destaques": "Campeonatos em destaque",
+    "inscricoesAbertas": "Inscrições abertas",
+    "verTodos": "Ver todos",
+    "vazioTitulo": "Nenhum campeonato com inscrições abertas agora",
+    "vazioDescricao": "Siga um jogo para ser avisado quando um campeonato novo abrir inscrições.",
+    "escolherJogo": "Escolher um jogo para seguir"
+  }
+}

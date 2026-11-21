@@ -10,60 +10,73 @@ import { slotsText, TournamentCard, TournamentCardSkeleton, TournamentGrid } fro
 import { errorMessage } from '@/shared/api/client';
 import { useGames } from '@/shared/api/hooks/games';
 import { useTournaments } from '@/shared/api/hooks/tournaments';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { useSession } from '@/shared/session/useSession';
+import { messages } from './messages';
 
 const container = 'mx-auto w-full max-w-[1280px] px-4 md:px-6';
 
-/** O que a pessoa faz a seguir, dito no botão do destaque. */
-function heroAction(t: TournamentSummary): string {
-  if (t.status === 'REGISTRATION_OPEN') {
-    if (t.takenSlots >= t.maxParticipants) return 'Entrar na lista de espera';
-    return t.participantType === 'TEAM' ? 'Inscrever squad' : 'Quero me inscrever';
-  }
-  if (t.status === 'IN_PROGRESS' || t.status === 'PAUSED' || t.status === 'CHECK_IN') return 'Acompanhar campeonato';
-  return 'Ver campeonato';
+function useHeroT() {
+  return useT(messages, 'Hero');
 }
 
-function Hero({ tournament: t, loading }: { tournament: TournamentSummary | undefined; loading: boolean }) {
+/** O que a pessoa faz a seguir, dito no botão do destaque. */
+function heroAction(tournament: TournamentSummary, t: ReturnType<typeof useHeroT>): string {
+  if (tournament.status === 'REGISTRATION_OPEN') {
+    if (tournament.takenSlots >= tournament.maxParticipants) return t('acaoListaDeEspera');
+    return tournament.participantType === 'TEAM' ? t('acaoInscreverSquad') : t('acaoInscrever');
+  }
+  if (tournament.status === 'IN_PROGRESS' || tournament.status === 'PAUSED' || tournament.status === 'CHECK_IN') return t('acaoAcompanhar');
+  return t('acaoVer');
+}
+
+function Hero({ tournament, loading }: { tournament: TournamentSummary | undefined; loading: boolean }) {
+  const t = useHeroT();
+  const vagas = tournament
+    ? t.rich('vagas', {
+        ocupadas: tournament.takenSlots,
+        total: tournament.maxParticipants,
+        situacao: slotsText(tournament.takenSlots, tournament.maxParticipants),
+        detalhe: (chunks) => <span className="font-sans text-sm font-normal">{chunks}</span>,
+      })
+    : null;
   return (
     <section aria-labelledby="hero-title" className="bg-hero text-white">
       <div className={cn(container, 'flex flex-col gap-4 py-8 md:flex-row md:items-end md:justify-between md:gap-8 md:py-12')}>
         {loading ? (
-          <div role="status" aria-label="Carregando o campeonato em destaque" className="flex w-full flex-col gap-3">
+          <div role="status" aria-label={t('carregando')} className="flex w-full flex-col gap-3">
             <Skeleton className="h-5 w-40 opacity-40" />
             <Skeleton className="h-10 w-4/5 opacity-40 md:w-1/2" />
             <Skeleton className="h-5 w-56 opacity-40" />
             <Skeleton className="h-12 w-48 opacity-40" />
           </div>
-        ) : t ? (
+        ) : tournament ? (
           <>
             <div className="flex min-w-0 flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-semibold uppercase tracking-wide">Campeonato em destaque</span>
-                <StatusPill status={t.status} />
+                <span className="text-sm font-semibold uppercase tracking-wide">{t('emDestaque')}</span>
+                <StatusPill status={tournament.status} />
               </div>
               <h2 id="hero-title" className="text-2xl uppercase break-words md:text-3xl">
-                {t.name}
+                {tournament.name}
               </h2>
               <div className="flex flex-col gap-1 text-sm md:text-base">
                 <p className="flex items-center gap-2">
-                  <span aria-hidden>{t.gameIcon}</span>
+                  <span aria-hidden>{tournament.gameIcon}</span>
                   <span>
-                    {t.gameName}
-                    {t.modeName && ` · ${t.modeName}`}
+                    {tournament.gameName}
+                    {tournament.modeName && t('modo', { modo: tournament.modeName })}
                   </span>
                 </p>
-                {t.startsAt && <p>Começa {formatDateTime(t.startsAt)}</p>}
+                {tournament.startsAt && <p>{t('comeca', { data: formatDateTime(tournament.startsAt) })}</p>}
               </div>
             </div>
             <div className="flex shrink-0 flex-col gap-2 md:items-end">
-              <p className="tabular text-base md:text-lg">
-                {t.takenSlots}/{t.maxParticipants} vagas <span className="font-sans text-sm font-normal">· {slotsText(t.takenSlots, t.maxParticipants)}</span>
-              </p>
+              <p className="tabular text-base md:text-lg">{vagas}</p>
               <Button asChild variant="gold" size="lg">
-                <Link href={`/c/${t.slug}`}>
-                  {heroAction(t)}
+                <Link href={`/c/${tournament.slug}`}>
+                  {heroAction(tournament, t)}
                   <ArrowRight className="size-5" aria-hidden />
                 </Link>
               </Button>
@@ -73,13 +86,13 @@ function Hero({ tournament: t, loading }: { tournament: TournamentSummary | unde
           <>
             <div className="flex flex-col gap-2">
               <h2 id="hero-title" className="text-2xl uppercase md:text-3xl">
-                Onde todo campeonato vira história
+                {t('vazioTitulo')}
               </h2>
-              <p className="text-sm md:text-base">Campeonatos de Free Fire, Clash Royale, 8 Ball Pool, eFootball e mais. Ache um e entre na disputa.</p>
+              <p className="text-sm md:text-base">{t('vazioDescricao')}</p>
             </div>
             <Button asChild variant="gold" size="lg" className="shrink-0">
               <Link href="/campeonatos">
-                Ver campeonatos
+                {t('verCampeonatos')}
                 <ArrowRight className="size-5" aria-hidden />
               </Link>
             </Button>
@@ -95,8 +108,9 @@ const chip =
 
 function GameShortcuts() {
   const games = useGames();
+  const t = useT(messages, 'GameShortcuts');
   return (
-    <nav aria-label="Campeonatos por jogo" className={container}>
+    <nav aria-label={t('rotulo')} className={container}>
       {/* No celular os atalhos rolam na horizontal dentro da própria faixa, sem empurrar a página. */}
       <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
         {games.isPending &&
@@ -116,7 +130,7 @@ function GameShortcuts() {
         <li>
           <Link href="/campeonatos" className={chip}>
             <Gamepad2 className="size-4" aria-hidden />
-            Todos
+            {t('todos')}
           </Link>
         </li>
       </ul>
@@ -125,6 +139,8 @@ function GameShortcuts() {
 }
 
 interface ShowcaseProps {
+  /** `id` do título da seção (âncora do `aria-labelledby`). */
+  id: string;
   title: string;
   query: ReturnType<typeof useTournaments>;
   /** Campeonato que já está no destaque do topo e não precisa se repetir. */
@@ -136,8 +152,8 @@ interface ShowcaseProps {
   empty?: React.ReactNode;
 }
 
-function Showcase({ title, query, exclude, moreHref, moreLabel, hideWhenEmpty, empty }: ShowcaseProps) {
-  const id = `vitrine-${title.toLowerCase().replace(/[^a-z]+/g, '-')}`;
+function Showcase({ id, title, query, exclude, moreHref, moreLabel, hideWhenEmpty, empty }: ShowcaseProps) {
+  const t = useT(messages, 'Showcase');
   const items = (query.data?.items ?? []).filter((t) => t.id !== exclude);
   if (hideWhenEmpty && !query.isPending && !query.isError && items.length === 0) return null;
   return (
@@ -160,7 +176,7 @@ function Showcase({ title, query, exclude, moreHref, moreLabel, hideWhenEmpty, e
           ))}
         </TournamentGrid>
       ) : query.isError ? (
-        <ErrorState title="Não foi possível carregar os campeonatos" description={errorMessage(query.error)} onRetry={() => void query.refetch()} />
+        <ErrorState title={t('erro')} description={errorMessage(query.error)} onRetry={() => void query.refetch()} />
       ) : items.length === 0 ? (
         empty
       ) : (
@@ -179,6 +195,7 @@ function Showcase({ title, query, exclude, moreHref, moreLabel, hideWhenEmpty, e
 /** Home (PRD §15.6): destaque, atalhos por jogo, próximas partidas de quem está logado e vitrines. */
 export function HomePage() {
   const { user } = useSession();
+  const t = useT(messages, 'HomePage');
   const featured = useTournaments({ featured: '1' }, 5);
   const open = useTournaments({ status: 'open' }, 8);
 
@@ -188,24 +205,25 @@ export function HomePage() {
 
   return (
     <main id="conteudo" className="flex flex-col gap-8 pb-10 md:gap-10">
-      <h1 className="sr-only">Nova Arena: campeonatos de eSports mobile</h1>
+      <h1 className="sr-only">{t('titulo')}</h1>
       <Hero tournament={hero} loading={heroLoading} />
       <GameShortcuts />
       {user && <UpcomingMatches />}
-      <Showcase title="Campeonatos em destaque" query={featured} exclude={hero?.id} moreHref="/campeonatos" moreLabel="Ver todos" hideWhenEmpty />
+      <Showcase id="vitrine-campeonatos-em-destaque" title={t('destaques')} query={featured} exclude={hero?.id} moreHref="/campeonatos" moreLabel={t('verTodos')} hideWhenEmpty />
       <Showcase
-        title="Inscrições abertas"
+        id="vitrine-inscri-es-abertas"
+        title={t('inscricoesAbertas')}
         query={open}
         moreHref={listHref({ status: 'open' })}
-        moreLabel="Ver todos"
+        moreLabel={t('verTodos')}
         empty={
           <EmptyState
             icon={<Trophy className="size-7" />}
-            title="Nenhum campeonato com inscrições abertas agora"
-            description="Siga um jogo para ser avisado quando um campeonato novo abrir inscrições."
+            title={t('vazioTitulo')}
+            description={t('vazioDescricao')}
             action={
               <Button asChild>
-                <Link href="/jogos">Escolher um jogo para seguir</Link>
+                <Link href="/jogos">{t('escolherJogo')}</Link>
               </Button>
             }
           />
