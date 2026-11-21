@@ -5,7 +5,7 @@
  * dentro do handler de cada ação sensível.
  */
 import { http, HttpResponse, type HttpHandler } from 'msw';
-import { ACTIVE_TOURNAMENT_STATUSES, AUDIT_ACTIONS, auditActionLabel, type AdminStats, type AuditLog, type AuditMeta } from '@nova/schemas';
+import { ACTIVE_TOURNAMENT_STATUSES, AUDIT_ACTIONS, auditActionLabel, type AdminStats, type AuditLog, type AuditMeta, type ProductMetric, type ProductMetrics } from '@nova/schemas';
 import { auditLogs, type DbAuditLog } from '../audit';
 import { matchId, matchMetas, stageRuns } from '../competition';
 import { db } from '../db';
@@ -217,6 +217,43 @@ function buildStats(q: URLSearchParams): AdminStats {
   };
 }
 
+/**
+ * Metas do produto (`GET /admin/metrics`, issue #101) no protótipo. W.O. e disputas saem do banco simulado (mesma conta
+ * do `/admin/stats`); os outros indicadores dependem de eventos e pesquisas que o protótipo não guarda, então vêm
+ * com valores de exemplo. A conta de verdade está em `packages/api/src/modules/admin/stats.ts`.
+ */
+function buildMetrics(params: URLSearchParams): ProductMetrics {
+  const stats = buildStats(params);
+  const now = Date.now();
+  const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  const metric = (m: Omit<ProductMetric, 'status'>): ProductMetric => ({
+    ...m,
+    status: m.value === null || m.target === null ? 'no_data' : (m.direction === 'max' ? m.value <= m.target : m.value >= m.target) ? 'ok' : 'attention',
+  });
+  const round = (n: number) => Math.round(n * 1000) / 1000;
+  const weekly = Array.from({ length: 8 }, (_, i) => ({ weekStart: day(now - (7 - i) * 7 * 86_400_000), count: [4, 6, 5, 9, 7, 12, 8, stats.validatedMatchesThisWeek][i] ?? 0 }));
+  return {
+    from: day(now - 30 * 86_400_000),
+    to: day(now),
+    generatedAt: new Date(now).toISOString(),
+    northStar: { thisWeek: stats.validatedMatchesThisWeek, lastWeek: weekly[6]?.count ?? 0, weekly },
+    metrics: [
+      metric({ key: 'publishTime', group: 'OKR', label: 'Tempo médio para criar e publicar um campeonato', value: 8.5, unit: 'minutes', target: 10, direction: 'max', targetLabel: '≤ 10 min', sample: 6, detail: 'Do rascunho criado à publicação, nos campeonatos publicados no período.' }),
+      metric({ key: 'noManualAdjustment', group: 'OKR', label: 'Campeonatos encerrados sem ajuste manual de pontuação', value: 1, unit: 'percent', target: 0.9, direction: 'min', targetLabel: '≥ 90%', sample: 1, detail: 'Sem resultado corrigido nem pontuação da fase alterada, nos campeonatos encerrados no período.' }),
+      metric({ key: 'disputeRate', group: 'OKR', label: 'Disputas de resultado por partida', value: round(stats.disputeRate), unit: 'percent', target: 0.03, direction: 'max', targetLabel: '≤ 3%', sample: stats.matchesThisWeek, detail: 'Disputas abertas no período sobre as partidas concluídas no período.' }),
+      metric({ key: 'returnRate30d', group: 'OKR', label: 'Participantes que se inscrevem em um 2º campeonato em até 30 dias', value: 0.42, unit: 'percent', target: 0.4, direction: 'min', targetLabel: '≥ 40%', sample: 24, detail: 'Quem fez a 1ª inscrição 30 dias antes do período e voltou a se inscrever em outro campeonato em até 30 dias.' }),
+      metric({ key: 'walkoverRate', group: 'OKR', label: 'Taxa de W.O. (não comparecimento)', value: round(stats.walkoverRate), unit: 'percent', target: 0.08, direction: 'max', targetLabel: '≤ 8%', sample: stats.matchesThisWeek, detail: 'Partidas decididas por W.O. sobre as concluídas no período.' }),
+      metric({ key: 'auditCoverage', group: 'OKR', label: 'Ações administrativas com registro de auditoria', value: 1, unit: 'percent', target: 1, direction: 'min', targetLabel: '100%', sample: auditLogs().length, detail: 'Alterações feitas na área de administração que gravaram auditoria (salvar sem mudar nada não conta).' }),
+      metric({ key: 'npsParticipants', group: 'HEART', label: 'NPS dos participantes', value: null, unit: 'score', target: 40, direction: 'min', targetLabel: '≥ 40', sample: 0, detail: 'Pesquisa depois do campeonato: promotores (9–10) menos detratores (0–6).' }),
+      metric({ key: 'npsOrganizers', group: 'HEART', label: 'NPS dos organizadores', value: null, unit: 'score', target: 50, direction: 'min', targetLabel: '≥ 50', sample: 0, detail: 'Pesquisa depois do campeonato: promotores (9–10) menos detratores (0–6).' }),
+      metric({ key: 'engagement', group: 'HEART', label: 'Dias com acesso por participante durante o campeonato', value: 3.6, unit: 'count', target: 4, direction: 'min', targetLabel: '≥ 4', sample: 31, detail: 'Média de dias com sessão aberta ou renovada, entre quem tinha partida marcada no período.' }),
+      metric({ key: 'organizerAdoption', group: 'HEART', label: 'Organizadores que publicam o 1º campeonato em até 7 dias', value: 0.67, unit: 'percent', target: 0.6, direction: 'min', targetLabel: '≥ 60%', sample: 3, detail: 'Entre quem virou organizador 7 dias antes do período.' }),
+      metric({ key: 'retention30d', group: 'HEART', label: 'Inscrição em novo campeonato em até 30 dias', value: 0.42, unit: 'percent', target: 0.4, direction: 'min', targetLabel: '≥ 40%', sample: 24, detail: 'Mesma conta do OKR de reinscrição.' }),
+      metric({ key: 'brEntryTime', group: 'HEART', label: 'Tempo médio para lançar uma queda de Battle Royale', value: 48.2, unit: 'seconds', target: 60, direction: 'max', targetLabel: '≤ 60 s', sample: 12, detail: 'Medido na tela de resultados, do início do lançamento ao envio.' }),
+    ],
+  };
+}
+
 export const handlers: HttpHandler[] = [
   http.get(
     url('/admin/stats'),
@@ -224,6 +261,14 @@ export const handlers: HttpHandler[] = [
       adminOnly();
       expireSuspensions();
       return json(buildStats(query(request)));
+    }),
+  ),
+
+  http.get(
+    url('/admin/metrics'),
+    handle(({ request }) => {
+      adminOnly();
+      return json(buildMetrics(query(request)));
     }),
   ),
 
