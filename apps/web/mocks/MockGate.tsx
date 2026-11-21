@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { isMockEnabled } from './handlers';
+import { isMockEnabled } from '@/shared/api/mode';
 
 /**
  * Segura a renderização até a API simulada estar pronta, para nenhuma consulta

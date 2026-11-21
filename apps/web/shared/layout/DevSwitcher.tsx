@@ -4,7 +4,7 @@ import { Modal, Button, useToast } from '@nova/ui';
 import { FlaskConical, RotateCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { isMockEnabled } from '@/mocks/handlers';
+import { isMockEnabled } from '@/shared/api/mode';
 import { errorMessage } from '../api/client';
 import { useDevLogin, useLogout, useSession } from '../session/useSession';
 

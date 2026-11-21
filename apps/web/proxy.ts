@@ -3,7 +3,7 @@
  * `/organizador` antes de a página carregar. É só conveniência: **a checagem que vale é a da API**.
  *
  * - Sem token válido → `/entrar?next=…` (se a sessão só venceu, a tela de entrar renova e volta sozinha).
- * - Token sem o papel da área → página inicial.
+ * - Token sem o papel da área → segue para a página, que mostra o "Erro 403" (como no protótipo; a API recusa os dados).
  * - `/admin` sem o 2FA feito nesta sessão (`tfa` no token) → `/minha-conta/seguranca`.
  * - Com a API simulada (protótipo) a sessão vive no navegador: a borda não tem o que conferir e deixa passar.
  */
@@ -24,7 +24,8 @@ export async function proxy(request: NextRequest) {
     target.searchParams.set('next', `${pathname}${search}`);
     return NextResponse.redirect(target);
   }
-  if (decision === 'forbidden') return NextResponse.redirect(new URL('/', request.url));
+  // Sem o papel da área: a própria página mostra "Você não tem acesso a esta área" (Erro 403), sem dado nenhum.
+  if (decision === 'forbidden') return NextResponse.next();
   // Admin sem a verificação em duas etapas feita nesta sessão (issue #95): configurar ou entrar de novo com o código.
   if (decision === 'two-factor') return NextResponse.redirect(new URL('/minha-conta/seguranca', request.url));
   return NextResponse.next();

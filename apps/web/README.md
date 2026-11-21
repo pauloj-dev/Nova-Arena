@@ -45,7 +45,38 @@ e2e/             Playwright (fixtures.ts tem `test`, `expect`, `loginAs`, `waitF
 
 - Seletor **"Entrar como"** (canto inferior esquerdo): Bianca (participante), Lucas (capitão), Camila (organizadora verificada), Diego (organizador), Ana (admin), Rafael (super admin). Senha de todas as contas: `arena1234`.
 - Os dados ficam no `localStorage` do navegador. "Reiniciar dados" volta ao seed (`mocks/seed.ts`).
-- `NEXT_PUBLIC_API_MOCK`: `all` (padrão) · `none` · lista de módulos (`auth,games`).
+- `NEXT_PUBLIC_API_MOCK`: `all` (padrão) · `none` · lista de módulos (`auth,games`). Ver "Modos da API" abaixo.
+
+## Modos da API
+
+| Modo | `NEXT_PUBLIC_API_MOCK` | Onde | O que precisa |
+|---|---|---|---|
+| **Protótipo** (tudo simulado, dados no `localStorage`) | sem a variável, ou `all` | `pnpm dev` local, E2E do CI | nada |
+| **API real** | `none` | preview, staging e produção (desde a #102: `previewMockSetting()` em `mocks/handlers/index.ts` devolve `none`); local para testar contra o Postgres | Postgres com as migrations e a seed, e as variáveis do servidor |
+| Misto (só alguns módulos simulados) | lista, ex.: `realtime` | depuração | — |
+
+Com `none`, o MSW e o banco simulado nem são carregados no navegador (`MockGate` só importa os handlers sob demanda), o seletor "Entrar como" some e os atalhos do protótipo não existem.
+
+**API real no computador** (Postgres e Redis do `docker compose up -d`):
+
+```bash
+docker compose exec -T postgres psql -U nova -d nova -c "create database nova_dev"
+DATABASE_URL=postgres://nova:nova@localhost:5432/nova_dev DATABASE_URL_UNPOOLED=postgres://nova:nova@localhost:5432/nova_dev \
+  pnpm --filter @nova/db exec prisma migrate deploy
+# apps/web/.env.local (não vai para o git):
+#   NEXT_PUBLIC_API_MOCK=none
+#   NEXT_PUBLIC_SITE_URL=http://localhost:3000
+#   DATABASE_URL=… e DATABASE_URL_UNPOOLED=… (o banco acima)
+#   AUTH_JWT_SECRET, LOBBY_ENCRYPTION_KEY, TWO_FACTOR_ENCRYPTION_KEY, CRON_SECRET (gere como no /.env.example)
+#   KV_REST_API_URL=http://localhost:8079  KV_REST_API_TOKEN=nova-local  KV_PREFIX=dev:   (Redis do docker-compose)
+#   SEED_DEMO_PASSWORD=arena1234   SEED_DEMO_TOTP_SECRET=<Base32, opcional: 2FA do Rafael e da Ana>
+pnpm --filter web seed:demo --reset   # os mesmos cenários do protótipo, no Postgres
+pnpm dev
+```
+
+Sem `ABLY_API_KEY`, as páginas ao vivo mostram "Reconectando… atualizando a cada 10 s" (CT-10); sem `BLOB_READ_WRITE_TOKEN`, o envio de imagens responde 503; sem `RESEND_API_KEY`, os e-mails só aparecem no log do servidor; sem QStash, os jobs agendados ficam com o Cron (`GET /api/v1/cron/sweep` com o `CRON_SECRET`).
+
+**Seed de demonstração** (`scripts/seed-demo.ts` → `seedDemo()` de `@nova/api/demo`): grava o objeto de `mocks/seed.ts` com UUIDs determinísticos (`demoId('u_bianca')`, `demoId('tn_liga_cr')`…), as chaves projetadas pelas funções da API (Liga Semanal Clash Royale em andamento com o check-in da Bianca aberto, Open 8 Ball Pool finalizado com pódio), squads e convites, convites de papel (válidos, expirado e revogado), pedido de organizador, denúncias e notificações de demonstração. Idempotente; `--reset` apaga tudo antes (só local: desliga os gatilhos de "somente inserção"). Nunca em produção.
 
 ## Testes
 
@@ -58,6 +89,20 @@ Para rodar E2E contra um servidor já no ar: `PLAYWRIGHT_BASE_URL=http://localho
 Para subir uma segunda instância sem conflito de build: `NEXT_DIST_DIR=.next-x pnpm --filter web exec next dev -p 3111`.
 
 Nos testes E2E, importe `test`, `expect`, `loginAs` e `waitForApp` de `./fixtures`. Cada teste começa com o banco simulado limpo (contexto novo do navegador).
+
+**E2E com a API real** (`E2E_MODE=real`, issue #102): a mesma suíte, contra um servidor local com `NEXT_PUBLIC_API_MOCK=none` e o `.env.local` acima.
+
+```bash
+cd apps/web
+NEXT_DIST_DIR=.next-real pnpm exec next dev -p 3141      # ou next build && next start
+E2E_MODE=real PLAYWRIGHT_BASE_URL=http://localhost:3141 PW_OUTPUT_DIR=test-results-real pnpm exec playwright test
+```
+
+- O `globalSetup` (`e2e/real/global-setup.ts`) zera o banco do servidor, roda a seed de demonstração e guarda um retrato no schema `e2e_snapshot`; **cada teste restaura o retrato** (com as datas andando o tempo que passou) e apaga o cache do servidor no Redis (`KV_PREFIX` obrigatório para isso). Um teste por vez (`workers: 1`).
+- `mid('tn_liga_cr')` dá o ID do registro no modo em uso (o próprio ID no protótipo; o UUID da seed com a API real).
+- Atalhos do protótipo têm caminho equivalente em `e2e/real/`: `loginAs` abre a sessão direto no banco (em vez de `/auth/dev-login`); `apiAs(...)` chama a API como outra pessoa pelo Node; `emailLink(email, 'VERIFY' | 'RESET')` é o link que o e-mail levaria; `totp(segredo)` é o código do aplicativo autenticador. Cada teste usa um IP próprio (`x-forwarded-for`) para o limite de 5 logins por minuto.
+- Ficam de fora com o motivo no próprio teste (`test.skip(isRealApi, …)`): o que depende de credencial que o ambiente local não tem (OAuth do Google/Discord, Vercel Blob, Ably) e o que só existe no protótipo.
+- `api-real.spec.ts` também roda contra o preview (`E2E_API_REAL=1`, sem acesso ao banco).
 
 ## Competição, tempo real e utilidades compartilhadas (F2)
 
@@ -83,4 +128,4 @@ Nos testes E2E, importe `test`, `expect`, `loginAs` e `waitForApp` de `./fixture
 - **Feature flags:** `useFlag('ranking' | 'publicSignup' | 'resultSubmission' | 'pushNotifications')` e `<FlagGate flag>` em `shared/flags`. A flag vale também no handler (`isFlagEnabled` em `mocks/handlers/admin-settings.ts`): esconder na tela não basta.
 - **Sessão e papéis na API simulada:** `currentUser()` devolve nulo para quem não está `ACTIVE` (banido, suspenso, mesclado, excluído); `requireAdmin()` exige verificação em duas etapas ativa.
 - **Coleções de F2 no banco simulado** (`db().extra`): `stageRuns`, `matchMeta`, `podiums`, `resultEvents`, `auditLogs`, `notifications`, `notificationPreferences`, `reports`, `submissions`, `disputes`, `sanctions`, `roleGrants`, `globalAnnouncements`, `siteSettings`, `featureFlags`, `twoFactor`.
-- **Atalhos que só existem no protótipo** e não vão para a API real: `POST /auth/dev-login`, `GET /me/2fa/dev-code`, os tokens `devVerifyToken`/`devResetToken` nas respostas e o link de redefinição mostrado ao Admin.
+- **Atalhos que só existem no protótipo** e não vão para a API real: `POST /auth/dev-login`, `GET /me/2fa/dev-code`, os tokens `devVerifyToken`/`devResetToken` nas respostas e o link de redefinição mostrado ao Admin. A API real não tem nenhum deles (o teste `packages/api/test/contract-parity.unit.test.ts` garante); com ela, os links vão só por e-mail.
