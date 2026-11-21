@@ -21,3 +21,4 @@ playwright-report
 blob-report
 .next-*
 test-results-*
+.claude/worktrees/
