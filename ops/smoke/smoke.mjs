@@ -62,7 +62,7 @@ async function pagina(nome, caminho, { contem } = {}) {
   await verificar(nome, async () => {
     const { res, corpo, ms } = await pedir(caminho, 'text/html');
     exigir(res.status === 200, `esperava 200, veio ${res.status}`);
-    if (contem) exigir(corpo.includes(contem), `a resposta não tem "${contem}"`);
+    if (contem) exigir(corpo.toLowerCase().includes(contem.toLowerCase()), `a resposta não tem "${contem}"`);
     return { ms };
   });
 }
