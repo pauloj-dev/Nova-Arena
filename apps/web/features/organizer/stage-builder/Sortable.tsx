@@ -4,6 +4,8 @@ import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, us
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useId, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 import { restrictToVerticalAxis } from './modifiers';
 
 interface SortableListProps {
@@ -17,6 +19,7 @@ interface SortableListProps {
 
 /** Lista reordenável por arrastar (mouse, toque e teclado). Quem usa oferece também botões "mover para cima/baixo". */
 export function SortableList({ ids, labelOf, onMove, children }: SortableListProps) {
+  const t = useT(messages, 'SortableList');
   const id = useId();
   const sensors = useSensors(
     // Só começa a arrastar depois de 6 px: um toque simples continua sendo um clique.
@@ -25,10 +28,10 @@ export function SortableList({ ids, labelOf, onMove, children }: SortableListPro
   );
   const position = (itemId: string | number) => ids.indexOf(String(itemId)) + 1;
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `${labelOf(String(active.id))} selecionado. Posição ${position(active.id)} de ${ids.length}. Use as setas para mover e Espaço para soltar.`,
-    onDragOver: ({ active, over }) => (over ? `${labelOf(String(active.id))} foi para a posição ${position(over.id)} de ${ids.length}.` : undefined),
-    onDragEnd: ({ active, over }) => (over ? `${labelOf(String(active.id))} solto na posição ${position(over.id)} de ${ids.length}.` : `${labelOf(String(active.id))} voltou para o lugar.`),
-    onDragCancel: ({ active }) => `Movimento cancelado. ${labelOf(String(active.id))} voltou para o lugar.`,
+    onDragStart: ({ active }) => t('inicio', { item: labelOf(String(active.id)), posicao: position(active.id), total: ids.length }),
+    onDragOver: ({ active, over }) => (over ? t('sobre', { item: labelOf(String(active.id)), posicao: position(over.id), total: ids.length }) : undefined),
+    onDragEnd: ({ active, over }) => (over ? t('solto', { item: labelOf(String(active.id)), posicao: position(over.id), total: ids.length }) : t('voltou', { item: labelOf(String(active.id)) })),
+    onDragCancel: ({ active }) => t('cancelado', { item: labelOf(String(active.id)) }),
   };
 
   function handleDragEnd(event: DragEndEvent) {
@@ -48,7 +51,7 @@ export function SortableList({ ids, labelOf, onMove, children }: SortableListPro
       onDragEnd={handleDragEnd}
       accessibility={{
         announcements,
-        screenReaderInstructions: { draggable: 'Para reordenar, pressione Espaço, use as setas para cima e para baixo e pressione Espaço de novo para soltar. Esc cancela.' },
+        screenReaderInstructions: { draggable: t('instrucoes') },
       }}
     >
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>

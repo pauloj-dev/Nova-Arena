@@ -6,6 +6,8 @@ import { AlertCircle, CheckCircle2, Trophy } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 import { duelFromMatch, duelPayload, scoreLabel, validateDuel, winsNeeded, type DuelState } from './duel';
 import { EvidenceUpload } from '@/features/evidence/EvidenceUpload';
+import { useT } from '@/shared/i18n/react';
+import { messages } from '../messages';
 import { CELL_INPUT } from './fields';
 
 export interface ScoreSubmit {
@@ -40,12 +42,13 @@ export function ScoreInput({ match, gameSlug, extraStatFields = [], correction =
   const [uploading, setUploading] = useState(false);
   const [reason, setReason] = useState('');
   const groupId = useId();
+  const t = useT(messages, 'ScoreInput');
 
   const ctx = useMemo(() => ({ bestOf: match.bestOf, elimination: match.bracket !== null, extraStatFields }), [match.bestOf, match.bracket, extraStatFields]);
   const validation = useMemo(() => (state ? validateDuel(state, ctx) : null), [state, ctx]);
 
   if (!state || !validation) {
-    return <p className="text-sm text-muted">Esta partida ainda espera o resultado de partidas anteriores: os dois lados precisam estar definidos para lançar o placar.</p>;
+    return <p className="text-sm text-muted">{t('aguardando')}</p>;
   }
 
   const label = scoreLabel(gameSlug, match.bestOf);
@@ -81,12 +84,12 @@ export function ScoreInput({ match, gameSlug, extraStatFields = [], correction =
         </legend>
         <div className="grid grid-cols-2 gap-3">
           {state.sides.map((side) => {
-            const error = validation.errors.stats[`${side.registrationId}:${field.key}`] ?? (attempted && field.when === 'tiebreak' && (side.stats[field.key] ?? '').trim() === '' ? 'Informe o valor' : undefined);
+            const error = validation.errors.stats[`${side.registrationId}:${field.key}`] ?? (attempted && field.when === 'tiebreak' && (side.stats[field.key] ?? '').trim() === '' ? t('informeValor') : undefined);
             return (
               <label key={side.registrationId} className="flex flex-col gap-1 text-xs text-muted">
                 <span className="truncate">{side.name}</span>
                 <input
-                  aria-label={`${field.label} de ${side.name}`}
+                  aria-label={t('campoDe', { field: field.label, name: side.name })}
                   className={CELL_INPUT}
                   type="text"
                   inputMode="numeric"
@@ -110,7 +113,7 @@ export function ScoreInput({ match, gameSlug, extraStatFields = [], correction =
     <form
       noValidate
       className="flex flex-col gap-4"
-      aria-label={`Lançamento: ${match.roundLabel}, ${state.sides[0].name} x ${state.sides[1].name}`}
+      aria-label={t('formulario', { round: match.roundLabel, a: state.sides[0].name, b: state.sides[1].name })}
       onSubmit={(event) => {
         event.preventDefault();
         submit();
@@ -121,14 +124,14 @@ export function ScoreInput({ match, gameSlug, extraStatFields = [], correction =
           {[match.stageName, match.groupName, match.roundLabel].filter(Boolean).join(' · ')}
         </h3>
         <p className="text-sm text-muted">
-          {match.bestOf > 1 ? `Série MD${match.bestOf}: vence quem fizer ${needed} ${needed === 1 ? 'jogo' : 'jogos'}. Lance os jogos vencidos por cada lado.` : `Jogo único. Lance ${label.toLowerCase()} de cada lado.`}
-          {correction && ' Você está corrigindo um resultado já validado.'}
+          {match.bestOf > 1 ? t('serie', { bestOf: match.bestOf, needed }) : t('jogoUnico', { label: label.toLowerCase() })}
+          {correction && t('corrigindo')}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         {state.sides.map((side) => {
-          const error = validation.errors.scores[side.registrationId] ?? (attempted && side.score.trim() === '' ? 'Informe o placar' : undefined);
+          const error = validation.errors.scores[side.registrationId] ?? (attempted && side.score.trim() === '' ? t('informePlacar') : undefined);
           const winning = validation.winnerId === side.registrationId;
           return (
             <label key={side.registrationId} className={cn('flex min-w-0 flex-col gap-1.5 rounded-lg border border-border bg-surface p-3', winning && 'border-accent')} data-testid="score-side">
@@ -138,7 +141,7 @@ export function ScoreInput({ match, gameSlug, extraStatFields = [], correction =
               </span>
               <span className="text-xs text-muted">{label}</span>
               <input
-                aria-label={`${label} de ${side.name}`}
+                aria-label={t('campoDe', { field: label, name: side.name })}
                 className={cn(CELL_INPUT, 'text-xl font-bold')}
                 type="text"
                 inputMode="numeric"
@@ -169,12 +172,12 @@ export function ScoreInput({ match, gameSlug, extraStatFields = [], correction =
         </p>
       )}
 
-      {statFields(always, 'estatística do jogo')}
-      {statFields(tiebreak, 'desempate: o placar ficou empatado')}
+      {statFields(always, t('estatisticaDoJogo'))}
+      {statFields(tiebreak, t('desempate'))}
 
       {validation.needsWinner && (
         <fieldset className="flex flex-col gap-2 rounded-lg border border-border p-3" data-testid="winner-choice">
-          <legend className="px-1 text-sm font-medium text-text">O placar ficou empatado. Quem venceu o desempate?</legend>
+          <legend className="px-1 text-sm font-medium text-text">{t('quemVenceu')}</legend>
           {state.sides.map((side) => (
             <label key={side.registrationId} className="flex min-h-11 items-center gap-3 text-sm text-text">
               <input
@@ -200,29 +203,29 @@ export function ScoreInput({ match, gameSlug, extraStatFields = [], correction =
       <p role="status" aria-live="polite" className="text-sm text-muted" data-testid="score-status">
         {validation.valid
           ? validation.draw
-            ? 'Empate. Os pontos de cada lado são calculados pelo servidor ao salvar.'
-            : `${winnerName ?? 'O vencedor'} vence${match.nextMatchId ? ' e avança na chave' : ''}. Os pontos são calculados pelo servidor ao salvar.`
-          : 'Preencha o placar dos dois lados.'}
+            ? t('empate')
+            : t('vence', { name: winnerName ?? t('oVencedor'), advance: match.nextMatchId ? 'yes' : 'no' })
+          : t('preencha')}
       </p>
 
       <EvidenceUpload value={evidenceUrls} onChange={setEvidenceUrls} onBusyChange={setUploading} disabled={disabled} upload={upload} />
 
       {correction && (
         <Textarea
-          label="Motivo da correção"
+          label={t('motivo')}
           required
           rows={2}
           maxLength={500}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          hint="Fica registrado no histórico da partida e na auditoria."
-          error={attempted && reasonMissing ? 'Informe o motivo da correção' : undefined}
+          hint={t('motivoDica')}
+          error={attempted && reasonMissing ? t('motivoErro') : undefined}
         />
       )}
 
       <div className="flex justify-end">
         <Button type="submit" loading={submitting} disabled={disabled || uploading} iconLeft={<CheckCircle2 className="size-4" aria-hidden />}>
-          {correction ? 'Salvar correção' : 'Salvar resultado'}
+          {correction ? t('salvarCorrecao') : t('salvarResultado')}
         </Button>
       </div>
     </form>

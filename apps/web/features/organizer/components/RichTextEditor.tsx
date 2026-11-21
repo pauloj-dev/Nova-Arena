@@ -5,8 +5,10 @@ import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/r
 import StarterKit from '@tiptap/starter-kit';
 import { AlertCircle, Bold, Heading2, Heading3, Italic, Link2, Link2Off, List, ListOrdered, type LucideIcon } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useT } from '@/shared/i18n/react';
 import { sanitizeRichText } from '@/shared/lib/sanitize';
 import { safeHref } from '../lib/sanitize-html';
+import { messages } from '../messages';
 import { RICH_TEXT_CLASS } from './RichText';
 
 interface RichTextEditorProps {
@@ -49,6 +51,7 @@ function normalizeLink(raw: string): string | null {
 }
 
 function Toolbar({ editor, label, disabled }: { editor: Editor; label: string; disabled?: boolean }) {
+  const t = useT(messages, 'RichTextEditor');
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkError, setLinkError] = useState<string | undefined>();
@@ -69,7 +72,7 @@ function Toolbar({ editor, label, disabled }: { editor: Editor; label: string; d
   function applyLink() {
     const href = normalizeLink(linkUrl);
     if (!href) {
-      setLinkError('Informe um endereço começando com https://');
+      setLinkError(t('enderecoInvalido'));
       return;
     }
     const chain = editor.chain().focus().extendMarkRange('link');
@@ -83,16 +86,16 @@ function Toolbar({ editor, label, disabled }: { editor: Editor; label: string; d
 
   return (
     <div className="border-b border-border bg-surface-2">
-      <div role="toolbar" aria-label={`Formatação de ${label}`} className="flex flex-wrap gap-0.5 p-1">
-        <ToolbarButton icon={Bold} label="Negrito" pressed={state.bold} disabled={disabled} onClick={() => editor.chain().focus().toggleBold().run()} />
-        <ToolbarButton icon={Italic} label="Itálico" pressed={state.italic} disabled={disabled} onClick={() => editor.chain().focus().toggleItalic().run()} />
-        <ToolbarButton icon={Heading2} label="Título" pressed={state.h2} disabled={disabled} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
-        <ToolbarButton icon={Heading3} label="Subtítulo" pressed={state.h3} disabled={disabled} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} />
-        <ToolbarButton icon={List} label="Lista com marcadores" pressed={state.bullet} disabled={disabled} onClick={() => editor.chain().focus().toggleBulletList().run()} />
-        <ToolbarButton icon={ListOrdered} label="Lista numerada" pressed={state.ordered} disabled={disabled} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
+      <div role="toolbar" aria-label={t('formatacaoDe', { campo: label })} className="flex flex-wrap gap-0.5 p-1">
+        <ToolbarButton icon={Bold} label={t('negrito')} pressed={state.bold} disabled={disabled} onClick={() => editor.chain().focus().toggleBold().run()} />
+        <ToolbarButton icon={Italic} label={t('italico')} pressed={state.italic} disabled={disabled} onClick={() => editor.chain().focus().toggleItalic().run()} />
+        <ToolbarButton icon={Heading2} label={t('titulo')} pressed={state.h2} disabled={disabled} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
+        <ToolbarButton icon={Heading3} label={t('subtitulo')} pressed={state.h3} disabled={disabled} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} />
+        <ToolbarButton icon={List} label={t('listaMarcadores')} pressed={state.bullet} disabled={disabled} onClick={() => editor.chain().focus().toggleBulletList().run()} />
+        <ToolbarButton icon={ListOrdered} label={t('listaNumerada')} pressed={state.ordered} disabled={disabled} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
         <ToolbarButton
           icon={Link2}
-          label="Link"
+          label={t('link')}
           pressed={state.link || linkOpen}
           disabled={disabled}
           onClick={() => {
@@ -101,17 +104,17 @@ function Toolbar({ editor, label, disabled }: { editor: Editor; label: string; d
             setLinkOpen((open) => !open);
           }}
         />
-        {state.link && <ToolbarButton icon={Link2Off} label="Remover link" disabled={disabled} onClick={() => editor.chain().focus().extendMarkRange('link').unsetLink().run()} />}
+        {state.link && <ToolbarButton icon={Link2Off} label={t('removerLink')} disabled={disabled} onClick={() => editor.chain().focus().extendMarkRange('link').unsetLink().run()} />}
       </div>
       {linkOpen && (
         <div className="flex flex-wrap items-start gap-2 border-t border-border p-2">
           <Input
             className="min-w-0 flex-1 basis-56"
-            label="Endereço do link"
+            label={t('enderecoDoLink')}
             hideLabel
             type="url"
             inputMode="url"
-            placeholder="https://"
+            placeholder={t('enderecoPlaceholder')}
             autoFocus
             value={linkUrl}
             error={linkError}
@@ -128,10 +131,10 @@ function Toolbar({ editor, label, disabled }: { editor: Editor; label: string; d
             }}
           />
           <Button size="sm" onClick={applyLink}>
-            Aplicar link
+            {t('aplicarLink')}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setLinkOpen(false)}>
-            Cancelar
+            {t('cancelar')}
           </Button>
         </div>
       )}
@@ -144,6 +147,7 @@ function Toolbar({ editor, label, disabled }: { editor: Editor; label: string; d
  * O HTML sai sempre pela lista de tags permitidas (`sanitizeRichText`); a API limpa de novo ao gravar.
  */
 export function RichTextEditor({ label, value, onChange, hint, error, disabled, size = 'md' }: RichTextEditorProps) {
+  const t = useT(messages, 'RichTextEditor');
   const id = useId();
   const labelId = `${id}-label`;
   const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
@@ -197,7 +201,7 @@ export function RichTextEditor({ label, value, onChange, hint, error, disabled, 
     editor?.setEditable(!disabled);
   }, [editor, disabled]);
 
-  const labelText = typeof label === 'string' ? label : 'texto';
+  const labelText = typeof label === 'string' ? label : t('campoPadrao');
   return (
     <div className="flex flex-col gap-1.5">
       <span id={labelId} className="text-sm font-medium text-text">

@@ -1,37 +1,41 @@
 import { Button, EmptyState } from '@nova/ui';
 import { ShieldX } from 'lucide-react';
 import Link from 'next/link';
+import { getT } from '@/shared/i18n/core';
 import { PageContainer } from '@/shared/layout/AreaShell';
+import { messages } from '../messages';
 
 /** 403 dentro da área: a pessoa é organizadora, mas este campeonato é de outra organização. */
 export function NoAccess() {
+  const t = getT(messages, 'NoAccess');
   return (
     <PageContainer narrow>
       <EmptyState
         icon={<ShieldX className="size-7" />}
-        title="Este campeonato é de outra organização"
-        description="Você só pode gerenciar os campeonatos em que é responsável ou faz parte da equipe do evento. Se deveria ter acesso, peça para quem organiza adicionar você."
+        title={t('titulo')}
+        description={t('descricao')}
         action={
           <Button asChild>
-            <Link href="/organizador/campeonatos">Ver meus campeonatos</Link>
+            <Link href="/organizador/campeonatos">{t('verMeusCampeonatos')}</Link>
           </Button>
         }
       />
-      <p className="sr-only">Erro 403</p>
+      <p className="sr-only">{t('erro403')}</p>
     </PageContainer>
   );
 }
 
 /** 404 dentro da área. */
 export function TournamentNotFound() {
+  const t = getT(messages, 'TournamentNotFound');
   return (
     <PageContainer narrow>
       <EmptyState
-        title="Campeonato não encontrado"
-        description="Ele pode ter sido excluído, ou o endereço está errado."
+        title={t('titulo')}
+        description={t('descricao')}
         action={
           <Button asChild>
-            <Link href="/organizador/campeonatos">Ver meus campeonatos</Link>
+            <Link href="/organizador/campeonatos">{t('verMeusCampeonatos')}</Link>
           </Button>
         }
       />

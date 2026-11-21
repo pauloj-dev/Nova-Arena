@@ -2,6 +2,8 @@
 import type { ImportRegistrationRow } from '@nova/schemas';
 import { CSV_SEPARATOR, MAX_IMPORT_ROWS, toCsv } from '@nova/schemas';
 import Papa from 'papaparse';
+import { getT } from '@/shared/i18n/core';
+import { messages } from '../messages';
 
 export * from '@nova/schemas';
 
@@ -70,14 +72,15 @@ export interface ParsedImport {
  * ou inglês. Devolve todas as linhas com os erros de cada uma, para a prévia antes do envio.
  */
 export function parseRegistrationsCsv(text: string): ParsedImport {
+  const t = getT(messages, 'csv');
   const clean = text.replace(/^﻿/, '');
-  if (clean.trim() === '') return { fatal: 'O arquivo está vazio.', lines: [] };
+  if (clean.trim() === '') return { fatal: t('vazio'), lines: [] };
 
   const parsed = Papa.parse<string[]>(clean, { header: false, skipEmptyLines: false, delimiter: detectDelimiter(clean) });
   const table = parsed.data;
   const headerIndex = table.findIndex((row) => row.some((cell) => cell.trim() !== ''));
   const header = table[headerIndex];
-  if (!header) return { fatal: 'O arquivo está vazio.', lines: [] };
+  if (!header) return { fatal: t('vazio'), lines: [] };
 
   const columns = new Map<ImportColumn, number>();
   header.forEach((cell, index) => {
@@ -87,7 +90,7 @@ export function parseRegistrationsCsv(text: string): ParsedImport {
     }
   });
   if (!columns.has('name')) {
-    return { fatal: 'Não encontramos a coluna "nome" na primeira linha. Baixe o modelo de CSV para ver o formato.', lines: [] };
+    return { fatal: t('semColunaNome'), lines: [] };
   }
 
   const cell = (row: string[], column: ImportColumn) => {
@@ -103,21 +106,21 @@ export function parseRegistrationsCsv(text: string): ParsedImport {
     const line = index + 1;
     const values = { name: cell(row, 'name'), tag: cell(row, 'tag'), contact: cell(row, 'contact'), gameId: cell(row, 'gameId') };
     const errors: string[] = [];
-    if (values.name === '') errors.push('Falta o nome.');
-    else if (values.name.length > MAX_NAME_LENGTH) errors.push(`O nome pode ter no máximo ${MAX_NAME_LENGTH} caracteres.`);
-    if (values.tag.length > MAX_TAG_LENGTH) errors.push(`A tag pode ter no máximo ${MAX_TAG_LENGTH} caracteres.`);
+    if (values.name === '') errors.push(t('faltaNome'));
+    else if (values.name.length > MAX_NAME_LENGTH) errors.push(t('nomeLongo', { max: String(MAX_NAME_LENGTH) }));
+    if (values.tag.length > MAX_TAG_LENGTH) errors.push(t('tagLonga', { max: String(MAX_TAG_LENGTH) }));
     if (values.name !== '') {
       const key = values.name.toLowerCase();
       const first = firstLineByName.get(key);
-      if (first !== undefined) errors.push(`Nome repetido no arquivo (já aparece na linha ${first}).`);
+      if (first !== undefined) errors.push(t('nomeRepetido', { linha: String(first) }));
       else firstLineByName.set(key, line);
     }
     lines.push({ line, values, errors });
   });
 
-  if (lines.length === 0) return { fatal: 'O arquivo só tem o cabeçalho. Adicione pelo menos um inscrito.', lines: [] };
+  if (lines.length === 0) return { fatal: t('soCabecalho'), lines: [] };
   if (lines.length > MAX_IMPORT_ROWS) {
-    return { fatal: `O arquivo tem ${lines.length} linhas. O máximo por importação é de ${MAX_IMPORT_ROWS}.`, lines: [] };
+    return { fatal: t('muitasLinhas', { linhas: String(lines.length), max: String(MAX_IMPORT_ROWS) }), lines: [] };
   }
   return { fatal: null, lines };
 }

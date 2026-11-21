@@ -8,17 +8,20 @@ import { ApiError, errorMessage } from '@/shared/api/client';
 import { useBracket } from '@/shared/api/hooks/competition';
 import { useCreateAnnouncement, useDeleteAnnouncement } from '@/shared/api/hooks/organizer-ops';
 import { useTournamentAnnouncements } from '@/shared/api/hooks/tournaments';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { byOrder, permissionsOf } from '../operation/stageUtils';
+import { messages } from './messages';
 
 /** Aba Comunicados (ORG-11): escrever para todos os inscritos, uma fase ou um grupo, e ver o que já foi enviado. */
-export function AnnouncementsTab({ tournament: t }: { tournament: OrganizerTournamentDetail }) {
-  const perms = permissionsOf(t.access);
-  const list = useTournamentAnnouncements(t.id);
-  const create = useCreateAnnouncement(t.id);
-  const remove = useDeleteAnnouncement(t.id);
+export function AnnouncementsTab({ tournament }: { tournament: OrganizerTournamentDetail }) {
+  const t = useT(messages, 'AnnouncementsTab');
+  const perms = permissionsOf(tournament.access);
+  const list = useTournamentAnnouncements(tournament.id);
+  const create = useCreateAnnouncement(tournament.id);
+  const remove = useDeleteAnnouncement(tournament.id);
   const { success, error } = useToast();
-  const stages = byOrder(t.stages);
+  const stages = byOrder(tournament.stages);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [stageId, setStageId] = useState('');
@@ -29,11 +32,11 @@ export function AnnouncementsTab({ tournament: t }: { tournament: OrganizerTourn
   // Os grupos só existem depois que a chave da fase é gerada.
   const bracket = useBracket(stageId || undefined);
   const groups = bracket.data?.groups ?? [];
-  const canSend = perms.canManage && t.status !== 'DRAFT';
+  const canSend = perms.canManage && tournament.status !== 'DRAFT';
 
   const stageName = (id: string | null) => stages.find((s) => s.id === id)?.name;
-  const titleError = fieldErrors.title ?? (attempted && title.trim() === '' ? 'Dê um título' : undefined);
-  const bodyError = fieldErrors.body ?? (attempted && body.trim() === '' ? 'Escreva a mensagem' : undefined);
+  const titleError = fieldErrors.title ?? (attempted && title.trim() === '' ? t('erroTitulo') : undefined);
+  const bodyError = fieldErrors.body ?? (attempted && body.trim() === '' ? t('erroMensagem') : undefined);
 
   function submit() {
     setAttempted(true);
@@ -43,14 +46,14 @@ export function AnnouncementsTab({ tournament: t }: { tournament: OrganizerTourn
       { title: title.trim(), body: body.trim(), stageId: stageId || null, groupId: stageId && groupId ? groupId : null },
       {
         onSuccess: () => {
-          success('Comunicado enviado', 'Os inscritos do público escolhido foram notificados e ele já aparece na página pública.');
+          success(t('enviado'), t('enviadoDescricao'));
           setTitle('');
           setBody('');
           setAttempted(false);
         },
         onError: (e) => {
           if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
-          error('Não foi possível enviar', errorMessage(e));
+          error(t('erroEnviar'), errorMessage(e));
         },
       },
     );
@@ -64,66 +67,66 @@ export function AnnouncementsTab({ tournament: t }: { tournament: OrganizerTourn
             <form
               noValidate
               className="flex flex-col gap-4"
-              aria-label="Novo comunicado"
+              aria-label={t('novo')}
               onSubmit={(event) => {
                 event.preventDefault();
                 submit();
               }}
             >
-              <h2 className="text-lg">Novo comunicado</h2>
+              <h2 className="text-lg">{t('novo')}</h2>
               <div className="grid gap-4 xs:grid-cols-2">
                 <Select
-                  label="Para quem"
+                  label={t('paraQuem')}
                   value={stageId}
                   onChange={(e) => {
                     setStageId(e.target.value);
                     setGroupId('');
                   }}
-                  options={[{ value: '', label: 'Todos os inscritos' }, ...stages.map((s) => ({ value: s.id, label: `Só a fase: ${s.name}` }))]}
+                  options={[{ value: '', label: t('todosInscritos') }, ...stages.map((s) => ({ value: s.id, label: t('soFase', { fase: s.name }) }))]}
                 />
                 {stageId && (
                   <Select
-                    label="Grupo ou sala"
+                    label={t('grupoOuSala')}
                     value={groupId}
                     onChange={(e) => setGroupId(e.target.value)}
-                    options={[{ value: '', label: 'A fase inteira' }, ...groups.map((g) => ({ value: g.id, label: `Só ${g.name}` }))]}
-                    hint={groups.length === 0 ? 'Esta fase ainda não tem grupos (a chave não foi gerada ou o formato não usa grupos).' : undefined}
+                    options={[{ value: '', label: t('faseInteira') }, ...groups.map((g) => ({ value: g.id, label: t('soGrupo', { grupo: g.name }) }))]}
+                    hint={groups.length === 0 ? t('semGrupos') : undefined}
                     error={fieldErrors.groupId}
                   />
                 )}
               </div>
-              <Input label="Título" required maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} error={titleError} />
-              <Textarea label="Mensagem" required rows={5} maxLength={2000} value={body} onChange={(e) => setBody(e.target.value)} error={bodyError} hint="Vai como notificação para o público escolhido e fica na página pública do campeonato." />
+              <Input label={t('titulo')} required maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} error={titleError} />
+              <Textarea label={t('mensagem')} required rows={5} maxLength={2000} value={body} onChange={(e) => setBody(e.target.value)} error={bodyError} hint={t('mensagemDica')} />
               <div>
                 <Button type="submit" loading={create.isPending} iconLeft={<Send className="size-4" aria-hidden />}>
-                  Enviar comunicado
+                  {t('enviar')}
                 </Button>
               </div>
             </form>
           ) : (
-            <p className="text-sm text-muted">Os comunicados ficam disponíveis depois que o campeonato é publicado.</p>
+            <p className="text-sm text-muted">{t('indisponivel')}</p>
           )}
         </Card>
       )}
 
       <section className="flex min-w-0 flex-col gap-3" aria-labelledby="comunicados-enviados">
         <h2 id="comunicados-enviados" className="text-lg">
-          Enviados
+          {t('enviados')}
         </h2>
         {list.isPending ? (
           <Skeleton className="h-24 w-full" />
         ) : list.error ? (
           <ErrorState description={errorMessage(list.error)} onRetry={() => void list.refetch()} />
         ) : list.data.length === 0 ? (
-          <EmptyState icon={<Megaphone className="size-7" />} title="Nenhum comunicado ainda" description="Avise os inscritos sobre horários, mudanças de sala e regras." />
+          <EmptyState icon={<Megaphone className="size-7" />} title={t('vazioTitulo')} description={t('vazioDescricao')} />
         ) : (
-          <ul className="flex flex-col gap-3" aria-label="Comunicados enviados">
+          <ul className="flex flex-col gap-3" aria-label={t('listaEnviados')}>
             {list.data.map((a) => (
               <li key={a.id}>
                 <Card padding="sm" className="flex flex-col gap-2" data-testid="announcement">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <h3 className="min-w-0 text-base break-words">{a.title}</h3>
-                    <Badge tone={a.stageId ? 'info' : 'neutral'}>{a.stageId ? `${stageName(a.stageId) ?? 'Uma fase'}${a.groupId ? ' · um grupo' : ''}` : 'Todos'}</Badge>
+                    <Badge tone={a.stageId ? 'info' : 'neutral'}>{a.stageId ? t('publicoFase', { fase: stageName(a.stageId) ?? t('umaFase'), grupo: a.groupId ? 'sim' : 'nao' }) : t('publicoTodos')}</Badge>
                   </div>
                   <p className="text-sm break-words whitespace-pre-line text-text">{a.body}</p>
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -131,8 +134,8 @@ export function AnnouncementsTab({ tournament: t }: { tournament: OrganizerTourn
                       {a.authorNickname} · {formatDateTime(a.createdAt)}
                     </p>
                     {perms.canManage && (
-                      <Button size="sm" variant="ghost" iconLeft={<Trash2 className="size-4" aria-hidden />} aria-label={`Apagar o comunicado: ${a.title}`} onClick={() => setRemoving({ id: a.id, title: a.title })}>
-                        Apagar
+                      <Button size="sm" variant="ghost" iconLeft={<Trash2 className="size-4" aria-hidden />} aria-label={t('apagarRotulo', { titulo: a.title })} onClick={() => setRemoving({ id: a.id, title: a.title })}>
+                        {t('apagar')}
                       </Button>
                     )}
                   </div>
@@ -147,12 +150,12 @@ export function AnnouncementsTab({ tournament: t }: { tournament: OrganizerTourn
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}
         size="sm"
-        title="Apagar este comunicado?"
-        description={removing ? `"${removing.title}" sai da página pública. As notificações que já foram enviadas não são desfeitas.` : undefined}
+        title={t('apagarTitulo')}
+        description={removing ? t('apagarDescricao', { titulo: removing.title }) : undefined}
         footer={
           <>
             <Button variant="secondary" onClick={() => setRemoving(null)}>
-              Voltar
+              {t('voltar')}
             </Button>
             <Button
               variant="danger"
@@ -161,14 +164,14 @@ export function AnnouncementsTab({ tournament: t }: { tournament: OrganizerTourn
                 if (!removing) return;
                 remove.mutate(removing.id, {
                   onSuccess: () => {
-                    success('Comunicado apagado');
+                    success(t('apagado'));
                     setRemoving(null);
                   },
-                  onError: (e) => error('Não foi possível apagar', errorMessage(e)),
+                  onError: (e) => error(t('erroApagar'), errorMessage(e)),
                 });
               }}
             >
-              Apagar comunicado
+              {t('apagarConfirmar')}
             </Button>
           </>
         }

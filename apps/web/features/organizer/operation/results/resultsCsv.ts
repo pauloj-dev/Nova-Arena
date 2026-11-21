@@ -5,7 +5,9 @@
  */
 import type { Match, ResultEntryInput } from '@nova/schemas';
 import Papa from 'papaparse';
+import { getT } from '@/shared/i18n/core';
 import { CSV_SEPARATOR, toCsv } from '../../lib/csv';
+import { messages } from '../messages';
 
 export const RESULTS_CSV_HEADER = ['grupo', 'queda', 'squad', 'colocacao', 'kills'];
 /** Limite da API por chamada (`ImportResultsInput`). */
@@ -101,16 +103,17 @@ function int(value: string): number | null {
  * ignorada (é assim que o modelo vem para as quedas que ainda não foram jogadas).
  */
 export function parseResultsCsv(text: string, matches: readonly Match[]): ParsedResults {
+  const t = getT(messages, 'resultsCsv');
   const empty = (fatal: string): ParsedResults => ({ fatal, lines: [], matches: [] });
   const clean = text.replace(/^﻿/, '');
-  if (clean.trim() === '') return empty('O arquivo está vazio.');
+  if (clean.trim() === '') return empty(t('vazio'));
   const lobbies = lobbyMatches(matches);
-  if (lobbies.length === 0) return empty('Esta fase não tem quedas de Battle Royale para importar.');
+  if (lobbies.length === 0) return empty(t('semQuedas'));
 
   const table = Papa.parse<string[]>(clean, { header: false, skipEmptyLines: false, delimiter: detectDelimiter(clean) }).data;
   const headerIndex = table.findIndex((row) => row.some((cell) => cell.trim() !== ''));
   const header = table[headerIndex];
-  if (!header) return empty('O arquivo está vazio.');
+  if (!header) return empty(t('vazio'));
 
   const columns = new Map<Column, number>();
   header.forEach((cell, index) => {
@@ -122,7 +125,7 @@ export function parseResultsCsv(text: string, matches: readonly Match[]): Parsed
   const required: [Column, string][] = [['drop', 'queda'], ['team', 'squad'], ['placement', 'colocacao'], ['kills', 'kills']];
   const absentColumns = required.filter(([column]) => !columns.has(column)).map(([, name]) => `"${name}"`);
   if (absentColumns.length > 0) {
-    return empty(`Não encontramos ${absentColumns.length === 1 ? 'a coluna' : 'as colunas'} ${absentColumns.join(', ')} na primeira linha. Baixe o modelo de CSV desta fase para ver o formato.`);
+    return empty(t('colunasFaltando', { count: absentColumns.length, columns: absentColumns.join(', ') }));
   }
   const cell = (row: string[], column: Column) => {
     const index = columns.get(column);
@@ -144,35 +147,35 @@ export function parseResultsCsv(text: string, matches: readonly Match[]): Parsed
     lines.push(parsed);
 
     const drop = int(values.drop);
-    if (drop === null) parsed.errors.push('Falta o número da queda.');
-    else if (!Number.isFinite(drop) || drop < 1) parsed.errors.push(`"${values.drop}" não é um número de queda válido.`);
+    if (drop === null) parsed.errors.push(t('faltaQueda'));
+    else if (!Number.isFinite(drop) || drop < 1) parsed.errors.push(t('quedaInvalida', { value: values.drop }));
 
     const groupKey = normalize(values.group);
     const inGroup = lobbies.filter((m) => (values.group === '' && singleGroup ? true : normalize(m.groupName ?? '') === groupKey));
     if (inGroup.length === 0) {
-      parsed.errors.push(values.group === '' ? 'Falta o grupo ou a sala.' : `Grupo ou sala "${values.group}" não existe nesta fase.`);
+      parsed.errors.push(values.group === '' ? t('faltaGrupo') : t('grupoInexistente', { group: values.group }));
     }
     const match = drop !== null && Number.isFinite(drop) ? inGroup.find((m) => dropNumber(m) === drop) : undefined;
     if (inGroup.length > 0 && drop !== null && Number.isFinite(drop) && drop >= 1 && !match) {
-      parsed.errors.push(`A queda ${drop} não existe${values.group ? ` em ${values.group}` : ''}.`);
+      parsed.errors.push(values.group ? t('quedaInexistenteEm', { drop: String(drop), group: values.group }) : t('quedaInexistente', { drop: String(drop) }));
     }
 
     const absent = ABSENT_WORDS.includes(normalize(values.placement));
     const placement = absent ? null : int(values.placement);
     const kills = int(values.kills);
     if (!absent) {
-      if (placement === null) parsed.errors.push('Falta a colocação.');
-      else if (!Number.isFinite(placement)) parsed.errors.push(`Colocação "${values.placement}" não é um número.`);
-      else if (placement < 1) parsed.errors.push('A colocação começa em 1.');
-      else if (match && placement > match.participants.length) parsed.errors.push(`A colocação vai de 1 a ${match.participants.length} nesta sala.`);
+      if (placement === null) parsed.errors.push(t('faltaColocacao'));
+      else if (!Number.isFinite(placement)) parsed.errors.push(t('colocacaoNaoNumero', { value: values.placement }));
+      else if (placement < 1) parsed.errors.push(t('colocacaoMinima'));
+      else if (match && placement > match.participants.length) parsed.errors.push(t('colocacaoMaxima', { max: String(match.participants.length) }));
     }
     if (kills === null) {
-      if (!absent) parsed.errors.push('Faltam as kills.');
-    } else if (!Number.isFinite(kills)) parsed.errors.push(`Kills "${values.kills}" não é um número.`);
-    else if (kills < 0) parsed.errors.push('Kills não podem ser negativas.');
-    else if (kills > 999) parsed.errors.push('O máximo de kills é 999.');
+      if (!absent) parsed.errors.push(t('faltamKills'));
+    } else if (!Number.isFinite(kills)) parsed.errors.push(t('killsNaoNumero', { value: values.kills }));
+    else if (kills < 0) parsed.errors.push(t('killsNegativas'));
+    else if (kills > 999) parsed.errors.push(t('killsMaximo'));
 
-    if (values.team === '') parsed.errors.push('Falta o nome do squad.');
+    if (values.team === '') parsed.errors.push(t('faltaSquad'));
     if (!match) return;
     parsed.matchId = match.id;
     const bucket = byMatch.get(match.id) ?? { match, rows: [] };
@@ -181,23 +184,23 @@ export function parseResultsCsv(text: string, matches: readonly Match[]): Parsed
     const teamKey = normalize(values.team);
     const team = match.participants.find((p) => p.registrationId !== null && (normalize(p.name) === teamKey || (p.tag !== null && normalize(p.tag) === teamKey)));
     if (!team?.registrationId) {
-      parsed.errors.push(`Squad "${values.team}" não está nesta sala.`);
+      parsed.errors.push(t('squadForaDaSala', { team: values.team }));
       return;
     }
     if (team.status !== 'ACTIVE') {
-      parsed.errors.push(`${team.name} saiu do campeonato e não entra mais nas quedas.`);
+      parsed.errors.push(t('squadSaiu', { team: team.name }));
       return;
     }
     const repeated = bucket.rows.find((r) => r.registrationId === team.registrationId);
     if (repeated) {
-      parsed.errors.push(`${team.name} aparece duas vezes nesta queda (também na linha ${repeated.line.line}).`);
+      parsed.errors.push(t('squadRepetido', { team: team.name, line: String(repeated.line.line) }));
       return;
     }
     bucket.rows.push({ line: parsed, registrationId: team.registrationId, placement: placement !== null && Number.isFinite(placement) ? placement : null, kills: kills !== null && Number.isFinite(kills) ? kills : 0, absent });
   });
 
-  if (lines.length === 0) return empty('O arquivo não tem nenhuma linha com colocação e kills preenchidas.');
-  if (lines.length > MAX_RESULT_LINES) return empty(`O arquivo tem ${lines.length} linhas. O máximo por importação é de ${MAX_RESULT_LINES}.`);
+  if (lines.length === 0) return empty(t('semLinhas'));
+  if (lines.length > MAX_RESULT_LINES) return empty(t('linhasDemais', { count: String(lines.length), max: String(MAX_RESULT_LINES) }));
 
   const parsedMatches: ParsedResultMatch[] = [];
   for (const { match, rows } of byMatch.values()) {
@@ -207,17 +210,17 @@ export function parseResultsCsv(text: string, matches: readonly Match[]): Parsed
     for (const [placement, same] of byPlacement) {
       if (same.length < 2) continue;
       for (const r of same) {
-        const others = same.filter((x) => x !== r).map((x) => `linha ${x.line.line}`);
-        r.line.errors.push(`Colocação ${placement} repetida nesta queda (também na ${others.join(' e na ')}).`);
+        const others = same.filter((x) => x !== r).map((x) => t('linha', { line: String(x.line.line) }));
+        r.line.errors.push(t('colocacaoRepetida', { placement: String(placement), others: others.join(t('separadorLinhas')) }));
       }
     }
     const matchLines = lines.filter((l) => l.matchId === match.id);
     const errors: string[] = [];
-    if (isPlayed(match)) errors.push('Esta queda já tem resultado. Para mudar, corrija pelo formulário, informando o motivo.');
-    if (match.status === 'CANCELLED') errors.push('Esta queda foi cancelada.');
+    if (isPlayed(match)) errors.push(t('quedaJaLancada'));
+    if (match.status === 'CANCELLED') errors.push(t('quedaCancelada'));
     const missing = activeTeams(match).filter((p) => !rows.some((r) => r.registrationId === p.registrationId));
     if (missing.length > 0 && matchLines.every((l) => l.errors.length === 0)) {
-      errors.push(`${missing.length === 1 ? 'Falta 1 squad' : `Faltam ${missing.length} squads`} nesta queda: ${missing.map((p) => p.name).join(', ')}.`);
+      errors.push(t('squadsFaltando', { count: missing.length, names: missing.map((p) => p.name).join(', ') }));
     }
     const ready = errors.length === 0 && matchLines.every((l) => l.errors.length === 0);
     parsedMatches.push({

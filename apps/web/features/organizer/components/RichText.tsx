@@ -1,7 +1,9 @@
 'use client';
 
 import { cn } from '@nova/ui';
+import { useT } from '@/shared/i18n/react';
 import { sanitizeRichText } from '@/shared/lib/sanitize';
+import { messages } from '../messages';
 
 /** Estilo do conteúdo em rich-text (o reset do Tailwind tira marcadores e tamanhos de título). */
 export const RICH_TEXT_CLASS =
@@ -10,8 +12,9 @@ export const RICH_TEXT_CLASS =
   '[&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0';
 
 /** Mostra o rich-text do organizador, sempre sanitizado no navegador antes de ir para a tela. */
-export function RichTextView({ html, className, empty = 'Nada escrito ainda.' }: { html: string; className?: string; empty?: string }) {
+export function RichTextView({ html, className, empty }: { html: string; className?: string; empty?: string }) {
+  const t = useT(messages, 'RichTextView');
   const clean = sanitizeRichText(html);
-  if (clean.replace(/<[^>]*>/g, '').trim() === '') return <p className={cn('text-sm text-muted', className)}>{empty}</p>;
+  if (clean.replace(/<[^>]*>/g, '').trim() === '') return <p className={cn('text-sm text-muted', className)}>{empty ?? t('vazio')}</p>;
   return <div className={cn(RICH_TEXT_CLASS, className)} dangerouslySetInnerHTML={{ __html: clean }} />;
 }

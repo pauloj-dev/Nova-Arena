@@ -9,8 +9,10 @@ import { errorMessage } from '@/shared/api/client';
 import { useGames } from '@/shared/api/hooks/games';
 import { useTournamentTemplates } from '@/shared/api/hooks/organizer';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
+import { useT } from '@/shared/i18n/react';
 import { useSession } from '@/shared/session/useSession';
 import { TemplateCard } from '../templates/TemplateCard';
+import { messages } from './messages';
 import { WizardForm, WizardSkeleton } from './TournamentWizard';
 
 const NEW_PATH = '/organizador/novo';
@@ -26,35 +28,36 @@ interface StartScreenProps {
 }
 
 function StartScreen({ games, templates, templatesError, onRetry, onStart }: StartScreenProps) {
+  const t = useT(messages, 'NewTournament');
   return (
     <PageContainer>
-      <PageHeader title="Criar campeonato" description="Comece do zero ou aproveite um modelo pronto. Em qualquer caso, tudo pode ser ajustado antes de publicar." />
+      <PageHeader title={t('titulo')} description={t('descricao')} />
       <Card className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-3">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-soft-text" aria-hidden>
             <FilePlus2 className="size-5" />
           </span>
           <div>
-            <h2 className="text-base font-semibold text-text">Começar do zero</h2>
-            <p className="text-sm text-muted">Sete passos com valores sugeridos em tudo: você só muda o que precisar.</p>
+            <h2 className="text-base font-semibold text-text">{t('comecarDoZero')}</h2>
+            <p className="text-sm text-muted">{t('comecarDoZeroDescricao')}</p>
           </div>
         </div>
         <Button iconRight={<ArrowRight className="size-4" aria-hidden />} onClick={() => onStart({ kind: 'blank' })}>
-          Começar do zero
+          {t('comecarDoZero')}
         </Button>
       </Card>
 
       <section className="flex flex-col gap-3" aria-labelledby="modelos-titulo">
         <div>
           <h2 id="modelos-titulo" className="text-lg">
-            Ou escolha um modelo
+            {t('modelosTitulo')}
           </h2>
-          <p className="text-sm text-muted">O modelo preenche jogo, vagas, fases, pontuação e regulamento. Você só dá o nome e confere as datas.</p>
+          <p className="text-sm text-muted">{t('modelosDescricao')}</p>
         </div>
         {templatesError ? (
           <ErrorState description={errorMessage(templatesError)} onRetry={onRetry} />
         ) : !templates ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Carregando modelos">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" role="status" aria-label={t('carregandoModelos')}>
             {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-48 w-full" />
             ))}
@@ -67,8 +70,8 @@ function StartScreen({ games, templates, templatesError, onRetry, onStart }: Sta
                   template={template}
                   games={games}
                   actions={
-                    <Button variant="secondary" onClick={() => onStart({ kind: 'template', id: template.id })} aria-label={`Usar o modelo ${template.name}`}>
-                      Usar o modelo
+                    <Button variant="secondary" onClick={() => onStart({ kind: 'template', id: template.id })} aria-label={t('usarModeloAria', { nome: template.name })}>
+                      {t('usarModelo')}
                     </Button>
                   }
                 />
@@ -82,6 +85,7 @@ function StartScreen({ games, templates, templatesError, onRetry, onStart }: Sta
 }
 
 function NewTournamentInner() {
+  const t = useT(messages, 'NewTournament');
   const params = useSearchParams();
   const pathname = usePathname();
   const games = useGames();
@@ -129,13 +133,13 @@ function NewTournamentInner() {
     }
     return <WizardSkeleton />;
   }
-  const template = templates.data.find((t) => t.id === start.id);
+  const template = templates.data.find((item) => item.id === start.id);
   if (!template) {
     return (
       <PageContainer narrow>
-        <ErrorState title="Modelo não encontrado" description="Este modelo não existe mais ou não é seu.">
+        <ErrorState title={t('modeloNaoEncontrado')} description={t('modeloNaoEncontradoDescricao')}>
           <Button variant="secondary" onClick={() => setChoice({ kind: 'blank' })}>
-            Começar do zero
+            {t('comecarDoZero')}
           </Button>
         </ErrorState>
       </PageContainer>

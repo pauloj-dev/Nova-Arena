@@ -1,5 +1,7 @@
 /** Leitura das fases e da chave para as telas de operação (funções puras). */
 import type { Bracket, Match, Stage, TournamentAccessRole } from '@nova/schemas';
+import { getT } from '@/shared/i18n/core';
+import { messages } from './messages';
 
 export const byOrder = (stages: readonly Stage[]): Stage[] => [...stages].sort((a, b) => a.order - b.order);
 
@@ -9,7 +11,20 @@ export function currentStage(stages: readonly Stage[]): Stage | undefined {
   return ordered.find((s) => s.status !== 'COMPLETED') ?? ordered.at(-1);
 }
 
-export const STAGE_STATUS_LABEL: Record<Stage['status'], string> = { PENDING: 'Pendente', ACTIVE: 'Em andamento', COMPLETED: 'Concluída' };
+const stageStatusLabel = (status: Stage['status']) => getT(messages, 'stageUtils')(`status.${status}`);
+
+/** Rótulo de cada estado da fase (lido do arquivo de mensagens na hora do acesso). */
+export const STAGE_STATUS_LABEL: Readonly<Record<Stage['status'], string>> = {
+  get PENDING() {
+    return stageStatusLabel('PENDING');
+  },
+  get ACTIVE() {
+    return stageStatusLabel('ACTIVE');
+  },
+  get COMPLETED() {
+    return stageStatusLabel('COMPLETED');
+  },
+};
 
 const isOver = (m: Match) => m.status === 'VALIDATED' || m.status === 'WALKOVER' || m.status === 'CANCELLED';
 
@@ -47,10 +62,11 @@ export interface SeedingContainer {
  * lista na ordem das seeds.
  */
 export function seedingContainers(bracket: Bracket): SeedingContainer[] {
+  const t = getT(messages, 'stageUtils');
   const entrant = new Map(bracket.entrants.map((e) => [e.registrationId, e]));
   const slot = (registrationId: string): SeedingSlot => {
     const e = entrant.get(registrationId);
-    return { registrationId, name: e?.name ?? 'Inscrito', tag: e?.tag ?? null, seed: e?.seed ?? null };
+    return { registrationId, name: e?.name ?? t('inscrito'), tag: e?.tag ?? null, seed: e?.seed ?? null };
   };
   if (bracket.groups.length > 0) return bracket.groups.map((g) => ({ id: g.id, label: g.name, slots: g.registrationIds.map(slot) }));
 
@@ -64,11 +80,11 @@ export function seedingContainers(bracket: Bracket): SeedingContainer[] {
       if (slots.length === 0) continue;
       slots.forEach((s) => seen.add(s.registrationId));
       const sameRound = duels.filter((x) => x.round === m.round && x.bracket === m.bracket).length;
-      containers.push({ id: m.id, label: `${m.roundLabel}${sameRound > 1 ? ` · jogo ${m.position}` : ''}${m.participants.some((p) => p.isBye) ? ' (entra direto, com bye)' : ''}`, slots });
+      containers.push({ id: m.id, label: t('confronto', { round: m.roundLabel, multi: sameRound > 1 ? 'yes' : 'no', position: m.position, bye: m.participants.some((p) => p.isBye) ? 'yes' : 'no' }), slots });
     }
     if (containers.length > 0) return containers;
   }
-  return [{ id: 'todos', label: 'Participantes, na ordem das seeds', slots: [...bracket.entrants].sort((a, b) => a.seed - b.seed).map((e) => slot(e.registrationId)) }];
+  return [{ id: 'todos', label: t('todos'), slots: [...bracket.entrants].sort((a, b) => a.seed - b.seed).map((e) => slot(e.registrationId)) }];
 }
 
 // ── Permissões na tela (a API confere de novo — PRD §6) ──────────────
@@ -89,19 +105,18 @@ export function permissionsOf(access: TournamentAccessRole): OperationPermission
 // ── Desistência e desclassificação (RN-06) ───────────────────────────
 /** O que acontece com o participante na fase em andamento, conforme o formato. */
 export function withdrawEffect(stage: Pick<Stage, 'format' | 'config'> | undefined, kind: 'WITHDRAWN' | 'DISQUALIFIED'): string {
-  if (!stage) return 'Não há fase em andamento: a inscrição sai do campeonato e a vaga não é reposta.';
+  const t = getT(messages, 'stageUtils');
+  if (!stage) return t('semFase');
   const lobby = stage.format === 'BATTLE_ROYALE' || (stage.format === 'GROUPS' && stage.config.groupMode === 'BATTLE_ROYALE');
-  if (lobby) return kind === 'DISQUALIFIED' ? 'Os pontos são zerados e a tabela é reordenada. Ele sai das quedas futuras.' : 'Ele sai das quedas futuras. Os pontos já feitos ficam na tabela.';
+  if (lobby) return kind === 'DISQUALIFIED' ? t('salaDesclassificado') : t('salaDesistencia');
   switch (stage.format) {
     case 'SINGLE_ELIM':
     case 'DOUBLE_ELIM':
     case 'TEAM_VS_TEAM':
-      return 'A partida atual e as futuras viram W.O. para o adversário. Os resultados que já aconteceram ficam.';
+      return t('eliminatoria');
     case 'SWISS':
-      return kind === 'DISQUALIFIED' ? 'Ele sai dos próximos pareamentos e os pontos são zerados.' : 'Ele sai dos próximos pareamentos. Os resultados que já aconteceram ficam.';
+      return kind === 'DISQUALIFIED' ? t('suicoDesclassificado') : t('suicoDesistencia');
     default:
-      return kind === 'DISQUALIFIED'
-        ? 'Todos os resultados dele são anulados e ele sai da tabela.'
-        : 'Se ele jogou menos da metade das partidas, os resultados dele são anulados; se jogou metade ou mais, as partidas restantes viram W.O. para os adversários.';
+      return kind === 'DISQUALIFIED' ? t('pontosCorridosDesclassificado') : t('pontosCorridosDesistencia');
   }
 }

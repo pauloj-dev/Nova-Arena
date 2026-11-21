@@ -1,0 +1,343 @@
+{
+  "banner": {
+    "tipoInvalido": "Escolha uma imagem PNG, JPG ou WebP.",
+    "muitoGrande": "A imagem tem {tamanho} MB. O máximo é 5 MB.",
+    "vazio": "O arquivo está vazio.",
+    "naoLeu": "Não foi possível ler o arquivo.",
+    "naoImagem": "Este arquivo não é uma imagem válida."
+  },
+  "csv": {
+    "vazio": "O arquivo está vazio.",
+    "semColunaNome": "Não encontramos a coluna \"nome\" na primeira linha. Baixe o modelo de CSV para ver o formato.",
+    "faltaNome": "Falta o nome.",
+    "nomeLongo": "O nome pode ter no máximo {max} caracteres.",
+    "tagLonga": "A tag pode ter no máximo {max} caracteres.",
+    "nomeRepetido": "Nome repetido no arquivo (já aparece na linha {linha}).",
+    "soCabecalho": "O arquivo só tem o cabeçalho. Adicione pelo menos um inscrito.",
+    "muitasLinhas": "O arquivo tem {linhas} linhas. O máximo por importação é de {max}."
+  },
+  "draft": {
+    "fase": "Fase {numero}",
+    "faseTitulo": "{nome} · {formato}",
+    "regrasPadrao": "<h3>Regras gerais</h3><ul><li>Respeite os horários: quem não fizer check-in leva W.O.</li><li>É proibido usar hacks, emuladores ou qualquer vantagem indevida.</li><li>Todo resultado precisa do print da tela final.</li><li>As decisões da organização são finais.</li></ul>"
+  },
+  "formatAssistant": {
+    "minutos": "{m} min",
+    "horas": "{h} h",
+    "horasEMinutos": "{h} h {m} min",
+    "mataMataMd1": {
+      "titulo": "Mata-mata em jogo único",
+      "resumo": "Perdeu, está fora. Cada confronto é decidido em um jogo.",
+      "pro1": "O formato mais rápido",
+      "pro2": "Fácil de entender e de acompanhar",
+      "contra1": "Metade dos inscritos joga uma partida só",
+      "contra2": "Um jogo ruim elimina"
+    },
+    "mataMataMd3": {
+      "titulo": "Mata-mata melhor de 3",
+      "resumo": "Mata-mata com séries melhor de 3: quem vence 2 jogos avança.",
+      "fase": "Mata-mata MD3",
+      "pro1": "Resultado mais justo que o jogo único",
+      "pro2": "Continua simples",
+      "contra1": "Leva até 3 vezes mais tempo por rodada"
+    },
+    "gruposMataMata": {
+      "titulo": "Grupos + mata-mata",
+      "resumo": "{grupos} grupos de pontos corridos; os 2 melhores de cada grupo vão para o mata-mata.",
+      "faseFinal": "Mata-mata",
+      "pro1": "Todo mundo joga várias partidas",
+      "pro2": "O mata-mata final recebe os melhores",
+      "contra1": "Mais longo que o mata-mata direto",
+      "contra2": "Exige acompanhar várias tabelas"
+    },
+    "suico": {
+      "titulo": "Suíço",
+      "resumo": "{rodadas} rodadas; cada rodada junta quem tem campanha parecida, sem eliminar ninguém.",
+      "pro1": "Ninguém é eliminado: todos jogam todas as rodadas",
+      "pro2": "Poucas rodadas mesmo com muitos inscritos",
+      "contra1": "A classificação final depende do desempate",
+      "contra2": "Menos emoção de \"final\""
+    },
+    "pontosCorridos": {
+      "titulo": "Pontos corridos",
+      "resumo": "Todos jogam contra todos e a tabela decide o campeão.",
+      "pro1": "O campeão mais justo",
+      "pro2": "Todos jogam o mesmo número de partidas",
+      "contra1": "Muitas rodadas: só serve para poucos inscritos"
+    },
+    "eliminacaoDupla": {
+      "titulo": "Eliminação dupla",
+      "resumo": "Quem perde uma vez cai para a chave de perdedores e só sai na segunda derrota.",
+      "pro1": "Uma derrota não elimina",
+      "pro2": "Bom equilíbrio entre justiça e tempo",
+      "contra1": "Cerca do dobro de rodadas do mata-mata simples",
+      "contra2": "Chave mais difícil de acompanhar"
+    },
+    "salaUnica3": {
+      "titulo": "Sala única, 3 quedas",
+      "resumo": "Todas as equipes na mesma sala, 3 quedas somando colocação e kills.",
+      "fase": "Quedas",
+      "pro1": "O mais rápido",
+      "pro2": "Uma tabela só, fácil de transmitir",
+      "contra1": "Poucas quedas: uma queda ruim pesa muito"
+    },
+    "salaUnica6": {
+      "titulo": "Sala única, 6 quedas",
+      "resumo": "Todas as equipes na mesma sala, 6 quedas.",
+      "fase": "Quedas",
+      "pro1": "Resultado mais consistente",
+      "pro2": "Uma tabela só",
+      "contra1": "O dobro do tempo da versão com 3 quedas"
+    },
+    "gruposFinal": {
+      "titulo": "Grupos + Grande Final",
+      "resumo": "Grupos jogam em salas ao mesmo tempo; os melhores de cada grupo fazem a Grande Final em uma sala só.",
+      "pro1": "Todas as equipes jogam várias quedas",
+      "pro2": "Final com os melhores, boa para transmitir",
+      "contra1": "Exige uma sala no jogo por grupo ao mesmo tempo"
+    },
+    "gruposFinalCurto": {
+      "titulo": "Grupos + final curta",
+      "resumo": "Mesmo caminho, com 2 quedas nos grupos e 3 na final.",
+      "pro1": "Cabe em menos tempo",
+      "contra1": "Menos quedas: mais sorte no resultado"
+    }
+  },
+  "status": {
+    "grupos": {
+      "all": "Todos",
+      "draft": "Rascunhos",
+      "active": "Ativos",
+      "finished": "Encerrados",
+      "cancelled": "Cancelados"
+    },
+    "explicacao": {
+      "DRAFT": "Ainda é um rascunho: só você e a sua equipe enxergam. Termine o assistente e publique.",
+      "PUBLISHED": "Publicado e visível na vitrine. As inscrições abrem na data marcada — ou agora, se você quiser.",
+      "REGISTRATION_OPEN": "As inscrições estão abertas. Elas fecham sozinhas no prazo, ou você pode encerrar antes.",
+      "REGISTRATION_CLOSED": "As inscrições foram encerradas. O próximo passo é gerar a chave da primeira fase, na aba Fases e chave.",
+      "CHECK_IN": "Check-in aberto: os inscritos estão confirmando presença.",
+      "IN_PROGRESS": "O campeonato está em andamento. Agende as partidas e lance os resultados; a tabela se atualiza sozinha.",
+      "PAUSED": "O campeonato está pausado: ninguém lança resultado até você retomar.",
+      "FINISHED": "Campeonato finalizado, com pódio definido. Ele continua na vitrine para consulta até você arquivar.",
+      "ARCHIVED": "Campeonato arquivado: saiu da vitrine e fica só para consulta.",
+      "CANCELLED": "Campeonato cancelado."
+    }
+  },
+  "BannerUpload": {
+    "titulo": "Banner",
+    "previa": "Prévia do banner do campeonato",
+    "semBanner": "Sem banner. A página usa a cor do jogo no lugar.",
+    "trocarImagem": "Trocar imagem",
+    "escolherImagem": "Escolher imagem",
+    "removerBanner": "Remover banner",
+    "dica": "PNG, JPG ou WebP de até 5 MB. Imagens largas (16:6) ficam melhor.",
+    "erroGenerico": "Não foi possível usar esta imagem."
+  },
+  "DateTimeField": {
+    "previa": "Fica assim para quem vê: {data}.",
+    "digiteNoFuso": "Digite no {fuso}."
+  },
+  "LazyRichTextEditor": {
+    "carregando": "Carregando o editor de texto"
+  },
+  "NoAccess": {
+    "titulo": "Este campeonato é de outra organização",
+    "descricao": "Você só pode gerenciar os campeonatos em que é responsável ou faz parte da equipe do evento. Se deveria ter acesso, peça para quem organiza adicionar você.",
+    "verMeusCampeonatos": "Ver meus campeonatos",
+    "erro403": "Erro 403"
+  },
+  "TournamentNotFound": {
+    "titulo": "Campeonato não encontrado",
+    "descricao": "Ele pode ter sido excluído, ou o endereço está errado.",
+    "verMeusCampeonatos": "Ver meus campeonatos"
+  },
+  "RichTextView": {
+    "vazio": "Nada escrito ainda."
+  },
+  "RichTextEditor": {
+    "formatacaoDe": "Formatação de {campo}",
+    "negrito": "Negrito",
+    "italico": "Itálico",
+    "titulo": "Título",
+    "subtitulo": "Subtítulo",
+    "listaMarcadores": "Lista com marcadores",
+    "listaNumerada": "Lista numerada",
+    "link": "Link",
+    "removerLink": "Remover link",
+    "enderecoDoLink": "Endereço do link",
+    "enderecoPlaceholder": "https://",
+    "enderecoInvalido": "Informe um endereço começando com https://",
+    "aplicarLink": "Aplicar link",
+    "cancelar": "Cancelar",
+    "campoPadrao": "texto"
+  },
+  "StreamLinksField": {
+    "legenda": "Links de transmissão",
+    "dica": "Opcional. Aceitamos links da Twitch e do YouTube; o vídeo aparece na página do campeonato.",
+    "link": "Link de transmissão {numero}",
+    "placeholder": "https://www.twitch.tv/seucanal",
+    "remover": "Remover link de transmissão {numero}",
+    "adicionar": "Adicionar link"
+  },
+  "CancelTournamentDialog": {
+    "titulo": "Cancelar campeonato",
+    "descricao": "O campeonato sai da vitrine e as inscrições são encerradas. Não dá para desfazer.",
+    "confirmar": "Cancelar campeonato",
+    "motivoObrigatorio": "Informe o motivo do cancelamento.",
+    "cancelado": "Campeonato cancelado",
+    "erro": "Não foi possível cancelar",
+    "motivo": "Motivo do cancelamento",
+    "motivoDica": "Aparece para quem acompanha a página do campeonato."
+  },
+  "DeleteDraftDialog": {
+    "titulo": "Excluir este rascunho?",
+    "descricao": "\"{nome}\" ainda não foi publicado. O rascunho será apagado de vez.",
+    "voltar": "Voltar",
+    "excluido": "Rascunho excluído",
+    "erro": "Não foi possível excluir",
+    "excluir": "Excluir rascunho"
+  },
+  "SaveTemplateDialog": {
+    "titulo": "Salvar como modelo",
+    "descricao": "O modelo guarda jogo, vagas, fases, pontuação e regulamento. Nome, datas e banner ficam de fora.",
+    "voltar": "Voltar",
+    "salvar": "Salvar modelo",
+    "salvo": "Modelo salvo",
+    "salvoDetalhe": "\"{nome}\" já aparece em Modelos.",
+    "erro": "Não foi possível salvar o modelo",
+    "nome": "Nome do modelo",
+    "descricaoCampo": "Descrição",
+    "descricaoDica": "Opcional. Uma frase para lembrar quando usar este modelo."
+  },
+  "OrganizerDashboard": {
+    "titulo": "Meu painel",
+    "ver": "Ver",
+    "inscricoesAbrem": "Inscrições abrem",
+    "inscricoesFecham": "Inscrições fecham",
+    "comeca": "Começa",
+    "carregando": "Carregando o painel",
+    "olaVazio": "Olá, {apelido}. Aqui você acompanha os seus campeonatos.",
+    "primeiroTitulo": "Seu primeiro campeonato começa aqui",
+    "primeiroDescricao": "Em poucos minutos você escolhe o jogo, monta as fases e publica. O assistente sugere vagas, datas, pontuação e regulamento.",
+    "criarPrimeiro": "Criar meu primeiro campeonato",
+    "prefereProntoRich": "Prefere começar por algo pronto? <modelos>Veja os modelos</modelos> ou <exemplo>explore um campeonato de exemplo</exemplo>.",
+    "ola": "Olá, {apelido}. Veja o que pede a sua atenção.",
+    "criarCampeonato": "Criar campeonato",
+    "resumo": "Resumo",
+    "ativos": "{count, plural, =1 {campeonato ativo} other {campeonatos ativos}}",
+    "verAtivos": "Ver campeonatos ativos",
+    "rascunhos": "{count, plural, =1 {rascunho} other {rascunhos}}",
+    "verRascunhos": "Ver rascunhos",
+    "pendentes": "{count, plural, =1 {inscrição aguardando aprovação} other {inscrições aguardando aprovação}}",
+    "verPendentes": "Ver inscrições aguardando aprovação",
+    "paraAprovar": "Inscrições para aprovar",
+    "aguardando": " · {count} aguardando",
+    "revisarDe": "Revisar inscrições de {nome}",
+    "revisar": "Revisar",
+    "proximosEventos": "Próximos eventos",
+    "nadaMarcado": "Nada marcado. Publique um campeonato para ver aqui as datas de inscrição e de início.",
+    "evento": "{evento} {quando} · {data}",
+    "rascunhosParaTerminar": "Rascunhos para terminar",
+    "passo": " · passo {passo} de 7",
+    "continuarDe": "Continuar rascunho de {nome}",
+    "continuar": "Continuar",
+    "atalhos": "Atalhos",
+    "meusCampeonatos": "Meus campeonatos",
+    "modelos": "Modelos de campeonato"
+  },
+  "FirstSteps": {
+    "perfilTitulo": "Complete o seu perfil",
+    "perfilDescricao": "Uma foto ou uma apresentação curta: os jogadores confiam mais em quem eles reconhecem.",
+    "perfilCta": "Abrir meu perfil",
+    "modeloTitulo": "Escolha um modelo",
+    "modeloDescricao": "Comece por um formato pronto (FF Squad com grupos e final, CR mata-mata MD3…) ou do zero.",
+    "modeloCta": "Escolher modelo",
+    "publicarTitulo": "Publique o seu primeiro campeonato",
+    "publicarDescricao": "O assistente sugere vagas, datas, pontuação e regulamento. Dá para publicar em poucos minutos.",
+    "publicarCta": "Abrir o assistente",
+    "titulo": "Primeiros passos",
+    "subtitulo": "Três coisas para o seu primeiro campeonato sair do papel.",
+    "dispensarRotulo": "Dispensar os primeiros passos",
+    "dispensar": "Dispensar",
+    "progresso": "Primeiros passos concluídos",
+    "feito": " (feito)",
+    "pendente": " (pendente)",
+    "verFuncionando": "Quer ver um campeonato funcionando antes?",
+    "explorarExemplo": "Explorar um campeonato de exemplo",
+    "soLeitura": "({nome}, só para leitura)"
+  },
+  "Tip": {
+    "dica": "Dica: {titulo}",
+    "dispensar": "Dispensar a dica: {titulo}"
+  },
+  "TemplateCard": {
+    "jogoForaDoCatalogo": "Jogo fora do catálogo",
+    "daPlataforma": "Da plataforma",
+    "meuModelo": "Meu modelo",
+    "vagas": "{vagas} vagas",
+    "semFases": "Sem fases definidas",
+    "fases": "{count, plural, =1 {{count} fase} other {{count} fases}}: {lista}",
+    "fase": "{nome} ({formato})"
+  },
+  "TemplatesPage": {
+    "usarModeloDe": "Usar o modelo {nome}",
+    "usarModelo": "Usar o modelo",
+    "excluirModeloDe": "Excluir o modelo {nome}",
+    "excluir": "Excluir",
+    "titulo": "Modelos",
+    "descricao": "Um modelo guarda jogo, vagas, fases, pontuação e regulamento. Use um pronto ou salve os seus a partir de um campeonato.",
+    "carregando": "Carregando modelos",
+    "meusModelos": "Meus modelos",
+    "nenhumMeuTitulo": "Você ainda não salvou nenhum modelo",
+    "nenhumMeuDescricao": "Em \"Meus campeonatos\", use \"Salvar como modelo\" para guardar a estrutura de um campeonato e repetir depois.",
+    "irParaMeusCampeonatos": "Ir para Meus campeonatos",
+    "modelosDaPlataforma": "Modelos da Nova Arena",
+    "nenhumDaPlataforma": "Nenhum modelo da plataforma no momento.",
+    "excluirTitulo": "Excluir este modelo?",
+    "excluirDescricao": "\"{nome}\" some da sua lista. Os campeonatos criados a partir dele não mudam.",
+    "voltar": "Voltar",
+    "excluido": "Modelo excluído",
+    "erroExcluir": "Não foi possível excluir",
+    "excluirModelo": "Excluir modelo"
+  },
+  "TournamentList": {
+    "editadoEm": "Editado em {data}",
+    "inscricoesAbrem": "Inscrições abrem {data}",
+    "inscricoesAte": "Inscrições até {data}",
+    "inicio": "Início: {data}",
+    "semInicio": "Sem data de início",
+    "coOrganizador": " · você é co-organizador",
+    "aguardandoAprovacao": "{count} aguardando aprovação",
+    "vagasOcupadas": "Vagas ocupadas em {nome}",
+    "parouNoPasso": "Parou no passo {passo} de 7",
+    "continuarDe": "Continuar rascunho de {nome}",
+    "continuarRascunho": "Continuar rascunho",
+    "gerenciarDe": "Gerenciar {nome}",
+    "gerenciar": "Gerenciar",
+    "duplicarDe": "Duplicar {nome}",
+    "duplicado": "Campeonato duplicado",
+    "duplicadoDetalhe": "A cópia é um rascunho: ajuste o nome e as datas.",
+    "erroDuplicar": "Não foi possível duplicar",
+    "duplicar": "Duplicar",
+    "salvarModeloDe": "Salvar como modelo: {nome}",
+    "salvarModelo": "Salvar como modelo",
+    "excluirRascunhoDe": "Excluir rascunho {nome}",
+    "excluirRascunho": "Excluir rascunho",
+    "cancelarDe": "Cancelar {nome}",
+    "cancelar": "Cancelar",
+    "vazio": {
+      "all": { "titulo": "Você ainda não tem campeonatos", "descricao": "Crie o primeiro em poucos minutos: o assistente sugere tudo, das vagas ao regulamento." },
+      "draft": { "titulo": "Nenhum rascunho", "descricao": "Tudo o que você começou já foi publicado ou excluído." },
+      "active": { "titulo": "Nenhum campeonato ativo", "descricao": "Publique um rascunho para ele aparecer na vitrine e receber inscrições." },
+      "finished": { "titulo": "Nenhum campeonato encerrado", "descricao": "Os campeonatos finalizados e arquivados aparecem aqui." },
+      "cancelled": { "titulo": "Nenhum campeonato cancelado", "descricao": "Que continue assim." }
+    },
+    "criarCampeonato": "Criar campeonato",
+    "titulo": "Meus campeonatos",
+    "descricao": "Os campeonatos em que você é responsável ou co-organizador.",
+    "carregando": "Carregando campeonatos",
+    "filtrar": "Filtrar por status",
+    "aba": "{grupo} ({count})"
+  }
+}

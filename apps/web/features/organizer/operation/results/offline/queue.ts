@@ -8,6 +8,8 @@
  */
 import type { SubmitResultInput } from '@nova/schemas';
 import { ApiError } from '@/shared/api/client';
+import { getT } from '@/shared/i18n/core';
+import { messages } from '../../messages';
 
 export type PendingStatus = 'PENDING' | 'SENDING' | 'CONFLICT' | 'ERROR';
 
@@ -124,14 +126,17 @@ export function isNetworkError(error: unknown): boolean {
   return error instanceof TypeError || (error instanceof DOMException && error.name === 'NetworkError');
 }
 
-export const CONFLICT_MESSAGE = 'Outra pessoa já lançou o resultado desta partida.';
+/** Aviso de conflito: outra pessoa lançou o resultado antes de a conexão voltar. */
+export function conflictMessage(): string {
+  return getT(messages, 'queue')('conflito');
+}
 
 /** O que fazer com o item depois de uma tentativa que falhou. */
 export function classifyFailure(error: unknown): { status: PendingStatus; message: string | null; stop: boolean } {
   if (error instanceof ApiError) {
     // Resultado já lançado e este envio não é correção: alguém lançou antes de a conexão voltar.
-    if (error.code === 'CORRECTION_REASON_REQUIRED') return { status: 'CONFLICT', message: CONFLICT_MESSAGE, stop: false };
-    if (error.status >= 500 || error.status === 429) return { status: 'PENDING', message: 'O servidor não respondeu. Vamos tentar de novo.', stop: false };
+    if (error.code === 'CORRECTION_REASON_REQUIRED') return { status: 'CONFLICT', message: conflictMessage(), stop: false };
+    if (error.status >= 500 || error.status === 429) return { status: 'PENDING', message: getT(messages, 'queue')('servidorSemResposta'), stop: false };
     return { status: 'ERROR', message: error.message, stop: false };
   }
   // Sem rede: para a fila (as próximas também falhariam) e espera a conexão voltar.

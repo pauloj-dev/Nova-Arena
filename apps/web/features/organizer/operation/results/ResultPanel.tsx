@@ -8,33 +8,34 @@ import { useMemo, useRef, useState } from 'react';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useMatchEvents, useSubmitResult } from '@/shared/api/hooks/competition';
 import { useTournamentRegistrations } from '@/shared/api/hooks/tournaments';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { useFlag } from '@/shared/flags/useFlag';
 import { matchHeading } from '@/features/matches/matchText';
 import { isNetworkError } from './offline/queue';
 import { isOnline, usePendingResults } from './offline/usePendingResults';
 import { Tip } from '../../onboarding/Tip';
+import { messages } from '../messages';
 import { BRDropForm } from './BRDropForm';
 import { clearDropDraft, type DropMember } from './brDrop';
 import { ScoreInput } from './ScoreInput';
 
-const EVENT_LABEL = { ENTERED: 'Resultado lançado', CORRECTED: 'Resultado corrigido', WALKOVER: 'W.O.', REVERTED: 'Resultado desfeito' } as const;
-
 /** Histórico de lançamentos e correções de uma partida (mais recente primeiro). */
 export function ResultHistory({ matchId }: { matchId: string }) {
   const query = useMatchEvents(matchId);
+  const t = useT(messages, 'ResultPanel');
   if (query.isPending) return <Skeleton className="h-16 w-full" />;
-  if (query.error) return <ErrorState title="Não foi possível carregar o histórico" description={errorMessage(query.error)} onRetry={() => void query.refetch()} />;
-  if (query.data.length === 0) return <p className="text-sm text-muted">Ainda não há lançamentos nesta partida.</p>;
+  if (query.error) return <ErrorState title={t('erroHistorico')} description={errorMessage(query.error)} onRetry={() => void query.refetch()} />;
+  if (query.data.length === 0) return <p className="text-sm text-muted">{t('semLancamentos')}</p>;
   return (
-    <ol className="flex flex-col gap-2" aria-label="Histórico de lançamentos e correções" data-testid="result-history">
+    <ol className="flex flex-col gap-2" aria-label={t('historico')} data-testid="result-history">
       {query.data.map((event) => (
         <li key={event.id} className="rounded-md border border-border p-3 text-sm">
           <p className="font-semibold text-text">
-            {EVENT_LABEL[event.type]} <span className="font-normal text-muted">por {event.actorNickname} · {formatDateTime(event.createdAt)}</span>
+            {t(`evento.${event.type}`)} <span className="font-normal text-muted">{t('por', { actor: event.actorNickname, when: formatDateTime(event.createdAt) })}</span>
           </p>
           <p className="text-text">{event.summary}</p>
-          {event.reason && <p className="text-muted">Motivo: {event.reason}</p>}
+          {event.reason && <p className="text-muted">{t('motivo', { reason: event.reason })}</p>}
         </li>
       ))}
     </ol>
@@ -43,21 +44,22 @@ export function ResultHistory({ matchId }: { matchId: string }) {
 
 /** Pontos calculados pelo servidor, com o detalhamento de cada participação (RN-01). */
 function ServerPoints({ response }: { response: SubmitResultResponse }) {
+  const t = useT(messages, 'ResultPanel');
   const lobby = response.match.kind === 'LOBBY';
   const rows = lobby ? [...response.results].sort((a, b) => b.points - a.points) : response.results;
   return (
     <Card className="flex flex-col gap-3" data-testid="server-points">
       <h3 className="flex items-center gap-2 text-lg">
         <CheckCircle2 className="size-5 text-primary-soft-text" aria-hidden />
-        Resultado salvo
+        {t('resultadoSalvo')}
       </h3>
-      <p className="text-sm text-muted">Pontos calculados pelo servidor com o modelo de pontuação da fase. A tabela já foi atualizada para todo mundo.</p>
+      <p className="text-sm text-muted">{t('pontosDoServidor')}</p>
       <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
         {rows.map((r) => (
           <li key={r.registrationId} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-3 py-2 text-sm">
             <span className="font-semibold text-text">{r.name}</span>
             <span className="tabular font-bold text-text">
-              {r.points.toLocaleString('pt-BR')} {r.points === 1 ? 'pt' : 'pts'}
+              {t('pontos', { points: r.points })}
             </span>
             {r.breakdown.length > 0 && <span className="w-full text-xs text-muted">{r.breakdown.map((b) => b.label).join(' · ')}</span>}
           </li>
@@ -82,21 +84,22 @@ export interface ResultPanelProps {
  * envia com chave de idempotência — a mesma chave é reutilizada se a pessoa reenviar o mesmo
  * formulário depois de um erro de rede — e mostra os pontos que o servidor calculou.
  */
-export function ResultPanel({ tournament: t, match, stageMatches, game, onClose, onImportCsv }: ResultPanelProps) {
+export function ResultPanel({ tournament, match, stageMatches, game, onClose, onImportCsv }: ResultPanelProps) {
   const submit = useSubmitResult();
+  const t = useT(messages, 'ResultPanel');
   const { success, error } = useToast();
   const attempt = useRef<{ key: string; payload: string } | null>(null);
   const [saved, setSaved] = useState<SubmitResultResponse | null>(null);
   // Sem rede (issue 125): o envio fica guardado neste aparelho e sai sozinho quando a conexão volta.
   const [savedOffline, setSavedOffline] = useState(false);
-  const offline = usePendingResults({ tournamentId: t.id });
+  const offline = usePendingResults({ tournamentId: tournament.id });
   const queuedHere = offline.items.find((i) => i.matchId === match.id && i.status !== 'CONFLICT');
   const ocrEnabled = useFlag('resultOcr');
   // Lançar ou corrigir é decidido ao abrir: a partida muda de status depois de salvar, mas a tela continua a mesma.
   const [correction] = useState(() => match.status === 'VALIDATED' || match.status === 'WALKOVER');
-  const stage: Stage | undefined = t.stages.find((s) => s.id === match.stageId);
+  const stage: Stage | undefined = tournament.stages.find((s) => s.id === match.stageId);
   const killsPerPlayer = Boolean(stage?.config.killsPerPlayer) && match.kind === 'LOBBY';
-  const registrations = useTournamentRegistrations(killsPerPlayer ? t.id : undefined);
+  const registrations = useTournamentRegistrations(killsPerPlayer ? tournament.id : undefined);
 
   const rules = useMemo(() => (game?.scoringModels.find((m) => m.id === stage?.scoringModelId)?.rules ?? []) as Rule[], [game, stage]);
   const dropCount = stageMatches.filter((m) => m.kind === 'LOBBY' && m.groupId === match.groupId).length || 1;
@@ -122,7 +125,7 @@ export function ResultPanel({ tournament: t, match, stageMatches, game, onClose,
           attempt.current = null;
           if (match.kind === 'LOBBY') clearDropDraft(match.id);
           setSaved(response);
-          success(correction ? 'Resultado corrigido' : match.kind === 'LOBBY' ? 'Queda validada' : 'Resultado salvo', 'A tabela foi recalculada.');
+          success(correction ? t('resultadoCorrigido') : match.kind === 'LOBBY' ? t('quedaValidada') : t('resultadoSalvo'), t('tabelaRecalculada'));
         },
         onError: (e) => {
           // A rede caiu no meio do envio: guarda com a mesma chave (se chegou ao servidor, ele não lança duas vezes).
@@ -132,7 +135,7 @@ export function ResultPanel({ tournament: t, match, stageMatches, game, onClose,
           }
           // Erro de regra (4xx): o formulário mudou de sentido, a próxima tentativa é outro envio.
           if (e instanceof ApiError && e.status < 500) attempt.current = null;
-          error('Não foi possível salvar o resultado', errorMessage(e));
+          error(t('erroSalvar'), errorMessage(e));
         },
       },
     );
@@ -140,39 +143,39 @@ export function ResultPanel({ tournament: t, match, stageMatches, game, onClose,
 
   async function keepOffline(key: string, input: Parameters<typeof send>[0]) {
     try {
-      await offline.enqueue({ idempotencyKey: key, matchId: match.id, tournamentId: t.id, stageId: match.stageId, label: matchHeading(match), payload: input });
+      await offline.enqueue({ idempotencyKey: key, matchId: match.id, tournamentId: tournament.id, stageId: match.stageId, label: matchHeading(match), payload: input });
       attempt.current = null;
       if (match.kind === 'LOBBY') clearDropDraft(match.id);
       setSavedOffline(true);
-      success('Resultado guardado neste aparelho', 'Você está sem conexão. Ele será enviado sozinho quando a internet voltar.');
+      success(t('guardadoTitulo'), t('guardadoDescricao'));
     } catch {
-      error('Não foi possível guardar o resultado', 'Este navegador não deixou guardar dados. Salve o rascunho ou tente de novo com conexão.');
+      error(t('erroGuardar'), t('erroGuardarDescricao'));
     }
   }
 
-  const paused = t.status === 'PAUSED';
+  const paused = tournament.status === 'PAUSED';
   return (
-    <section className="flex flex-col gap-4" aria-label="Lançamento de resultado" data-testid="result-panel">
+    <section className="flex flex-col gap-4" aria-label={t('secao')} data-testid="result-panel">
       <div>
         <Button variant="ghost" size="sm" iconLeft={<ArrowLeft className="size-4" aria-hidden />} onClick={onClose}>
-          Voltar para as partidas
+          {t('voltarPartidas')}
         </Button>
       </div>
-      <Tip id="lancamento" title="Lançar é rápido">
+      <Tip id="lancamento" title={t('dicaTitulo')}>
         {match.kind === 'LOBBY'
-          ? 'Digite a colocação e as kills e use Tab ou Enter para ir à próxima célula; as setas sobem e descem. Os pontos da prévia são os mesmos que o servidor vai calcular.'
-          : 'Digite o placar dos dois lados e salve. Quem vence e os pontos são calculados pelo servidor; o vencedor avança sozinho na chave.'}
+          ? t('dicaQueda')
+          : t('dicaDuelo')}
       </Tip>
       {paused && (
         <p role="status" className="rounded-md bg-warning-soft px-3 py-2 text-sm font-medium text-warning-soft-text">
-          O campeonato está pausado. Retome na aba Resumo para lançar resultados.
+          {t('pausado')}
         </p>
       )}
 
       {queuedHere && !savedOffline && (
         <p role="status" className="flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-soft-text">
           <CloudOff className="mt-0.5 size-4 shrink-0" aria-hidden />
-          Há um resultado desta partida guardado neste aparelho, esperando a conexão. Ele aparece em “Resultados pendentes de envio”, na lista de partidas.
+          {t('guardadoAqui')}
         </p>
       )}
 
@@ -180,20 +183,20 @@ export function ResultPanel({ tournament: t, match, stageMatches, game, onClose,
         <Card className="flex flex-col gap-3" data-testid="saved-offline">
           <h3 className="flex items-center gap-2 text-lg">
             <CloudOff className="size-5 text-warning-soft-text" aria-hidden />
-            Guardado neste aparelho
+            {t('guardadoNesteAparelho')}
           </h3>
           <p className="text-sm text-muted">
-            Sem conexão agora. O resultado vai para o servidor sozinho quando a internet voltar, e os pontos são calculados lá. Não feche o navegador sem conexão em modo anônimo: o que fica guardado some.
+            {t('semConexao')}
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={onClose}>Voltar para as partidas</Button>
+            <Button onClick={onClose}>{t('voltarPartidas')}</Button>
           </div>
         </Card>
       ) : saved ? (
         <>
           <ServerPoints response={saved} />
           <div className="flex flex-wrap gap-2">
-            <Button onClick={onClose}>Voltar para as partidas</Button>
+            <Button onClick={onClose}>{t('voltarPartidas')}</Button>
           </div>
         </>
       ) : match.kind === 'LOBBY' ? (
@@ -210,7 +213,7 @@ export function ResultPanel({ tournament: t, match, stageMatches, game, onClose,
         <Card className="flex flex-col gap-3">
           <h3 className="flex items-center gap-2 text-base">
             <History className="size-4 text-muted" aria-hidden />
-            Histórico desta partida
+            {t('historicoDaPartida')}
           </h3>
           <ResultHistory matchId={match.id} />
         </Card>

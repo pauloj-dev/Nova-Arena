@@ -5,6 +5,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@nova/ui';
 import { GripVertical } from 'lucide-react';
 import { useId } from 'react';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 import type { SeedingContainer, SeedingSlot } from './stageUtils';
 
 interface ChipProps {
@@ -21,6 +23,7 @@ function Chip({ slot, container, selected, target, disabled, onPick }: ChipProps
   const drag = useDraggable({ id: slot.registrationId, disabled });
   const drop = useDroppable({ id: slot.registrationId, disabled });
   const over = drop.isOver && !drag.isDragging;
+  const t = useT(messages, 'SeedingBoard');
   return (
     <li>
       <button
@@ -32,7 +35,7 @@ function Chip({ slot, container, selected, target, disabled, onPick }: ChipProps
         {...drag.listeners}
         disabled={disabled}
         aria-pressed={selected}
-        aria-label={`${slot.name}, ${container}${selected ? ', selecionado para a troca' : target ? '. Trocar com o selecionado' : '. Selecionar para trocar de posição'}`}
+        aria-label={t('slot', { name: slot.name, container, state: selected ? 'selected' : target ? 'target' : 'other' })}
         data-testid="seed-slot"
         data-registration={slot.registrationId}
         style={{ transform: CSS.Translate.toString(drag.transform), touchAction: 'none' }}
@@ -71,6 +74,7 @@ export interface SeedingBoardProps {
  */
 export function SeedingBoard({ containers, selectedId, onSelect, onSwap, disabled = false }: SeedingBoardProps) {
   const id = useId();
+  const t = useT(messages, 'SeedingBoard');
   // Só começa a arrastar depois de 6 px: um toque simples continua sendo um clique.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -96,7 +100,7 @@ export function SeedingBoard({ containers, selectedId, onSelect, onSwap, disable
   return (
     <div className="flex flex-col gap-3" data-testid="seeding-board">
       <p className="text-sm text-muted" role="status" aria-live="polite">
-        {selectedName ? `${selectedName} selecionado. Escolha com quem trocar (ou toque nele de novo para desistir).` : 'Arraste um participante e solte em cima de outro para trocar os dois. Ou selecione um e depois o outro.'}
+        {selectedName ? t('selecionado', { name: selectedName }) : t('instrucao')}
       </p>
       <DndContext id={id} sensors={sensors} onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 gap-3 xs:grid-cols-2 lg:grid-cols-4">

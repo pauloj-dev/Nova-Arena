@@ -3,6 +3,8 @@
  * conversão de/para o contrato da API e o corpo do rascunho automático.
  */
 import { isAllowedStreamUrl, TournamentDraftInput, type CheckInConfig, type Game, type GameMode, type StageInput, type Tournament, type TournamentTemplate } from '@nova/schemas';
+import { getT } from '@/shared/i18n/core';
+import { messages } from '../messages';
 import type { DraftForValidation } from '../validation';
 import { defaultMaxParticipants, FORMAT_INFO, formatAvailability, stageMatchType } from './formats';
 
@@ -43,9 +45,15 @@ export const UNNAMED_TOURNAMENT = 'Campeonato sem nome';
 
 export const DEFAULT_CHECK_IN: CheckInConfig = { enabled: true, opensMinutesBefore: 30, closesMinutesBefore: 10, requireAllMembers: false };
 
-/** Regulamento inicial: o organizador ajusta em vez de começar da página em branco. */
-export const DEFAULT_RULES_HTML =
-  '<h3>Regras gerais</h3><ul><li>Respeite os horários: quem não fizer check-in leva W.O.</li><li>É proibido usar hacks, emuladores ou qualquer vantagem indevida.</li><li>Todo resultado precisa do print da tela final.</li><li>As decisões da organização são finais.</li></ul>';
+/** Regulamento inicial: o organizador ajusta em vez de começar da página em branco. É HTML, então sai cru do catálogo. */
+export function defaultRulesHtml(): string {
+  return getT(messages, 'draft').raw('regrasPadrao') as string;
+}
+
+/** Nome da fase ainda sem nome: "Fase 1", "Fase 2"… */
+function fallbackStageName(index: number): string {
+  return getT(messages, 'draft')('fase', { numero: String(index + 1) });
+}
 
 const HOUR = 3600_000;
 
@@ -74,7 +82,7 @@ export function defaultWizardValues(now: Date, games: Game[]): WizardValues {
   return {
     name: '',
     description: '',
-    rules: DEFAULT_RULES_HTML,
+    rules: defaultRulesHtml(),
     prize: '',
     bannerUrl: null,
     streamUrls: [],
@@ -168,7 +176,7 @@ export function toDraftPayload(values: WizardValues, draftStep: number): Tournam
   if (Number.isInteger(values.maxParticipants) && values.maxParticipants >= 2 && values.maxParticipants <= 1024) payload.maxParticipants = values.maxParticipants;
 
   const withCheckIn = { ...payload, checkIn: values.checkIn };
-  const withStages = { ...withCheckIn, stages: values.stages.map((s, i) => ({ ...s, name: s.name.trim() || `Fase ${i + 1}` })) };
+  const withStages = { ...withCheckIn, stages: values.stages.map((s, i) => ({ ...s, name: s.name.trim() || fallbackStageName(i) })) };
   // Rede de segurança: se algum pedaço ainda não passa no contrato, grava o resto.
   for (const candidate of [withStages, withCheckIn, payload]) {
     const parsed = TournamentDraftInput.safeParse(candidate);
@@ -207,5 +215,5 @@ export function stagesFitMode(stages: StageInput[], game: Game, mode: GameMode):
 
 /** "Mata-mata 4v4 · Equipe x Equipe" */
 export function stageTitle(stage: Pick<StageInput, 'name' | 'format'>, index: number): string {
-  return `${stage.name.trim() || `Fase ${index + 1}`} · ${FORMAT_INFO[stage.format].name}`;
+  return getT(messages, 'draft')('faseTitulo', { nome: stage.name.trim() || fallbackStageName(index), formato: FORMAT_INFO[stage.format].name });
 }

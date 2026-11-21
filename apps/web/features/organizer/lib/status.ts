@@ -1,14 +1,27 @@
 /** Agrupamento dos campeonatos por estado, para as abas de "Meus campeonatos" e o painel. */
 import { ACTIVE_TOURNAMENT_STATUSES, TOURNAMENT_TRANSITIONS, type TournamentStatus } from '@nova/schemas';
+import { getT } from '@/shared/i18n/core';
+import { messages } from '../messages';
 
 export type StatusGroup = 'all' | 'draft' | 'active' | 'finished' | 'cancelled';
 
-export const STATUS_GROUPS: { id: StatusGroup; label: string; statuses: TournamentStatus[] | null }[] = [
-  { id: 'all', label: 'Todos', statuses: null },
-  { id: 'draft', label: 'Rascunhos', statuses: ['DRAFT'] },
-  { id: 'active', label: 'Ativos', statuses: ACTIVE_TOURNAMENT_STATUSES },
-  { id: 'finished', label: 'Encerrados', statuses: ['FINISHED', 'ARCHIVED'] },
-  { id: 'cancelled', label: 'Cancelados', statuses: ['CANCELLED'] },
+function group(id: StatusGroup, statuses: TournamentStatus[] | null): { id: StatusGroup; readonly label: string; statuses: TournamentStatus[] | null } {
+  return {
+    id,
+    // O rótulo é lido do catálogo na hora em que é usado (não no carregamento do módulo).
+    get label() {
+      return getT(messages, 'status.grupos')(id);
+    },
+    statuses,
+  };
+}
+
+export const STATUS_GROUPS: { id: StatusGroup; readonly label: string; statuses: TournamentStatus[] | null }[] = [
+  group('all', null),
+  group('draft', ['DRAFT']),
+  group('active', ACTIVE_TOURNAMENT_STATUSES),
+  group('finished', ['FINISHED', 'ARCHIVED']),
+  group('cancelled', ['CANCELLED']),
 ];
 
 export function inGroup(status: TournamentStatus, group: StatusGroup): boolean {
@@ -43,26 +56,5 @@ export function lifecycleActions(status: TournamentStatus): LifecycleAction[] {
 
 /** Uma frase que explica o estado atual para quem organiza. */
 export function statusExplanation(status: TournamentStatus): string {
-  switch (status) {
-    case 'DRAFT':
-      return 'Ainda é um rascunho: só você e a sua equipe enxergam. Termine o assistente e publique.';
-    case 'PUBLISHED':
-      return 'Publicado e visível na vitrine. As inscrições abrem na data marcada — ou agora, se você quiser.';
-    case 'REGISTRATION_OPEN':
-      return 'As inscrições estão abertas. Elas fecham sozinhas no prazo, ou você pode encerrar antes.';
-    case 'REGISTRATION_CLOSED':
-      return 'As inscrições foram encerradas. O próximo passo é gerar a chave da primeira fase, na aba Fases e chave.';
-    case 'CHECK_IN':
-      return 'Check-in aberto: os inscritos estão confirmando presença.';
-    case 'IN_PROGRESS':
-      return 'O campeonato está em andamento. Agende as partidas e lance os resultados; a tabela se atualiza sozinha.';
-    case 'PAUSED':
-      return 'O campeonato está pausado: ninguém lança resultado até você retomar.';
-    case 'FINISHED':
-      return 'Campeonato finalizado, com pódio definido. Ele continua na vitrine para consulta até você arquivar.';
-    case 'ARCHIVED':
-      return 'Campeonato arquivado: saiu da vitrine e fica só para consulta.';
-    case 'CANCELLED':
-      return 'Campeonato cancelado.';
-  }
+  return getT(messages, 'status.explicacao')(status);
 }
