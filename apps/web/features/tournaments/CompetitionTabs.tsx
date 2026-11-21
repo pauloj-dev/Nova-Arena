@@ -10,6 +10,7 @@ import { isEliminationFormat } from '@/features/brackets/rounds';
 import { RoundsView } from '@/features/brackets/RoundsView';
 import { StageStandings } from '@/features/brackets/StageStandings';
 import { MatchDetailModal } from '@/features/matches/MatchDetailModal';
+import { CalendarExport } from '@/features/calendar/CalendarExport';
 import { MatchesList } from '@/features/matches/MatchesList';
 import { MatchCard } from '@/features/matches/MatchCard';
 import { isConcluded } from '@/features/matches/matchText';
@@ -206,7 +207,10 @@ export function MatchesTab({ tournament: t, matches }: { tournament: Tournament;
   const open = openId ? (matches.data.find((m) => m.id === openId) ?? null) : null;
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-lg">Partidas</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg">Partidas</h2>
+        <CalendarExport scope={{ kind: 'tournament', idOrSlug: t.slug, name: t.name }} />
+      </div>
       <MatchesList matches={matches.data} stages={[...t.stages].sort((a, b) => a.order - b.order).map((s) => ({ id: s.id, name: s.name }))} onOpen={(m) => setOpenId(m.id)} />
       <MatchDetailModal match={open} onClose={() => setOpenId(null)} />
     </div>
