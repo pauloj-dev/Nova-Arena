@@ -45,6 +45,11 @@ import { auth } from './modules/auth';
 import { oauth } from './modules/oauth';
 import { databaseCheck, health, qstashCheck, redisCheck } from './modules/health';
 import { memoryLimiter, requireSameOrigin, upstashLimiter, type RateLimiter } from './security';
+import { adminArea } from './auth/admin';
+import { adminModules } from './modules/admin';
+import { reports } from './modules/reports';
+import { site } from './modules/site';
+import { productEvents, trackAdminMutations } from './modules/site/events';
 
 export const API_BASE_PATH = '/api/v1';
 
@@ -54,7 +59,7 @@ export const API_BASE_PATH = '/api/v1';
  * resultados e histórico (#85, #86), fases (#87, #88), desistência e encerramento (#88, #100), envios e disputas (#90),
  * perfil competitivo (#89).
  */
-const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs, teams, registrations, competition, matches, results, stages, closing, submissions, stats, twoFactor, realtime, notifications, notificationJobs, push, pushJobs];
+const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs, teams, registrations, competition, matches, results, stages, closing, submissions, stats, twoFactor, realtime, notifications, notificationJobs, push, pushJobs, ...adminModules, reports, site, productEvents];
 
 export interface CreateAppOptions {
   /** Variáveis já validadas; padrão: as do processo, validadas na primeira requisição. */
@@ -117,6 +122,10 @@ export function createApp(options: CreateAppOptions = {}) {
 
   // CSRF: toda mutação precisa vir do próprio site (plano B1.2).
   app.use(requireSameOrigin);
+
+  // Área de administração (RNF-08): toda rota `/admin/*`, de qualquer módulo, exige Admin ou Super Admin com 2FA
+  // feito. As alterações bem-sucedidas viram evento de produto (KR de auditoria, #101).
+  app.use('/admin/*', trackAdminMutations, adminArea);
 
   for (const module of [...modules, ...(options.extraModules ?? [])]) app.route('/', module);
 

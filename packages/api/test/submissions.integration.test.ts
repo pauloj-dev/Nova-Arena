@@ -151,12 +151,15 @@ describe.skipIf(!url)('envio de resultado e disputas (Postgres)', { timeout: 60_
     it('com a flag `resultSubmission` desligada, o envio é recusado (403)', async () => {
       const s = await scenario();
       await h.db.siteSetting.upsert({ where: { key: 'flags' }, create: { key: 'flags', value: { resultSubmission: false } }, update: { value: { resultSubmission: false } } });
+      // As flags ficam 60 s em cache: aqui o banco é alterado direto (sem passar pelo painel), então o cache é limpo à mão.
+      await h.cache.del('site:flags:v1');
       try {
         const res = await h.call(s.bianca, `/matches/${s.match.id}/submissions`, { method: 'POST', body: payload(s) });
         expect(res.status).toBe(403);
         expect(res.code).toBe('FEATURE_DISABLED');
       } finally {
         await h.db.siteSetting.deleteMany({ where: { key: 'flags' } });
+        await h.cache.del('site:flags:v1');
       }
       expect((await h.call(s.bianca, `/matches/${s.match.id}/submissions`, { method: 'POST', body: payload(s) })).status).toBe(201);
     });

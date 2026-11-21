@@ -18,6 +18,17 @@ A API simulada (`apps/web/mocks/handlers/*.ts`) é a especificação executável
 | `src/modules/<módulo>/index.ts` | Um `Hono` por módulo, registrado em `modules` no `app.ts`. |
 | `src/vercel.ts` | `createRouteHandler()` para a rota do Next.js. |
 
+## Painel Admin e moderação (B2.6/B2.8)
+
+| Arquivo | O que faz |
+|---|---|
+| `src/auth/admin.ts` | `requireAdminTwoFactor(c, { superAdmin? })` (mesmo contrato do helper da frente de 2FA) e o middleware `adminArea`, aplicado pelo app em **toda** rota `/admin/*`, de qualquer módulo: Admin ou Super Admin com 2FA ativo e feito na sessão; senão 403 `TWO_FACTOR_REQUIRED`. |
+| `src/modules/admin/*` | Usuários, sanções (efeito imediato: versão da sessão + `session.revoked`), mescla (RN-13), convites (só o hash do token no banco), papéis (RN-11), organizadores (RN-09, RN-10), campeonatos, comunicados globais (notificação em lotes pela fila), auditoria (CSV em streaming), KPIs e métricas de produto. `GET /cron/sanctions` expira suspensões a cada minuto. |
+| `src/modules/reports` | Denúncias, fila de moderação e disputas escaladas. |
+| `src/modules/site` | Configurações e flags (banco como fonte de verdade; leitura pelo Edge Config quando `EDGE_CONFIG` existe; gravação pela API da Vercel com `EDGE_CONFIG_ID` e `VERCEL_API_TOKEN`), `isFlagEnabled(c, key)` para os outros módulos, saúde do sistema e eventos de produto sem cookies (`/events`, `/me/nps`). |
+
+Efeitos depois do commit (notificação, tempo real) passam por `AfterCommit` (`modules/admin/shared.ts`), que usa `notify()` e `publish()` de `src/notify.ts`.
+
 ## Novo módulo
 
 1. `src/modules/<nome>/index.ts` exporta `new Hono<AppEnv>()` com as rotas.

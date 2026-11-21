@@ -30,6 +30,11 @@ export const EnvSchema = z
     /** Loja privada do Blob (provas e denúncias). Sem ela, usa a mesma de `BLOB_READ_WRITE_TOKEN`. */
     BLOB_PRIVATE_READ_WRITE_TOKEN: optionalSecret,
     EDGE_CONFIG: optionalUrl,
+    /** Gravação das flags e configurações no Edge Config pela API da Vercel (issue #94). Sem as duas, só o banco. */
+    EDGE_CONFIG_ID: optionalSecret,
+    VERCEL_API_TOKEN: optionalSecret,
+    /** Time da Vercel dono do Edge Config (quando o token é de um time). */
+    VERCEL_TEAM_ID: optionalSecret,
     RESEND_API_KEY: optionalSecret,
     /** Remetente de um domínio verificado no Resend, ex.: "Nova Arena <nao-responda@novaarena.gg>". */
     EMAIL_FROM: z.string().min(3).optional(),

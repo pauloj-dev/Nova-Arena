@@ -20,8 +20,6 @@ const EXPECTED_GAPS: Record<string, string> = {
   'POST /uploads/token': 'o envio real usa o `@vercel/blob/client` em `/uploads/blob` (#73)',
   'PUT /uploads/:param': 'o arquivo vai direto para o Blob; a confirmação é `/uploads/complete` (#73)',
   'GET /games/:param/ranking': 'ranking por jogo sai dos resultados das partidas (B2)',
-  'GET /role-invites/:param': 'convites de Admin e Organizador (#92)',
-  'POST /role-invites/:param/accept': 'convites de Admin e Organizador (#92)',
 };
 
 /** `/teams/:id/members/:userId` → `/teams/:param/members/:param` (o nome do parâmetro não importa). */

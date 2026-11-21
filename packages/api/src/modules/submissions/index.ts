@@ -34,7 +34,7 @@ import { requireSession } from '../../auth/session';
 import { findMatch, namesFor } from '../../competition/bracket';
 import { afterResult, applyMatchResult, attachEvidence, matchLabelOf, tiebreakWinner, toEngineInput, usersOfRegistrations } from '../../competition/results';
 import { engine } from '../../competition/run';
-import { isFlagEnabled } from '../../flags';
+import { isFlagEnabled } from '../site';
 import { notify, publish } from '../../notify';
 import { revalidateTournaments } from '../../revalidate';
 import { auditCtx, isUuid, staffVia } from '../competition/access';
@@ -293,7 +293,7 @@ submissions.get('/me/disputes', async (c) => {
 submissions.post('/matches/:id/submissions', async (c) => {
   const session = await requireSession(c);
   const db = c.get('deps').db();
-  if (!(await isFlagEnabled(db, 'resultSubmission'))) throw forbidden('O envio de resultado pelos participantes está desligado. A organização lança os resultados.', 'FEATURE_DISABLED');
+  if (!(await isFlagEnabled(c, 'resultSubmission'))) throw forbidden('O envio de resultado pelos participantes está desligado. A organização lança os resultados.', 'FEATURE_DISABLED');
   const ctx = await matchContext(db, c.req.param('id'));
   const { tournament: t, node, run } = ctx;
   const mine = await registrationOfUser(db, t.id, session.userId);

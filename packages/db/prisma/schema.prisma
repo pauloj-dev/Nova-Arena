@@ -403,6 +403,10 @@ model AdminRemovalRequest {
   requestedById String        @db.Uuid
   status        RequestStatus @default(PENDING)
   decidedById   String?       @db.Uuid
+  /// Motivo informado por quem pediu a remoção (RN-11).
+  reason        String?
+  /// Quando o Super Admin aprovou ou recusou.
+  decidedAt     DateTime?     @db.Timestamptz(3)
   createdAt     DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
 
@@ -658,6 +662,15 @@ model Announcement {
   body         String
   /// Global: `ALL`, `ORGANIZERS` ou `GAME:<gameId>`. No campeonato: `ALL`, uma fase ou um grupo.
   audience     String    @default("ALL")
+  /// Só no comunicado global: `BANNER`, `NOTIFICATION` ou `MAINTENANCE` (nulo no do campeonato).
+  kind         String?
+  /// Banner e manutenção: janela de exibição (manutenção aparece 48 h antes do início).
+  startsAt     DateTime? @db.Timestamptz(3)
+  endsAt       DateTime? @db.Timestamptz(3)
+  /// Banner e manutenção ligados ou desligados pelo Admin. Notificação é envio único (`false`).
+  active       Boolean   @default(true)
+  /// Notificação global: quantas pessoas estavam no público-alvo no envio.
+  recipients   Int?
   createdAt    DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
 
@@ -666,6 +679,7 @@ model Announcement {
   group      Group?      @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@index([tournamentId, createdAt])
+  @@index([kind, active])
   @@map("announcements")
 }
 
@@ -1062,6 +1076,11 @@ model Report {
   status       ReportStatus @default(OPEN)
   handledById  String?      @db.Uuid
   resolution   String?
+  /// Nome e link do alvo no momento da denúncia (o que a moderação vê).
+  targetLabel  String       @default("")
+  targetLink   String?
+  /// Quem responde pelo alvo: o próprio usuário, o capitão do squad ou quem enviou o resultado.
+  targetOwnerUserId String? @db.Uuid
   createdAt    DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime     @updatedAt @db.Timestamptz(3)
 
@@ -1069,6 +1088,8 @@ model Report {
 
   @@index([status, createdAt])
   @@index([targetType, targetId])
+  @@index([reporterId, createdAt])
+  @@index([targetOwnerUserId])
   @@map("reports")
 }
 
@@ -1088,6 +1109,7 @@ model Sanction {
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId, startsAt])
+  @@index([type, endsAt])
   @@map("sanctions")
 }
 
@@ -1208,4 +1230,33 @@ model JobFailure {
 
   @@index([resolvedAt, createdAt])
   @@map("job_failures")
+}
+
+/// Fila "Sem responsável" (RN-09): campeonato pausado porque o organizador saiu (revogado, suspenso, banido ou
+/// conta mesclada) e não havia co-organizador para assumir. Sai da fila quando o Admin dá um novo responsável.
+model OrphanTournament {
+  tournamentId    String           @id @db.Uuid
+  previousOwnerId String           @db.Uuid
+  /// Estado em que o campeonato estava antes de ser pausado.
+  previousStatus  TournamentStatus
+  cause           String
+  since           DateTime         @default(now()) @db.Timestamptz(3)
+
+  @@index([since])
+  @@map("orphan_tournaments")
+}
+
+/// Eventos de produto (issue #101, PRD §3.2 e §20): análise própria, sem cookies nem identificador de navegador.
+/// Guarda só o nome do evento, o usuário (quando logado) e números do evento; nunca IP, navegador ou texto livre.
+model ProductEvent {
+  id        BigInt   @id @default(autoincrement())
+  name      String
+  userId    String?  @db.Uuid
+  /// Números e rótulos curtos do evento (ex.: `{ "durationMs": 42000 }`, `{ "score": 9, "as": "PARTICIPANT" }`).
+  props     Json     @default("{}")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([name, createdAt])
+  @@index([userId, createdAt])
+  @@map("product_events")
 }
