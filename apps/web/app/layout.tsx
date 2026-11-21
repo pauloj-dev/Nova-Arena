@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   title: { default: 'Nova Arena — campeonatos de eSports mobile', template: '%s · Nova Arena' },
   description: 'Crie, organize e acompanhe campeonatos de Free Fire, Clash Royale, 8 Ball Pool, eFootball e outros jogos.',
   applicationName: 'Nova Arena',
+  // PWA no iOS (issue #105): abre em tela cheia pela tela de início, com o nome curto embaixo do ícone.
+  appleWebApp: { capable: true, title: 'Nova Arena', statusBarStyle: 'default' },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {

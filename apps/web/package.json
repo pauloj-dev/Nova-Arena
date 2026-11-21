@@ -7,7 +7,7 @@
     "build": "pnpm --filter @nova/db db:deploy && next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "next typegen && tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit && tsc --noEmit -p sw/tsconfig.json",
     "test": "vitest run",
     "e2e": "playwright test"
   },
@@ -21,6 +21,8 @@
     "@nova/engine": "workspace:*",
     "@nova/schemas": "workspace:*",
     "@nova/ui": "workspace:*",
+    "@serwist/turbopack": "9.5.13",
+    "@serwist/window": "9.5.13",
     "@tanstack/react-query": "^5.107.1",
     "@tiptap/pm": "^3.33.1",
     "@tiptap/react": "^3.33.1",
@@ -38,6 +40,7 @@
     "react-hook-form": "^7.92.0",
     "recharts": "^3.10.1",
     "server-only": "^0.0.1",
+    "serwist": "9.5.13",
     "zod": "^4.6.7",
     "zustand": "^5.1.0"
   },
@@ -54,6 +57,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.3.0",
+    "esbuild": "0.28.2",
     "eslint": "^10",
     "eslint-config-next": "16.4.6",
     "jsdom": "^31.0.0",

@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
   // Preview e desenvolvimento não entram no Google.
   if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== 'production') return { rules: [{ userAgent: '*', disallow: '/' }] };
   return {
-    rules: [{ userAgent: '*', allow: '/', disallow: ['/api/', '/admin', '/organizador', '/minha-conta', '/notificacoes', '/disputas', '/entrar', '/cadastro', '/recuperar-senha', '/redefinir-senha', '/verificar-email', '/confirmar-email', '/convite/'] }],
+    rules: [{ userAgent: '*', allow: '/', disallow: ['/api/', '/admin', '/organizador', '/minha-conta', '/notificacoes', '/disputas', '/entrar', '/cadastro', '/recuperar-senha', '/redefinir-senha', '/verificar-email', '/confirmar-email', '/convite/', '/sem-conexao'] }],
     sitemap: `${SITE_URL}/sitemap.xml`,
     host: SITE_URL,
   };

@@ -1,3 +1,4 @@
+import { withSerwist } from '@serwist/turbopack';
 import { withBotId } from 'botid/next/config';
 import type { NextConfig } from 'next';
 
@@ -19,4 +20,5 @@ const nextConfig: NextConfig = {
 };
 
 // BotID (issue #69): rotas do desafio anti-bot servidas pelo próprio domínio.
-export default withBotId(nextConfig);
+// Serwist (issue #105): o esbuild que empacota o service worker fica fora do bundle do servidor.
+export default withBotId(withSerwist(nextConfig));

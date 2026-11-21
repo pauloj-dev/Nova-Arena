@@ -9,6 +9,7 @@ allowBuilds:
   msw: true
   prisma: true
   '@prisma/engines': true
+  '@swc/core': false
 minimumReleaseAgeExclude:
   - '@hookform/resolvers@7.0.6'
   - '@turbo/darwin-64@2.11.11'
