@@ -46,6 +46,7 @@ import { oauth } from './modules/oauth';
 import { databaseCheck, health, qstashCheck, redisCheck } from './modules/health';
 import { memoryLimiter, requireSameOrigin, upstashLimiter, type RateLimiter } from './security';
 import { adminArea } from './auth/admin';
+import { defaultNoStore } from './http-cache';
 import { adminModules } from './modules/admin';
 import { reports } from './modules/reports';
 import { site } from './modules/site';
@@ -119,6 +120,9 @@ export function createApp(options: CreateAppOptions = {}) {
     c.header('X-Request-Id', requestId);
     log.info('requisição', { method: c.req.method, path: c.req.path, status: c.res.status, durationMs: Math.round(performance.now() - started) });
   });
+
+  // Cache (#111): o que não escolheu um cache público (`http-cache.ts`) sai com `private, no-store`.
+  app.use(defaultNoStore);
 
   // CSRF: toda mutação precisa vir do próprio site (plano B1.2).
   app.use(requireSameOrigin);

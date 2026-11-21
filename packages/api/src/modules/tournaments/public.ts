@@ -17,6 +17,7 @@ import { badRequest, conflict, notFound } from '../../errors';
 import { assertTournamentAccess, currentRoles, tournamentAccessDecision } from '../../auth/rbac';
 import { currentSession, requireSession } from '../../auth/session';
 import { clientIp } from '../../security';
+import { EDGE_CACHE, noStore, publicCache } from '../../http-cache';
 import { revalidateTournaments } from '../../revalidate';
 import { accessRole, countsOf, toTournament, toTournamentSummary, tournamentInclude } from './views';
 
@@ -91,18 +92,24 @@ publicTournaments.get('/tournaments', async (c) => {
     const row = byId.get(k.id);
     return row ? [toTournamentSummary(row, counts.get(k.id))] : [];
   });
+  // A vitrine não depende de quem pede: cache público na borda.
+  publicCache(c, EDGE_CACHE.listing);
   return respond(c, page(TournamentSummary), { items, nextCursor: offset + f.limit < keys.length ? encodeCursor(offset + f.limit) : null, total: keys.length });
 });
 
 publicTournaments.get('/tournaments/:slug', async (c) => {
   const t = await findVisible(c, c.req.param('slug'));
   const counts = (await countsOf(c.get('deps').db(), [t.id])).get(t.id);
+  // Rascunho só chega aqui para a organização: nunca no cache compartilhado.
+  if (t.status === 'DRAFT') noStore(c);
+  else publicCache(c, EDGE_CACHE.listing);
   return respond(c, Tournament, toTournament(t, counts));
 });
 
 /** Papel de quem está vendo neste campeonato (ou nulo). Usado para o link "Gerenciar campeonato". */
 publicTournaments.get('/tournaments/:id/access', async (c) => {
   const t = await findVisible(c, c.req.param('id'));
+  noStore(c);
   return respond(c, TournamentAccess, { access: await viewerAccess(c, t) });
 });
 
@@ -119,6 +126,8 @@ async function toAnnouncements(c: AppContext, rows: AnnouncementRow[]): Promise<
 publicTournaments.get('/tournaments/:id/announcements', async (c) => {
   const t = await findVisible(c, c.req.param('id'));
   const rows = await c.get('deps').db().announcement.findMany({ where: { tournamentId: t.id }, orderBy: { createdAt: 'desc' }, take: 100 });
+  if (t.status === 'DRAFT') noStore(c);
+  else publicCache(c, EDGE_CACHE.listing);
   return respond(c, z.array(Announcement), await toAnnouncements(c, rows));
 });
 

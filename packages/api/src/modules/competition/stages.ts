@@ -18,6 +18,7 @@ import { body, respond, type AppContext, type AppEnv } from '../../context';
 import { badRequest, conflict, forbidden, notFound } from '../../errors';
 import { assertTournamentAccess } from '../../auth/rbac';
 import { requireSession } from '../../auth/session';
+import { EDGE_CACHE, isSettled, publicCache } from '../../http-cache';
 import { buildBracket, namesFor } from '../../competition/bracket';
 import { lockStage, publishStage, usersOfRegistrations, writeRun } from '../../competition/results';
 import { clearRun, engine, projectRun, readRun, snapshotOf, stageWithTournament, toEngineConfig, toEngineQualification } from '../../competition/run';
@@ -55,6 +56,8 @@ stages.get('/stages/:id/standings', async (c) => {
     const run = readRun(stage);
     return respond(c, Standings, await buildStandings(db, stage, run?.confirmed ? { run, state: await stateAt(db, stage.id, run, when) } : {}));
   }
+  // Ao vivo, a tabela vem do Redis (o tempo real manda buscar de novo a cada resultado): sem cache na borda.
+  if (isSettled(head.tournament.status)) publicCache(c, EDGE_CACHE.finished);
   return respond(c, Standings, await cachedStandings(db, c.get('deps').cache(c.get('env')), id, head.updatedAt, load));
 });
 

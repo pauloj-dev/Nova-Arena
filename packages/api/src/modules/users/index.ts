@@ -19,6 +19,7 @@ import { currentRoles } from '../../auth/rbac';
 import { requireSession } from '../../auth/session';
 import { canSeeGameAccounts } from '../../auth/visibility';
 import { revalidateUser } from '../../revalidate';
+import { EDGE_CACHE, publicCache } from '../../http-cache';
 import { loadMe, meInclude, toMe } from '../../views';
 
 /** Avatar recortado no navegador: data URL de imagem, com folga sobre os ~200 KB que a tela gera. */
@@ -169,6 +170,7 @@ async function findPublicUser(c: Parameters<typeof requireSession>[0], nickname:
 
 users.get('/users/:nickname', async (c) => {
   const user = await findPublicUser(c, c.req.param('nickname'));
+  publicCache(c, EDGE_CACHE.profile);
   // Montado campo a campo: nada de e-mail, data de nascimento ou IDs de jogo escapa por engano.
   return respond(c, PublicUser, {
     id: user.id,

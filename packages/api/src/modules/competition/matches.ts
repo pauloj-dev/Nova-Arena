@@ -29,6 +29,7 @@ import { checkInOf } from '../tournaments/views';
 import { scheduleMatchJobs } from '../../jobs/matches';
 import { revalidateTournaments } from '../../revalidate';
 import { clientIp } from '../../security';
+import { EDGE_CACHE, isSettled, visitorCache } from '../../http-cache';
 
 /** Sem janela de check-in, a sala aparece 15 min antes do horário. */
 const REVEAL_WITHOUT_CHECKIN_MS = 15 * 60_000;
@@ -85,6 +86,8 @@ matches.get('/tournaments/:id/matches', async (c) => {
   const t = await db.tournament.findFirst({ where: /^[0-9a-f-]{36}$/i.test(id) ? { id } : { slug: id }, select: { id: true, ownerId: true, status: true } });
   if (!t || (t.status === 'DRAFT' && !(await staffOf(c, t)))) throw notFound('Campeonato');
   let list = await listMatches(db, t.id, c.req.query('stageId') ?? null);
+  // `mine=1` depende de quem pede; a lista completa de um campeonato encerrado não muda mais.
+  if (c.req.query('mine') !== '1' && isSettled(t.status)) visitorCache(c, EDGE_CACHE.finished);
   if (c.req.query('mine') === '1') {
     const session = await currentSession(c);
     const reg = session ? await myRegistration(c, t.id, session.userId) : null;
