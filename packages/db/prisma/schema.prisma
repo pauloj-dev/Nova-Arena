@@ -238,6 +238,7 @@ model User {
   oauthAccounts        OAuthAccount[]
   uploads              Upload[]
   twoFactor            TwoFactor?
+  pushSubscriptions    PushSubscription[]
   emailTokens          EmailToken[]
   gameAccounts         GameAccount[]
   organizerRequests    OrganizerRequest[]
@@ -323,6 +324,8 @@ model TwoFactor {
   enabledAt         DateTime? @db.Timestamptz(3)
   /// Hash de cada código de recuperação (uso único).
   recoveryCodesHash String[]
+  /// Último passo de 30 s aceito: o mesmo código não entra duas vezes (proteção contra repetição).
+  lastUsedStep      Int?
   createdAt         DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
 
@@ -1073,7 +1076,11 @@ model Notification {
   body        String
   link        String?
   readAt      DateTime?        @db.Timestamptz(3)
+  /// Falso quando a pessoa desligou o aviso no site para este tipo: o registro existe só para o e-mail/push.
+  inApp       Boolean          @default(true)
   emailSentAt DateTime?        @db.Timestamptz(3)
+  /// Push (Web Push, issue #109) já enviado: a mensagem repetida do QStash não manda de novo.
+  pushSentAt  DateTime?        @db.Timestamptz(3)
   createdAt   DateTime         @default(now()) @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1087,11 +1094,30 @@ model NotificationPreference {
   type   NotificationType
   inApp  Boolean          @default(true)
   email  Boolean          @default(true)
+  /// Notificação push no aparelho (PWA, issue #109). Só chega a quem assinou o push.
+  push   Boolean          @default(true)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, type])
   @@map("notification_preferences")
+}
+
+/// Assinatura de Web Push de um aparelho (issue #109). O `endpoint` é do serviço de push do navegador.
+model PushSubscription {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  lastUsedAt DateTime? @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model Achievement {

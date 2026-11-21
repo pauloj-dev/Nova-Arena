@@ -23,6 +23,7 @@ import { assertStrongPassword } from '../../auth/password-policy';
 import type { OAuthProfile } from '../../auth/oauth';
 import { nicknameBase } from '../../auth/oauth';
 import { currentSession, requireSession, startSession } from '../../auth/session';
+import { startTwoFactorChallenge, twoFactorEnabled } from '../../auth/two-factor';
 
 const FLOW_COOKIE = 'na_oauth';
 const FLOW_PATH = '/api/v1/auth/oauth';
@@ -153,6 +154,12 @@ oauth.get('/auth/oauth/:provider/callback', async (c) => {
   if (user.status === 'BANNED') return fail(c, 'conta_banida');
   if (user.status === 'SUSPENDED') return fail(c, 'conta_suspensa');
   if (user.status !== 'ACTIVE') return fail(c, 'oauth_falhou');
+  // 2FA ativo (issue #95): o provedor substitui só a senha; o código continua sendo pedido na tela de entrar.
+  if (await twoFactorEnabled(c.get('deps').db(), user.id)) {
+    await startTwoFactorChallenge(c, user);
+    const next = flow.next ? `&next=${encodeURIComponent(flow.next)}` : '';
+    return c.redirect(`/entrar?etapa=codigo${next}`, 302);
+  }
   await startSession(c, user);
   // Conta nova completa a data de nascimento (idade mínima, ADR-0001 Q5) em "Minha conta".
   return c.redirect(created ? '/minha-conta?completar=1' : (flow.next ?? '/'), 302);

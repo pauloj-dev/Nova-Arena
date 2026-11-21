@@ -8,8 +8,10 @@
  * - `devVerifyToken`/`devResetToken` só voltam fora de produção (`VERCEL_ENV !== 'production'`), até os
  *   e-mails reais da issue #80; em produção esses campos nunca vão na resposta.
  * - A flag `publicSignup` passa a valer quando as flags forem para o Edge Config (issue #94).
+ * - Login com 2FA (issue #95): para quem tem 2FA ativo, `POST /auth/login` responde 202 `{ twoFactorRequired: true }`
+ *   sem abrir sessão; o código (ou um de recuperação) vai em `POST /auth/2fa/verify`, que abre a sessão com `tfa`.
  */
-import { ForgotPasswordInput, ForgotPasswordResponse, LoginInput, Me, Ok, RegisterInput, RegisterResponse, ResendVerificationResponse, ResetPasswordInput, VerifyEmailInput } from '@nova/schemas';
+import { ForgotPasswordInput, ForgotPasswordResponse, LoginInput, Me, Ok, RegisterInput, RegisterResponse, ResendVerificationResponse, ResetPasswordInput, TwoFactorChallenge, TwoFactorVerifyInput, VerifyEmailInput } from '@nova/schemas';
 import { Hono } from 'hono';
 import { body, respond, type AppContext, type AppEnv } from '../../context';
 import { conflict, HttpProblem } from '../../errors';
@@ -18,6 +20,8 @@ import { hashPassword, verifyPassword } from '../../auth/crypto';
 import { createEmailToken, linkFor, useEmailToken } from '../../auth/email-tokens';
 import { assertStrongPassword } from '../../auth/password-policy';
 import { currentSession, endSession, loginGuard, requireSession, revokeAllSessions, rotateSession, startSession } from '../../auth/session';
+import { clearTwoFactorChallenge, readTwoFactorChallenge, startTwoFactorChallenge, verifyTwoFactorCode } from '../../auth/two-factor';
+import { publish } from '../../notify';
 import { clientIp, enforceLimit, RULES } from '../../security';
 import { loadMe, meInclude, toMe } from '../../views';
 
@@ -76,9 +80,36 @@ auth.post('/auth/login', async (c) => {
   const ok = await verifyPassword(user?.passwordHash, input.password);
   if (!user || !ok) throw new HttpProblem(401, 'E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
   loginGuard(user);
+  // 2FA ativo: a senha só leva ao passo do código; a sessão abre em `/auth/2fa/verify`.
+  if (user.twoFactor?.enabledAt) {
+    await startTwoFactorChallenge(c, user);
+    return respond(c, TwoFactorChallenge, { twoFactorRequired: true as const }, 202);
+  }
   await db().user.update({ where: { id: user.id }, data: { lastSeenAt: now() } });
   await startSession(c, user);
   return respond(c, Me, toMe(user));
+});
+
+/**
+ * Segundo passo do login: o código do aplicativo ou um código de recuperação (gasto na hora). Sem o passo
+ * pendente (venceu em 5 min, ou a senha mudou nesse meio-tempo) → 401 `TWO_FACTOR_CHALLENGE_EXPIRED`.
+ */
+auth.post('/auth/2fa/verify', async (c) => {
+  const { db, now } = c.get('deps');
+  const challenge = await readTwoFactorChallenge(c);
+  const user = challenge ? await db().user.findUnique({ where: { id: challenge.userId }, include: meInclude }) : null;
+  if (!challenge || !user || user.sessionVersion !== challenge.sessionVersion) {
+    clearTwoFactorChallenge(c);
+    throw new HttpProblem(401, 'O tempo para informar o código acabou. Entre de novo com e-mail e senha.', 'TWO_FACTOR_CHALLENGE_EXPIRED');
+  }
+  loginGuard(user);
+  const { code } = await body(c, TwoFactorVerifyInput);
+  const method = await verifyTwoFactorCode(c, user.id, code);
+  if (method === 'recovery') c.get('log').info('login com código de recuperação do 2FA', { userId: user.id });
+  clearTwoFactorChallenge(c);
+  await db().user.update({ where: { id: user.id }, data: { lastSeenAt: now() } });
+  await startSession(c, user, { twoFactorVerified: true });
+  return respond(c, Me, await loadMe(db(), user.id));
 });
 
 /** Troca o refresh token (rotação) e devolve a conta. Reuso de token já trocado derruba a família. */
@@ -135,6 +166,8 @@ auth.post('/auth/reset-password', async (c) => {
   const record = await useEmailToken(c, token, 'RESET', 'Este link de redefinição é inválido ou já foi usado.');
   await db().user.update({ where: { id: record.userId }, data: { passwordHash: await hashPassword(password) } });
   await revokeAllSessions(db(), record.userId, now());
+  // As telas abertas em outros aparelhos voltam para visitante na hora (canal `user:{id}`).
+  await publish(c, `user:${record.userId}`, { type: 'session.revoked', reason: 'PASSWORD_RESET' });
   return respond(c, Ok, { ok: true as const });
 });
 

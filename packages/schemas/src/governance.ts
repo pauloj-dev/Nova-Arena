@@ -433,3 +433,14 @@ export const TwoFactorDisableInput = z.object({ code: z.string().trim().min(6, '
 /** Só no protótipo: o código atual, para a demonstração funcionar sem aplicativo autenticador. */
 export const TwoFactorDevCode = z.object({ code: z.string(), expiresInSeconds: z.number().int() });
 export const TwoFactorResetInput = z.object({ reason: z.string().trim().min(5, 'Informe o motivo').max(500) });
+
+// ── Login com 2FA (issue #95) ────────────────────────────────────────
+/**
+ * Resposta de `POST /auth/login` para quem tem 2FA ativo: a sessão ainda não existe. O passo fica num cookie
+ * `httpOnly` de 5 minutos e o código é confirmado em `POST /auth/2fa/verify`.
+ */
+export const TwoFactorChallenge = z.object({ twoFactorRequired: z.literal(true) });
+export type TwoFactorChallenge = z.infer<typeof TwoFactorChallenge>;
+/** Código do aplicativo (6 dígitos) ou um código de recuperação (`xxxx-xxxx`). */
+export const TwoFactorVerifyInput = z.object({ code: z.string().trim().min(6, 'Informe o código').max(20) });
+export type TwoFactorVerifyInput = z.infer<typeof TwoFactorVerifyInput>;

@@ -82,3 +82,26 @@ describe('envio', () => {
     expect(JSON.stringify(log.mock.calls)).not.toContain('abc123');
   });
 });
+
+describe('avisos por e-mail (notificações, issue #98)', () => {
+  const TYPES = ['REGISTRATION_CONFIRMED', 'TEAM_INVITE', 'CHECKIN_OPEN', 'MATCH_SOON', 'RESULT_POSTED', 'QUALIFIED', 'ELIMINATED', 'ANNOUNCEMENT', 'ORGANIZER_REQUEST_RESULT', 'DISPUTE_UPDATE', 'SANCTION'];
+  const PREFS = 'https://novaarena.gg/minha-conta/notificacoes';
+
+  it.each(TYPES)('%s: assunto com o tipo e o título, texto, botão para o link e como parar de receber', async (type) => {
+    const email = await renderEmail({ template: 'NOTIFICATION', data: { type, nickname: 'Bianca', title: 'Check-in aberto', body: 'Sua partida começa em breve.', link: LINK, preferencesLink: PREFS } });
+    expect(email.subject).toMatch(/: Check-in aberto$/);
+    expect(email.subject).not.toMatch(/^Aviso:/);
+    expect(email.html).toContain(`href="${LINK}"`);
+    expect(email.html).toContain(`href="${PREFS}"`);
+    expect(email.text).toContain('Sua partida começa em breve.');
+    expect(email.text).toContain('Oi, Bianca!');
+    // O "se não foi você" é para e-mails de conta; aviso diz como parar de receber.
+    expect(email.text).not.toContain('Se não foi você');
+  });
+
+  it('aviso da moderação diz que não pode ser desligado', async () => {
+    const email = await renderEmail({ template: 'NOTIFICATION', data: { type: 'SANCTION', nickname: 'Bianca', title: 'Advertência', body: 'Linguagem ofensiva.', link: LINK, preferencesLink: PREFS } });
+    expect(email.subject).toBe('Aviso da moderação: Advertência');
+    expect(email.text).toContain('Avisos da moderação são sempre enviados.');
+  });
+});

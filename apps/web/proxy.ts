@@ -4,6 +4,7 @@
  *
  * - Sem token válido → `/entrar?next=…` (se a sessão só venceu, a tela de entrar renova e volta sozinha).
  * - Token sem o papel da área → página inicial.
+ * - `/admin` sem o 2FA feito nesta sessão (`tfa` no token) → `/minha-conta/seguranca`.
  * - Com a API simulada (protótipo) a sessão vive no navegador: a borda não tem o que conferir e deixa passar.
  */
 import { ACCESS_COOKIE, edgeRedirect, readAccessClaims } from '@nova/api/edge';
@@ -24,6 +25,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(target);
   }
   if (decision === 'forbidden') return NextResponse.redirect(new URL('/', request.url));
+  // Admin sem a verificação em duas etapas feita nesta sessão (issue #95): configurar ou entrar de novo com o código.
+  if (decision === 'two-factor') return NextResponse.redirect(new URL('/minha-conta/seguranca', request.url));
   return NextResponse.next();
 }
 
