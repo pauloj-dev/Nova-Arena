@@ -1201,11 +1201,11 @@ describe('configurações, flags e saúde do sistema', () => {
 
   it('flag alterada no painel muda GET /site/flags', async () => {
     as(null);
-    expect(FeatureFlags.parse((await call('GET', '/site/flags')).data)).toEqual({ ranking: true, publicSignup: true, resultSubmission: true, pushNotifications: false });
+    expect(FeatureFlags.parse((await call('GET', '/site/flags')).data)).toEqual({ ranking: true, publicSignup: true, resultSubmission: true, pushNotifications: false, resultOcr: false });
 
     as(ANA);
     const flags = z.array(FeatureFlag).parse((await call('GET', '/admin/flags')).data);
-    expect(flags.map((f) => f.key)).toEqual(['ranking', 'publicSignup', 'resultSubmission', 'pushNotifications']);
+    expect(flags.map((f) => f.key)).toEqual(['ranking', 'publicSignup', 'resultSubmission', 'pushNotifications', 'resultOcr']);
     expect((await call('PUT', '/admin/flags/ranking', { enabled: false })).status).toBe(403);
 
     as(RAFAEL);
