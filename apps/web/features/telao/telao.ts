@@ -4,6 +4,8 @@
  */
 import type { Bracket, Match, Stage, StandingRow, Standings } from '@nova/schemas';
 import { bracketSides, defaultRound, isEliminationFormat, stageRounds } from '@/features/brackets/rounds';
+import { getT } from '@/shared/i18n/core';
+import { messages } from './messages';
 
 export type TelaoView = 'tabela' | 'chave';
 export type TelaoTheme = 'claro' | 'escuro';
@@ -79,7 +81,7 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
   return out;
 }
 
-const partLabel = (label: string, part: number, parts: number) => (parts > 1 ? `${label} · parte ${part} de ${parts}` : label);
+const partLabel = (label: string, part: number, parts: number) => (parts > 1 ? getT(messages, 'telao')('parte', { label, part, parts }) : label);
 
 export interface StandingsPage {
   key: string;
@@ -92,12 +94,13 @@ export interface StandingsPage {
  * `ROWS_PER_PAGE` linhas. A chave da página é estável entre atualizações, para a animação de posição.
  */
 export function standingsPages(standings: Pick<Standings, 'groups' | 'overall'>, rowsPerPage = ROWS_PER_PAGE): StandingsPage[] {
-  const groups = standings.groups.length > 0 ? standings.groups : [{ groupId: null, name: 'Classificação', rows: standings.overall }];
+  const t = getT(messages, 'telao');
+  const groups = standings.groups.length > 0 ? standings.groups : [{ groupId: null, name: t('classificacao'), rows: standings.overall }];
   const pages: StandingsPage[] = [];
   for (const group of groups) {
     if (group.rows.length === 0) continue;
     const parts = chunk(group.rows, rowsPerPage);
-    const name = groups.length > 1 ? group.name : 'Classificação geral';
+    const name = groups.length > 1 ? group.name : t('classificacaoGeral');
     parts.forEach((rows, i) => pages.push({ key: `${group.groupId ?? 'geral'}-${i}`, label: partLabel(name, i + 1, parts.length), rows }));
   }
   return pages;

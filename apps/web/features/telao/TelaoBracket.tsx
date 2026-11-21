@@ -5,9 +5,12 @@ import { cn, StatusPill } from '@nova/ui';
 import { Trophy } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { MATCH_STATUS_PILL_LABEL, isConcluded, slotText } from '@/features/matches/matchText';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 import type { BracketPage } from './telao';
 
 function DuelSide({ p }: { p: MatchParticipant }) {
+  const t = useT(messages, 'TelaoBracket');
   const known = p.registrationId !== null;
   const won = p.isWinner === true;
   return (
@@ -18,7 +21,7 @@ function DuelSide({ p }: { p: MatchParticipant }) {
       {won && (
         <>
           <Trophy className="size-5 shrink-0 md:size-6" aria-hidden />
-          <span className="sr-only">vencedor</span>
+          <span className="sr-only">{t('vencedor')}</span>
         </>
       )}
       <span className={cn('tabular w-10 shrink-0 text-right text-xl md:text-3xl', won ? 'font-bold' : 'text-muted')}>{p.isBye ? '' : (p.score ?? '–')}</span>
@@ -27,15 +30,17 @@ function DuelSide({ p }: { p: MatchParticipant }) {
 }
 
 function LobbyBody({ match }: { match: Match }) {
+  const t = useT(messages, 'TelaoBracket');
   const booyah = match.participants.find((p) => p.placement === 1 && !p.absent);
   const present = match.participants.filter((p) => p.registrationId !== null);
+  const booyahText = booyah ? t.rich('booyah', { name: booyah.name, nome: (chunks) => <span className="truncate">{chunks}</span> }) : null;
   return (
     <div className="flex flex-col gap-1 text-lg md:text-2xl">
-      <p className="text-muted">{present.length} squads na sala</p>
+      <p className="text-muted">{t('squadsNaSala', { count: present.length })}</p>
       {isConcluded(match) && booyah && (
         <p className="flex items-center gap-2 font-semibold">
           <Trophy className="size-5 shrink-0 text-gold-soft-text md:size-6" aria-hidden />
-          Booyah: <span className="truncate">{booyah.name}</span>
+          {booyahText}
         </p>
       )}
     </div>
@@ -43,10 +48,11 @@ function LobbyBody({ match }: { match: Match }) {
 }
 
 function MatchCard({ match }: { match: Match }) {
+  const t = useT(messages, 'TelaoBracket');
   return (
     <li className="flex flex-col gap-1.5 rounded-lg border border-border bg-surface p-2 md:p-3" data-testid="telao-partida">
       <div className="flex items-center justify-between gap-2 text-sm text-muted md:text-base">
-        <span className="truncate">{match.kind === 'LOBBY' ? (match.groupName ?? match.roundLabel) : match.bestOf > 1 ? `MD${match.bestOf}` : ''}</span>
+        <span className="truncate">{match.kind === 'LOBBY' ? (match.groupName ?? match.roundLabel) : match.bestOf > 1 ? t('melhorDe', { bestOf: match.bestOf }) : ''}</span>
         <StatusPill status={match.status} label={MATCH_STATUS_PILL_LABEL[match.status]} />
       </div>
       {match.kind === 'LOBBY' ? <LobbyBody match={match} /> : match.participants.map((p, i) => <DuelSide key={p.registrationId ?? `vaga-${i}`} p={p} />)}
