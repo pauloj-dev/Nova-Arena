@@ -97,7 +97,8 @@ export function DataTable<T>({
       )}
 
       {/* Tabela: a partir de 768 px */}
-      <div className="hidden overflow-x-auto rounded-lg border border-border bg-surface md:block">
+      {/* `relative`: os textos só para leitor de tela (`sr-only`, absolutos) ficam presos à rolagem da tabela, sem alargar a página. */}
+      <div className="relative hidden overflow-x-auto rounded-lg border border-border bg-surface md:block">
         <table className="w-full border-collapse text-sm">
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-surface-2 text-left">

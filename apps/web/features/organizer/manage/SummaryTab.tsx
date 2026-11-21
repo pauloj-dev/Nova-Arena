@@ -20,7 +20,16 @@ import { Confetti } from '../operation/Confetti';
 import { FinishDialog } from '../operation/FinishDialog';
 import { ReasonDialog } from '../operation/ReasonDialog';
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+/** `side`: na coluna estreita ao lado, rótulo e valor dividem a linha sem largura fixa (não vaza do cartão). */
+function Row({ label, children, side = false }: { label: string; children: ReactNode; side?: boolean }) {
+  if (side) {
+    return (
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+        <dt className="text-sm text-muted">{label}</dt>
+        <dd className="min-w-0 text-sm text-text">{children}</dd>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-0.5 xs:flex-row xs:gap-3">
       <dt className="shrink-0 text-sm text-muted xs:w-48">{label}</dt>
@@ -245,9 +254,9 @@ export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate 
           <h2 className="text-lg">Vagas</h2>
           <Progress value={t.takenSlots} max={t.maxParticipants} label="Vagas ocupadas" />
           <dl className="flex flex-col gap-2">
-            <Row label="Aprovação">{t.manualApproval ? 'Manual' : 'Automática'}</Row>
-            <Row label="Aguardando aprovação">{t.pendingApprovals}</Row>
-            <Row label="Lista de espera">{t.waitlistEnabled ? `${t.waitlistCount} na fila` : 'Desligada'}</Row>
+            <Row side label="Aprovação">{t.manualApproval ? 'Manual' : 'Automática'}</Row>
+            <Row side label="Aguardando aprovação">{t.pendingApprovals}</Row>
+            <Row side label="Lista de espera">{t.waitlistEnabled ? `${t.waitlistCount} na fila` : 'Desligada'}</Row>
           </dl>
         </Card>
 
