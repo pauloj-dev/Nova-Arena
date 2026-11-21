@@ -1,5 +1,5 @@
 /**
- * Conteúdo da central de ajuda (issue #110). Escrito para o jogador e para o organizador, seguindo as regras do
+ * Conteúdo da central de ajuda (issue 110). Escrito para o jogador e para o organizador, seguindo as regras do
  * PRD (§6 e §10) e de `docs/regras-de-negocio.md`. Cada pergunta tem um `id` estável, usado como âncora (`/ajuda#id`),
  * para que telas e e-mails possam apontar direto para a resposta.
  */

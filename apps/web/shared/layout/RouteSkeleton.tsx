@@ -3,7 +3,7 @@ import { cn, Skeleton } from '@nova/ui';
 export type RouteSkeletonVariant = 'inicio' | 'lista' | 'detalhe' | 'tabela' | 'formulario' | 'texto' | 'painel' | 'auth';
 
 /**
- * Esqueleto de carregamento de cada rota (`loading.tsx`, issue #107): o formato do conteúdo que vem, nunca um
+ * Esqueleto de carregamento de cada rota (`loading.tsx`, issue 107): o formato do conteúdo que vem, nunca um
  * spinner de tela cheia (PRD §15.8). É o `<main id="conteudo">` da página enquanto ela carrega, para o
  * "Pular para o conteúdo" funcionar, e avisa o leitor de tela (`role="status"`) sem roubar o foco.
  */

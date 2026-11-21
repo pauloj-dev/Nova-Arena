@@ -28,7 +28,7 @@ function Window({ item }: { item: SiteBannerItem }) {
 }
 
 /**
- * Página de manutenção (issue #110, RNF-05): mostra a manutenção em andamento, as programadas (que aparecem
+ * Página de manutenção (issue 110, RNF-05): mostra a manutenção em andamento, as programadas (que aparecem
  * no aviso do topo do site 48 h antes) ou que está tudo funcionando. É também para onde o site aponta durante
  * uma janela de manutenção.
  */

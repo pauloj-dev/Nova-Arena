@@ -6,7 +6,7 @@ import { useState, useSyncExternalStore } from 'react';
 import { getInstallSnapshot, getServerInstallSnapshot, promptInstall, subscribeInstall } from './install';
 
 /**
- * Botão "Instalar app" (issue #105). Só aparece quando dá para instalar: no Android/Chrome abre o aviso do
+ * Botão "Instalar app" (issue 105). Só aparece quando dá para instalar: no Android/Chrome abre o aviso do
  * navegador; no iPhone/iPad mostra o passo a passo do Safari. Aberto como app instalado, some.
  */
 export function InstallAppButton({ variant = 'secondary', size = 'sm', className }: Pick<ButtonProps, 'variant' | 'size' | 'className'>) {

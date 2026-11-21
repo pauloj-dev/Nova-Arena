@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 
 /**
- * Manifesto do PWA (issue #105, RNF-12): instalável no Android (Chrome/Edge) e no iOS (Safari, "Adicionar à Tela
+ * Manifesto do PWA (issue 105, RNF-12): instalável no Android (Chrome/Edge) e no iOS (Safari, "Adicionar à Tela
  * de Início", que usa também o `app/apple-icon.png`). Ícones gerados por `scripts/brand-assets.mts`.
  */
 export default function manifest(): MetadataRoute.Manifest {

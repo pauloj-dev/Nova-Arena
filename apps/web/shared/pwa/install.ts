@@ -1,5 +1,5 @@
 /**
- * Estado da instalação do PWA (issue #105), num store externo para o `useSyncExternalStore`.
+ * Estado da instalação do PWA (issue 105), num store externo para o `useSyncExternalStore`.
  *
  * - Android/Chrome/Edge: o navegador dispara `beforeinstallprompt`; guardamos o evento e mostramos o nosso botão
  *   "Instalar app" (o aviso automático do navegador fica para depois, por `preventDefault`).

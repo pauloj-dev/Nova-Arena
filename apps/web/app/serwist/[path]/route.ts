@@ -1,5 +1,5 @@
 /**
- * Serve o service worker do PWA (`/serwist/sw.js` e o mapa) — issue #105. O Serwist empacota `sw/sw.ts` com esbuild
+ * Serve o service worker do PWA (`/serwist/sw.js` e o mapa) — issue 105. O Serwist empacota `sw/sw.ts` com esbuild
  * no build e injeta a lista de pré-carregamento (os estáticos com hash do Next e os ícones). Nada de `/api` entra nela.
  */
 import { randomUUID } from 'node:crypto';

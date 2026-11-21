@@ -42,7 +42,7 @@ export function UpdateNotice({ onUpdate, onLater, updating }: UpdateNoticeProps)
 }
 
 /**
- * Registra o service worker do PWA (issue #105) e avisa quando há uma versão nova esperando.
+ * Registra o service worker do PWA (issue 105) e avisa quando há uma versão nova esperando.
  * A versão nova só assume quando a pessoa toca em "Atualizar" (o worker espera; ver `sw/sw.ts`).
  *
  * Fica desligado com a API simulada: o MSW ocupa o mesmo escopo (`/`) com o próprio worker (`isPwaEnabled`).

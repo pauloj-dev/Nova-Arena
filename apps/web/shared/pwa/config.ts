@@ -1,5 +1,5 @@
 /**
- * Quando o service worker do PWA é registrado (issue #105).
+ * Quando o service worker do PWA é registrado (issue 105).
  *
  * - Com qualquer módulo da API simulado (`NEXT_PUBLIC_API_MOCK` diferente de `none`), **não**: o MSW registra o
  *   próprio worker (`/mockServiceWorker.js`) no mesmo escopo `/`, e só pode haver um worker por escopo.

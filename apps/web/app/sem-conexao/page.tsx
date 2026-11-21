@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * Página offline do PWA (issue #105). Pré-carregada pelo service worker e mostrada quando uma tela é aberta sem
+ * Página offline do PWA (issue 105). Pré-carregada pelo service worker e mostrada quando uma tela é aberta sem
  * internet. Não depende da API: nada de campeonato, resultado ou conta fica guardado no aparelho.
  */
 export default function OfflinePage() {

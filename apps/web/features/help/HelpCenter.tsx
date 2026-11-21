@@ -8,7 +8,7 @@ import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { FAQ, filterFaq } from './faq';
 
 /**
- * Central de ajuda (issue #110): perguntas frequentes por assunto, com busca. Cada resposta é um
+ * Central de ajuda (issue 110): perguntas frequentes por assunto, com busca. Cada resposta é um
  * `<details>` nativo (abre e fecha pelo teclado, sem script) e tem âncora própria (`/ajuda#check-in`).
  */
 export function HelpCenter() {

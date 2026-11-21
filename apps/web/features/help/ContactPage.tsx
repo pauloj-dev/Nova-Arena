@@ -14,7 +14,7 @@ const OUTROS_CAMINHOS = [
 ];
 
 /**
- * Contato com o suporte (issue #110). O e-mail vem das configurações do site (`GET /site/settings`), que o
+ * Contato com o suporte (issue 110). O e-mail vem das configurações do site (`GET /site/settings`), que o
  * Super Admin edita em Configurações — nada fica fixo no código.
  */
 export function ContactPage() {
