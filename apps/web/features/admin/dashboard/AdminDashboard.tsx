@@ -5,7 +5,7 @@ import { CheckCircle2, Flag, Gavel, Star, Swords, Target, Trophy, UserPlus, User
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
-import { useAdminStats } from '@/shared/api/hooks/admin';
+import { useAdminStats, useProductMetrics } from '@/shared/api/hooks/admin';
 import { useAuditLogs } from '@/shared/api/hooks/admin-audit';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { AuditTimeline } from '../audit/AuditTimeline';
@@ -13,6 +13,7 @@ import { formatDayLong, formatNumber, formatPercent, plural } from '../common/fo
 import { ChartCard } from './ChartCard';
 import { DailyAreaChart, DailyBarChart, GameBarChart } from './charts';
 import { KpiCard } from './KpiCard';
+import { ProductMetricsSection } from './ProductMetricsSection';
 
 const RANGES = [7, 30, 90] as const;
 type RangeDays = (typeof RANGES)[number];
@@ -31,6 +32,7 @@ export function AdminDashboard() {
   const [days, setDays] = useState<RangeDays>(30);
   const range = useMemo(() => rangeOf(days), [days]);
   const stats = useAdminStats(range);
+  const metrics = useProductMetrics(range);
   const recent = useAuditLogs({ page: 1 });
   const s = stats.data;
   const num = (value: number | undefined) => (value === undefined ? undefined : formatNumber(value));
@@ -99,6 +101,8 @@ export function AdminDashboard() {
             <CheckCircle2 className="mr-1 inline size-3.5 align-text-bottom" aria-hidden />
             Partidas validadas na semana é o indicador principal da Nova Arena: mostra campeonatos acontecendo, gente comparecendo e resultado conferido.
           </p>
+
+          <ProductMetricsSection data={metrics.data} loading={metrics.isPending} failed={metrics.isError} onRetry={() => void metrics.refetch()} />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ChartCard

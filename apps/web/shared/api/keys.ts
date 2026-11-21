@@ -62,6 +62,7 @@ export const keys = {
   admin: {
     all: ['admin'] as const,
     stats: (params?: Params) => ['admin', 'stats', params ?? {}] as const,
+    metrics: (params?: Params) => ['admin', 'metrics', params ?? {}] as const,
     users: (params?: Params) => ['admin', 'users', params ?? {}] as const,
     user: (id: string) => ['admin', 'user', id] as const,
     admins: ['admin', 'admins'] as const,
