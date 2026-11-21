@@ -27,7 +27,7 @@ export async function lockTournament(tx: Tx, id: string): Promise<TournamentForR
 }
 
 export const registrationInclude = {
-  members: { include: { user: { select: { nickname: true, avatarUrl: true } } }, orderBy: { createdAt: 'asc' } },
+  members: { include: { user: { select: { nickname: true, avatarUrl: true } } }, orderBy: [{ isCaptain: 'desc' }, { createdAt: 'asc' }, { userId: 'asc' }] },
   team: { select: { name: true, tag: true, logoUrl: true, captainId: true } },
   user: { select: { nickname: true, avatarUrl: true } },
 } satisfies Prisma.RegistrationInclude;
