@@ -28,6 +28,7 @@ import { revalidateTournaments, revalidateUser } from '../../revalidate';
 import { toRegistration, tournamentForRegistration } from '../registrations/core';
 import { auditCtx, isUuid } from './access';
 import { EDGE_CACHE, noStore, publicCache } from '../../http-cache';
+import { messages } from '../../messages/pt-BR';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -113,7 +114,7 @@ closing.post('/registrations/:id/withdraw', async (c) => {
   }
   if (input.kind === 'DISQUALIFIED') {
     const users = await usersOfRegistrations(db, [reg.id]);
-    await notify(c, users.get(reg.id) ?? [], { type: 'ELIMINATED', title: 'Você foi desclassificado', body: `${t.name}: ${input.reason}`, link: `/c/${t.slug}` });
+    await notify(c, users.get(reg.id) ?? [], { type: 'ELIMINATED', title: messages.competition.disqualified.title, body: messages.competition.disqualified.body(t.name, input.reason), link: `/c/${t.slug}` });
   }
   revalidateTournaments(c);
   const tView = await db.tournament.findUniqueOrThrow({ where: { id: t.id }, include: tournamentForRegistration });
@@ -198,8 +199,8 @@ closing.post('/tournaments/:id/finish', async (c) => {
   const players = await usersOfRegistrations(db, confirmed.map((r) => r.id));
   await notify(c, [...[...players.values()].flat(), ...(await followersOf(db, 'TOURNAMENT', t.id))], {
     type: 'ELIMINATED',
-    title: `${t.name} terminou`,
-    body: `Campeão: ${podium.places[0]?.name ?? '—'}. Veja o resultado final.`,
+    title: messages.competition.finished.title(t.name),
+    body: messages.competition.finished.body(podium.places[0]?.name),
     link: `/c/${t.slug}`,
   });
   await publish(c, `tournament:${t.id}`, { type: 'tournament.updated', tournamentId: t.id });

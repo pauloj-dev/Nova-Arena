@@ -39,6 +39,7 @@ import { isFlagEnabled } from '../site';
 import { notify, publish } from '../../notify';
 import { revalidateTournaments } from '../../revalidate';
 import { auditCtx, isUuid, staffVia } from '../competition/access';
+import { messages } from '../../messages/pt-BR';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 type SubmissionStatusT = z.infer<typeof SubmissionStatus>;
@@ -333,8 +334,8 @@ submissions.post('/matches/:id/submissions', async (c) => {
     return row;
   });
 
-  const nick = (await nicknames(db, [session.userId])).get(session.userId) ?? 'Seu adversário';
-  await notify(c, await involvedUsers(db, [opponentId]), { type: 'RESULT_POSTED', title: 'Confirme o resultado da sua partida', body: `${nick} enviou o placar de ${ctx.label} (${t.name}). Você tem 30 minutos para confirmar ou contestar.`, link: matchesLink(t.slug) });
+  const nick = (await nicknames(db, [session.userId])).get(session.userId);
+  await notify(c, await involvedUsers(db, [opponentId]), { type: 'RESULT_POSTED', title: messages.submissions.toConfirm.title, body: messages.submissions.toConfirm.body(nick, ctx.label, t.name), link: matchesLink(t.slug) });
   await publish(c, `tournament:${t.id}`, { type: 'match.updated', matchId: ctx.row.id, stageId: ctx.stage.id, status: 'AWAITING_VALIDATION' });
   return respond(c, ResultSubmission, await toSubmission(db, created), 201);
 });
@@ -361,8 +362,8 @@ submissions.post('/submissions/:id/confirm', async (c) => {
   const { count } = await db.resultSubmission.updateMany({ where: { id: s.id, status: 'PENDING' }, data: { status: 'CONFIRMED', confirmedById: session.userId } });
   if (count === 0) throw conflict('Este envio já foi respondido.', 'SUBMISSION_NOT_PENDING');
   const t = await db.tournament.findUniqueOrThrow({ where: { id: p.tournamentId }, select: { id: true, slug: true } });
-  await notify(c, await involvedUsers(db, [p.submittedByRegistrationId]), { type: 'RESULT_POSTED', title: 'O adversário confirmou o resultado', body: `${p.matchLabel} (${p.tournamentName}) agora aguarda a validação da organização.`, link: matchesLink(t.slug) });
-  await notify(c, await staffUserIds(db, t.id), { type: 'RESULT_POSTED', title: 'Resultado para validar', body: `${p.matchLabel} (${p.tournamentName}): os dois lados concordam com o placar enviado.`, link: manageLink(t.id) });
+  await notify(c, await involvedUsers(db, [p.submittedByRegistrationId]), { type: 'RESULT_POSTED', title: messages.submissions.opponentConfirmed.title, body: messages.submissions.opponentConfirmed.body(p.matchLabel, p.tournamentName), link: matchesLink(t.slug) });
+  await notify(c, await staffUserIds(db, t.id), { type: 'RESULT_POSTED', title: messages.submissions.toValidate.title, body: messages.submissions.toValidate.body(p.matchLabel, p.tournamentName), link: manageLink(t.id) });
   await publish(c, `tournament:${t.id}`, { type: 'match.updated', matchId: s.matchId, stageId: p.stageId, status: 'AWAITING_VALIDATION' });
   return respond(c, ResultSubmission, await toSubmission(db, await findSubmission(db, s.id)));
 });
@@ -388,8 +389,8 @@ submissions.post('/submissions/:id/dispute', async (c) => {
   });
 
   const nick = (await nicknames(db, [session.userId, s.submittedById]));
-  await notify(c, await involvedUsers(db, [p.submittedByRegistrationId]), { type: 'DISPUTE_UPDATE', title: 'Seu resultado foi contestado', body: `${nick.get(session.userId) ?? 'O adversário'} contestou o placar de ${p.matchLabel} (${p.tournamentName}). A organização vai analisar as provas.`, link: disputeLink(dispute.id) });
-  await notify(c, await staffUserIds(db, p.tournamentId), { type: 'DISPUTE_UPDATE', title: 'Nova disputa para analisar', body: `${p.matchLabel} (${p.tournamentName}): ${nick.get(session.userId) ?? 'o adversário'} contestou o resultado enviado por ${nick.get(s.submittedById) ?? 'um participante'}.`, link: disputeLink(dispute.id) });
+  await notify(c, await involvedUsers(db, [p.submittedByRegistrationId]), { type: 'DISPUTE_UPDATE', title: messages.disputes.contested.title, body: messages.disputes.contested.body(nick.get(session.userId), p.matchLabel, p.tournamentName), link: disputeLink(dispute.id) });
+  await notify(c, await staffUserIds(db, p.tournamentId), { type: 'DISPUTE_UPDATE', title: messages.disputes.opened.title, body: messages.disputes.opened.body(p.matchLabel, p.tournamentName, nick.get(session.userId), nick.get(s.submittedById)), link: disputeLink(dispute.id) });
   await publish(c, `tournament:${p.tournamentId}`, { type: 'match.updated', matchId: s.matchId, stageId: p.stageId, status: 'DISPUTED' });
   return respond(c, Dispute, await toDispute(db, await findDispute(db, dispute.id)), 201);
 });
@@ -441,7 +442,7 @@ submissions.patch('/submissions/:id', async (c) => {
       await clearMatchOverride(tx, s.matchId);
       await audited(tx, { action: 'SUBMISSION_REJECTED', entityType: 'Match', entityId: s.matchId, entityLabel: `${p.matchLabel} · ${p.tournamentName}`, tournamentId: t.id, reason: input.reason });
     });
-    await notify(c, await involvedUsers(db, [p.submittedByRegistrationId]), { type: 'RESULT_POSTED', title: 'Seu envio de resultado foi recusado', body: `${p.matchLabel} (${p.tournamentName}): ${input.reason}`, link: matchesLink(t.slug) });
+    await notify(c, await involvedUsers(db, [p.submittedByRegistrationId]), { type: 'RESULT_POSTED', title: messages.submissions.rejected.title, body: messages.submissions.rejected.body(p.matchLabel, p.tournamentName, input.reason), link: matchesLink(t.slug) });
     await publish(c, `tournament:${t.id}`, { type: 'match.updated', matchId: s.matchId, stageId: p.stageId, status: 'SCHEDULED' });
     revalidateTournaments(c);
   }
@@ -461,9 +462,9 @@ submissions.post('/disputes/:id/messages', async (c) => {
     await attachEvidence(tx, { urls: input.evidenceUrls, ownerId: session.userId, type: 'DISPUTE', id: d.id, now });
     await tx.disputeMessage.create({ data: { disputeId: d.id, authorId: session.userId, authorRole: role, body: input.body, evidenceUrls: input.evidenceUrls, createdAt: await nextMessageAt(tx, d.id, now) } });
   });
-  const nick = (await nicknames(db, [session.userId])).get(session.userId) ?? 'Alguém';
+  const nick = (await nicknames(db, [session.userId])).get(session.userId);
   const others = [...(await involvedUsers(db, ctx.registrationIds)), ...(await staffUserIds(db, tournament.id)), ...(d.status === 'ESCALATED' ? await adminUserIds(db) : [])].filter((id) => id !== session.userId);
-  await notify(c, others, { type: 'DISPUTE_UPDATE', title: 'Nova mensagem na disputa', body: `${nick} escreveu na disputa de ${ctx.matchLabel} (${ctx.tournamentName}).`, link: disputeLink(d.id) });
+  await notify(c, others, { type: 'DISPUTE_UPDATE', title: messages.disputes.newMessage.title, body: messages.disputes.newMessage.body(nick, ctx.matchLabel, ctx.tournamentName), link: disputeLink(d.id) });
   return respond(c, Dispute, await toDispute(db, await findDispute(db, d.id)), 201);
 });
 
@@ -481,14 +482,14 @@ submissions.post('/disputes/:id/escalate', async (c) => {
   await withAudit(db, actor, async (tx) => {
     const { count } = await tx.dispute.updateMany({ where: { id: d.id, status: 'OPEN' }, data: { status: 'ESCALATED', escalatedAt: now, escalatedById: actor.actorId } });
     if (count === 0) throw conflict('Esta disputa já foi escalada para a administração.', 'DISPUTE_NOT_OPEN');
-    await tx.disputeMessage.create({ data: { disputeId: d.id, authorId: actor.actorId, authorRole: role, body: 'Disputa escalada para a administração da Nova Arena.', evidenceUrls: [], createdAt: await nextMessageAt(tx, d.id, now) } });
+    await tx.disputeMessage.create({ data: { disputeId: d.id, authorId: actor.actorId, authorRole: role, body: messages.disputes.escalatedMessage, evidenceUrls: [], createdAt: await nextMessageAt(tx, d.id, now) } });
     await audited(tx, { action: 'DISPUTE_ESCALATED', entityType: 'Dispute', entityId: d.id, entityLabel: `${ctx.matchLabel} · ${ctx.tournamentName}`, tournamentId: t.id });
   });
-  await notify(c, await involvedUsers(db, ctx.registrationIds), { type: 'DISPUTE_UPDATE', title: 'Disputa escalada para a administração', body: `A organização passou a decisão sobre ${ctx.matchLabel} (${ctx.tournamentName}) para a administração da Nova Arena.`, link: disputeLink(d.id) });
+  await notify(c, await involvedUsers(db, ctx.registrationIds), { type: 'DISPUTE_UPDATE', title: messages.disputes.escalatedToPlayers.title, body: messages.disputes.escalatedToPlayers.body(ctx.matchLabel, ctx.tournamentName), link: disputeLink(d.id) });
   await notify(
     c,
     (await adminUserIds(db)).filter((id) => id !== actor.actorId),
-    { type: 'DISPUTE_UPDATE', title: 'Disputa escalada para análise', body: `${ctx.matchLabel} (${ctx.tournamentName}) aguarda decisão da administração.`, link: disputeLink(d.id) },
+    { type: 'DISPUTE_UPDATE', title: messages.disputes.escalatedToAdmins.title, body: messages.disputes.escalatedToAdmins.body(ctx.matchLabel, ctx.tournamentName), link: disputeLink(d.id) },
   );
   return respond(c, Dispute, await toDispute(db, await findDispute(db, d.id)));
 });
@@ -553,8 +554,8 @@ submissions.post('/disputes/:id/resolve', async (c) => {
   }
   await notify(c, await involvedUsers(db, ctx.registrationIds), {
     type: 'DISPUTE_UPDATE',
-    title: 'Disputa resolvida',
-    body: `${ctx.matchLabel} (${ctx.tournamentName}): ${resultApplied ? 'o resultado oficial foi lançado.' : 'o resultado enviado foi anulado e a partida aguarda novo resultado.'}`,
+    title: messages.disputes.resolved.title,
+    body: messages.disputes.resolved.body(ctx.matchLabel, ctx.tournamentName, resultApplied),
     link: disputeLink(d.id),
   });
   return respond(c, Dispute, await toDispute(db, await findDispute(db, d.id)));

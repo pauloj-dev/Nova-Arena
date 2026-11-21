@@ -4,8 +4,9 @@ import { Button } from '@nova/ui';
 import { Cookie } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useId, useState } from 'react';
+import { sharedMessages } from '../i18n/messages';
+import { useT } from '../i18n/react';
 import { onReopenConsent, saveConsent, useConsent } from './consent';
-
 
 /**
  * Aviso de cookies (issue #115). O site só usa cookies necessários (sessão e segurança da conta); a medição de páginas
@@ -17,6 +18,7 @@ import { onReopenConsent, saveConsent, useConsent } from './consent';
  * layout (`consentInitScript`) marca `<html data-consent>` antes da pintura e o CSS o esconde.
  */
 export function CookieBanner() {
+  const t = useT(sharedMessages, 'CookieBanner');
   const consent = useConsent();
   const [reopened, setReopened] = useState(false);
   const titleId = useId();
@@ -24,6 +26,15 @@ export function CookieBanner() {
 
   // `undefined` = servidor e hidratação: renderiza (o CSS esconde se a escolha já existe).
   if (consent && !reopened) return null;
+
+  // Fora do JSX: a regra de texto fixo só reconhece a chamada `t(…)`, não `t.rich(…)`.
+  const text = t.rich('texto', {
+    link: (chunks) => (
+      <Link href="/privacidade" className="font-medium text-primary-text underline">
+        {chunks}
+      </Link>
+    ),
+  });
 
   function choose(analytics: boolean) {
     saveConsent(analytics);
@@ -37,22 +48,17 @@ export function CookieBanner() {
           <Cookie className="mt-0.5 size-5 shrink-0 text-accent" aria-hidden />
           <div className="min-w-0">
             <h2 id={titleId} className="text-base font-semibold">
-              Cookies e medição de uso
+              {t('titulo')}
             </h2>
-            <p className="text-sm text-muted">
-              Usamos só os cookies necessários para você entrar e manter a conta segura. Medimos a velocidade das páginas sem cookies e, com a sua permissão, também as páginas visitadas, de forma anônima.{' '}
-              <Link href="/privacidade" className="font-medium text-primary-text underline">
-                Política de Privacidade
-              </Link>
-            </p>
+            <p className="text-sm text-muted">{text}</p>
           </div>
         </div>
         <div className="flex shrink-0 flex-col gap-2 xs:flex-row">
           <Button variant="secondary" onClick={() => choose(false)}>
-            Só o necessário
+            {t('soONecessario')}
           </Button>
           <Button variant="secondary" onClick={() => choose(true)}>
-            Aceitar medição
+            {t('aceitarMedicao')}
           </Button>
         </div>
       </div>

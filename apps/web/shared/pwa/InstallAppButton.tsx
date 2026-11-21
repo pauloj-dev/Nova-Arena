@@ -2,8 +2,12 @@
 
 import { Button, Modal, useToast, type ButtonProps } from '@nova/ui';
 import { Download, Share, SquarePlus } from 'lucide-react';
-import { useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore, type ReactNode } from 'react';
+import { sharedMessages } from '../i18n/messages';
+import { useT } from '../i18n/react';
 import { getInstallSnapshot, getServerInstallSnapshot, promptInstall, subscribeInstall } from './install';
+
+const strong = (chunks: ReactNode) => <strong>{chunks}</strong>;
 
 /**
  * Botão "Instalar app" (issue 105). Só aparece quando dá para instalar: no Android/Chrome abre o aviso do
@@ -13,8 +17,15 @@ export function InstallAppButton({ variant = 'secondary', size = 'sm', className
   const { mode } = useSyncExternalStore(subscribeInstall, getInstallSnapshot, getServerInstallSnapshot);
   const [iosHelp, setIosHelp] = useState(false);
   const { success } = useToast();
+  const t = useT(sharedMessages, 'InstallAppButton');
 
   if (mode === 'hidden') return null;
+  // Fora do JSX: a regra de texto fixo só reconhece a chamada `t(…)`, não `t.rich(…)`.
+  const steps = [
+    t.rich('passoCompartilhar', { strong, icone: () => <Share className="inline size-4 align-text-bottom" aria-hidden /> }),
+    t.rich('passoAdicionarTela', { strong, icone: () => <SquarePlus className="inline size-4 align-text-bottom" aria-hidden /> }),
+    t.rich('passoConfirmar', { strong }),
+  ];
 
   return (
     <>
@@ -29,23 +40,17 @@ export function InstallAppButton({ variant = 'secondary', size = 'sm', className
             return;
           }
           void promptInstall().then((accepted) => {
-            if (accepted) success('App instalado', 'A Nova Arena agora abre direto da tela inicial.');
+            if (accepted) success(t('instaladoTitulo'), t('instaladoTexto'));
           });
         }}
       >
-        Instalar app
+        {t('instalar')}
       </Button>
-      <Modal open={iosHelp} onOpenChange={setIosHelp} title="Instalar no iPhone ou iPad" description="Leva menos de 10 segundos, direto pelo Safari.">
+      <Modal open={iosHelp} onOpenChange={setIosHelp} title={t('iosTitulo')} description={t('iosDescricao')}>
         <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm">
-          <li>
-            Toque em <strong>Compartilhar</strong> <Share className="inline size-4 align-text-bottom" aria-hidden /> na barra do Safari.
-          </li>
-          <li>
-            Role e toque em <strong>Adicionar à Tela de Início</strong> <SquarePlus className="inline size-4 align-text-bottom" aria-hidden />.
-          </li>
-          <li>
-            Confirme em <strong>Adicionar</strong>. O ícone da Nova Arena aparece na sua tela inicial.
-          </li>
+          {steps.map((step, i) => (
+            <li key={i}>{step}</li>
+          ))}
         </ol>
       </Modal>
     </>

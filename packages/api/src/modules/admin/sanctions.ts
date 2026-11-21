@@ -16,11 +16,12 @@ import { badRequest, conflict } from '../../errors';
 import type { AdminActor } from '../../auth/admin';
 import { releaseTournamentsOf } from './rn09';
 import { AfterCommit, assertCanModerate, DAY_MS, inForce, isUuid, toSanction, type AdminUserRow } from './shared';
+import { messages } from '../../messages/pt-BR';
 
-const SANCTION_TEXT: Record<Sanction['type'], { title: string; verb: string }> = {
-  WARNING: { title: 'Você recebeu uma advertência', verb: 'Advertência aplicada' },
-  SUSPENSION: { title: 'Sua conta foi suspensa', verb: 'Suspensão aplicada' },
-  BAN: { title: 'Sua conta foi banida', verb: 'Banimento aplicado' },
+const SANCTION_TEXT: Record<Sanction['type'], { verb: string }> = {
+  WARNING: { verb: 'Advertência aplicada' },
+  SUSPENSION: { verb: 'Suspensão aplicada' },
+  BAN: { verb: 'Banimento aplicado' },
 };
 
 /** Derruba todas as sessões do usuário (na transação de quem chamou). */
@@ -78,8 +79,8 @@ export async function applySanction(db: PrismaClient, ctx: AuditContext, actor: 
     return { record, affected };
   });
 
-  const until = endsAt ? ` até ${endsAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` : '';
-  after.notify([target.id], { type: 'SANCTION', title: SANCTION_TEXT[input.type].title, body: `${input.type === 'SUSPENSION' ? `Suspensão${until}. ` : ''}Motivo: ${reason}`, link: null });
+  const until = endsAt ? endsAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : null;
+  after.notify([target.id], { type: 'SANCTION', title: messages.moderation.sanctionTitle[input.type], body: messages.moderation.sanctionBody(input.type, reason, until), link: null });
   // CT-09: a tela aberta sai na hora. O evento não leva dado sensível: só o motivo genérico.
   if (input.type !== 'WARNING') after.publish(`user:${target.id}`, { type: 'session.revoked', reason: input.type === 'BAN' ? 'BANNED' : 'SUSPENDED' });
   return { sanction: toSanction(result.record, new Map([[actor.id, actor.nickname]])), affectedTournaments: result.affected, after };
@@ -104,8 +105,8 @@ export async function liftSanction(db: PrismaClient, ctx: AuditContext, actor: A
   });
   after.notify([target.id], {
     type: 'SANCTION',
-    title: 'Sanção removida',
-    body: record.type === 'WARNING' ? 'A administração removeu uma advertência da sua conta.' : 'A administração removeu a sanção e a sua conta voltou a ficar ativa.',
+    title: messages.moderation.sanctionLifted.title,
+    body: messages.moderation.sanctionLifted.body(record.type === 'WARNING'),
     link: null,
   });
   return after;

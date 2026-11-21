@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable i18next/no-literal-string -- só no protótipo: o seletor de usuários simulados não vai para produção */
 
 import { Modal, Button, useToast } from '@nova/ui';
 import { FlaskConical, RotateCcw } from 'lucide-react';

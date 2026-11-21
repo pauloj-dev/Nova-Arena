@@ -6,6 +6,8 @@ import { Megaphone, Wrench, X } from 'lucide-react';
 import Link from 'next/link';
 import { useSyncExternalStore } from 'react';
 import { useSiteBanner } from '../api/hooks/admin-tournaments';
+import { sharedMessages } from '../i18n/messages';
+import { useT } from '../i18n/react';
 import { formatDateTime } from '../lib/datetime';
 
 /**
@@ -57,9 +59,11 @@ function subscribe(listener: () => void): () => void {
 
 const NO_IDS: string[] = [];
 
-function period(item: SiteBannerItem): string | null {
+type BannerT = ReturnType<typeof useT<(typeof sharedMessages)['pt-BR'], 'SiteBanner'>>;
+
+function period(item: SiteBannerItem, t: BannerT): string | null {
   if (item.kind !== 'MAINTENANCE' || !item.startsAt || !item.endsAt) return null;
-  return item.ongoing ? `Previsão de volta: ${formatDateTime(item.endsAt)}.` : `De ${formatDateTime(item.startsAt, { withZone: false })} até ${formatDateTime(item.endsAt)}.`;
+  return item.ongoing ? t('previsaoDeVolta', { fim: formatDateTime(item.endsAt) }) : t('periodo', { inicio: formatDateTime(item.startsAt, { withZone: false }), fim: formatDateTime(item.endsAt) });
 }
 
 /**
@@ -67,6 +71,7 @@ function period(item: SiteBannerItem): string | null {
  * Cada aviso pode ser dispensado, menos a manutenção em curso. Sem avisos, não ocupa espaço.
  */
 export function SiteBanner() {
+  const t = useT(sharedMessages, 'SiteBanner');
   const banners = useSiteBanner();
   const dismissed = useSyncExternalStore(
     subscribe,
@@ -77,11 +82,11 @@ export function SiteBanner() {
   if (visible.length === 0) return null;
 
   return (
-    <div role="region" aria-label="Avisos da Nova Arena" className="flex flex-col">
+    <div role="region" aria-label={t('regiao')} className="flex flex-col">
       {visible.map((item) => {
         const maintenance = item.kind === 'MAINTENANCE';
         const Icon = maintenance ? Wrench : Megaphone;
-        const when = period(item);
+        const when = period(item, t);
         return (
           <div
             key={item.id}
@@ -94,7 +99,7 @@ export function SiteBanner() {
               <Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
               <p className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere]">
                 <strong className="font-semibold">
-                  {maintenance && (item.ongoing ? 'Manutenção em andamento: ' : 'Manutenção programada: ')}
+                  {maintenance && (item.ongoing ? t('manutencaoEmAndamento') : t('manutencaoProgramada'))}
                   {item.title}
                 </strong>{' '}
                 {item.body}
@@ -103,13 +108,13 @@ export function SiteBanner() {
                   <>
                     {' '}
                     <Link href="/manutencao" className="font-semibold underline underline-offset-2">
-                      Saiba mais
+                      {t('saibaMais')}
                     </Link>
                   </>
                 )}
               </p>
               {item.dismissible && (
-                <button type="button" onClick={() => dismiss(item.id)} aria-label={`Dispensar o aviso: ${item.title}`} className="-my-1 flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-surface/40 md:size-8">
+                <button type="button" onClick={() => dismiss(item.id)} aria-label={t('dispensar', { titulo: item.title })} className="-my-1 flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-surface/40 md:size-8">
                   <X className="size-4" aria-hidden />
                 </button>
               )}

@@ -3,6 +3,8 @@
 /** Auditoria: consulta do Admin, logs de um campeonato (para o organizador) e exportação em CSV. */
 import { AuditLog, AuditMeta, numberedPage } from '@nova/schemas';
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
+import { getT } from '../../i18n/core';
+import { sharedMessages } from '../../i18n/messages';
 import { API_BASE, ApiError, api } from '../client';
 import { keys } from '../keys';
 
@@ -58,7 +60,8 @@ export async function downloadAuditCsv(filters: AuditFilters): Promise<{ blob: B
   const qs = params.toString();
   const res = await fetch(`${API_BASE}/admin/audit-logs.csv${qs ? `?${qs}` : ''}`, { credentials: 'same-origin', headers: { Accept: 'text/csv' } });
   if (!res.ok) {
-    throw new ApiError({ type: 'about:blank', title: res.status === 403 ? 'Você não tem permissão para exportar a auditoria.' : 'Não foi possível exportar a auditoria. Tente de novo.', status: res.status });
+    const t = getT(sharedMessages, 'erros');
+    throw new ApiError({ type: 'about:blank', title: res.status === 403 ? t('exportarAuditoriaSemPermissao') : t('exportarAuditoria'), status: res.status });
   }
   const filename = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? 'auditoria.csv';
   return { blob: await res.blob(), filename };

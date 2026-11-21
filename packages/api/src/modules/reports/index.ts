@@ -25,6 +25,7 @@ import { badRequest, conflict, notFound } from '../../errors';
 import { AfterCommit, isUuid, nicknames, paginate } from '../admin/shared';
 import { expireSuspensions } from '../admin/sanctions';
 import { chatAccess } from '../chat';
+import { messages } from '../../messages/pt-BR';
 
 /** Máximo de denúncias em aberto do mesmo autor para o mesmo alvo. */
 export const MAX_OPEN_REPORTS_PER_TARGET = 5;
@@ -217,8 +218,8 @@ reports.patch('/admin/reports/:id', async (c) => {
     await new AfterCommit()
       .notify([record.reporterId], {
         type: 'SANCTION',
-        title: input.status === 'ACTIONED' ? 'Sua denúncia foi analisada' : 'Sua denúncia foi considerada improcedente',
-        body: `${record.targetLabel || 'Denúncia'}: ${resolution}`,
+        title: messages.moderation.reportHandled.title(input.status === 'ACTIONED'),
+        body: messages.moderation.reportHandled.body(record.targetLabel, resolution),
         link: null,
       })
       .flush(c);

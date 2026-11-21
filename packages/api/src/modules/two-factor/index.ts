@@ -23,6 +23,7 @@ import { generateRecoveryCodes, generateSecret, otpauthUrl, verifyTotp } from '.
 import { decryptSecret, encryptSecret, hashRecoveryCode, INVALID_CODE, requireAdminTwoFactor, TWO_FACTOR_RULE, verifyTwoFactorCode } from '../../auth/two-factor';
 import { notify } from '../../notify';
 import { clientIp, enforceLimit } from '../../security';
+import { messages } from '../../messages/pt-BR';
 
 const ISSUER = 'Nova Arena';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -138,10 +139,8 @@ twoFactor.post('/admin/users/:id/2fa/reset', async (c) => {
   const roles = target.roles.map((r) => r.role);
   await notify(c, [target.id], {
     type: 'SANCTION',
-    title: 'Verificação em duas etapas redefinida',
-    body: isAdmin(roles)
-      ? 'A administração redefiniu a sua verificação em duas etapas. Configure de novo para voltar a acessar a área de administração.'
-      : 'A administração redefiniu a sua verificação em duas etapas. Você pode configurar de novo quando quiser.',
+    title: messages.account.twoFactorReset.title,
+    body: messages.account.twoFactorReset.body(isAdmin(roles)),
     link: '/minha-conta/seguranca',
   });
   return respond(c, TwoFactorStatus, await statusOf(c, target.id, roles));

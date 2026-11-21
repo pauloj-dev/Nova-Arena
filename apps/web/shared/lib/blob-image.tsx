@@ -28,11 +28,16 @@ interface BlobImageProps {
   priority?: boolean;
 }
 
+// Atributos de carregamento fora do JSX: são valores do HTML, não texto (a regra de texto fixo olha só o JSX).
+const OPTIMIZED_PRIORITY = { fetchPriority: 'high', loading: 'eager' } as const;
+const IMG_PRIORITY = { fetchPriority: 'high' } as const;
+const IMG_LAZY = { loading: 'lazy' } as const;
+
 /** Preenche o contêiner (que precisa de `position: relative` e tamanho definido). */
 export function BlobImage({ src, alt, className, sizes, priority = false }: BlobImageProps) {
   if (isOptimizableImage(src)) {
-    return <Image src={src} alt={alt} fill sizes={sizes} className={className} {...(priority ? { fetchPriority: 'high' as const, loading: 'eager' as const } : {})} />;
+    return <Image src={src} alt={alt} fill sizes={sizes} className={className} {...(priority ? OPTIMIZED_PRIORITY : {})} />;
   }
   // eslint-disable-next-line @next/next/no-img-element -- origem fora do Blob (ver comentário do arquivo)
-  return <img src={src} alt={alt} className={`absolute inset-0 size-full ${className ?? ''}`} decoding="async" {...(priority ? { fetchPriority: 'high' as const } : { loading: 'lazy' as const })} />;
+  return <img src={src} alt={alt} className={`absolute inset-0 size-full ${className ?? ''}`} decoding="async" {...(priority ? IMG_PRIORITY : IMG_LAZY)} />;
 }

@@ -3,6 +3,8 @@
  * sempre com o fuso explícito (PRD §22, risco R8).
  */
 import { DEFAULT_LOCALE } from '@/shared/i18n/config';
+import { getT } from '@/shared/i18n/core';
+import { sharedMessages } from '@/shared/i18n/messages';
 
 /** Idioma das datas: o mesmo dos textos (issue 108). */
 const LOCALE = DEFAULT_LOCALE;
@@ -41,21 +43,26 @@ export function userTimeZone(): string {
 }
 
 /** Nome curto e humano do fuso, ex.: "horário de Brasília". */
+const KNOWN_ZONES: Record<string, 'brasilia' | 'manaus' | 'cuiaba' | 'acre' | 'noronha' | 'lisboa'> = {
+  'America/Sao_Paulo': 'brasilia',
+  'America/Manaus': 'manaus',
+  'America/Cuiaba': 'cuiaba',
+  'America/Rio_Branco': 'acre',
+  'America/Noronha': 'noronha',
+  'America/Belem': 'brasilia',
+  'America/Fortaleza': 'brasilia',
+  'America/Recife': 'brasilia',
+  'America/Bahia': 'brasilia',
+  'Europe/Lisbon': 'lisboa',
+};
+
+// O rótulo do fuso entra em toda data exibida: o tradutor é criado uma vez só (e reaproveita as mensagens já lidas).
+let zoneT: ReturnType<typeof getT<(typeof sharedMessages)['pt-BR'], 'fusos'>> | undefined;
+
 export function timeZoneLabel(timeZone: string, at: Date = new Date()): string {
-  const known: Record<string, string> = {
-    'America/Sao_Paulo': 'horário de Brasília',
-    'America/Manaus': 'horário de Manaus',
-    'America/Cuiaba': 'horário de Cuiabá',
-    'America/Rio_Branco': 'horário do Acre',
-    'America/Noronha': 'horário de Fernando de Noronha',
-    'America/Belem': 'horário de Brasília',
-    'America/Fortaleza': 'horário de Brasília',
-    'America/Recife': 'horário de Brasília',
-    'America/Bahia': 'horário de Brasília',
-    'Europe/Lisbon': 'horário de Lisboa',
-    UTC: 'UTC',
-  };
-  if (known[timeZone]) return known[timeZone];
+  if (timeZone === 'UTC') return 'UTC';
+  const known = KNOWN_ZONES[timeZone];
+  if (known) return (zoneT ??= getT(sharedMessages, 'fusos'))(known);
   const part = new Intl.DateTimeFormat(LOCALE, { timeZone, timeZoneName: 'shortOffset' }).formatToParts(at).find((p) => p.type === 'timeZoneName');
   return part?.value ?? timeZone;
 }

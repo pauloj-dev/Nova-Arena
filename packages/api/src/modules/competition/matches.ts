@@ -32,6 +32,7 @@ import { scheduleMatchJobs } from '../../jobs/matches';
 import { revalidateTournaments } from '../../revalidate';
 import { clientIp } from '../../security';
 import { EDGE_CACHE, isSettled, visitorCache } from '../../http-cache';
+import { messages } from '../../messages/pt-BR';
 
 /** Sem janela de check-in, a sala aparece 15 min antes do horário. */
 const REVEAL_WITHOUT_CHECKIN_MS = 15 * 60_000;
@@ -72,10 +73,10 @@ export async function afterWalkover(c: AppContext, matchId: string, applied: Wal
   const users = await usersOfRegistrations(db, [applied.winnerId, ...(applied.loserId ? [applied.loserId] : [])]).catch(() => new Map<string, string[]>());
   const link = `/c/${applied.tournament.slug}?aba=partidas`;
   if (automatic) {
-    await notify(c, users.get(applied.loserId ?? '') ?? [], { type: 'RESULT_POSTED', title: 'Você levou W.O.', body: `O check-in de ${applied.label} não foi feito a tempo em ${applied.tournament.name}.`, link });
-    await notify(c, users.get(applied.winnerId) ?? [], { type: 'RESULT_POSTED', title: 'Vitória por W.O.', body: `Seu adversário não fez check-in em ${applied.label} de ${applied.tournament.name}.`, link });
+    await notify(c, users.get(applied.loserId ?? '') ?? [], { type: 'RESULT_POSTED', title: messages.results.walkoverLoser.title, body: messages.results.walkoverLoser.body(applied.label, applied.tournament.name), link });
+    await notify(c, users.get(applied.winnerId) ?? [], { type: 'RESULT_POSTED', title: messages.results.walkoverWinner.title, body: messages.results.walkoverWinner.body(applied.label, applied.tournament.name), link });
   } else {
-    await notify(c, [...users.values()].flat(), { type: 'RESULT_POSTED', title: 'W.O. aplicado', body: `${applied.label} · ${applied.tournament.name}`, link });
+    await notify(c, [...users.values()].flat(), { type: 'RESULT_POSTED', title: messages.results.walkoverApplied.title, body: messages.results.walkoverApplied.body(applied.label, applied.tournament.name), link });
   }
   await publishStage(c, applied.tournament.id, applied.stageId, { matchId, status: 'WALKOVER' });
   await announceResult(c, { tournamentId: applied.tournament.id, tournamentName: applied.tournament.name, slug: applied.tournament.slug, matchId, label: applied.label, walkover: true });
