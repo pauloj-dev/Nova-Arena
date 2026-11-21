@@ -41,6 +41,8 @@ const MODERATE = except(MANAGE, { moderador: 'allow' });
 const ADMIN = except(all('deny'), { admin: 'allow', superAdmin: 'allow' });
 /** Só o Super Admin (configurações globais, flags, decisão de remoção de Admin). */
 const SUPER = except(all('deny'), { superAdmin: 'allow' });
+/** Chat da partida: quem joga (a participante está na 1ª partida) e a organização do campeonato. */
+const MATCH_CHAT = except(MODERATE, { participante: 'allow' });
 /** Recurso da participante (o squad, a inscrição, a notificação dela): só ela. */
 const OWN = except(all('deny'), { participante: 'allow' });
 /** Jobs (assinatura do QStash) e Cron (segredo do Vercel Cron): ninguém com sessão passa. */
@@ -300,6 +302,35 @@ const MATRIX: Row[] = [
   r('PUT /admin/flags/:key', SUPER, () => '/admin/flags/ranking'),
   r('POST /admin/admin-removal-requests/:id/:decision', SUPER, () => '/admin/admin-removal-requests/00000000-0000-4000-8000-000000000000/approve', 'RN-11: só o Super Admin decide'),
 
+  // ── Pós-lançamento: temporadas, ligas, Discord, chat e calendário (issues 120, 121, 125) ──
+  r('GET /seasons', PUBLIC),
+  r('GET /games/:slug/season-ranking', PUBLIC, ({ ids }) => `/games/${ids.gameSlug}/season-ranking`, 'flag ranking ligada'),
+  r('GET /users/:nickname/rating', PUBLIC, ({ ids }) => `/users/${ids.participanteNick}/rating`),
+  r('GET /teams/:id/rating', PUBLIC, ({ ids }) => `/teams/${ids.team}/rating`),
+  r('POST /admin/seasons', ADMIN),
+  r('PATCH /admin/seasons/:id', ADMIN, () => '/admin/seasons/00000000-0000-4000-8000-000000000000'),
+  r('DELETE /admin/seasons/:id', ADMIN, () => '/admin/seasons/00000000-0000-4000-8000-000000000000'),
+  r('GET /leagues', PUBLIC),
+  r('GET /leagues/:slug', PUBLIC, ({ ids }) => `/leagues/${ids.leagueSlug}`),
+  r('GET /organizer/leagues', ORGANIZER_AREA),
+  r('POST /organizer/leagues', ORGANIZER_AREA),
+  r('PATCH /organizer/leagues/:id', MANAGE, ({ ids }) => `/organizer/leagues/${ids.league}`, 'liga: a dona ou um Admin (o 2FA só é exigido no painel)'),
+  r('POST /organizer/leagues/:id/tournaments', MANAGE, ({ ids }) => `/organizer/leagues/${ids.league}/tournaments`),
+  r('DELETE /organizer/leagues/:id/tournaments/:tournamentId', MANAGE, ({ ids }) => `/organizer/leagues/${ids.league}/tournaments/${ids.tournament}`),
+  r('DELETE /organizer/leagues/:id', MANAGE, ({ ids }) => `/organizer/leagues/${ids.spareLeague}`, 'liga separada: a dona apaga na 1ª chamada, as seguintes dão 404'),
+  r('GET /tournaments/:id/discord', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/discord`, 'vincular o canal do Discord: quem gerencia o campeonato'),
+  r('POST /tournaments/:id/discord/code', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/discord/code`, 'sem bot configurado: 503 depois da permissão'),
+  r('POST /tournaments/:id/discord/test', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/discord/test`),
+  r('DELETE /tournaments/:id/discord', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/discord`),
+  r('GET /matches/:id/chat', MATCH_CHAT, ({ ids }) => `/matches/${ids.match}/chat`, 'chat da partida: quem joga e a organização (Admin incluso); o outro organizador não'),
+  r('POST /matches/:id/chat', MATCH_CHAT, ({ ids }) => `/matches/${ids.match}/chat`),
+  r('DELETE /matches/:id/chat/:messageId', MATCH_CHAT, ({ ids }) => `/matches/${ids.match}/chat/00000000-0000-4000-8000-000000000000`, 'quem joga oculta a própria mensagem; a organização, qualquer uma'),
+  r('GET /me/calendar', AUTH),
+  r('GET /calendar/u/:file', PUBLIC, () => '/calendar/u/00000000-0000-4000-8000-000000000000.assinatura-errada.ics', 'sem login (app de calendário): a assinatura no endereço é a permissão; inválida dá 404'),
+  r('GET /tournaments/:id/calendar', PUBLIC, ({ ids }) => `/tournaments/${ids.tournament}/calendar`),
+  r('GET /calendar/t/:file', PUBLIC, ({ ids }) => `/calendar/t/${ids.tournamentSlug}.ics`),
+  r('POST /discord/interactions', MACHINE, undefined, 'só o Discord, com a assinatura Ed25519'),
+
   // ── Máquinas ─────────────────────────────────────────────────────
   // Por último: muda o estado da inscrição da participante (W.O. na partida).
   r(
@@ -309,7 +340,7 @@ const MATRIX: Row[] = [
     'desistir: a própria pessoa (ou a organização registra); desclassificar: quem gerencia — moderador não (PRD §6)',
     () => ({ kind: 'WITHDRAWN', reason: 'Teste da matriz' }),
   ),
-  ...['GET /cron/daily-cleanup', 'GET /cron/sanctions', 'GET /cron/sweep', 'GET /cron/tournaments', 'POST /jobs/announcements/deliver', 'POST /jobs/failures', 'POST /jobs/matches/check-in', 'POST /jobs/notifications/email', 'POST /jobs/notifications/push', 'POST /jobs/tournaments/registration'].map((route) => r(route, MACHINE)),
+  ...['GET /cron/daily-cleanup', 'GET /cron/sanctions', 'GET /cron/sweep', 'GET /cron/tournaments', 'POST /jobs/announcements/deliver', 'POST /jobs/discord/announce', 'POST /jobs/discord/reminder', 'POST /jobs/failures', 'POST /jobs/matches/check-in', 'POST /jobs/notifications/email', 'POST /jobs/notifications/push', 'POST /jobs/tournaments/registration'].map((route) => r(route, MACHINE)),
 ];
 
 describe.skipIf(!url)('matriz RBAC completa (PRD §6) — toda rota × 8 perfis', () => {
@@ -354,6 +385,7 @@ describe.skipIf(!url)('matriz RBAC completa (PRD §6) — toda rota × 8 perfis'
     // Campeonato em andamento, com a participante na 1ª partida e o moderador na equipe.
     const t = await db.tournament.create({ data: { ...base, slug: `rf-copa-${h.stamp}`, name: 'Copa RF', status: 'REGISTRATION_CLOSED', staff: { create: { userId: moderador.id, role: 'MODERATOR', addedById: orgA.id } } } });
     ids.tournament = t.id;
+    ids.tournamentSlug = t.slug;
     const stage = await db.stage.create({ data: { tournamentId: t.id, order: 1, name: 'Mata-mata', format: 'SINGLE_ELIM', scoringModelId: ids.model as string, tiebreakers: ['points'], config: { bestOf: 1 } } });
     ids.stage = stage.id;
     ids.registration = (await db.registration.create({ data: { tournamentId: t.id, userId: participante.id, status: 'CONFIRMED', createdAt: new Date(Date.now() - 10_000) } })).id;
@@ -397,6 +429,11 @@ describe.skipIf(!url)('matriz RBAC completa (PRD §6) — toda rota × 8 perfis'
     ids.notification = (await db.notification.create({ data: { userId: participante.id, type: 'ANNOUNCEMENT', title: 'Oi', body: 'Corpo.' } })).id;
     ids.template = (await db.tournamentTemplate.create({ data: { ownerId: orgA.id, name: 'Modelo RF', gameId: game.id, gameModeId: game.modes[0]?.id ?? '', payload: {} } })).id;
     ids.upload = (await db.upload.create({ data: { ownerId: participante.id, purpose: 'evidence', access: 'private', blobUrl: `https://blob.exemplo/rf-${h.stamp}.png`, pathname: `evidence/${participante.id}/rf.png`, contentType: 'image/png', size: 10 } })).id;
+
+    // Ligas da organizadora dona: uma para editar e vincular campeonatos, outra para apagar.
+    const leagueData = (suffix: string) => ({ slug: `rf-liga-${suffix}-${h.stamp}`, name: `Liga RF ${suffix}`, gameId: game.id, ownerId: orgA.id, startsAt: new Date(Date.now() - 86_400_000), endsAt: new Date(Date.now() + 30 * 86_400_000), placementPoints: [10, 6, 4] });
+    const league = await db.league.create({ data: leagueData('a') });
+    Object.assign(ids, { league: league.id, leagueSlug: league.slug, spareLeague: (await db.league.create({ data: leagueData('b') })).id });
   });
 
   afterAll(async () => {

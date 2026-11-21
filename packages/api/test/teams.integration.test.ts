@@ -21,8 +21,10 @@ describe.skipIf(!url)('squads (Postgres)', () => {
   const stamp = String(Date.now()).slice(-6);
   const cookies = new Map<string, string>();
   const ids = new Map<string, string>();
-  // Tags de até 5 caracteres, únicas por execução.
-  const tag = (prefix: string) => `${prefix}${stamp.slice(-3)}`.slice(0, 5).toUpperCase();
+  // Tags de até 5 caracteres, únicas por execução: a 1ª letra do prefixo + 4 caracteres sorteados (36⁴ combinações).
+  // O banco de teste acumula squads de outras rodadas; com só 2 dígitos a tag colidia (409 TAG_TAKEN).
+  const suffix = Math.floor(Math.random() * 36 ** 4).toString(36).padStart(4, '0');
+  const tag = (prefix: string) => `${prefix.slice(0, 1)}${suffix}`.toUpperCase();
 
   async function makeUser(key: string) {
     const nickname = `sq${key}${stamp}`;

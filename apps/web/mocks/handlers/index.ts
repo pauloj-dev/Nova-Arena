@@ -73,11 +73,13 @@ export const modules: MockModule[] = [
 
 /**
  * Módulos que já têm API real. B1 (issue #81): o núcleo de F1. B2 (issue #102): competição, envio e disputas, perfil
- * competitivo, notificações, denúncias e todo o painel Admin — com isso, **todos** os módulos do mock têm API real.
+ * competitivo, notificações, denúncias e todo o painel Admin. Pós-lançamento (issues 120, 121 e 125): temporadas e ligas,
+ * Discord, chat da partida e calendário — com isso, **todos** os módulos do mock têm API real.
  */
 export const B1_REAL_MODULES = ['auth', 'users', 'uploads', 'games', 'games-admin', 'tournaments', 'tournaments-manage', 'tournaments-ops', 'registrations', 'registrations-manage', 'teams'] as const;
 export const B2_REAL_MODULES = ['competition', 'submissions', 'profile-stats', 'notifications', 'reports', 'admin-users', 'admin-roles', 'admin-tournaments', 'admin-audit', 'admin-moderation', 'admin-settings'] as const;
-export const REAL_MODULES: readonly string[] = [...B1_REAL_MODULES, ...B2_REAL_MODULES];
+export const POS_REAL_MODULES = ['seasons', 'discord', 'chat', 'calendar'] as const;
+export const REAL_MODULES: readonly string[] = [...B1_REAL_MODULES, ...B2_REAL_MODULES, ...POS_REAL_MODULES];
 
 /**
  * Valor de `NEXT_PUBLIC_API_MOCK` para o preview e o staging: só os módulos que ainda não têm API real. Desde a #102
