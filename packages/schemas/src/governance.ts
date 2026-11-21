@@ -194,6 +194,8 @@ export const AUDIT_ACTIONS = {
   ADMIN_REMOVAL_REQUESTED: 'Remoção de administrador solicitada',
   ADMIN_REMOVAL_REVIEWED: 'Pedido de remoção de administrador analisado',
   TWO_FACTOR_CHANGED: 'Verificação em duas etapas alterada',
+  SEASON_CHANGED: 'Temporada do ranking criada ou alterada',
+  LEAGUE_CHANGED: 'Liga criada ou alterada',
 } as const satisfies Record<string, string>;
 export type AuditAction = keyof typeof AUDIT_ACTIONS;
 export const AuditActionSchema = z.enum(Object.keys(AUDIT_ACTIONS) as [AuditAction, ...AuditAction[]]);

@@ -12,3 +12,4 @@ export * from './device';
 export * from './names';
 export * from './organizer';
 export * from './rules';
+export * from './season';

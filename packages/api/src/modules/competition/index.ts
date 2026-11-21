@@ -27,6 +27,7 @@ import { clearRun, engine, isLocked, projectRun, readRun, snapshotOf, stageWithT
 import { revalidateTournaments } from '../../revalidate';
 import { clientIp } from '../../security';
 import { toStage } from '../tournaments/views';
+import { entrantRatings } from '../seasons/ratings';
 
 const isUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 const LOCKED_MESSAGE = 'A chave está travada porque a fase já tem partida concluída. Só um administrador pode destravar.';
@@ -89,6 +90,11 @@ competition.post('/stages/:id/generate', async (c) => {
       select: { id: true, seed: true, displayName: true, team: { select: { name: true } }, user: { select: { nickname: true } } },
     });
     entrants = regs.map((r) => ({ id: r.id, name: r.displayName ?? r.team?.name ?? r.user?.nickname ?? 'Inscrito', ...(r.seed !== null ? { seed: r.seed } : {}) }));
+    // Seeding por ranking (#120): na primeira fase, o rating da temporada atual do jogo, quando houver.
+    if (input.seeding === 'RANKED') {
+      const ratings = await entrantRatings(c, t.gameId, entrants.map((e) => e.id));
+      entrants = entrants.map((e) => (ratings.has(e.id) ? { ...e, rating: ratings.get(e.id) as number } : e));
+    }
   }
   if (entrants.length < 2) throw conflict('São necessários pelo menos 2 participantes confirmados.', 'NOT_ENOUGH_ENTRANTS');
 

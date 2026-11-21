@@ -40,8 +40,16 @@ export async function seedCatalog(db: PrismaClient): Promise<void> {
         await db.scoringModel.create({ data: { gameId: game.id, name: s.name, matchType: s.matchType, rules: s.rules as object[], tiebreakers: s.tiebreakers, isDefault: s.isDefault } });
       }
     }
+    // Ranking de temporada (issue #120): todo jogo começa com a temporada do ano. O Admin cria as próximas.
+    if ((await db.season.count({ where: { gameId: game.id } })) === 0) {
+      await db.season.create({ data: { gameId: game.id, name: SEED_SEASON.name, startsAt: new Date(SEED_SEASON.startsAt), endsAt: new Date(SEED_SEASON.endsAt), createdById: SYSTEM_ID } });
+    }
   }
 }
+
+/** Autor das linhas criadas pelo seed (não é um usuário). */
+const SYSTEM_ID = '00000000-0000-0000-0000-000000000000';
+export const SEED_SEASON = { name: 'Temporada 2026', startsAt: '2026-01-01T00:00:00.000Z', endsAt: '2027-01-01T00:00:00.000Z' } as const;
 
 export async function seedUser(db: PrismaClient, u: SeedUser, passwordHash?: string): Promise<string> {
   const email = u.email.toLowerCase();
