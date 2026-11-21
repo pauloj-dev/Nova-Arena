@@ -3,7 +3,9 @@
  * e os formatos sem chave em árvore (grupos, pontos corridos, suíço e Battle Royale).
  */
 import type { Match, StageFormat } from '@nova/schemas';
-import { SECTION_LABELS, type BracketSection } from './layout';
+import { getT } from '@/shared/i18n/core';
+import { sectionLabel, type BracketSection } from './layout';
+import { messages } from './messages';
 
 export const ELIMINATION_FORMATS: readonly StageFormat[] = ['SINGLE_ELIM', 'DOUBLE_ELIM', 'TEAM_VS_TEAM'];
 
@@ -27,10 +29,11 @@ export interface BracketSideGroup {
 const byPosition = (a: Match, b: Match) => a.position - b.position;
 
 function roundsOf(matches: Match[], prefix: string): RoundGroup[] {
+  const t = getT(messages, 'rounds');
   const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b);
   return rounds.map((round) => {
     const inRound = matches.filter((m) => m.round === round).sort(byPosition);
-    return { key: `${prefix}${round}`, label: inRound[0]?.roundLabel ?? `Rodada ${round}`, matches: inRound };
+    return { key: `${prefix}${round}`, label: inRound[0]?.roundLabel ?? t('rodada', { round }), matches: inRound };
   });
 }
 
@@ -39,6 +42,7 @@ function roundsOf(matches: Match[], prefix: string): RoundGroup[] {
  * "Vencedores", "Perdedores" e "Final". A disputa de 3º lugar entra junto com a final.
  */
 export function bracketSides(matches: readonly Match[]): BracketSideGroup[] {
+  const t = getT(messages, 'rounds');
   const duels = matches.filter((m) => m.kind === 'DUEL' && m.bracket !== null);
   const winners = duels.filter((m) => m.bracket === 'WINNERS');
   const third = duels.filter((m) => m.bracket === 'THIRD_PLACE');
@@ -48,12 +52,12 @@ export function bracketSides(matches: readonly Match[]): BracketSideGroup[] {
   const winnerRounds = roundsOf(winners, 'w');
   const last = winnerRounds[winnerRounds.length - 1];
   if (last && third.length > 0) last.matches = [...last.matches, ...third];
-  else if (third.length > 0) winnerRounds.push({ key: 'third', label: third[0]?.roundLabel ?? 'Disputa de 3º lugar', matches: third });
+  else if (third.length > 0) winnerRounds.push({ key: 'third', label: third[0]?.roundLabel ?? t('terceiroLugar'), matches: third });
 
   const sides: BracketSideGroup[] = [];
-  if (winnerRounds.length > 0) sides.push({ side: 'WINNERS', label: losers.length > 0 || finals.length > 0 ? 'Vencedores' : SECTION_LABELS.WINNERS, rounds: winnerRounds });
-  if (losers.length > 0) sides.push({ side: 'LOSERS', label: 'Perdedores', rounds: roundsOf(losers, 'l') });
-  if (finals.length > 0) sides.push({ side: 'FINAL', label: 'Final', rounds: [{ key: 'gf', label: 'Grande Final', matches: finals }] });
+  if (winnerRounds.length > 0) sides.push({ side: 'WINNERS', label: losers.length > 0 || finals.length > 0 ? t('vencedores') : sectionLabel('WINNERS'), rounds: winnerRounds });
+  if (losers.length > 0) sides.push({ side: 'LOSERS', label: t('perdedores'), rounds: roundsOf(losers, 'l') });
+  if (finals.length > 0) sides.push({ side: 'FINAL', label: t('final'), rounds: [{ key: 'gf', label: t('grandeFinal'), matches: finals }] });
   return sides;
 }
 
@@ -64,6 +68,7 @@ export interface StageRoundGroup extends RoundGroup {
 
 /** Formatos sem árvore: um grupo por rodada (ou queda), com as partidas separadas por grupo/sala. */
 export function stageRounds(matches: readonly Match[]): StageRoundGroup[] {
+  const t = getT(messages, 'rounds');
   const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b);
   return rounds.map((round) => {
     const inRound = matches.filter((m) => m.round === round).sort((a, b) => (a.groupId ?? '').localeCompare(b.groupId ?? '', 'pt-BR', { numeric: true }) || byPosition(a, b));
@@ -74,7 +79,7 @@ export function stageRounds(matches: readonly Match[]): StageRoundGroup[] {
       if (section) section.matches.push(match);
       else sections.push({ key, name: match.groupName, matches: [match] });
     }
-    return { key: `r${round}`, label: inRound[0]?.roundLabel ?? `Rodada ${round}`, matches: inRound, sections };
+    return { key: `r${round}`, label: inRound[0]?.roundLabel ?? t('rodada', { round }), matches: inRound, sections };
   });
 }
 

@@ -1,0 +1,125 @@
+{
+  "layout": {
+    "secao": "{section, select, WINNERS {Chave de vencedores} LOSERS {Chave de perdedores} other {Grande Final}}"
+  },
+  "rounds": {
+    "rodada": "Rodada {round}",
+    "terceiroLugar": "Disputa de 3º lugar",
+    "vencedores": "Vencedores",
+    "perdedores": "Perdedores",
+    "final": "Final",
+    "grandeFinal": "Grande Final"
+  },
+  "standingsText": {
+    "pontosMudaram": "Classificação atualizada: os pontos mudaram, as posições não.",
+    "voce": "{name} (você)",
+    "movimento": "{who} {direction, select, subiu {subiu} other {caiu}} para {position}º",
+    "maisMudancas": "e mais {rest, plural, one {# mudança} other {# mudanças}}",
+    "atualizada": "Classificação atualizada: {phrases}."
+  },
+  "StandingsTable": {
+    "equipe": "Equipe",
+    "jogosAbrev": "J",
+    "jogos": "Jogos",
+    "vitoriasAbrev": "V",
+    "vitorias": "Vitórias",
+    "empatesAbrev": "E",
+    "empates": "Empates",
+    "derrotasAbrev": "D",
+    "derrotas": "Derrotas",
+    "saldo": "Saldo",
+    "pontosAbrev": "Pts",
+    "pontos": "Pontos",
+    "proContra": "Pró / contra"
+  },
+  "BRStandingsTable": {
+    "squad": "Squad",
+    "booyahs": "Booyahs",
+    "kills": "Kills",
+    "ausente": "ausente",
+    "quedaCelula": "{placement}º · {kills} K",
+    "quedaDetalhe": "{placement}º · {kills} kills · {points} pts",
+    "quedaAbrev": "Q{drop}",
+    "queda": "Queda {drop}",
+    "comoVer": "Como ver a pontuação",
+    "acumulado": "Acumulado",
+    "porQueda": "Por queda",
+    "semQuedas": "Nenhuma queda tem resultado ainda. Os números por queda aparecem aqui assim que a primeira for lançada.",
+    "legenda": "{caption} ({mode, select, PER_DROP {por queda} other {acumulado}})",
+    "pontosAbrev": "Pts",
+    "totalPontos": "Total de pontos",
+    "pontos": "Pontos"
+  },
+  "StandingsGrid": {
+    "posicaoOrdinal": "{position}º",
+    "posicaoAria": "{position}º lugar. Ver como o desempate foi decidido",
+    "comoSaiu": "Como saiu o {position}º lugar",
+    "fecharExplicacao": "Fechar explicação",
+    "seedSorteio": "Seed do sorteio: <code>{seed}</code>. Com ela o sorteio pode ser refeito e conferido.",
+    "classifica": "Classifica: ",
+    "voce": "Você",
+    "eliminado": "Eliminado",
+    "posicao": "Posição",
+    "posicaoAbrev": "Pos",
+    "maisNumeros": "Mais números",
+    "verNumeros": "{open, select, sim {Esconder} other {Ver}} os números de {name}",
+    "legenda": "Legenda",
+    "classificaProxima": "Classifica para a próxima fase",
+    "toquePosicao": "Toque na posição para ver como o desempate foi decidido"
+  },
+  "GroupTable": {
+    "grupo": "Grupo",
+    "grupoSeu": "{name} (o seu)",
+    "caption": "Classificação: {name}"
+  },
+  "RoundsView": {
+    "vazioTitulo": "Nenhuma partida nesta fase ainda",
+    "vazioDescricao": "As partidas aparecem aqui quando a organização gerar e confirmar a chave da fase.",
+    "partidas": "Partidas",
+    "partidasDe": "{section}: {round}",
+    "abas": "{format, select, BATTLE_ROYALE {Quedas da fase} GROUPS {Rodadas da fase de grupos} SWISS {Rodadas do suíço} other {Rodadas}}"
+  },
+  "RoundList": {
+    "confrontosDe": "Confrontos: {round}"
+  },
+  "MvpRanking": {
+    "titulo": "Ranking de MVP",
+    "lista": "Jogadores com mais kills",
+    "kills": "kills"
+  },
+  "StageStandings": {
+    "participante": "{matchType, select, BATTLE_ROYALE {Squad} other {Equipe}}",
+    "caption": "Classificação da fase"
+  },
+  "BracketView": {
+    "vazioTitulo": "A chave ainda não foi gerada",
+    "vazioDescricao": "Os confrontos aparecem aqui quando a organização gerar e confirmar a chave desta fase.",
+    "rotulo": "Chave com {count, plural, one {# confronto} other {# confrontos}}",
+    "rodadas": "Rodadas da chave",
+    "lados": "Lados da chave",
+    "rodadasDe": "Rodadas: {side}"
+  },
+  "vaga": {
+    "aria": "{name}{seeded, select, sim {, cabeça de chave {seed}} other {}}{selected, select, sim {, selecionado para troca} other {}}"
+  },
+  "MatchRow": {
+    "bye": "Bye",
+    "suaQueda": "Sua queda",
+    "seuConfronto": "Seu confronto",
+    "naSala": "{count, plural, one {# equipe} other {# equipes}} na sala{multiplied, select, sim { · vale ×{multiplier, number}} other {}}",
+    "booyah": "Booyah: {name}",
+    "seuSquad": "Seu squad: {placement}º · {kills} kills · {points} pts"
+  },
+  "BracketCanvas": {
+    "destacado": "★ {name}",
+    "nomeVaga": "{name}{state, select, WITHDRAWN { (desistiu)} DISQUALIFIED { (desclassificado)} BYE { · bye} other {}}",
+    "horarioADefinir": "Horário a definir",
+    "cabecalho": "{ifNecessary, select, sim {Se necessário · {when}} other {{when}}}",
+    "instrucoes": "Horários em {timeZone}. Arraste para mover, use Ctrl + roda do mouse para o zoom e as setas do teclado para andar entre os confrontos (Enter abre a partida).{path, select, sim { Seu caminho na chave está marcado com ★ e borda mais grossa.} other {}}",
+    "zoomChave": "Zoom da chave",
+    "diminuirZoom": "Diminuir zoom",
+    "aumentarZoom": "Aumentar zoom",
+    "ajustarAria": "Ajustar a chave à tela",
+    "ajustar": "Ajustar"
+  }
+}

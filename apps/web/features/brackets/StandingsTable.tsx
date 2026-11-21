@@ -1,6 +1,8 @@
 'use client';
 
 import type { StandingRow } from '@nova/schemas';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 import { StandingsGrid, type StandingsColumn } from './StandingsGrid';
 import { formatDiff, formatPoints } from './standingsText';
 
@@ -18,24 +20,24 @@ export interface StandingsTableProps {
   className?: string;
 }
 
-const DUEL_COLUMNS: StandingsColumn[] = [
-  { key: 'played', header: 'J', title: 'Jogos', width: 'w-10', cell: (r) => r.played },
-  { key: 'wins', header: 'V', title: 'Vitórias', width: 'w-10', cell: (r) => r.wins },
-  { key: 'draws', header: 'E', title: 'Empates', width: 'w-10', cell: (r) => r.draws },
-  { key: 'losses', header: 'D', title: 'Derrotas', width: 'w-10', cell: (r) => r.losses },
-  { key: 'diff', header: 'Saldo', title: 'Saldo', width: 'w-16', cell: (r) => formatDiff(r.scoreDiff) },
-];
-
 /** Classificação de duelos: Pos, Equipe, J, V, E, D, Saldo e Pts. */
-export function StandingsTable({ rows, caption, participantHeader = 'Equipe', highlightRegistrationId, drawSeed, className }: StandingsTableProps) {
+export function StandingsTable({ rows, caption, participantHeader, highlightRegistrationId, drawSeed, className }: StandingsTableProps) {
+  const t = useT(messages, 'StandingsTable');
+  const columns: StandingsColumn[] = [
+    { key: 'played', header: t('jogosAbrev'), title: t('jogos'), width: 'w-10', cell: (r) => r.played },
+    { key: 'wins', header: t('vitoriasAbrev'), title: t('vitorias'), width: 'w-10', cell: (r) => r.wins },
+    { key: 'draws', header: t('empatesAbrev'), title: t('empates'), width: 'w-10', cell: (r) => r.draws },
+    { key: 'losses', header: t('derrotasAbrev'), title: t('derrotas'), width: 'w-10', cell: (r) => r.losses },
+    { key: 'diff', header: t('saldo'), title: t('saldo'), width: 'w-16', cell: (r) => formatDiff(r.scoreDiff) },
+  ];
   return (
     <StandingsGrid
       rows={rows}
       caption={caption}
-      participantHeader={participantHeader}
-      columns={DUEL_COLUMNS}
-      points={{ header: 'Pts', title: 'Pontos', cell: (r) => formatPoints(r.points) }}
-      extraDetails={(r) => [{ label: 'Pró / contra', value: `${r.scoreFor} / ${r.scoreAgainst}` }]}
+      participantHeader={participantHeader ?? t('equipe')}
+      columns={columns}
+      points={{ header: t('pontosAbrev'), title: t('pontos'), cell: (r) => formatPoints(r.points) }}
+      extraDetails={(r) => [{ label: t('proContra'), value: `${r.scoreFor} / ${r.scoreAgainst}` }]}
       highlightRegistrationId={highlightRegistrationId}
       drawSeed={drawSeed}
       className={className}

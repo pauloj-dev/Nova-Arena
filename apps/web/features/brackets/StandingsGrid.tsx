@@ -5,6 +5,8 @@ import { Badge, cn, StatusPill } from '@nova/ui';
 import { ArrowUpCircle, ChevronDown, Info, X } from 'lucide-react';
 import { Popover } from 'radix-ui';
 import { Fragment, useId, useState, type CSSProperties, type ReactNode } from 'react';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 import { summarizeChanges } from './standingsText';
 import { useFlip } from './useFlip';
 
@@ -45,38 +47,37 @@ export interface StandingsGridProps {
   className?: string;
 }
 
+const cell = 'border-b border-border px-2 py-0.5';
 const th = 'sticky top-14 z-10 border-b border-border bg-surface-2 px-2 py-2 text-xs font-semibold text-muted md:top-0';
 
 /** Posição. Quando ela foi decidida por desempate, vira um botão que explica o critério (e a seed do sorteio). */
 function PositionCell({ row, drawSeed }: { row: StandingRow; drawSeed?: string | null }) {
+  const t = useT(messages, 'StandingsGrid');
   if (!row.tiebreakNote) return <span className="tabular flex min-h-11 items-center justify-center px-1 md:min-h-9">{row.position}</span>;
   const byDraw = /sorteio/i.test(row.tiebreakNote);
+  const seedNote = byDraw && drawSeed ? t.rich('seedSorteio', { seed: drawSeed, code: (chunks) => <code className="tabular break-all text-text">{chunks}</code> }) : null;
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
         <button
           type="button"
-          aria-label={`${row.position}º lugar. Ver como o desempate foi decidido`}
+          aria-label={t('posicaoAria', { position: row.position })}
           className="tabular flex min-h-11 w-full items-center justify-center gap-0.5 rounded-md px-1 underline decoration-dotted underline-offset-4 hover:bg-neutral-soft md:min-h-9"
         >
-          {row.position}º
+          {t('posicaoOrdinal', { position: row.position })}
           <Info className="size-3.5 shrink-0 text-muted" aria-hidden />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content side="bottom" align="start" sideOffset={6} collisionPadding={12} className="z-50 flex w-[min(20rem,calc(100vw-2rem))] flex-col gap-2 rounded-md border border-border bg-surface p-3 text-sm text-text shadow-lg" data-testid="tiebreak-popover">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-semibold">Como saiu o {row.position}º lugar</p>
-            <Popover.Close aria-label="Fechar explicação" className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted hover:bg-neutral-soft">
+            <p className="font-semibold">{t('comoSaiu', { position: row.position })}</p>
+            <Popover.Close aria-label={t('fecharExplicacao')} className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted hover:bg-neutral-soft">
               <X className="size-4" aria-hidden />
             </Popover.Close>
           </div>
           <p>{row.tiebreakNote}</p>
-          {byDraw && drawSeed && (
-            <p className="text-xs text-muted">
-              Seed do sorteio: <code className="tabular break-all text-text">{drawSeed}</code>. Com ela o sorteio pode ser refeito e conferido.
-            </p>
-          )}
+          {seedNote && <p className="text-xs text-muted">{seedNote}</p>}
           <Popover.Arrow className="fill-border" />
         </Popover.Content>
       </Popover.Portal>
@@ -85,21 +86,22 @@ function PositionCell({ row, drawSeed }: { row: StandingRow; drawSeed?: string |
 }
 
 function ParticipantCell({ row, mine }: { row: StandingRow; mine: boolean }) {
+  const t = useT(messages, 'StandingsGrid');
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
       {row.qualifying && (
         <span className="flex shrink-0 items-center text-primary-soft-text">
           <ArrowUpCircle className="size-4" aria-hidden />
-          <span className="sr-only">Classifica: </span>
+          <span className="sr-only">{t('classifica')}</span>
         </span>
       )}
       <span className={cn('min-w-0 truncate', mine && 'font-bold')}>
         {row.name}
         {row.tag && <span className="tabular ml-1 text-xs text-muted">[{row.tag}]</span>}
       </span>
-      {mine && <Badge tone="accent">Você</Badge>}
+      {mine && <Badge tone="accent">{t('voce')}</Badge>}
       {row.status !== 'ACTIVE' && <StatusPill status={row.status} />}
-      {row.status === 'ACTIVE' && row.eliminated && <Badge tone="neutral">Eliminado</Badge>}
+      {row.status === 'ACTIVE' && row.eliminated && <Badge tone="neutral">{t('eliminado')}</Badge>}
     </div>
   );
 }
@@ -111,6 +113,7 @@ function ParticipantCell({ row, mine }: { row: StandingRow; mine: boolean }) {
  * No celular ficam só posição, participante e pontos; o resto vai para a linha expansível.
  */
 export function StandingsGrid({ rows, caption, participantHeader, columns, points, extraDetails, highlightRegistrationId, drawSeed, minWidthRem, className }: StandingsGridProps) {
+  const t = useT(messages, 'StandingsGrid');
   const [expanded, setExpanded] = useState<string | null>(null);
   const baseId = useId();
   const register = useFlip<HTMLTableRowElement>(rows.map((r) => r.registrationId));
@@ -134,8 +137,8 @@ export function StandingsGrid({ rows, caption, participantHeader, columns, point
           <thead>
             <tr>
               <th scope="col" className={cn(th, 'w-14 rounded-tl-lg text-center')}>
-                <abbr title="Posição" className="no-underline">
-                  Pos
+                <abbr title={t('posicao')} className="no-underline">
+                  {t('posicaoAbrev')}
                 </abbr>
               </th>
               <th scope="col" className={cn(th, 'text-left')}>
@@ -154,7 +157,7 @@ export function StandingsGrid({ rows, caption, participantHeader, columns, point
                 </abbr>
               </th>
               <th scope="col" className={cn(th, 'w-11 rounded-tr-lg md:hidden')}>
-                <span className="sr-only">Mais números</span>
+                <span className="sr-only">{t('maisNumeros')}</span>
               </th>
             </tr>
           </thead>
@@ -164,7 +167,6 @@ export function StandingsGrid({ rows, caption, participantHeader, columns, point
               const open = expanded === row.registrationId;
               const detailId = `${baseId}-${row.registrationId}`;
               const out = row.status !== 'ACTIVE';
-              const cell = 'border-b border-border px-2 py-0.5';
               const details = [...columns.map((c) => ({ label: c.title, value: (c.detail ?? c.cell)(row) })), ...(extraDetails?.(row) ?? [])];
               return (
                 <Fragment key={row.registrationId}>
@@ -194,7 +196,7 @@ export function StandingsGrid({ rows, caption, participantHeader, columns, point
                         type="button"
                         aria-expanded={open}
                         aria-controls={detailId}
-                        aria-label={`${open ? 'Esconder' : 'Ver'} os números de ${row.name}`}
+                        aria-label={t('verNumeros', { open: open ? 'sim' : 'nao', name: row.name })}
                         onClick={() => setExpanded(open ? null : row.registrationId)}
                         className="flex size-11 items-center justify-center rounded-md text-muted hover:bg-neutral-soft"
                       >
@@ -224,19 +226,19 @@ export function StandingsGrid({ rows, caption, participantHeader, columns, point
       </div>
 
       {(anyQualifying || anyTiebreak) && (
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted" aria-label="Legenda">
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted" aria-label={t('legenda')}>
           {anyQualifying && (
             <li className="flex items-center gap-1.5">
               <span className="flex size-5 items-center justify-center rounded bg-primary-soft text-primary-soft-text">
                 <ArrowUpCircle className="size-3.5" aria-hidden />
               </span>
-              Classifica para a próxima fase
+              {t('classificaProxima')}
             </li>
           )}
           {anyTiebreak && (
             <li className="flex items-center gap-1.5">
               <Info className="size-3.5" aria-hidden />
-              Toque na posição para ver como o desempate foi decidido
+              {t('toquePosicao')}
             </li>
           )}
         </ul>

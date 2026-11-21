@@ -12,6 +12,8 @@
  * - Disputa de 3º lugar: abaixo da final, na mesma coluna.
  */
 import type { Match } from '@nova/schemas';
+import { getT } from '@/shared/i18n/core';
+import { messages } from './messages';
 
 export type BracketSection = 'WINNERS' | 'LOSERS' | 'FINAL';
 
@@ -90,11 +92,10 @@ export interface BracketLayout {
   double: boolean;
 }
 
-export const SECTION_LABELS: Record<BracketSection, string> = {
-  WINNERS: 'Chave de vencedores',
-  LOSERS: 'Chave de perdedores',
-  FINAL: 'Grande Final',
-};
+/** Título de cada lado da chave ("Chave de vencedores"…). */
+export function sectionLabel(section: BracketSection): string {
+  return getT(messages, 'layout')('secao', { section });
+}
 
 const byPosition = (a: Match, b: Match) => a.position - b.position;
 
@@ -145,7 +146,7 @@ export function layoutBracket(all: readonly Match[], metrics: LayoutMetrics = DE
     const sample = winners.filter((x) => x.round === round).sort(byPosition)[0];
     if (sample) columns.push({ key: `W-${round}`, section: 'WINNERS', label: sample.roundLabel, x: colX(round - firstRound), y: winnersTop - 12, width: m.cardWidth });
   }
-  if (double && winners.length > 0) sectionTitles.push({ section: 'WINNERS', label: SECTION_LABELS.WINNERS, x: m.padding, y: m.padding + titleHeight - 10 });
+  if (double && winners.length > 0) sectionTitles.push({ section: 'WINNERS', label: sectionLabel('WINNERS'), x: m.padding, y: m.padding + titleHeight - 10 });
   let winnersBottom = winnersTop + leafRows * unit;
 
   // Disputa de 3º lugar: logo abaixo da final.
@@ -165,7 +166,7 @@ export function layoutBracket(all: readonly Match[], metrics: LayoutMetrics = DE
   if (losers.length > 0) {
     const sectionTop = winnersBottom + m.sectionGap;
     const losersTop = sectionTop + titleHeight + m.headerHeight;
-    sectionTitles.push({ section: 'LOSERS', label: SECTION_LABELS.LOSERS, x: m.padding, y: sectionTop + titleHeight - 10 });
+    sectionTitles.push({ section: 'LOSERS', label: sectionLabel('LOSERS'), x: m.padding, y: sectionTop + titleHeight - 10 });
     loserRounds.forEach((round, column) => {
       const inRound = losers.filter((x) => x.round === round).sort(byPosition);
       let cursor = losersTop + unit / 2;

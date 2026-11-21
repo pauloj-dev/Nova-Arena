@@ -3,6 +3,8 @@
 import type { Match } from '@nova/schemas';
 import { Tabs } from '@nova/ui';
 import type { KeyboardEvent, ReactNode } from 'react';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 import { MatchRow } from './MatchRow';
 import { defaultRound, type RoundGroup } from './rounds';
 import type { SlotExtension } from './types';
@@ -45,6 +47,7 @@ export function MatchList({ matches, label, highlightRegistrationId, onSelect, s
 
 /** Uma aba por rodada. A que abre primeiro é a do confronto pendente de quem está vendo. */
 export function RoundTabs({ rounds, label, highlightRegistrationId, onSelect, renderRound, ...slots }: RoundTabsProps) {
+  const t = useT(messages, 'RoundList');
   if (rounds.length === 0) return null;
   const content = (round: RoundGroup) =>
     renderRound ? (
@@ -52,7 +55,7 @@ export function RoundTabs({ rounds, label, highlightRegistrationId, onSelect, re
     ) : (
       <MatchList
         matches={round.matches}
-        label={`Confrontos: ${round.label}`}
+        label={t('confrontosDe', { round: round.label })}
         highlightRegistrationId={highlightRegistrationId}
         onSelect={onSelect}
         showRoundLabel={round.matches.some((m) => m.roundLabel !== round.label)}
