@@ -29,6 +29,7 @@ import { matches } from './modules/competition/matches';
 import { results } from './modules/competition/results';
 import { stages } from './modules/competition/stages';
 import { closing } from './modules/competition/closing';
+import { submissions } from './modules/submissions';
 import { qstashQueue } from './jobs';
 import { ablyRealtime } from './realtime';
 import { uploads } from './modules/uploads';
@@ -44,9 +45,9 @@ export const API_BASE_PATH = '/api/v1';
 /**
  * Módulos registrados. Entram, na ordem do B1: auth (#67 ✓, OAuth #68 ✓), users e me (#72), roles e audit (#70: `auth/rbac.ts` ✓; rotas na #72),
  * uploads (#73), games (#74), tournaments (#75, #76), teams (#78), registrations (#79). B2: chave (#82), partidas (#83, #84),
- * resultados e histórico (#85, #86), fases (#87, #88), desistência e encerramento (#88, #100).
+ * resultados e histórico (#85, #86), fases (#87, #88), desistência e encerramento (#88, #100), envios e disputas (#90).
  */
-const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs, teams, registrations, competition, matches, results, stages, closing];
+const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs, teams, registrations, competition, matches, results, stages, closing, submissions];
 
 export interface CreateAppOptions {
   /** Variáveis já validadas; padrão: as do processo, validadas na primeira requisição. */
