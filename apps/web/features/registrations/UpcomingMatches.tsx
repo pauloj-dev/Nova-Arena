@@ -5,8 +5,10 @@ import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { errorMessage } from '@/shared/api/client';
 import { useMyRegistrations } from '@/shared/api/hooks/registrations';
+import { useT } from '@/shared/i18n/react';
 import { useSession } from '@/shared/session/useSession';
 import { isCurrentEntry } from './lib/rules';
+import { messages } from './messages';
 import { RegistrationEntryCard } from './RegistrationEntryCard';
 
 /** Quantas inscrições cabem na home. O resto fica em "Meus campeonatos". */
@@ -21,6 +23,7 @@ const MAX_ON_HOME = 3;
 export function UpcomingMatches() {
   const { user } = useSession();
   const entries = useMyRegistrations({ enabled: Boolean(user) });
+  const t = useT(messages, 'UpcomingMatches');
 
   if (!user) return null;
 
@@ -35,20 +38,20 @@ export function UpcomingMatches() {
     <section aria-labelledby="proximos-campeonatos" className="mx-auto flex w-full max-w-[1280px] flex-col gap-4 px-4 md:px-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="proximos-campeonatos" className="text-xl">
-          {withMatch.length > 0 ? 'Suas próximas partidas' : 'Seus próximos campeonatos'}
+          {withMatch.length > 0 ? t('proximasPartidas') : t('proximosCampeonatos')}
         </h2>
-        <Link href="/minha-conta/campeonatos" aria-label="Ver todos os meus campeonatos" className="flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-text underline-offset-2 hover:underline">
-          Ver todos
+        <Link href="/minha-conta/campeonatos" aria-label={t('verTodosAria')} className="flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-text underline-offset-2 hover:underline">
+          {t('verTodos')}
           <ArrowRight className="size-4" aria-hidden />
         </Link>
       </div>
       {entries.isPending ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Carregando seus campeonatos">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" role="status" aria-label={t('carregando')}>
           <Skeleton className="h-40 w-full" />
           <Skeleton className="hidden h-40 w-full md:block" />
         </div>
       ) : entries.isError ? (
-        <ErrorState title="Não foi possível carregar seus campeonatos" description={errorMessage(entries.error)} onRetry={() => void entries.refetch()} />
+        <ErrorState title={t('erroCarregar')} description={errorMessage(entries.error)} onRetry={() => void entries.refetch()} />
       ) : (
         <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {current.slice(0, MAX_ON_HOME).map((entry) => (
