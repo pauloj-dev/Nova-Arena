@@ -3,6 +3,7 @@
 import type { SiteBannerItem } from '@nova/schemas';
 import { cn } from '@nova/ui';
 import { Megaphone, Wrench, X } from 'lucide-react';
+import Link from 'next/link';
 import { useSyncExternalStore } from 'react';
 import { useSiteBanner } from '../api/hooks/admin-tournaments';
 import { formatDateTime } from '../lib/datetime';
@@ -98,6 +99,14 @@ export function SiteBanner() {
                 </strong>{' '}
                 {item.body}
                 {when && <> {when}</>}
+                {maintenance && (
+                  <>
+                    {' '}
+                    <Link href="/manutencao" className="font-semibold underline underline-offset-2">
+                      Saiba mais
+                    </Link>
+                  </>
+                )}
               </p>
               {item.dismissible && (
                 <button type="button" onClick={() => dismiss(item.id)} aria-label={`Dispensar o aviso: ${item.title}`} className="-my-1 flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-surface/40 md:size-8">
