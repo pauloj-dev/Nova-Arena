@@ -381,6 +381,8 @@ export async function seedDemo(db: PrismaClient, env: Env, data: DemoData, opts:
       data: {
         scheduledAt: date(m.scheduledAt),
         evidenceUrls: m.evidenceUrls,
+        // Quando o resultado foi lançado (os indicadores do Admin contam as partidas validadas por data).
+        ...(m.updatedAt ? { updatedAt: new Date(m.updatedAt) } : {}),
         ...(m.lobbyCode && env.LOBBY_ENCRYPTION_KEY ? { lobbyCodeEnc: encryptLobby(env, match.id, { code: m.lobbyCode, password: m.lobbyPassword }) } : {}),
       },
     });

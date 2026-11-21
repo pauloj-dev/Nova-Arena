@@ -66,7 +66,10 @@ site.put('/admin/settings', async (c) => {
 });
 
 site.get('/site/settings', async (c) => {
-  c.header('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
+  // Navegador sempre confere (sem "stale-while-revalidate" no navegador: quem muda a configuração vê na hora); a CDN
+  // da Vercel guarda por pouco tempo.
+  c.header('Cache-Control', 'public, max-age=0, must-revalidate');
+  c.header('CDN-Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
   return respond(c, PublicSiteSettings, toPublicSettings(await siteSettings(c)));
 });
 
@@ -103,7 +106,9 @@ site.put('/admin/flags/:key', async (c) => {
 
 /** Público: o site lê daqui para ligar e desligar recursos sem novo deploy. */
 site.get('/site/flags', async (c) => {
-  c.header('Cache-Control', 'public, max-age=0, s-maxage=30, stale-while-revalidate=60');
+  // O navegador não reaproveita resposta velha (o Super Admin desliga uma flag e confere na hora); a CDN guarda 30 s.
+  c.header('Cache-Control', 'public, max-age=0, must-revalidate');
+  c.header('CDN-Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
   return respond(c, FeatureFlags, await siteFlags(c));
 });
 

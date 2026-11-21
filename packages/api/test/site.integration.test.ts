@@ -64,7 +64,9 @@ describe.skipIf(!url)('configurações, flags, saúde e métricas (Postgres)', (
     expect(settings.siteName).toBe(`Arena ${h.stamp}`.slice(0, 40));
     expect(settings.termsHtml).toBe('<p>Termos novos.</p>');
     expect(res.data).not.toHaveProperty('requireApprovalForSeniorAdminRemoval');
-    expect(res.res.headers.get('cache-control')).toContain('s-maxage');
+    // A CDN guarda por pouco tempo; o navegador sempre confere (quem muda a configuração vê na hora).
+    expect(res.res.headers.get('cdn-cache-control')).toContain('s-maxage');
+    expect(res.res.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
   });
 
   it('com a regra da RN-11 desligada nas configurações, o Admin remove o mais antigo sem aprovação (o Super Admin segue protegido)', async () => {
