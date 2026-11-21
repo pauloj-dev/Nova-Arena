@@ -7,7 +7,9 @@ import { useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useDownloadCalendar, useMyCalendarFeed, useTournamentCalendarFeed } from '@/shared/api/hooks/calendar';
 import { isModuleMocked } from '@/shared/api/mode';
+import { useT } from '@/shared/i18n/react';
 import { downloadFile } from '@/features/organizer/lib/download';
+import { messages } from './messages';
 
 export type CalendarScope = { kind: 'mine' } | { kind: 'tournament'; idOrSlug: string; name: string };
 
@@ -16,31 +18,30 @@ export interface CalendarExportProps {
   size?: ButtonProps['size'];
 }
 
-const HELP = [
-  { app: 'Google Agenda', steps: 'no computador, "Outras agendas" → "+" → "Do URL" e cole o endereço.' },
-  { app: 'Apple (iPhone e Mac)', steps: 'toque em "Abrir no aplicativo de calendário" ou, no Mac, Arquivo → Nova assinatura de calendário.' },
-  { app: 'Outlook', steps: '"Adicionar calendário" → "Assinar da Web" e cole o endereço.' },
-];
+/** Aplicativos com o passo a passo de assinatura (textos em `messages`, trecho `FeedBody.ajuda`). */
+const HELP = ['google', 'apple', 'outlook'] as const;
 
 function FeedBody({ feed, scope }: { feed: CalendarFeed; scope: CalendarScope }) {
   const { success, error } = useToast();
   const download = useDownloadCalendar();
   const [copied, setCopied] = useState(false);
+  const t = useT(messages, 'FeedBody');
+  const mocked = isModuleMocked('calendar');
 
   async function copy() {
     try {
       await navigator.clipboard.writeText(feed.url);
       setCopied(true);
-      success('Endereço copiado', 'Cole no seu aplicativo de calendário para assinar.');
+      success(t('copiado'), t('copiadoDescricao'));
     } catch {
-      error('Não foi possível copiar', 'Selecione o endereço no campo e copie.');
+      error(t('erroCopiar'), t('erroCopiarDescricao'));
     }
   }
 
   function save() {
     download.mutate(feed, {
       onSuccess: ({ blob, filename }) => downloadFile(blob, filename, 'text/calendar'),
-      onError: (e) => error('Não foi possível baixar o calendário', errorMessage(e)),
+      onError: (e) => error(t('erroBaixar'), errorMessage(e)),
     });
   }
 
@@ -49,53 +50,53 @@ function FeedBody({ feed, scope }: { feed: CalendarFeed; scope: CalendarScope })
       <p className="flex items-start gap-2 text-sm text-text" role="status" data-testid="calendar-count">
         <CalendarClock className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
         {feed.events === 0
-          ? 'Ainda não há partidas com horário marcado. Se você assinar agora, elas aparecem sozinhas quando forem marcadas.'
-          : `${feed.events} ${feed.events === 1 ? 'partida com horário marcado' : 'partidas com horário marcado'}${scope.kind === 'mine' ? ' para você' : ''}. Horários no seu fuso, com lembrete 15 minutos antes.`}
+          ? t('semPartidas')
+          : t('partidas', { eventos: feed.events, escopo: scope.kind })}
       </p>
 
       <section aria-labelledby="assinar-calendario" className="flex flex-col gap-3">
         <h3 id="assinar-calendario" className="text-base">
-          Assinar no calendário
+          {t('assinar')}
         </h3>
-        <p className="text-sm text-muted">Assinando, o calendário se atualiza sozinho quando uma partida muda de horário.</p>
+        <p className="text-sm text-muted">{t('assinarDescricao')}</p>
         <div className="flex flex-col gap-2 xs:flex-row xs:flex-wrap">
           <Button asChild>
             <a href={feed.webcalUrl}>
               <CalendarPlus className="size-4" aria-hidden />
-              Abrir no aplicativo de calendário
+              {t('abrirNoAplicativo')}
             </a>
           </Button>
           <Button variant="secondary" iconLeft={<Copy className="size-4" aria-hidden />} onClick={() => void copy()}>
-            {copied ? 'Endereço copiado' : 'Copiar endereço'}
+            {copied ? t('copiado') : t('copiarEndereco')}
           </Button>
         </div>
-        <Input label="Endereço do calendário" value={feed.url} readOnly onFocus={(e) => e.currentTarget.select()} hint={scope.kind === 'mine' ? 'Este endereço é pessoal: não compartilhe.' : undefined} />
+        <Input label={t('endereco')} value={feed.url} readOnly onFocus={(e) => e.currentTarget.select()} hint={scope.kind === 'mine' ? t('enderecoPessoal') : undefined} />
         <details className="rounded-md border border-border px-3 py-2 text-sm">
-          <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-text">Como assinar em cada aplicativo</summary>
+          <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-text">{t('comoAssinar')}</summary>
           <ul className="flex flex-col gap-1 pb-2 text-muted">
             {HELP.map((h) => (
-              <li key={h.app}>
-                <strong className="text-text">{h.app}:</strong> {h.steps}
+              <li key={h}>
+                <strong className="text-text">{t(`ajuda.${h}.app`)}:</strong> {t(`ajuda.${h}.passos`)}
               </li>
             ))}
           </ul>
         </details>
-        {isModuleMocked('calendar') && (
+        {mocked && (
           <p className="flex items-start gap-2 rounded-md bg-info-soft px-3 py-2 text-sm text-info-soft-text">
             <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
-            No protótipo, o endereço só funciona neste navegador. Para testar no seu calendário, baixe o arquivo.
+            {t('prototipo')}
           </p>
         )}
       </section>
 
       <section aria-labelledby="baixar-calendario" className="flex flex-col gap-2">
         <h3 id="baixar-calendario" className="text-base">
-          Baixar arquivo .ics
+          {t('baixarIcs')}
         </h3>
-        <p className="text-sm text-muted">Uma cópia das partidas de agora, para importar uma vez. Não se atualiza sozinha.</p>
+        <p className="text-sm text-muted">{t('baixarDescricao')}</p>
         <div>
           <Button variant="secondary" loading={download.isPending} iconLeft={<Download className="size-4" aria-hidden />} onClick={save}>
-            Baixar arquivo .ics
+            {t('baixarIcs')}
           </Button>
         </div>
       </section>
@@ -114,29 +115,31 @@ function TournamentFeed({ scope }: { scope: Extract<CalendarScope, { kind: 'tour
 }
 
 function FeedState({ query, scope }: { query: ReturnType<typeof useMyCalendarFeed>; scope: CalendarScope }) {
+  const t = useT(messages, 'FeedState');
   if (query.isPending) {
     return (
-      <div className="flex flex-col gap-3" role="status" aria-label="Carregando o calendário">
+      <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
         <Skeleton className="h-5 w-3/4" />
         <Skeleton className="h-11 w-full" />
         <Skeleton className="h-11 w-full" />
       </div>
     );
   }
-  if (query.isError) return <ErrorState title="Não foi possível preparar o calendário" description={errorMessage(query.error)} onRetry={() => void query.refetch()} />;
+  if (query.isError) return <ErrorState title={t('erro')} description={errorMessage(query.error)} onRetry={() => void query.refetch()} />;
   return <FeedBody feed={query.data} scope={scope} />;
 }
 
 /** "Calendário": assinar (webcal, atualiza sozinho) ou baixar o .ics das partidas — as minhas ou as de um campeonato. */
 export function CalendarExport({ scope, size = 'sm' }: CalendarExportProps) {
   const [open, setOpen] = useState(false);
-  const title = scope.kind === 'mine' ? 'Minhas partidas no calendário' : 'Partidas no calendário';
+  const t = useT(messages, 'CalendarExport');
+  const title = scope.kind === 'mine' ? t('tituloMinhas') : t('tituloCampeonato');
   return (
     <>
       <Button variant="secondary" size={size} iconLeft={<CalendarPlus className="size-4" aria-hidden />} onClick={() => setOpen(true)}>
-        Adicionar ao calendário
+        {t('adicionar')}
       </Button>
-      <Modal open={open} onOpenChange={setOpen} title={title} description={scope.kind === 'mine' ? 'Todas as suas partidas marcadas, de todos os campeonatos.' : `Todas as partidas marcadas de ${scope.name}.`}>
+      <Modal open={open} onOpenChange={setOpen} title={title} description={scope.kind === 'mine' ? t('descricaoMinhas') : t('descricaoCampeonato', { nome: scope.name })}>
         {open && (scope.kind === 'mine' ? <MineFeed /> : <TournamentFeed scope={scope} />)}
       </Modal>
     </>
