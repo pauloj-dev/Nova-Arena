@@ -132,6 +132,14 @@ E2E_MODE=real PLAYWRIGHT_BASE_URL=http://localhost:3141 PW_OUTPUT_DIR=test-resul
 - **Coleções de F2 no banco simulado** (`db().extra`): `stageRuns`, `matchMeta`, `podiums`, `resultEvents`, `auditLogs`, `notifications`, `notificationPreferences`, `reports`, `submissions`, `disputes`, `sanctions`, `roleGrants`, `globalAnnouncements`, `siteSettings`, `featureFlags`, `twoFactor`.
 - **Atalhos que só existem no protótipo** e não vão para a API real: `POST /auth/dev-login`, `GET /me/2fa/dev-code`, os tokens `devVerifyToken`/`devResetToken` nas respostas e o link de redefinição mostrado ao Admin. A API real não tem nenhum deles (o teste `packages/api/test/contract-parity.unit.test.ts` garante); com ela, os links vão só por e-mail.
 
+## Textos e idiomas (issue 108, ADR-0004)
+
+- **Nenhum texto de interface fixo no código.** Cada área tem o catálogo dela: `features/<área>/messages/pt-BR.json` + `index.ts` (`defineMessages`). Textos comuns e de `shared/` ficam em `shared/i18n/messages`; os de `app/` em `app/messages`.
+- **Componente cliente:** `const t = useT(messages, 'Componente')` (`@/shared/i18n/react`). **Servidor, `metadata`, `.ts`:** `getT(messages, 'Trecho')` (`@/shared/i18n/core`), chamado dentro da função.
+- **Plural:** ICU com `=1` (em pt-BR a categoria `one` também pega o 0): `{n, plural, =1 {# inscrito} other {{n} inscritos}}`. Número que não deve ganhar separador de milhar vai como texto. Trecho com link no meio: `t.rich`.
+- **CI:** a regra `i18next/no-literal-string` (`i18n-lint.mjs`) acusa texto em JSX e nos atributos lidos (`aria-label`, `placeholder`, `title`, `alt`, `label`…). Só a função `t` (e `t.rich`) é isenta: um segundo tradutor ou chamada com texto dentro do JSX vira variável antes do `return`. `pnpm --filter web check:i18n <pastas>` confere uma área.
+- **Fica no servidor:** rótulos e mensagens de validação de `@nova/schemas` e o `detail` dos erros da API. As notificações da API estão em `packages/api/src/messages/pt-BR.ts` e os e-mails em `packages/email/src/messages.pt-BR.ts`.
+
 ## Refinamento R1 (responsividade, acessibilidade, PWA)
 
 - **Telas revisadas automaticamente:** `e2e/rotas.ts` lista todas as telas com o usuário que as abre. Tela nova entra ali e passa a ser conferida em 360/480/768/1024/1440 px e paisagem (`r1-responsividade`, com screenshot de cada tamanho no relatório), pelo axe nos dois temas (`r1-acessibilidade`) e, se `principal`, nas áreas de toque de 44 px (`r1-toque-e-movimento`). Roteiros de leitor de tela: `docs/acessibilidade.md`.
