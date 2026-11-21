@@ -8,9 +8,11 @@ import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useMyTeams } from '@/shared/api/hooks/teams';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { useSession } from '@/shared/session/useSession';
 import { invitePath, isInviteCodeShape, normalizeInviteCode } from './lib/rules';
+import { messages } from './messages';
 import { ReceivedInvites } from './ReceivedInvites';
 import { TeamFormModal } from './TeamFormModal';
 import { TeamLogo } from './TeamLogo';
@@ -21,35 +23,36 @@ export function MyTeamsPage() {
   const teams = useMyTeams({ enabled: Boolean(user) });
   const router = useRouter();
   const [creating, setCreating] = useState(false);
+  const t = useT(messages, 'MyTeamsPage');
 
   const createButton = (
     <Button iconLeft={<Plus className="size-4" aria-hidden />} onClick={() => setCreating(true)}>
-      Criar squad
+      {t('criarSquad')}
     </Button>
   );
 
   return (
     <PageContainer>
-      <PageHeader title="Meus squads" description="Seu time fica salvo aqui e pode ser inscrito em quantos campeonatos quiser." actions={createButton} />
+      <PageHeader title={t('titulo')} description={t('descricao')} actions={createButton} />
 
       <ReceivedInvites />
 
       <section aria-labelledby="lista-squads" className="flex flex-col gap-3">
         <h2 id="lista-squads" className="sr-only">
-          Squads em que você está
+          {t('squadsEmQueVoceEsta')}
         </h2>
         {teams.isPending ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Carregando seus squads">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" role="status" aria-label={t('carregando')}>
             <Skeleton className="h-28 w-full" />
             <Skeleton className="h-28 w-full" />
           </div>
         ) : teams.isError ? (
-          <ErrorState title="Não foi possível carregar seus squads" description={errorMessage(teams.error)} onRetry={() => void teams.refetch()} />
+          <ErrorState title={t('erroCarregar')} description={errorMessage(teams.error)} onRetry={() => void teams.refetch()} />
         ) : teams.data.length === 0 ? (
           <EmptyState
             icon={<Users className="size-7" />}
-            title="Você ainda não está em nenhum squad"
-            description="Crie o seu e convide os amigos, ou peça o link de convite ao capitão do seu time."
+            title={t('vazioTitulo')}
+            description={t('vazioDescricao')}
             action={createButton}
           />
         ) : (
@@ -71,6 +74,7 @@ export function MyTeamsPage() {
 }
 
 function TeamCard({ team, viewerId }: { team: Team; viewerId: string | null }) {
+  const t = useT(messages, 'TeamCard');
   const isCaptain = team.captainId === viewerId;
   const count = team.members.length;
   return (
@@ -86,17 +90,17 @@ function TeamCard({ team, viewerId }: { team: Team; viewerId: string | null }) {
         </h3>
         <p className="flex items-center gap-1.5 text-sm text-muted">
           <Users className="size-4" aria-hidden />
-          {count === 1 ? '1 membro' : `${count} membros`}
+          {t('membros', { count })}
         </p>
         <div className="flex flex-wrap gap-1.5">
           {isCaptain && (
             <Badge tone="gold" icon={<Crown className="size-3.5" aria-hidden />}>
-              Você é o capitão
+              {t('voceEhCapitao')}
             </Badge>
           )}
           {isCaptain && team.pendingInvites.length > 0 && (
             <Badge tone="warning" icon={<Hourglass className="size-3.5" aria-hidden />}>
-              {team.pendingInvites.length === 1 ? '1 convite pendente' : `${team.pendingInvites.length} convites pendentes`}
+              {t('convitesPendentes', { count: team.pendingInvites.length })}
             </Badge>
           )}
         </div>
@@ -110,12 +114,13 @@ function JoinByCode() {
   const router = useRouter();
   const [code, setCode] = useState('');
   const [problem, setProblem] = useState<string | undefined>();
+  const t = useT(messages, 'JoinByCode');
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     const normalized = normalizeInviteCode(code);
     if (!isInviteCodeShape(normalized)) {
-      setProblem('O código tem 6 letras ou números.');
+      setProblem(t('codigoInvalido'));
       return;
     }
     router.push(invitePath(normalized));
@@ -126,13 +131,13 @@ function JoinByCode() {
       <section aria-labelledby="entrar-codigo" className="flex flex-col gap-3">
         <div>
           <h2 id="entrar-codigo" className="text-lg">
-            Tenho um código de convite
+            {t('titulo')}
           </h2>
-          <p className="mt-1 text-sm text-muted">Digite o código de 6 caracteres que o capitão mandou.</p>
+          <p className="mt-1 text-sm text-muted">{t('descricao')}</p>
         </div>
         <form noValidate onSubmit={onSubmit} className="flex flex-col gap-3 xs:flex-row xs:items-start">
           <Input
-            label="Código do convite"
+            label={t('codigoDoConvite')}
             hideLabel
             placeholder="ALFA42"
             autoComplete="off"
@@ -149,7 +154,7 @@ function JoinByCode() {
             }}
           />
           <Button type="submit" variant="secondary">
-            Ver convite
+            {t('verConvite')}
           </Button>
         </form>
       </section>

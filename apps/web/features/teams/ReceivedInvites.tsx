@@ -7,6 +7,8 @@ import { useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useAcceptTeamInvite, useDeclineTeamInvite, useMyTeamInvites } from '@/shared/api/hooks/teams';
 import { formatDateTime } from '@/shared/lib/datetime';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 import { TeamLogo } from './TeamLogo';
 
 /** Convites feitos para o meu apelido: aceitar ou recusar. Não aparece quando não há convite. */
@@ -17,33 +19,34 @@ export function ReceivedInvites() {
   const router = useRouter();
   const { success, error } = useToast();
   const [busy, setBusy] = useState<string | null>(null);
+  const t = useT(messages, 'ReceivedInvites');
 
   if (invites.isPending) {
     return (
-      <div role="status" aria-label="Carregando convites">
+      <div role="status" aria-label={t('carregando')}>
         <Skeleton className="h-24 w-full" />
       </div>
     );
   }
-  if (invites.isError) return <ErrorState title="Não foi possível carregar seus convites" description={errorMessage(invites.error)} onRetry={() => void invites.refetch()} />;
+  if (invites.isError) return <ErrorState title={t('erroCarregar')} description={errorMessage(invites.error)} onRetry={() => void invites.refetch()} />;
   if (invites.data.length === 0) return null;
 
   function onAccept(invite: TeamInvite) {
     setBusy(invite.id);
     accept.mutate(invite.code, {
       onSuccess: (team) => {
-        success(`Você entrou no ${team.name}`);
+        success(t('entrou', { nome: team.name }));
         router.push(`/minha-conta/squads/${team.id}`);
       },
-      onError: (e) => error('Não foi possível aceitar o convite', errorMessage(e)),
+      onError: (e) => error(t('erroAceitar'), errorMessage(e)),
       onSettled: () => setBusy(null),
     });
   }
   function onDecline(invite: TeamInvite) {
     setBusy(invite.id);
     decline.mutate(invite.code, {
-      onSuccess: () => success(`Convite do ${invite.teamName} recusado`),
-      onError: (e) => error('Não foi possível recusar o convite', errorMessage(e)),
+      onSuccess: () => success(t('recusado', { nome: invite.teamName })),
+      onError: (e) => error(t('erroRecusar'), errorMessage(e)),
       onSettled: () => setBusy(null),
     });
   }
@@ -51,7 +54,7 @@ export function ReceivedInvites() {
   return (
     <section aria-labelledby="convites-recebidos" className="flex flex-col gap-3">
       <h2 id="convites-recebidos" className="text-lg">
-        Convites recebidos
+        {t('titulo')}
       </h2>
       <ul className="grid gap-3 lg:grid-cols-2">
         {invites.data.map((invite) => (
@@ -64,16 +67,16 @@ export function ReceivedInvites() {
                     {invite.teamName} <span className="tabular text-xs text-muted">[{invite.teamTag}]</span>
                   </p>
                   <p className="text-sm text-muted">
-                    {invite.invitedByNickname} convidou você · vale até {formatDateTime(invite.expiresAt)}
+                    {t('convidouVoce', { quem: invite.invitedByNickname, validade: formatDateTime(invite.expiresAt) })}
                   </p>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" loading={busy === invite.id && accept.isPending} disabled={busy !== null} aria-label={`Aceitar o convite do ${invite.teamName}`} onClick={() => onAccept(invite)}>
-                  Aceitar
+                <Button size="sm" loading={busy === invite.id && accept.isPending} disabled={busy !== null} aria-label={t('aceitarConviteDo', { nome: invite.teamName })} onClick={() => onAccept(invite)}>
+                  {t('aceitar')}
                 </Button>
-                <Button size="sm" variant="secondary" loading={busy === invite.id && decline.isPending} disabled={busy !== null} aria-label={`Recusar o convite do ${invite.teamName}`} onClick={() => onDecline(invite)}>
-                  Recusar
+                <Button size="sm" variant="secondary" loading={busy === invite.id && decline.isPending} disabled={busy !== null} aria-label={t('recusarConviteDo', { nome: invite.teamName })} onClick={() => onDecline(invite)}>
+                  {t('recusar')}
                 </Button>
               </div>
             </Card>
