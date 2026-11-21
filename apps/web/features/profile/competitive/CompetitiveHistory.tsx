@@ -6,7 +6,10 @@ import { Award, Crown, Flag, Medal, Radio, Star, Swords, Trophy, type LucideIcon
 import Link from 'next/link';
 import { errorMessage } from '@/shared/api/client';
 import { useCompetitiveStats } from '@/shared/api/hooks/profile-stats';
+import { getT } from '@/shared/i18n/core';
+import { useT } from '@/shared/i18n/react';
 import { formatDate } from '@/shared/lib/datetime';
+import { messages } from '../messages';
 
 type PerGame = CompetitiveStats['perGame'][number];
 type Achievement = CompetitiveStats['achievements'][number];
@@ -23,8 +26,9 @@ const ACHIEVEMENTS: Record<Achievement['type'], { icon: LucideIcon; tone: BadgeT
 
 /** "1º lugar", "2º lugar"… ou o texto para quem ainda está jogando. */
 export function placementLabel(entry: Pick<HistoryEntry, 'placement' | 'finishedAt'>): string {
-  if (entry.finishedAt === null) return 'Em andamento';
-  return entry.placement === null ? 'Sem colocação' : `${entry.placement}º lugar`;
+  const t = getT(messages, 'CompetitiveHistory');
+  if (entry.finishedAt === null) return t('emAndamento');
+  return entry.placement === null ? t('semColocacao') : t('colocacao', { placement: entry.placement });
 }
 
 /** Aproveitamento em partidas: vitórias sobre partidas, em porcentagem inteira. */
@@ -42,9 +46,10 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 function GameCard({ game }: { game: PerGame }) {
+  const t = useT(messages, 'CompetitiveHistory');
   return (
     <Card className="min-w-0">
-      <article aria-label={`Estatísticas em ${game.gameName}`} className="flex flex-col gap-3">
+      <article aria-label={t('estatisticasEm', { jogo: game.gameName })} className="flex flex-col gap-3">
         <h3 className="flex items-center gap-2 text-base">
           <span aria-hidden className="text-xl leading-none">
             {game.gameIcon}
@@ -52,13 +57,13 @@ function GameCard({ game }: { game: PerGame }) {
           <span className="min-w-0 [overflow-wrap:anywhere]">{game.gameName}</span>
         </h3>
         <dl className="grid grid-cols-3 gap-x-3 gap-y-3">
-          <Stat label="Campeonatos" value={game.tournaments} />
-          <Stat label="Títulos" value={game.titles} />
-          <Stat label="Partidas" value={game.matches} />
-          <Stat label="Vitórias" value={game.wins} />
-          <Stat label="Aproveitamento" value={winRate(game.wins, game.matches)} />
+          <Stat label={t('campeonatos')} value={game.tournaments} />
+          <Stat label={t('titulos')} value={game.titles} />
+          <Stat label={t('partidas')} value={game.matches} />
+          <Stat label={t('vitorias')} value={game.wins} />
+          <Stat label={t('aproveitamento')} value={winRate(game.wins, game.matches)} />
           {/* Battle Royale soma kills; duelos somam o placar (gols, coroas, frames). */}
-          {game.kills > 0 ? <Stat label="Kills" value={game.kills} /> : <Stat label="Placar somado" value={game.score} />}
+          {game.kills > 0 ? <Stat label={t('kills')} value={game.kills} /> : <Stat label={t('placarSomado')} value={game.score} />}
         </dl>
       </article>
     </Card>
@@ -118,32 +123,31 @@ export interface CompetitiveHistoryProps {
 /** Seção "Histórico competitivo" do perfil público: números por jogo, conquistas e campeonatos com a colocação. */
 export function CompetitiveHistory({ nickname, isMine = false }: CompetitiveHistoryProps) {
   const stats = useCompetitiveStats(nickname);
+  const t = useT(messages, 'CompetitiveHistory');
 
   return (
     <section aria-labelledby="perfil-historico" className="flex flex-col gap-4">
       <h2 id="perfil-historico" className="text-lg">
-        Histórico competitivo
+        {t('historico')}
       </h2>
 
       {stats.isPending ? (
-        <div className="grid gap-4 md:grid-cols-2" role="status" aria-label="Carregando histórico competitivo">
+        <div className="grid gap-4 md:grid-cols-2" role="status" aria-label={t('carregando')}>
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-40 w-full" />
         </div>
       ) : stats.isError ? (
-        <ErrorState title="Não foi possível carregar o histórico competitivo" description={errorMessage(stats.error)} onRetry={() => void stats.refetch()} />
+        <ErrorState title={t('erroCarregar')} description={errorMessage(stats.error)} onRetry={() => void stats.refetch()} />
       ) : stats.data.perGame.length === 0 ? (
         <EmptyState
           icon={<Trophy className="size-7" />}
-          title={isMine ? 'Você ainda não disputou campeonatos' : 'Ainda sem campeonatos disputados'}
+          title={isMine ? t('vazioMeuTitulo') : t('vazioTitulo')}
           description={
-            isMine
-              ? 'Inscreva-se em um campeonato: suas partidas, vitórias e títulos aparecem aqui assim que a chave for confirmada.'
-              : 'Partidas, vitórias e títulos aparecem aqui quando este jogador disputar um campeonato na Nova Arena.'
+isMine ? t('vazioMeuDescricao') : t('vazioDescricao')
           }
           action={
             <Button asChild variant="secondary">
-              <Link href="/campeonatos?status=open">Ver campeonatos abertos</Link>
+              <Link href="/campeonatos?status=open">{t('verAbertos')}</Link>
             </Button>
           }
         />
@@ -157,8 +161,8 @@ export function CompetitiveHistory({ nickname, isMine = false }: CompetitiveHist
 
           {stats.data.achievements.length > 0 && (
             <div className="flex flex-col gap-2">
-              <h3 className="text-base">Conquistas</h3>
-              <ul className="grid gap-2 xs:grid-cols-2" aria-label="Conquistas">
+              <h3 className="text-base">{t('conquistas')}</h3>
+              <ul className="grid gap-2 xs:grid-cols-2" aria-label={t('conquistas')}>
                 {stats.data.achievements.map((a) => (
                   <AchievementBadge key={a.id} achievement={a} />
                 ))}
@@ -167,9 +171,9 @@ export function CompetitiveHistory({ nickname, isMine = false }: CompetitiveHist
           )}
 
           <div className="flex flex-col gap-2">
-            <h3 className="text-base">Campeonatos</h3>
+            <h3 className="text-base">{t('campeonatos')}</h3>
             <Card padding="none">
-              <ul className="divide-y divide-border" aria-label="Campeonatos disputados">
+              <ul className="divide-y divide-border" aria-label={t('disputados')}>
                 {stats.data.history.map((entry) => (
                   <li key={entry.tournamentId} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
                     <span aria-hidden className="text-xl leading-none">
@@ -186,7 +190,7 @@ export function CompetitiveHistory({ nickname, isMine = false }: CompetitiveHist
                             {entry.teamName}
                           </span>
                         )}
-                        <span>{entry.finishedAt ? `Encerrado em ${formatDate(entry.finishedAt)}` : 'Ainda em disputa'}</span>
+                        <span>{entry.finishedAt ? t('encerradoEm', { data: formatDate(entry.finishedAt) }) : t('emDisputa')}</span>
                       </p>
                     </div>
                     <PlacementBadge entry={entry} />

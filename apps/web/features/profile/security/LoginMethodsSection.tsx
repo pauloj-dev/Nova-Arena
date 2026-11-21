@@ -8,8 +8,10 @@ import { useState, type FormEvent } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { oauthStartUrl, useLoginMethods, useSetPassword, useUnlinkProvider } from '@/shared/api/hooks/login-methods';
 import { isModuleMocked } from '@/shared/api/mode';
+import { useT } from '@/shared/i18n/react';
 import { formatDate } from '@/shared/lib/datetime';
 import { PrototypeNotice } from '@/features/auth/AuthParts';
+import { messages } from '../messages';
 
 const PROVIDERS: { id: OAuthProviderName; label: string }[] = [
   { id: 'google', label: 'Google' },
@@ -19,19 +21,20 @@ const PROVIDERS: { id: OAuthProviderName; label: string }[] = [
 /** Retorno do provedor depois de vincular (`?vinculado=` / `?erro=`). */
 function LinkResult() {
   const params = useSearchParams();
+  const t = useT(messages, 'LoginMethodsSection');
   const linked = PROVIDERS.find((p) => p.id === params.get('vinculado'));
   if (linked) {
     return (
       <p role="status" className="flex items-center gap-2 rounded-md bg-primary-soft px-3 py-2 text-sm font-medium text-primary-soft-text">
         <CheckCircle2 className="size-4 shrink-0" aria-hidden />
-        {linked.label} vinculado. Agora você pode entrar com ele.
+        {t('vinculado', { provedor: linked.label })}
       </p>
     );
   }
   if (params.get('erro') === 'oauth_ja_vinculado') {
     return (
       <p role="alert" className="rounded-md border border-danger bg-danger-soft px-3 py-2 text-sm font-medium text-danger-soft-text">
-        Essa conta do provedor já está vinculada a outra conta da Nova Arena.
+        {t('jaVinculada')}
       </p>
     );
   }
@@ -40,6 +43,7 @@ function LinkResult() {
 
 function SetPasswordForm() {
   const setPassword = useSetPassword();
+  const t = useT(messages, 'LoginMethodsSection');
   const toast = useToast();
   const [password, setValue] = useState('');
   const [fieldError, setFieldError] = useState<string>();
@@ -53,17 +57,17 @@ function SetPasswordForm() {
     }
     setFieldError(undefined);
     setPassword.mutate(parsed.data.password, {
-      onSuccess: () => toast.success('Senha definida', 'Agora você também pode entrar com e-mail e senha.'),
-      onError: (err) => toast.error('Não foi possível definir a senha', errorMessage(err)),
+      onSuccess: () => toast.success(t('senhaDefinida'), t('senhaDefinidaDescricao')),
+      onError: (err) => toast.error(t('erroDefinir'), errorMessage(err)),
     });
   }
 
   return (
     <form noValidate onSubmit={submit} className="flex flex-col gap-3 rounded-md border border-border p-3">
-      <p className="text-sm text-muted">Sua conta ainda não tem senha. Defina uma para também entrar com e-mail e poder desvincular provedores.</p>
-      <Input label="Nova senha" type="password" autoComplete="new-password" value={password} onChange={(e) => setValue(e.target.value)} error={fieldError} />
+      <p className="text-sm text-muted">{t('semSenhaAviso')}</p>
+      <Input label={t('novaSenha')} type="password" autoComplete="new-password" value={password} onChange={(e) => setValue(e.target.value)} error={fieldError} />
       <Button type="submit" className="self-start" loading={setPassword.isPending} iconLeft={<KeyRound className="size-4" aria-hidden />}>
-        Definir senha
+        {t('definirSenha')}
       </Button>
     </form>
   );
@@ -71,6 +75,7 @@ function SetPasswordForm() {
 
 function ProviderRow({ id, label, link, mocked }: { id: OAuthProviderName; label: string; link: OAuthLink | undefined; mocked: boolean }) {
   const unlink = useUnlinkProvider();
+  const t = useT(messages, 'LoginMethodsSection');
   const toast = useToast();
 
   return (
@@ -79,16 +84,16 @@ function ProviderRow({ id, label, link, mocked }: { id: OAuthProviderName; label
         <span className="font-semibold">{label}</span>
         {link ? (
           <span className="text-sm text-muted [overflow-wrap:anywhere]">
-            {link.email ?? 'Conta vinculada'} · desde {formatDate(link.linkedAt)}
+            {t('vinculadaDesde', { conta: link.email ?? t('contaVinculada'), data: formatDate(link.linkedAt) })}
           </span>
         ) : (
-          <span className="text-sm text-muted">Não vinculado</span>
+          <span className="text-sm text-muted">{t('naoVinculado')}</span>
         )}
       </div>
       {link ? (
         <div className="flex items-center gap-2">
           <Badge tone="primary" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>
-            Vinculado
+            {t('vinculadoSelo')}
           </Badge>
           <Button
             size="sm"
@@ -97,23 +102,23 @@ function ProviderRow({ id, label, link, mocked }: { id: OAuthProviderName; label
             iconLeft={<Unlink className="size-4" aria-hidden />}
             onClick={() =>
               unlink.mutate(id, {
-                onSuccess: () => toast.success(`${label} desvinculado`),
-                onError: (err) => toast.error(`Não foi possível desvincular o ${label}`, errorMessage(err)),
+                onSuccess: () => toast.success(t('desvinculado', { provedor: label })),
+                onError: (err) => toast.error(t('erroDesvincular', { provedor: label }), errorMessage(err)),
               })
             }
           >
-            Desvincular
+            {t('desvincular')}
           </Button>
         </div>
       ) : mocked ? (
         <Button size="sm" variant="secondary" disabled aria-describedby="vinculo-prototipo" iconLeft={<Link2 className="size-4" aria-hidden />}>
-          Vincular
+          {t('vincular')}
         </Button>
       ) : (
         <Button size="sm" variant="secondary" asChild>
           <a href={oauthStartUrl(id, { mode: 'link' })}>
             <Link2 className="size-4" aria-hidden />
-            Vincular
+            {t('vincular')}
           </a>
         </Button>
       )}
@@ -125,30 +130,31 @@ function ProviderRow({ id, label, link, mocked }: { id: OAuthProviderName; label
 export function LoginMethodsSection() {
   const methods = useLoginMethods();
   const mocked = isModuleMocked('auth');
+  const t = useT(messages, 'LoginMethodsSection');
 
   return (
     <section aria-labelledby="seguranca-acesso" className="flex flex-col gap-3">
       <h2 id="seguranca-acesso" className="text-lg">
-        Jeitos de entrar
+        {t('titulo')}
       </h2>
       <LinkResult />
       {methods.isPending ? (
-        <div role="status" aria-label="Carregando" className="flex flex-col gap-2">
+        <div role="status" aria-label={t('carregando')} className="flex flex-col gap-2">
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-12 w-full" />
         </div>
       ) : methods.isError ? (
         <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
-          <span>Não foi possível carregar os jeitos de entrar.</span>
+          <span>{t('erroCarregar')}</span>
           <Button size="sm" variant="secondary" onClick={() => void methods.refetch()}>
-            Tentar de novo
+            {t('tentarDeNovo')}
           </Button>
         </div>
       ) : (
         <>
           <p className="text-sm text-muted">
-            {methods.data.hasPassword ? 'E-mail e senha' : 'Sem senha'}
-            {methods.data.links.length > 0 ? ` · ${methods.data.links.length} provedor(es) vinculado(s)` : ''}
+            {methods.data.hasPassword ? t('emailESenha') : t('semSenha')}
+            {methods.data.links.length > 0 ? t('provedores', { count: methods.data.links.length }) : ''}
           </p>
           <ul className="divide-y divide-border">
             {PROVIDERS.map((p) => (
@@ -157,7 +163,7 @@ export function LoginMethodsSection() {
           </ul>
           {mocked && (
             <PrototypeNotice id="vinculo-prototipo">
-              <p>Vincular Google ou Discord exige ir até o provedor, o que só funciona com a API real. Aqui dá para ver e desvincular.</p>
+              <p>{t('prototipo')}</p>
             </PrototypeNotice>
           )}
           {!methods.data.hasPassword && <SetPasswordForm />}

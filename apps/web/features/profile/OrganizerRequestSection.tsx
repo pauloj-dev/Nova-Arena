@@ -9,13 +9,16 @@ import type { z } from 'zod';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useCreateOrganizerRequest, useOrganizerRequest } from '@/shared/api/hooks/users';
 import { keys } from '@/shared/api/keys';
+import { useT } from '@/shared/i18n/react';
 import { formatDate } from '@/shared/lib/datetime';
+import { messages } from './messages';
 
 type RequestValues = z.input<typeof OrganizerRequestInput>;
 const MIN = 30;
 const MAX = 1000;
 
 function RequestForm() {
+  const t = useT(messages, 'OrganizerRequestSection');
   const { success, error } = useToast();
   const qc = useQueryClient();
   const create = useCreateOrganizerRequest();
@@ -27,10 +30,11 @@ function RequestForm() {
     formState: { errors },
   } = useForm<RequestValues>({ resolver: zodResolver(OrganizerRequestInput), defaultValues: { justification: '' } });
   const text = useWatch({ control, name: 'justification' }) ?? '';
+  const justificationField = register('justification');
 
   const onSubmit = handleSubmit((values) => {
     create.mutate(values.justification, {
-      onSuccess: () => success('Pedido enviado', 'A administração vai analisar e você verá a resposta aqui.'),
+      onSuccess: () => success(t('enviadoTitulo'), t('enviadoDescricao')),
       onError: (e) => {
         if (e instanceof ApiError && e.fieldErrors.justification) {
           setError('justification', { type: 'server', message: e.fieldErrors.justification }, { shouldFocus: true });
@@ -38,7 +42,7 @@ function RequestForm() {
         }
         // 409: já existe pedido em análise ou a pessoa já virou organizadora. Mostra o motivo e atualiza o estado.
         setError('root', { type: 'server', message: errorMessage(e) });
-        error('Não foi possível enviar o pedido', errorMessage(e));
+        error(t('erroEnviar'), errorMessage(e));
         if (e instanceof ApiError && e.status === 409) {
           void qc.invalidateQueries({ queryKey: keys.organizerRequest });
           void qc.invalidateQueries({ queryKey: keys.me });
@@ -50,17 +54,17 @@ function RequestForm() {
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-3">
       <Textarea
-        label="Por que você quer organizar campeonatos?"
+        label={t('porQue')}
         rows={5}
         maxLength={MAX}
         required
         hint={
           <>
-            Conte sua experiência e que tipo de campeonato pretende criar. Mínimo de {MIN} caracteres. <span className="tabular">{text.length}/{MAX}</span>
+            {t('dica', { min: MIN })} <span className="tabular">{text.length}/{MAX}</span>
           </>
         }
         error={errors.justification?.message}
-        {...register('justification')}
+        {...justificationField}
       />
       {errors.root?.message && (
         <p role="alert" className="text-sm font-medium text-danger">
@@ -69,7 +73,7 @@ function RequestForm() {
       )}
       <div>
         <Button type="submit" loading={create.isPending}>
-          Enviar pedido
+          {t('enviar')}
         </Button>
       </div>
     </form>
@@ -77,13 +81,14 @@ function RequestForm() {
 }
 
 function RequestSummary({ request }: { request: OrganizerRequest }) {
+  const t = useT(messages, 'OrganizerRequestSection');
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         {request.status === 'PENDING' && <StatusPill status="IN_REVIEW" />}
-        {request.status === 'REJECTED' && <StatusPill status="REJECTED" label="Recusado" />}
+        {request.status === 'REJECTED' && <StatusPill status="REJECTED" label={t('recusado')} />}
         {request.status === 'APPROVED' && <StatusPill status="APPROVED" />}
-        <span className="text-sm text-muted">Pedido enviado em {formatDate(request.createdAt)}</span>
+        <span className="text-sm text-muted">{t('enviadoEm', { data: formatDate(request.createdAt) })}</span>
       </div>
       <blockquote className="rounded-md border-l-4 border-border-strong bg-surface-2 px-3 py-2 text-sm text-text [overflow-wrap:anywhere]">{request.justification}</blockquote>
     </div>
@@ -93,10 +98,11 @@ function RequestSummary({ request }: { request: OrganizerRequest }) {
 /** "Quero ser organizador": formulário com justificativa e o status do pedido mais recente (PAR-13). */
 export function OrganizerRequestSection() {
   const request = useOrganizerRequest();
+  const t = useT(messages, 'OrganizerRequestSection');
 
   if (request.isPending) {
     return (
-      <div className="flex flex-col gap-3" role="status" aria-label="Carregando pedido">
+      <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
         <Skeleton className="h-6 w-48" />
         <Skeleton className="h-28 w-full" />
         <Skeleton className="h-10 w-36" />
@@ -104,14 +110,14 @@ export function OrganizerRequestSection() {
     );
   }
   if (request.isError) {
-    return <ErrorState title="Não foi possível carregar seu pedido" description={errorMessage(request.error)} onRetry={() => void request.refetch()} />;
+    return <ErrorState title={t('erroCarregar')} description={errorMessage(request.error)} onRetry={() => void request.refetch()} />;
   }
 
   const current = request.data;
   if (!current) {
     return (
       <div className="flex flex-col gap-4">
-        <p className="text-sm text-muted">Organizadores criam e administram campeonatos na Nova Arena. O pedido é analisado pela administração.</p>
+        <p className="text-sm text-muted">{t('intro')}</p>
         <RequestForm />
       </div>
     );
@@ -120,7 +126,7 @@ export function OrganizerRequestSection() {
     return (
       <div className="flex flex-col gap-3">
         <RequestSummary request={current} />
-        <p className="text-sm text-muted">Seu pedido está na fila da administração. A resposta aparece aqui.</p>
+        <p className="text-sm text-muted">{t('pendente')}</p>
       </div>
     );
   }
@@ -128,7 +134,7 @@ export function OrganizerRequestSection() {
     return (
       <div className="flex flex-col gap-3">
         <RequestSummary request={current} />
-        <p className="text-sm text-muted">Seu pedido foi aprovado. Se a área de organização ainda não aparecer no menu da conta, saia e entre de novo.</p>
+        <p className="text-sm text-muted">{t('aprovado')}</p>
       </div>
     );
   }
@@ -136,9 +142,9 @@ export function OrganizerRequestSection() {
     <div className="flex flex-col gap-4">
       <RequestSummary request={current} />
       <p className="text-sm text-text">
-        <strong>Motivo da recusa:</strong> {current.reviewReason ?? 'A administração não informou o motivo.'}
+        <strong>{t('motivoRecusa')}</strong> {current.reviewReason ?? t('semMotivo')}
       </p>
-      <p className="text-sm text-muted">Você pode enviar um novo pedido com mais detalhes.</p>
+      <p className="text-sm text-muted">{t('novoPedido')}</p>
       <RequestForm />
     </div>
   );

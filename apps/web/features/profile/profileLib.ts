@@ -4,7 +4,9 @@
  */
 import type { AccountField } from '@nova/schemas';
 import { z } from 'zod';
+import { getT } from '@/shared/i18n/core';
 import { timeZoneLabel } from '@/shared/lib/datetime';
+import { messages } from './messages';
 
 // ── Fuso horário ─────────────────────────────────────────────────────
 /** Fusos oferecidos sempre: os do Brasil, Lisboa e UTC. */
@@ -48,11 +50,12 @@ function patternOf(field: AccountField): RegExp | null {
  * O resultado tem o formato de `UpsertGameAccountInput` (`{ fields: { chave: valor } }`).
  */
 export function gameAccountSchema(fields: AccountField[]) {
+  const t = getT(messages, 'profileLib');
   const shape: Record<string, z.ZodType<string, string>> = {};
   for (const field of fields) {
     const pattern = patternOf(field);
-    const base = z.string().trim().min(1, 'Preencha este campo');
-    shape[field.key] = pattern ? base.regex(pattern, `Confira o formato de "${field.label}"`) : base;
+    const base = z.string().trim().min(1, t('preencha'));
+    shape[field.key] = pattern ? base.regex(pattern, t('formato', { campo: field.label })) : base;
   }
   return z.object({ fields: z.object(shape) });
 }
@@ -76,12 +79,17 @@ export function socialHref(value: string | undefined): string | null {
 }
 
 export const SOCIAL_NETWORKS = [
-  { key: 'discord', label: 'Discord', placeholder: 'Seu usuário ou link do servidor' },
-  { key: 'instagram', label: 'Instagram', placeholder: '@seuperfil' },
-  { key: 'youtube', label: 'YouTube', placeholder: 'Link do canal' },
-  { key: 'twitch', label: 'Twitch', placeholder: 'Seu canal' },
+  { key: 'discord', label: 'Discord' },
+  { key: 'instagram', label: 'Instagram' },
+  { key: 'youtube', label: 'YouTube' },
+  { key: 'twitch', label: 'Twitch' },
 ] as const;
 export type SocialKey = (typeof SOCIAL_NETWORKS)[number]['key'];
+
+/** Exemplo do que digitar no campo de cada rede. */
+export function socialPlaceholder(key: SocialKey): string {
+  return getT(messages, 'profileLib.social')(key);
+}
 
 /** "MG, Brasil" — ou nulo se a pessoa não informou nada. */
 export function locationLabel(state: string | null, country: string | null): string | null {

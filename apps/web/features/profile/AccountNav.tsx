@@ -5,20 +5,23 @@ import { Bell, FileLock2, Flag, ShieldCheck, Trophy, User, Users } from 'lucide-
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 
 const items = [
-  { href: '/minha-conta', label: 'Conta', icon: User, exact: true },
-  { href: '/minha-conta/squads', label: 'Squads', icon: Users, exact: false },
-  { href: '/minha-conta/campeonatos', label: 'Campeonatos', icon: Trophy, exact: false },
-  { href: '/minha-conta/notificacoes', label: 'Notificações', icon: Bell, exact: false },
-  { href: '/minha-conta/denuncias', label: 'Denúncias', icon: Flag, exact: false },
-  { href: '/minha-conta/seguranca', label: 'Segurança', icon: ShieldCheck, exact: false },
-  { href: '/minha-conta/privacidade', label: 'Privacidade', icon: FileLock2, exact: false },
-];
+  { href: '/minha-conta', label: 'conta', icon: User, exact: true },
+  { href: '/minha-conta/squads', label: 'squads', icon: Users, exact: false },
+  { href: '/minha-conta/campeonatos', label: 'campeonatos', icon: Trophy, exact: false },
+  { href: '/minha-conta/notificacoes', label: 'notificacoes', icon: Bell, exact: false },
+  { href: '/minha-conta/denuncias', label: 'denuncias', icon: Flag, exact: false },
+  { href: '/minha-conta/seguranca', label: 'seguranca', icon: ShieldCheck, exact: false },
+  { href: '/minha-conta/privacidade', label: 'privacidade', icon: FileLock2, exact: false },
+] as const;
 
 /** Navegação secundária da conta. No celular rola na horizontal dentro de si mesma, sem empurrar a página. */
 export function AccountNav() {
   const pathname = usePathname();
+  const t = useT(messages, 'AccountNav');
   const navRef = useRef<HTMLElement>(null);
 
   // Em telas estreitas a aba ativa pode ficar fora da área visível da própria barra: traz para a vista.
@@ -32,7 +35,7 @@ export function AccountNav() {
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-4 pt-4 md:px-6 md:pt-6">
-      <nav ref={navRef} aria-label="Minha conta" className="min-w-0 overflow-x-auto border-b border-border [scrollbar-width:none]">
+      <nav ref={navRef} aria-label={t('rotulo')} className="min-w-0 overflow-x-auto border-b border-border [scrollbar-width:none]">
         <ul className="flex xs:gap-1">
           {items.map((item) => {
             const active = item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -47,7 +50,7 @@ export function AccountNav() {
                   )}
                 >
                   <item.icon className="hidden size-4 shrink-0 xs:block" aria-hidden />
-                  {item.label}
+                  {t(item.label)}
                 </Link>
               </li>
             );

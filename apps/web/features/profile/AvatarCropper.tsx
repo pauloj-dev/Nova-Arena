@@ -3,7 +3,9 @@
 import { Button, Modal } from '@nova/ui';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useT } from '@/shared/i18n/react';
 import { canPan, cropRect, encodeWithinLimit, INITIAL_CROP, MAX_ZOOM, MIN_ZOOM, nudgeCrop, panCrop, type CropState } from './avatarImage';
+import { messages } from './messages';
 
 /** Lado interno do canvas da prévia (o CSS ajusta o tamanho na tela). */
 const PREVIEW_PX = 320;
@@ -36,8 +38,9 @@ interface AvatarCropperProps {
 
 /** Recorte quadrado com zoom, feito em `<canvas>`. Dá para arrastar a foto ou usar os botões de seta. */
 export function AvatarCropper({ image, onCancel, onConfirm }: AvatarCropperProps) {
+  const t = useT(messages, 'AvatarCropper');
   return (
-    <Modal open={image !== null} onOpenChange={(open) => !open && onCancel()} title="Recortar foto" description="Ajuste o zoom e a posição. A área dentro do círculo é a que aparece no seu avatar." size="sm">
+    <Modal open={image !== null} onOpenChange={(open) => !open && onCancel()} title={t('titulo')} description={t('descricao')} size="sm">
       {/* A chave reinicia zoom e posição a cada foto escolhida. */}
       {image && <CropperBody key={image.src} image={image} onCancel={onCancel} onConfirm={onConfirm} />}
     </Modal>
@@ -45,6 +48,7 @@ export function AvatarCropper({ image, onCancel, onConfirm }: AvatarCropperProps
 }
 
 function CropperBody({ image, onCancel, onConfirm }: { image: HTMLImageElement; onCancel: () => void; onConfirm: (dataUrl: string) => void }) {
+  const t = useT(messages, 'AvatarCropper');
   const [crop, setCrop] = useState<CropState>(INITIAL_CROP);
   const [failed, setFailed] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -102,7 +106,7 @@ function CropperBody({ image, onCancel, onConfirm }: { image: HTMLImageElement; 
           width={PREVIEW_PX}
           height={PREVIEW_PX}
           role="img"
-          aria-label="Prévia do recorte da foto"
+          aria-label={t('previa')}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerEnd}
@@ -114,7 +118,7 @@ function CropperBody({ image, onCancel, onConfirm }: { image: HTMLImageElement; 
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor={zoomId} className="text-sm font-medium text-text">
-          Zoom
+          {t('zoom')}
         </label>
         <input
           id={zoomId}
@@ -131,36 +135,36 @@ function CropperBody({ image, onCancel, onConfirm }: { image: HTMLImageElement; 
 
       <div className="flex flex-col gap-1.5">
         <span id={`${zoomId}-move`} className="text-sm font-medium text-text">
-          Posição
+          {t('posicao')}
         </span>
         <div role="group" aria-labelledby={`${zoomId}-move`} className="flex flex-wrap gap-2">
-          <button type="button" className={arrow} aria-label="Mover a foto para a esquerda" disabled={!pan.x} onClick={() => setCrop((c) => nudgeCrop(c, -1, 0))}>
+          <button type="button" className={arrow} aria-label={t('esquerda')} disabled={!pan.x} onClick={() => setCrop((c) => nudgeCrop(c, -1, 0))}>
             <ArrowLeft className="size-5" aria-hidden />
           </button>
-          <button type="button" className={arrow} aria-label="Mover a foto para a direita" disabled={!pan.x} onClick={() => setCrop((c) => nudgeCrop(c, 1, 0))}>
+          <button type="button" className={arrow} aria-label={t('direita')} disabled={!pan.x} onClick={() => setCrop((c) => nudgeCrop(c, 1, 0))}>
             <ArrowRight className="size-5" aria-hidden />
           </button>
-          <button type="button" className={arrow} aria-label="Mover a foto para cima" disabled={!pan.y} onClick={() => setCrop((c) => nudgeCrop(c, 0, -1))}>
+          <button type="button" className={arrow} aria-label={t('cima')} disabled={!pan.y} onClick={() => setCrop((c) => nudgeCrop(c, 0, -1))}>
             <ArrowUp className="size-5" aria-hidden />
           </button>
-          <button type="button" className={arrow} aria-label="Mover a foto para baixo" disabled={!pan.y} onClick={() => setCrop((c) => nudgeCrop(c, 0, 1))}>
+          <button type="button" className={arrow} aria-label={t('baixo')} disabled={!pan.y} onClick={() => setCrop((c) => nudgeCrop(c, 0, 1))}>
             <ArrowDown className="size-5" aria-hidden />
           </button>
         </div>
-        <p className="text-xs text-muted">Você também pode arrastar a foto. Aumente o zoom para liberar o movimento nos dois sentidos.</p>
+        <p className="text-xs text-muted">{t('arrastar')}</p>
       </div>
 
       {failed && (
         <p role="alert" className="text-sm font-medium text-danger">
-          Não foi possível preparar esta foto. Tente outra imagem.
+          {t('falhou')}
         </p>
       )}
 
       <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end">
         <Button variant="secondary" onClick={onCancel}>
-          Cancelar
+          {t('cancelar')}
         </Button>
-        <Button onClick={confirm}>Usar esta foto</Button>
+        <Button onClick={confirm}>{t('usar')}</Button>
       </div>
     </div>
   );
