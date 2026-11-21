@@ -8,6 +8,8 @@ Tudo o que tem hora marcada roda em duas peças, sem servidor contínuo:
 | `GET /api/v1/cron/daily-cleanup` | Vercel Cron, 06:00 UTC (03:00 em Brasília) | `CRON_SECRET` | Convites de squad vencidos, uploads órfãos (24 h sem recurso), tokens de e-mail e sessões velhos. |
 | `POST /api/v1/jobs/*` | QStash, na data agendada | assinatura do QStash (chave atual ou a próxima) | Ex.: abrir/fechar as inscrições de um campeonato logo após publicar. |
 | `POST /api/v1/jobs/matches/check-in` | QStash, no fechamento da janela de check-in | assinatura do QStash | W.O. automático: só um lado fez check-in → o outro leva W.O. e o vencedor avança. Mensagem de horário antigo (partida reagendada) é ignorada. |
+| `POST /api/v1/jobs/notifications/email` | QStash, logo depois de `notify()` | assinatura do QStash | E-mail de uma notificação (#98). Idempotente: `emailSentAt` + chave de idempotência no Resend. Ver `docs/notificacoes.md`. |
+| `POST /api/v1/jobs/notifications/push` | QStash, logo depois de `notify()` | assinatura do QStash | Push no PWA (#109) para os aparelhos da pessoa; `pushSentAt` evita repetir. |
 | `POST /api/v1/jobs/failures` | QStash, quando uma mensagem esgota as tentativas | assinatura do QStash | Registra a falha definitiva em `job_failures`. |
 
 Sem segredo ou assinatura: **401**. Os crons estão em `apps/web/vercel.json` — Cron por minuto exige o **plano Pro** da Vercel (checklist da #64).

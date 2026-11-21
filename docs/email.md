@@ -10,6 +10,7 @@ Templates em **React Email** (`packages/email`) com a identidade Nova Green, env
 | `RESET_PASSWORD` | "Esqueci a senha" | `/redefinir-senha?token=…` (1 h, uso único) |
 | `ROLE_INVITE` | Convite de Admin/Organizador (issue #92) | `/convite/<token>` |
 | `TEAM_INVITE` | Convite de squad por apelido (issue #78) | página do convite |
+| `NOTIFICATION` | Aviso da plataforma por e-mail (issue #98), um texto por tipo de notificação | o link da notificação + as preferências |
 
 Os textos ficam em `packages/email/src/messages.pt-BR.ts` (preparado para i18n, issue #108). As cores vêm do tema claro de `packages/ui/src/styles/tokens.css`; o teste de cores em `packages/email/test/email.test.ts` quebra se divergirem. Todo e-mail sai com versão em texto puro (ajuda a não cair no spam).
 
