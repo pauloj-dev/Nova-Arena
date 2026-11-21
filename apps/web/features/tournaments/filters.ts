@@ -24,17 +24,9 @@ export interface ListFilters {
 
 export const EMPTY_FILTERS: ListFilters = { q: '', game: '', mode: '', status: '', from: '', slots: false, verified: false };
 
-export const MODE_OPTIONS: { value: Exclude<ModeFilter, ''>; label: string }[] = [
-  { value: 'SOLO', label: 'Solo' },
-  { value: 'TEAM', label: 'Equipe' },
-];
-
-export const STATUS_OPTIONS: { value: Exclude<StatusFilter, ''>; label: string }[] = [
-  { value: 'open', label: 'Inscrições abertas' },
-  { value: 'upcoming', label: 'Em breve' },
-  { value: 'live', label: 'Ao vivo' },
-  { value: 'finished', label: 'Encerrados' },
-];
+/** Opções dos filtros de modo e status, na ordem da tela (os rótulos ficam no catálogo da área). */
+export const MODE_VALUES: Exclude<ModeFilter, ''>[] = ['SOLO', 'TEAM'];
+export const STATUS_VALUES: Exclude<StatusFilter, ''>[] = ['open', 'upcoming', 'live', 'finished'];
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -60,7 +52,7 @@ export function parseFilters(params: ParamsLike): ListFilters {
     q: (params.get('q') ?? '').trim().slice(0, MAX_QUERY_LENGTH),
     game: SLUG.test(game) ? game : '',
     mode: mode === 'SOLO' || mode === 'TEAM' ? mode : '',
-    status: STATUS_OPTIONS.some((s) => s.value === status) ? (status as StatusFilter) : '',
+    status: (STATUS_VALUES as string[]).includes(status) ? (status as StatusFilter) : '',
     from: isRealDate(from) ? from : '',
     slots: params.get('slots') === 'available',
     verified: params.get('verified') === '1',

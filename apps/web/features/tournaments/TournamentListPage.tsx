@@ -7,16 +7,19 @@ import { useCallback, useEffect, useMemo, useOptimistic, useRef, useState, useTr
 import { errorMessage } from '@/shared/api/client';
 import { useGames } from '@/shared/api/hooks/games';
 import { useTournamentList } from '@/shared/api/hooks/tournaments';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer } from '@/shared/layout/AreaShell';
 import { countActiveFilters, EMPTY_FILTERS, hasAnyFilter, parseFilters, serializeFilters, toApiFilters, type ListFilters } from './filters';
 import { TournamentCard, TournamentCardSkeleton, TournamentGrid } from './TournamentCard';
 import { TournamentFiltersPanel } from './TournamentFiltersPanel';
+import { messages } from './messages';
 import { useIsDesktop } from './useMediaQuery';
 
 const SEARCH_DEBOUNCE_MS = 350;
 
 /** Lista de campeonatos: filtros na URL, busca com debounce e rolagem infinita (US-PAR-02). */
 export function TournamentListPage() {
+  const t = useT(messages, 'TournamentListPage');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -102,14 +105,14 @@ export function TournamentListPage() {
   return (
     <PageContainer>
       <div>
-        <h1 className="text-xl md:text-2xl">Campeonatos</h1>
-        <p className="mt-1 text-sm text-muted">Encontre um campeonato para jogar ou acompanhar. Os filtros ficam no link: é só copiar e mandar para o time.</p>
+        <h1 className="text-xl md:text-2xl">{t('titulo')}</h1>
+        <p className="mt-1 text-sm text-muted">{t('descricao')}</p>
       </div>
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         {isDesktop && (
-          <aside aria-label="Filtros" className="sticky top-20 w-64 shrink-0 rounded-lg border border-border bg-surface p-4">
-            <h2 className="mb-3 text-base">Filtros</h2>
+          <aside aria-label={t('filtros')} className="sticky top-20 w-64 shrink-0 rounded-lg border border-border bg-surface p-4">
+            <h2 className="mb-3 text-base">{t('filtros')}</h2>
             {panel(false)}
           </aside>
         )}
@@ -118,18 +121,18 @@ export function TournamentListPage() {
           <div className="flex items-end gap-2">
             <Input
               className="min-w-0 flex-1"
-              label="Buscar campeonato pelo nome"
+              label={t('buscarLabel')}
               hideLabel
               type="search"
-              placeholder="Buscar pelo nome"
+              placeholder={t('buscarPlaceholder')}
               value={text}
               onChange={(e) => setText(e.target.value)}
               maxLength={80}
               enterKeyHint="search"
             />
             {!isDesktop && (
-              <Button variant="secondary" onClick={() => setDrawerOpen(true)} iconLeft={<SlidersHorizontal className="size-4" aria-hidden />} aria-label={activeCount > 0 ? `Filtros, ${activeCount} ${activeCount === 1 ? 'ativo' : 'ativos'}` : 'Filtros'}>
-                Filtros
+              <Button variant="secondary" onClick={() => setDrawerOpen(true)} iconLeft={<SlidersHorizontal className="size-4" aria-hidden />} aria-label={t('filtrosAtivos', { count: activeCount })}>
+                {t('filtros')}
                 {activeCount > 0 && (
                   <span className="tabular flex size-5 items-center justify-center rounded-full bg-accent text-xs text-on-accent" data-testid="active-filter-count">
                     {activeCount}
@@ -140,7 +143,7 @@ export function TournamentListPage() {
           </div>
 
           <p className="text-sm text-muted" role="status" aria-live="polite">
-            {list.isPending ? 'Carregando campeonatos…' : firstLoadFailed ? '' : total === 0 ? 'Nenhum campeonato encontrado' : `Mostrando ${items.length} de ${total} ${total === 1 ? 'campeonato' : 'campeonatos'}`}
+            {list.isPending ? t('carregando') : firstLoadFailed ? '' : total === 0 ? t('nenhum') : t('mostrando', { mostrando: items.length, total })}
           </p>
 
           {list.isPending ? (
@@ -152,24 +155,24 @@ export function TournamentListPage() {
               ))}
             </TournamentGrid>
           ) : firstLoadFailed ? (
-            <ErrorState title="Não foi possível carregar os campeonatos" description={errorMessage(loadError)} onRetry={() => void list.refetch()} />
+            <ErrorState title={t('erroCarregar')} description={errorMessage(loadError)} onRetry={() => void list.refetch()} />
           ) : items.length === 0 ? (
             <EmptyState
               icon={<SearchX className="size-7" />}
-              title="Nenhum campeonato encontrado"
-              description={hasAnyFilter(filters) ? 'Nenhum campeonato combina com esses filtros. Tire algum filtro ou limpe todos para ver mais opções.' : 'Ainda não há campeonatos publicados. Volte em breve!'}
+              title={t('nenhum')}
+              description={hasAnyFilter(filters) ? t('vazioComFiltros') : t('vazioSemFiltros')}
               action={
                 hasAnyFilter(filters) ? (
-                  <Button onClick={clearAll}>Limpar filtros</Button>
+                  <Button onClick={clearAll}>{t('limparFiltros')}</Button>
                 ) : undefined
               }
             />
           ) : (
             <>
-              <TournamentGrid label="Campeonatos">
-                {items.map((t) => (
-                  <li key={t.id}>
-                    <TournamentCard tournament={t} headingLevel="h2" />
+              <TournamentGrid label={t('titulo')}>
+                {items.map((item) => (
+                  <li key={item.id}>
+                    <TournamentCard tournament={item} headingLevel="h2" />
                   </li>
                 ))}
                 {isFetchingNextPage &&
@@ -180,17 +183,17 @@ export function TournamentListPage() {
                   ))}
               </TournamentGrid>
 
-              {nextPageFailed && <ErrorState title="Não foi possível carregar mais campeonatos" description={errorMessage(loadError)} onRetry={() => void fetchNextPage()} />}
+              {nextPageFailed && <ErrorState title={t('erroCarregarMais')} description={errorMessage(loadError)} onRetry={() => void fetchNextPage()} />}
 
               {nextPageFailed ? null : hasNextPage ? (
                 <div className="flex justify-center">
                   {/* Alternativa acessível à rolagem infinita: funciona por teclado e sem IntersectionObserver. */}
                   <Button variant="secondary" loading={isFetchingNextPage} onClick={() => void fetchNextPage()}>
-                    Carregar mais
+                    {t('carregarMais')}
                   </Button>
                 </div>
               ) : items.length > 6 ? (
-                <p className="text-center text-sm text-muted">Você chegou ao fim da lista.</p>
+                <p className="text-center text-sm text-muted">{t('fimDaLista')}</p>
               ) : null}
               <div ref={sentinel} aria-hidden className="h-px" />
             </>
@@ -201,15 +204,15 @@ export function TournamentListPage() {
       <Drawer
         open={drawerOpen && !isDesktop}
         onOpenChange={setDrawerOpen}
-        title="Filtros"
+        title={t('filtros')}
         side="bottom"
         footer={
           <>
             <Button variant="secondary" className="flex-1" onClick={clearAll} disabled={activeCount === 0}>
-              Limpar filtros
+              {t('limparFiltros')}
             </Button>
             <Button className="flex-1" onClick={() => setDrawerOpen(false)}>
-              {list.isPending ? 'Ver campeonatos' : `Ver ${total} ${total === 1 ? 'campeonato' : 'campeonatos'}`}
+              {list.isPending ? t('verCampeonatos') : t('verTotal', { total })}
             </Button>
           </>
         }

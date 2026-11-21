@@ -3,6 +3,8 @@
 import { Button, Input, Modal, useToast, type ButtonProps } from '@nova/ui';
 import { Share2 } from 'lucide-react';
 import { useState } from 'react';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 
 interface ShareButtonProps {
   /** Título do que está sendo compartilhado (vai para a folha de compartilhamento do sistema). */
@@ -23,6 +25,7 @@ function absoluteUrl(url?: string): string {
  * Se nem a cópia for permitida, mostra o link para a pessoa copiar à mão.
  */
 export function ShareButton({ title, text, url, size }: ShareButtonProps) {
+  const t = useT(messages, 'ShareButton');
   const { success } = useToast();
   const [manualUrl, setManualUrl] = useState<string | null>(null);
 
@@ -40,7 +43,7 @@ export function ShareButton({ title, text, url, size }: ShareButtonProps) {
     }
     try {
       await navigator.clipboard.writeText(target);
-      success('Link copiado', 'Cole onde quiser para compartilhar.');
+      success(t('linkCopiado'), t('linkCopiadoDescricao'));
     } catch {
       setManualUrl(target);
     }
@@ -49,10 +52,10 @@ export function ShareButton({ title, text, url, size }: ShareButtonProps) {
   return (
     <>
       <Button variant="secondary" size={size} onClick={() => void share()} iconLeft={<Share2 className="size-4" aria-hidden />}>
-        Compartilhar
+        {t('compartilhar')}
       </Button>
-      <Modal open={manualUrl !== null} onOpenChange={(open) => !open && setManualUrl(null)} title="Compartilhar" description="Não conseguimos copiar sozinhos. Selecione o link abaixo e copie." size="sm">
-        <Input label="Link" value={manualUrl ?? ''} readOnly onFocus={(e) => e.currentTarget.select()} />
+      <Modal open={manualUrl !== null} onOpenChange={(open) => !open && setManualUrl(null)} title={t('compartilhar')} description={t('copiaManual')} size="sm">
+        <Input label={t('link')} value={manualUrl ?? ''} readOnly onFocus={(e) => e.currentTarget.select()} />
       </Modal>
     </>
   );
