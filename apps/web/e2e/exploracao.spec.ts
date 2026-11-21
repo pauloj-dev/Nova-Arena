@@ -53,6 +53,14 @@ async function seedDb(page: Page, changes: { patchTournament?: { id: string; pat
       const res = await apiAs(base, 'u_camila', 'POST', `/tournaments/${mid(a.tournamentId)}/announcements`, { title: a.title, body: a.body, stageId: null, groupId: null });
       expect(res.status, JSON.stringify(res.data)).toBe(201);
     }
+    if (p || a) {
+      // A página pública vem do cache do servidor (ISR): depois do aviso de mudança, a primeira visita ainda pode
+      // receber a versão anterior enquanto a nova é gerada. Duas visitas "aquecem" a página antes do teste olhar.
+      for (let i = 0; i < 2; i += 1) {
+        await page.request.get(COPA);
+        await page.waitForTimeout(500);
+      }
+    }
     return;
   }
   if (page.url() === 'about:blank') await page.goto('/');
