@@ -3,6 +3,7 @@
 import type { Tournament } from '@nova/schemas';
 import { Avatar, Badge, Button, EmptyState, ErrorState, Progress, Skeleton, StatusPill, Tabs } from '@nova/ui';
 import { CalendarClock, CalendarDays, Compass, Settings, User, Users } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { MatchViewerProvider, type MatchViewer } from '@/features/matches/viewer';
@@ -14,15 +15,29 @@ import { useGame } from '@/shared/api/hooks/games';
 import { useMyRegistration } from '@/shared/api/hooks/registrations';
 import { useTournament, useTournamentAccess } from '@/shared/api/hooks/tournaments';
 import { PageContainer } from '@/shared/layout/AreaShell';
+import { BlobImage } from '@/shared/lib/blob-image';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { LiveIndicator } from '@/shared/realtime/LiveIndicator';
 import { useTournamentChannel } from '@/shared/realtime/RealtimeProvider';
 import { useSession } from '@/shared/session/useSession';
-import { BracketTab, MatchesTab, ResultsTab } from './CompetitionTabs';
 import { FollowButton } from './FollowButton';
 import { ShareButton } from './ShareButton';
 import { slotsText } from './TournamentCard';
 import { AnnouncementsTab, OverviewTab, RegistrationsTab, RulesTab } from './TournamentTabs';
+
+// Chave, partidas e resultados (chave, tabela, modal da partida, envio de resultado) só descem quando a aba abre:
+// fora do JS inicial da página pública (#111).
+function CompetitionTabLoading() {
+  return (
+    <div className="flex flex-col gap-3" role="status" aria-label="Carregando">
+      <Skeleton className="h-11 w-full" />
+      <Skeleton className="h-64 w-full" />
+    </div>
+  );
+}
+const BracketTab = dynamic(() => import('./CompetitionTabs').then((m) => m.BracketTab), { loading: CompetitionTabLoading });
+const MatchesTab = dynamic(() => import('./CompetitionTabs').then((m) => m.MatchesTab), { loading: CompetitionTabLoading });
+const ResultsTab = dynamic(() => import('./CompetitionTabs').then((m) => m.ResultsTab), { loading: CompetitionTabLoading });
 
 /**
  * Abas da página pública (PAR-03). As de competição (`competition: true`) só aparecem quando o
@@ -104,9 +119,8 @@ function Header({ t, canManage }: { t: Tournament; canManage: boolean }) {
     <header className="overflow-hidden rounded-lg border border-border bg-surface shadow-sm">
       <div className="relative flex h-28 items-end bg-hero p-4 md:h-40 md:p-6">
         {t.bannerUrl && (
-          // Banner enviado pelo organizador (URL arbitrária): `next/image` exigiria liberar cada domínio.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={t.bannerUrl} alt="" className="absolute inset-0 size-full object-cover" />
+          // Banner do organizador: otimizado quando vem do Vercel Blob; é o topo da página (candidato a LCP).
+          <BlobImage src={t.bannerUrl} alt="" sizes="(min-width: 1280px) 1200px, 100vw" className="object-cover" priority />
         )}
         <span className="relative flex size-14 items-center justify-center rounded-lg border border-border bg-surface text-3xl shadow-md" aria-hidden>
           {t.gameIcon}

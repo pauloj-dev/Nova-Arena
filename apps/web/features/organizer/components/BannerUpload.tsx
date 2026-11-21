@@ -3,6 +3,7 @@
 import { Button } from '@nova/ui';
 import { AlertCircle, ImagePlus, Trash2 } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
+import { BlobImage } from '@/shared/lib/blob-image';
 import { BANNER_TYPES, fileToBannerDataUrl } from '../lib/banner';
 
 interface BannerUploadProps {
@@ -39,8 +40,9 @@ export function BannerUpload({ value, onChange, disabled }: BannerUploadProps) {
       </span>
       <div className="overflow-hidden rounded-lg border border-dashed border-border-strong bg-surface-2">
         {value ? (
-          // eslint-disable-next-line @next/next/no-img-element -- imagem local (data URL) escolhida agora; o otimizador do Next não se aplica
-          <img src={value} alt="Prévia do banner do campeonato" className="aspect-[16/6] w-full object-cover" />
+          <div className="relative aspect-[16/6] w-full">
+            <BlobImage src={value} alt="Prévia do banner do campeonato" sizes="(min-width: 768px) 640px, 100vw" className="object-cover" />
+          </div>
         ) : (
           <div className="flex aspect-[16/6] w-full flex-col items-center justify-center gap-1 px-4 text-center text-sm text-muted">
             <ImagePlus className="size-6" aria-hidden />
