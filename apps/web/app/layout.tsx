@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
 import { Inter, JetBrains_Mono, Rajdhani } from 'next/font/google';
 import { CookieBanner } from '@/shared/privacy/CookieBanner';
+import { consentInitScript } from '@/shared/privacy/consent-init';
 import { Measurement } from '@/shared/privacy/Measurement';
 import { themeInitScript } from '@/shared/theme/theme';
 import { Providers } from './providers';
@@ -40,6 +41,7 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
     <html lang="pt-BR" className={`${rajdhani.variable} ${inter.variable} ${jetbrains.variable}`} suppressHydrationWarning>
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: consentInitScript }} />
       </head>
       <body className="min-h-dvh antialiased">
         <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-accent focus:px-4 focus:py-2 focus:text-on-accent">

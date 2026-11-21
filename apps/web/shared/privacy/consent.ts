@@ -68,6 +68,7 @@ export function saveConsent(analytics: boolean, now = new Date()): CookieConsent
 }
 
 export function reopenConsent(): void {
+  delete document.documentElement.dataset.consent;
   window.dispatchEvent(new Event(REOPEN_EVENT));
 }
 

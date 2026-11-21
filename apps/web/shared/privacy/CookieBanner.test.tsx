@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CONSENT_KEY, reopenConsent } from './consent';
 import { CookieBanner } from './CookieBanner';
+import { consentInitScript } from './consent-init';
 
 describe('aviso de cookies (issue #115)', () => {
   beforeEach(() => localStorage.clear());
@@ -25,5 +26,16 @@ describe('aviso de cookies (issue #115)', () => {
     act(() => reopenConsent());
     await userEvent.click(screen.getByRole('button', { name: 'Aceitar medição' }));
     expect(JSON.parse(localStorage.getItem(CONSENT_KEY) ?? '{}')).toMatchObject({ analytics: true });
+  });
+
+  it('o script do <head> marca <html data-consent> só para quem já escolheu (o CSS esconde o aviso do HTML)', () => {
+    delete document.documentElement.dataset.consent;
+    new Function(consentInitScript)();
+    expect(document.documentElement.dataset.consent).toBeUndefined();
+    localStorage.setItem(CONSENT_KEY, JSON.stringify({ version: 1, analytics: true, decidedAt: '2026-11-21T10:00:00.000Z' }));
+    new Function(consentInitScript)();
+    expect(document.documentElement.dataset.consent).toBe('1');
+    act(() => reopenConsent());
+    expect(document.documentElement.dataset.consent).toBeUndefined();
   });
 });
