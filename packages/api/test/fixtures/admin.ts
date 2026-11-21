@@ -4,7 +4,7 @@
  */
 import type { PrismaClient } from '@nova/db';
 import { randomUUID } from 'node:crypto';
-import { createApp, envFrom, type App } from '../../src';
+import { createApp, envFrom, type App, type Dependencies } from '../../src';
 import type { Env } from '../../src/env';
 import { signAccessToken } from '../../src/auth/jwt';
 import type { ScheduledJob } from '../../src/jobs';
@@ -46,7 +46,7 @@ export interface Harness {
 
 const ok = async () => 'ok' as const;
 
-export function createHarness(db: PrismaClient, prefix: string, envExtra: Record<string, string> = {}): Harness {
+export function createHarness(db: PrismaClient, prefix: string, envExtra: Record<string, string> = {}, overrides: Partial<Dependencies> = {}): Harness {
   const realtime = memoryRealtime();
   const jobs: ScheduledJob[] = [];
   const mails: Harness['mails'] = [];
@@ -67,6 +67,7 @@ export function createHarness(db: PrismaClient, prefix: string, envExtra: Record
       checks: { database: ok, redis: ok, qstash: ok },
       breached: async () => false,
       botCheck: async () => true,
+      ...overrides,
     },
   });
   const stamp = String(Date.now()).slice(-7) + Math.floor(Math.random() * 90 + 10);
