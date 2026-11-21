@@ -5,6 +5,8 @@
  * - `VERCEL_AUTOMATION_BYPASS_SECRET`: segredo do "Protection Bypass for Automation" (Deployment Protection).
  * - `ESCALA`: multiplica o número de usuários (0.01 = ensaio com 1% da carga; 1 = carga cheia). Padrão 1.
  * - `PREFIXO`: prefixo do nome dos campeonatos criados pelo k6 (padrão `Carga k6`).
+ * - `CARGA_K6_SEGREDO`: o mesmo valor da regra "Liberar gerador de carga (k6)" do Firewall (`ops/firewall`),
+ *   mandado no cabeçalho `x-carga-k6` para o gerador passar pelos limites da borda.
  *
  * Nunca aponte para produção: o script recusa domínios que não pareçam staging/preview, a não ser que
  * `PERMITIR_QUALQUER_HOST=1` seja passado de propósito (ex.: ensaio local em http://localhost:3151).
@@ -16,6 +18,7 @@ export const API = `${BASE_URL}/api/v1`;
 export const ESCALA = Number(__ENV.ESCALA || '1');
 export const PREFIXO = __ENV.PREFIXO || 'Carga k6';
 const BYPASS = __ENV.VERCEL_AUTOMATION_BYPASS_SECRET || '';
+const SEGREDO_CARGA = __ENV.CARGA_K6_SEGREDO || '';
 
 if (!BASE_URL) {
   throw new Error('Defina BASE_URL (ex.: -e BASE_URL=https://staging.novaarena.gg).');
@@ -39,6 +42,7 @@ export function baseHeaders(extra = {}) {
     // Faz a Vercel gravar o cookie de bypass: as próximas requisições do mesmo VU passam sem o cabeçalho também.
     headers['x-vercel-set-bypass-cookie'] = 'true';
   }
+  if (SEGREDO_CARGA) headers['x-carga-k6'] = SEGREDO_CARGA;
   return headers;
 }
 

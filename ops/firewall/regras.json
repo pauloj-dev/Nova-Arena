@@ -1,0 +1,125 @@
+{
+  "$comentario": "Regras do Vercel Firewall (WAF) versionadas (issue #113, plano R2.2). Formato da API REST da Vercel (PATCH /v1/security/firewall/config, ação rules.insert/rules.update). Aplique com: node ops/firewall/aplicar.mjs (simulação) e depois --aplicar. Ordem = prioridade (a primeira que casar vale). Os limites aqui são a camada de fora, por IP e mais folgados; o limite que vale por conta/IP fica na API (Upstash, packages/api/src/security.ts). Valores ${...} vêm de variáveis de ambiente na hora de aplicar e nunca ficam no arquivo.",
+  "rules": [
+    {
+      "name": "Liberar gerador de carga (k6)",
+      "description": "Teste de carga (#112, ops/k6/README.md): pula as regras abaixo só para o IP do gerador, com o cabeçalho secreto e no host do staging. Ligada só durante o teste (aplicar.mjs --liberar-carga).",
+      "active": false,
+      "conditionGroup": [
+        {
+          "conditions": [
+            { "type": "ip_address", "op": "eq", "value": "${CARGA_K6_IP}" },
+            { "type": "header", "key": "x-carga-k6", "op": "eq", "value": "${CARGA_K6_SEGREDO}" },
+            { "type": "host", "op": "eq", "value": "${CARGA_K6_HOST}" }
+          ]
+        }
+      ],
+      "action": { "mitigate": { "action": "bypass", "rateLimit": null, "redirect": null, "actionDuration": null } }
+    },
+    {
+      "name": "Bloquear sondagens de exploit",
+      "description": "Caminhos que só robôs procuram (WordPress, .env, .git, painéis de banco). O site não tem nenhum deles.",
+      "active": true,
+      "conditionGroup": [
+        { "conditions": [{ "type": "path", "op": "re", "value": "^/(wp-admin|wp-login\\.php|xmlrpc\\.php|phpmyadmin|\\.env|\\.git/|\\.aws/|server-status|cgi-bin/)" }] }
+      ],
+      "action": { "mitigate": { "action": "deny", "rateLimit": null, "redirect": null, "actionDuration": "1h" } }
+    },
+    {
+      "name": "Limite: login",
+      "description": "POST /api/v1/auth/login. A API já limita a 5/min por IP (RNF-07); aqui o excesso nem chega à função.",
+      "active": true,
+      "conditionGroup": [
+        { "conditions": [{ "type": "path", "op": "eq", "value": "/api/v1/auth/login" }, { "type": "method", "op": "eq", "value": "POST" }] }
+      ],
+      "action": { "mitigate": { "action": "rate_limit", "rateLimit": { "algo": "fixed_window", "window": 60, "limit": 20, "keys": ["ip"], "action": "rate_limit" }, "redirect": null, "actionDuration": null } }
+    },
+    {
+      "name": "Limite: cadastro e recuperação de senha",
+      "description": "POST em /api/v1/auth/register, forgot-password, reset-password, resend-verification, verify-email e confirm-email-change (BotID + 5/min por IP na API).",
+      "active": true,
+      "conditionGroup": [
+        {
+          "conditions": [
+            { "type": "path", "op": "inc", "value": ["/api/v1/auth/register", "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password", "/api/v1/auth/resend-verification", "/api/v1/auth/verify-email", "/api/v1/auth/confirm-email-change"] },
+            { "type": "method", "op": "eq", "value": "POST" }
+          ]
+        }
+      ],
+      "action": { "mitigate": { "action": "rate_limit", "rateLimit": { "algo": "fixed_window", "window": 600, "limit": 30, "keys": ["ip"], "action": "challenge" }, "redirect": null, "actionDuration": null } }
+    },
+    {
+      "name": "Limite: verificação em duas etapas",
+      "description": "Código do 2FA no login (/api/v1/auth/2fa/verify) e ativar/desligar (/api/v1/me/2fa/*). A API limita 5 tentativas a cada 5 min por conta.",
+      "active": true,
+      "conditionGroup": [
+        { "conditions": [{ "type": "path", "op": "pre", "value": "/api/v1/auth/2fa" }, { "type": "method", "op": "eq", "value": "POST" }] },
+        { "conditions": [{ "type": "path", "op": "pre", "value": "/api/v1/me/2fa" }, { "type": "method", "op": "eq", "value": "POST" }] }
+      ],
+      "action": { "mitigate": { "action": "rate_limit", "rateLimit": { "algo": "fixed_window", "window": 300, "limit": 20, "keys": ["ip"], "action": "deny" }, "redirect": null, "actionDuration": "15m" } }
+    },
+    {
+      "name": "Limite: senha e e-mail da conta",
+      "description": "Troca de senha, de e-mail e primeira senha (/api/v1/me/password*, /api/v1/me/email).",
+      "active": true,
+      "conditionGroup": [
+        { "conditions": [{ "type": "path", "op": "pre", "value": "/api/v1/me/password" }, { "type": "method", "op": "eq", "value": "POST" }] },
+        { "conditions": [{ "type": "path", "op": "eq", "value": "/api/v1/me/email" }, { "type": "method", "op": "eq", "value": "POST" }] }
+      ],
+      "action": { "mitigate": { "action": "rate_limit", "rateLimit": { "algo": "fixed_window", "window": 600, "limit": 20, "keys": ["ip"], "action": "rate_limit" }, "redirect": null, "actionDuration": null } }
+    },
+    {
+      "name": "Limite: uploads",
+      "description": "Token do Blob e conclusão do upload (/api/v1/uploads/*): avatar, banners, provas e anexos de denúncia.",
+      "active": true,
+      "conditionGroup": [{ "conditions": [{ "type": "path", "op": "pre", "value": "/api/v1/uploads/" }, { "type": "method", "op": "eq", "value": "POST" }] }],
+      "action": { "mitigate": { "action": "rate_limit", "rateLimit": { "algo": "fixed_window", "window": 60, "limit": 30, "keys": ["ip"], "action": "rate_limit" }, "redirect": null, "actionDuration": null } }
+    },
+    {
+      "name": "Limite: LGPD (exportar e excluir conta)",
+      "description": "Exportação dos dados pessoais (/api/v1/me/export*) e exclusão da conta (DELETE /api/v1/me). Operações caras e raras.",
+      "active": true,
+      "conditionGroup": [
+        { "conditions": [{ "type": "path", "op": "pre", "value": "/api/v1/me/export" }] },
+        { "conditions": [{ "type": "path", "op": "eq", "value": "/api/v1/me" }, { "type": "method", "op": "eq", "value": "DELETE" }] }
+      ],
+      "action": { "mitigate": { "action": "rate_limit", "rateLimit": { "algo": "fixed_window", "window": 3600, "limit": 10, "keys": ["ip"], "action": "rate_limit" }, "redirect": null, "actionDuration": null } }
+    },
+    {
+      "name": "Limite: denúncias",
+      "description": "POST /api/v1/reports (denúncia em massa para derrubar um rival).",
+      "active": true,
+      "conditionGroup": [{ "conditions": [{ "type": "path", "op": "eq", "value": "/api/v1/reports" }, { "type": "method", "op": "eq", "value": "POST" }] }],
+      "action": { "mitigate": { "action": "rate_limit", "rateLimit": { "algo": "fixed_window", "window": 600, "limit": 20, "keys": ["ip"], "action": "rate_limit" }, "redirect": null, "actionDuration": null } }
+    },
+    {
+      "name": "Limite: token do tempo real",
+      "description": "POST /api/v1/realtime/token. Cada aba pede um por hora e a cada reconexão; muito acima disso é abuso da cota do Ably.",
+      "active": true,
+      "conditionGroup": [{ "conditions": [{ "type": "path", "op": "eq", "value": "/api/v1/realtime/token" }, { "type": "method", "op": "eq", "value": "POST" }] }],
+      "action": { "mitigate": { "action": "rate_limit", "rateLimit": { "algo": "fixed_window", "window": 60, "limit": 60, "keys": ["ip"], "action": "rate_limit" }, "redirect": null, "actionDuration": null } }
+    },
+    {
+      "name": "Desafio: página de cadastro",
+      "description": "Desafio de robô na página /cadastro (o navegador comum passa sem perceber; o BotID ainda confere o POST). Verificados (buscadores) não são desafiados.",
+      "active": true,
+      "conditionGroup": [{ "conditions": [{ "type": "path", "op": "eq", "value": "/cadastro" }, { "type": "method", "op": "eq", "value": "GET" }] }],
+      "action": { "mitigate": { "action": "challenge", "rateLimit": null, "redirect": null, "actionDuration": null } }
+    },
+    {
+      "name": "Rede de segurança: API inteira",
+      "description": "Qualquer rota /api/v1 (menos jobs do QStash e Cron) acima de 600 req/min por IP. Começa só registrando (log); depois de ver o tráfego real, passe para rate_limit.",
+      "active": true,
+      "conditionGroup": [
+        {
+          "conditions": [
+            { "type": "path", "op": "pre", "value": "/api/v1/" },
+            { "type": "path", "op": "pre", "value": "/api/v1/jobs/", "neg": true },
+            { "type": "path", "op": "pre", "value": "/api/v1/cron/", "neg": true }
+          ]
+        }
+      ],
+      "action": { "mitigate": { "action": "rate_limit", "rateLimit": { "algo": "fixed_window", "window": 60, "limit": 600, "keys": ["ip"], "action": "log" }, "redirect": null, "actionDuration": null } }
+    }
+  ]
+}

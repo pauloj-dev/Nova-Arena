@@ -35,11 +35,17 @@ navegador. O refresh gira a cada uso e o reuso de um token já trocado derruba a
    (`GET /api/v1/health` com tudo `ok`). Seed do catálogo (`SEED_PROFILE=staging`).
 2. **Bypass da proteção de deploy:** Vercel → Settings → Deployment Protection → *Protection Bypass for Automation*.
    O segredo vai em `-e VERCEL_AUTOMATION_BYPASS_SECRET=...` (o k6 manda `x-vercel-protection-bypass`).
-3. **Liberar o gerador no Firewall:** sem isso o rate limit (Upstash e Vercel Firewall) devolve 429 e o teste mede o
-   bloqueio, não o sistema. Em `ops/firewall/regras.json`, preencha o IP público da máquina do k6 na regra
-   `Liberar gerador de carga (k6)` e mude `active` para `true`; aplique com `node ops/firewall/aplicar.mjs --aplicar`.
-   **Desligue de novo ao terminar.** Os limites por IP da própria API (login, cadastro, eventos) não afetam estes
-   scripts: eles não fazem login nem cadastro.
+3. **Liberar o gerador no Firewall:** sem isso os limites da borda (Vercel Firewall) devolvem 429 e o teste mede o
+   bloqueio, não o sistema. A regra `Liberar gerador de carga (k6)` de `ops/firewall/regras.json` pula as outras
+   só para o IP do gerador, com um cabeçalho secreto e no host do staging:
+   ```bash
+   export CARGA_K6_IP=<ip público da máquina do k6> CARGA_K6_HOST=staging.novaarena.gg
+   export CARGA_K6_SEGREDO=$(node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))")
+   VERCEL_TOKEN=... VERCEL_PROJECT_ID=... VERCEL_TEAM_ID=... node ops/firewall/aplicar.mjs --aplicar --liberar-carga
+   ```
+   Passe o mesmo segredo ao k6 (`-e CARGA_K6_SEGREDO=$CARGA_K6_SEGREDO`). **Ao terminar, rode de novo sem
+   `--liberar-carga`** (a regra volta a ficar desligada). Os limites por IP da própria API (login, cadastro, eventos)
+   não afetam estes scripts: eles não fazem login nem cadastro.
 4. **Dados:**
    ```bash
    CARGA_CONFIRMO_STAGING=1 DATABASE_URL='<url sem pooler do branch staging do Neon>' \
@@ -85,7 +91,7 @@ Ao terminar:
 CARGA_CONFIRMO_STAGING=1 DATABASE_URL='<staging>' pnpm --filter @nova/db exec tsx ../../ops/k6/preparar-dados.mts --revogar
 ```
 
-e desligue a regra de liberação do gerador no Firewall. Os campeonatos `Carga k6 …` podem ser cancelados pelo
+e desligue a regra de liberação do gerador no Firewall (`node ops/firewall/aplicar.mjs --aplicar`, sem `--liberar-carga`). Os campeonatos `Carga k6 …` podem ser cancelados pelo
 painel Admin (ou o branch de staging do Neon recriado a partir de produção sem dados pessoais).
 
 ## Como ler o resultado
