@@ -11,20 +11,21 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useSeasonRanking } from '@/shared/api/hooks/seasons';
+import { getT } from '@/shared/i18n/core';
+import { useT } from '@/shared/i18n/react';
 import { formatDate } from '@/shared/lib/datetime';
+import { messages } from './messages';
 import { ProvisionalBadge, RatingDelta } from './RatingBits';
 
-const KINDS: { value: RatingKind; label: string }[] = [
-  { value: 'PLAYER', label: 'Jogadores' },
-  { value: 'TEAM', label: 'Squads' },
-];
+const KINDS: RatingKind[] = ['PLAYER', 'TEAM'];
 
 export function seasonRankingColumns(kind: RatingKind, provisionalMatches: number): Column<SeasonRankingEntry>[] {
+  const t = getT(messages, 'SeasonRankingSection.colunas');
   return [
-    { id: 'position', header: 'Posição', cell: (r) => <span className="tabular">{r.position}º</span>, className: 'w-20' },
+    { id: 'position', header: t('posicao'), cell: (r) => <span className="tabular">{t('posicaoValor', { posicao: String(r.position) })}</span>, className: 'w-20' },
     {
       id: 'name',
-      header: kind === 'PLAYER' ? 'Jogador' : 'Squad',
+      header: t('nome', { tipo: kind }),
       primary: true,
       cell: (r) => {
         const content = (
@@ -45,7 +46,7 @@ export function seasonRankingColumns(kind: RatingKind, provisionalMatches: numbe
     },
     {
       id: 'rating',
-      header: 'Rating',
+      header: t('rating'),
       align: 'right',
       cell: (r) => (
         <span className="inline-flex flex-wrap items-center justify-end gap-2">
@@ -55,29 +56,30 @@ export function seasonRankingColumns(kind: RatingKind, provisionalMatches: numbe
         </span>
       ),
     },
-    { id: 'played', header: 'Partidas', align: 'right', cell: (r) => <span className="tabular">{r.played}</span> },
+    { id: 'played', header: t('partidas'), align: 'right', cell: (r) => <span className="tabular">{r.played}</span> },
     {
       id: 'record',
-      header: 'V / E / D',
+      header: t('campanha'),
       align: 'right',
       cell: (r) => (
-        <span className="tabular" aria-label={`${r.wins} vitórias, ${r.draws} empates, ${r.losses} derrotas`}>
+        <span className="tabular" aria-label={t('campanhaExtenso', { vitorias: String(r.wins), empates: String(r.draws), derrotas: String(r.losses) })}>
           {r.wins} / {r.draws} / {r.losses}
         </span>
       ),
     },
-    { id: 'peak', header: 'Pico', align: 'right', hideOnMobile: true, cell: (r) => <span className="tabular">{r.peak}</span> },
+    { id: 'peak', header: t('pico'), align: 'right', hideOnMobile: true, cell: (r) => <span className="tabular">{r.peak}</span> },
   ];
 }
 
 const chip = 'flex min-h-11 items-center rounded-full border border-border-strong bg-surface px-4 text-sm font-semibold text-text transition-colors hover:border-accent aria-pressed:border-accent aria-pressed:bg-accent-soft aria-pressed:text-accent-soft-text';
 
 function SeasonInfo({ data }: { data: SeasonRanking }) {
+  const t = useT(messages, 'SeasonRankingSection');
   return (
     <p className="flex items-start gap-2 rounded-md bg-info-soft px-3 py-2 text-sm text-info-soft-text">
       <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
       <span>
-        Todo mundo começa a temporada com {data.settings.initial} de rating. Cada partida validada muda o rating: vencer quem está acima vale mais, perder para quem está abaixo custa mais. Nas quedas de Battle Royale, conta a colocação contra cada equipe da sala. W.O. não conta. O rating fica provisório nas primeiras {data.settings.provisionalMatches} partidas.
+        {t('info', { inicial: String(data.settings.initial), partidas: String(data.settings.provisionalMatches) })}
       </span>
     </p>
   );
@@ -89,6 +91,7 @@ export function SeasonRankingSection({ game }: { game: { slug: string; name: str
   const [season, setSeason] = useState<string | undefined>(undefined);
   const ranking = useSeasonRanking(game.slug, { kind, season });
   const data = ranking.data;
+  const t = useT(messages, 'SeasonRankingSection');
 
   return (
     <section aria-labelledby="ranking-temporada" className="flex flex-col gap-3">
@@ -96,57 +99,62 @@ export function SeasonRankingSection({ game }: { game: { slug: string; name: str
         <div className="min-w-0">
           <h2 id="ranking-temporada" className="flex items-center gap-2 text-lg">
             <TrendingUp className="size-5 text-accent" aria-hidden />
-            Temporada de {game.name}
+            {t('temporadaDe', { jogo: game.name })}
           </h2>
           {data?.season ? (
             <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
               <CalendarRange className="size-4" aria-hidden />
-              {data.season.name} · {formatDate(data.season.startsAt)} a {formatDate(new Date(new Date(data.season.endsAt).getTime() - 1).toISOString())} · {SEASON_STATUS_LABELS[data.season.status]}
+              {t('resumoTemporada', {
+                nome: data.season.name,
+                inicio: formatDate(data.season.startsAt),
+                fim: formatDate(new Date(new Date(data.season.endsAt).getTime() - 1).toISOString()),
+                situacao: SEASON_STATUS_LABELS[data.season.status],
+              })}
             </p>
           ) : null}
         </div>
         <div className="flex flex-wrap items-end gap-2">
-          <div role="group" aria-label="Mostrar a tabela de" className="flex gap-2">
+          <div role="group" aria-label={t('mostrarTabelaDe')} className="flex gap-2">
             {KINDS.map((k) => (
-              <button key={k.value} type="button" className={cn(chip)} aria-pressed={kind === k.value} onClick={() => setKind(k.value)}>
-                {k.label}
+              <button key={k} type="button" className={cn(chip)} aria-pressed={kind === k} onClick={() => setKind(k)}>
+                {t(`tipos.${k}`)}
               </button>
             ))}
           </div>
           {data && data.seasons.length > 1 && (
             <Select
-              label="Temporada"
+              label={t('temporada')}
               className="min-w-48"
               value={season ?? data.season?.id ?? ''}
               onChange={(e) => setSeason(e.target.value || undefined)}
-              options={data.seasons.map((s) => ({ value: s.id, label: `${s.name} (${SEASON_STATUS_LABELS[s.status].toLowerCase()})` }))}
+              options={data.seasons.map((s) => ({ value: s.id, label: t('opcaoTemporada', { nome: s.name, situacao: SEASON_STATUS_LABELS[s.status].toLowerCase() }) }))}
             />
           )}
         </div>
       </div>
 
       {ranking.isPending ? (
-        <div role="status" aria-label="Carregando a tabela da temporada" className="flex flex-col gap-2">
+        <div role="status" aria-label={t('carregando')} className="flex flex-col gap-2">
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-64 w-full" />
         </div>
       ) : ranking.isError ? (
-        <ErrorState title="Não foi possível carregar a tabela da temporada" description={errorMessage(ranking.error)} onRetry={() => void ranking.refetch()} />
+        <ErrorState title={t('erro')} description={errorMessage(ranking.error)} onRetry={() => void ranking.refetch()} />
       ) : !data?.season ? (
-        <EmptyState icon={<CalendarRange className="size-7" />} title={`Nenhuma temporada de ${game.name} em andamento`} description="Quando a administração abrir uma temporada, cada partida validada passa a contar aqui." />
+        <EmptyState icon={<CalendarRange className="size-7" />} title={t('semTemporadaTitulo', { jogo: game.name })} description={t('semTemporadaDescricao')} />
       ) : (
         <>
           <SeasonInfo data={data} />
           <DataTable
-            caption={`Temporada ${data.season.name} de ${game.name}: ${kind === 'PLAYER' ? 'jogadores' : 'squads'}`}
+            caption={t('legenda', { temporada: data.season.name, jogo: game.name, tipo: kind })}
             columns={seasonRankingColumns(kind, data.settings.provisionalMatches)}
             rows={data.entries}
             getRowId={(r) => r.subjectId}
             empty={
               <EmptyState
                 icon={<TrendingUp className="size-7" />}
-                title={kind === 'PLAYER' ? 'Ninguém jogou nesta temporada ainda' : 'Nenhum squad jogou nesta temporada ainda'}
-                description="A tabela começa com a primeira partida validada de um campeonato deste jogo."
+                title={t('vazioTitulo', { tipo: kind })}
+                description={t('vazioDescricao')}
               />
             }
           />

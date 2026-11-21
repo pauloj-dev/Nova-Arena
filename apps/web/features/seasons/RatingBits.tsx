@@ -4,7 +4,9 @@
 import type { RatingHistoryPoint } from '@nova/schemas';
 import { Badge } from '@nova/ui';
 import { Minus, TrendingDown, TrendingUp } from 'lucide-react';
+import { useT } from '@/shared/i18n/react';
 import { formatDate } from '@/shared/lib/datetime';
+import { messages } from './messages';
 
 /** "+12", "−8" ou "0" (sinal de menos tipográfico). */
 export function formatDelta(delta: number): string {
@@ -15,9 +17,10 @@ export function formatDelta(delta: number): string {
 
 /** Variação de rating numa partida: ícone e texto (nunca só cor). */
 export function RatingDelta({ delta }: { delta: number }) {
+  const t = useT(messages, 'RatingDelta');
   const Icon = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus;
   const tone = delta > 0 ? 'text-primary-text' : delta < 0 ? 'text-danger' : 'text-muted';
-  const label = delta > 0 ? `subiu ${delta} pontos de rating` : delta < 0 ? `caiu ${Math.abs(delta)} pontos de rating` : 'rating sem variação';
+  const label = delta > 0 ? t('subiu', { pontos: String(delta) }) : delta < 0 ? t('caiu', { pontos: String(Math.abs(delta)) }) : t('semVariacao');
   return (
     <span className={`inline-flex items-center gap-1 text-xs font-semibold ${tone}`}>
       <Icon className="size-3.5" aria-hidden />
@@ -30,9 +33,10 @@ export function RatingDelta({ delta }: { delta: number }) {
 }
 
 export function ProvisionalBadge({ matches }: { matches: number }) {
+  const t = useT(messages, 'ProvisionalBadge');
   return (
-    <Badge tone="warning" title={`O rating fica provisório nas primeiras ${matches} partidas da temporada.`}>
-      Provisório
+    <Badge tone="warning" title={t('dica', { partidas: String(matches) })}>
+      {t('provisorio')}
     </Badge>
   );
 }
