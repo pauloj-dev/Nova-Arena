@@ -451,6 +451,8 @@ model Game {
   accounts      GameAccount[]
   teams         Team[]
   templates     TournamentTemplate[]
+  seasons       Season[]
+  leagues       League[]
 
   @@index([active])
   @@map("games")
@@ -540,6 +542,7 @@ model Tournament {
   registrations Registration[]
   announcements Announcement[]
   podium        TournamentPodium?
+  leagueEntry   LeagueTournament?
 
   @@index([status, startsAt])
   @@index([gameId, status])
@@ -1259,4 +1262,62 @@ model ProductEvent {
   @@index([name, createdAt])
   @@index([userId, createdAt])
   @@map("product_events")
+}
+
+// ── Ranking de temporada e ligas (pós-lançamento, issue #120, ADR-0003) ──
+
+/// Temporada do ranking de um jogo. O rating não é gravado: é recalculado (replay) a partir dos resultados validados
+/// entre `startsAt` (inclusive) e `endsAt` (exclusivo). Temporadas do mesmo jogo não se sobrepõem (a API confere).
+model Season {
+  id          String   @id @default(uuid()) @db.Uuid
+  gameId      String   @db.Uuid
+  name        String
+  startsAt    DateTime @db.Timestamptz(3)
+  endsAt      DateTime @db.Timestamptz(3)
+  createdById String   @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, startsAt])
+  @@map("seasons")
+}
+
+/// Liga semanal de um organizador: soma pontos por colocação final dos campeonatos encerrados que agrupa.
+model League {
+  id                  String   @id @default(uuid()) @db.Uuid
+  slug                String   @unique
+  name                String
+  description         String   @default("")
+  gameId              String   @db.Uuid
+  /// Organizador dono da liga (só o ID, como os autores de ações).
+  ownerId             String   @db.Uuid
+  startsAt            DateTime @db.Timestamptz(3)
+  endsAt              DateTime @db.Timestamptz(3)
+  /// Pontos por colocação: índice 0 = 1º lugar.
+  placementPoints     Json
+  participationPoints Int      @default(0)
+  createdAt           DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
+
+  game        Game               @relation(fields: [gameId], references: [id])
+  tournaments LeagueTournament[]
+
+  @@index([ownerId])
+  @@index([gameId])
+  @@map("leagues")
+}
+
+/// Campeonato que faz parte de uma liga (no máximo uma liga por campeonato).
+model LeagueTournament {
+  leagueId     String   @db.Uuid
+  tournamentId String   @unique @db.Uuid
+  addedAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  league     League     @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@id([leagueId, tournamentId])
+  @@map("league_tournaments")
 }

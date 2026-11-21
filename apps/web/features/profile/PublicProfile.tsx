@@ -10,6 +10,7 @@ import { ReportButton } from '@/features/reports/ReportButton';
 import { PageContainer } from '@/shared/layout/AreaShell';
 import { formatDate } from '@/shared/lib/datetime';
 import { useSession } from '@/shared/session/useSession';
+import { ProfileRatingSection } from '@/features/seasons/ProfileRatingSection';
 import { CompetitiveHistory } from './competitive/CompetitiveHistory';
 import { locationLabel, SOCIAL_NETWORKS, socialHref } from './profileLib';
 import { VerifiedBadge } from './VerifiedBadge';
@@ -133,6 +134,8 @@ export function PublicProfile({ nickname }: { nickname: string }) {
           </div>
         </div>
       </Card>
+
+      <ProfileRatingSection nickname={user.nickname} />
 
       <CompetitiveHistory nickname={user.nickname} isMine={isMine} />
     </PageContainer>

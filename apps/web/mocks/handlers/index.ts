@@ -23,6 +23,7 @@ import * as profileStats from './profile-stats';
 import * as registrations from './registrations';
 import * as registrationsManage from './registrations-manage';
 import * as reports from './reports';
+import * as seasons from './seasons';
 import * as submissions from './submissions';
 import * as teams from './teams';
 import * as tournaments from './tournaments';
@@ -48,6 +49,7 @@ export const modules: MockModule[] = [
   adminSettings,
   notificationsModule,
   reports,
+  seasons,
   profileStats,
   users,
   gamesAdmin,
