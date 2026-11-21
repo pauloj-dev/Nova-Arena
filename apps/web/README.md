@@ -84,3 +84,11 @@ Nos testes E2E, importe `test`, `expect`, `loginAs` e `waitForApp` de `./fixture
 - **Sessão e papéis na API simulada:** `currentUser()` devolve nulo para quem não está `ACTIVE` (banido, suspenso, mesclado, excluído); `requireAdmin()` exige verificação em duas etapas ativa.
 - **Coleções de F2 no banco simulado** (`db().extra`): `stageRuns`, `matchMeta`, `podiums`, `resultEvents`, `auditLogs`, `notifications`, `notificationPreferences`, `reports`, `submissions`, `disputes`, `sanctions`, `roleGrants`, `globalAnnouncements`, `siteSettings`, `featureFlags`, `twoFactor`.
 - **Atalhos que só existem no protótipo** e não vão para a API real: `POST /auth/dev-login`, `GET /me/2fa/dev-code`, os tokens `devVerifyToken`/`devResetToken` nas respostas e o link de redefinição mostrado ao Admin.
+
+## Refinamento R1 (responsividade, acessibilidade, PWA)
+
+- **Telas revisadas automaticamente:** `e2e/rotas.ts` lista todas as telas com o usuário que as abre. Tela nova entra ali e passa a ser conferida em 360/480/768/1024/1440 px e paisagem (`r1-responsividade`, com screenshot de cada tamanho no relatório), pelo axe nos dois temas (`r1-acessibilidade`) e, se `principal`, nas áreas de toque de 44 px (`r1-toque-e-movimento`). Roteiros de leitor de tela: `docs/acessibilidade.md`.
+- **Carregando:** toda rota tem `loading.tsx` com `RouteSkeleton` (`shared/layout/RouteSkeleton.tsx`). **Vazio:** `EmptyState` com ícone já vem ilustrado (`EmptyIllustration`).
+- **Áreas seguras:** `pt-safe`, `px-safe` e `pb-safe` (`viewport-fit=cover`).
+- **PWA:** `app/manifest.ts`, ícones em `public/icons` (gerados por `scripts/brand-assets.mts`), service worker em `sw/sw.ts` servido por `app/serwist/[path]/route.ts` (`@serwist/turbopack`). Nunca guarda `/api`. Só é registrado sem API simulada (`NEXT_PUBLIC_API_MOCK=none`) em produção — o MSW usa o mesmo escopo. `NEXT_PUBLIC_PWA=off|on` força. Push: ponto de extensão em `sw/extensions.ts`. Teste do worker de verdade: `e2e/r1-pwa-sw.spec.ts` (instruções no arquivo).
+- **Ajuda e suporte:** `/ajuda` (conteúdo em `features/help/faq.ts`), `/contato` (e-mail de `GET /site/settings`), `/manutencao` e o aviso global `SiteBanner` (manutenção aparece 48 h antes, em todas as áreas).
