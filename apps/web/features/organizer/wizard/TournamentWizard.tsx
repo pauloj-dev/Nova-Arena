@@ -5,6 +5,7 @@ import { TournamentDraftInput, type Game, type GameMode, type OrganizerTournamen
 import { Button, Card, ErrorState, Skeleton, Stepper, useToast } from '@nova/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, Rocket, Save } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -36,14 +37,25 @@ import { IssueList } from '../stage-builder/IssueList';
 import { isRichTextEmpty, REVIEW_STEP, validateDraft, WIZARD_STEPS } from '../validation';
 import { WizardContext, type WizardContextValue } from './context';
 import { SaveIndicator } from './SaveIndicator';
-import { GameStep } from './steps/GameStep';
 import { InfoStep } from './steps/InfoStep';
-import { RegistrationStep } from './steps/RegistrationStep';
-import { ReviewStep } from './steps/ReviewStep';
-import { RulesStep } from './steps/RulesStep';
-import { ScoringStep } from './steps/ScoringStep';
-import { StagesStep } from './steps/StagesStep';
 import { useAutosave } from './useAutosave';
+
+// Só o primeiro passo vem no JS inicial; os outros (montador de fases com arrastar e soltar, pontuação, revisão…)
+// descem quando a pessoa chega neles (#111).
+function StepLoading() {
+  return (
+    <div className="flex flex-col gap-3" role="status" aria-label="Carregando o passo">
+      <Skeleton className="h-11 w-full" />
+      <Skeleton className="h-48 w-full" />
+    </div>
+  );
+}
+const GameStep = dynamic(() => import('./steps/GameStep').then((m) => m.GameStep), { loading: StepLoading });
+const RegistrationStep = dynamic(() => import('./steps/RegistrationStep').then((m) => m.RegistrationStep), { loading: StepLoading });
+const ReviewStep = dynamic(() => import('./steps/ReviewStep').then((m) => m.ReviewStep), { loading: StepLoading });
+const RulesStep = dynamic(() => import('./steps/RulesStep').then((m) => m.RulesStep), { loading: StepLoading });
+const ScoringStep = dynamic(() => import('./steps/ScoringStep').then((m) => m.ScoringStep), { loading: StepLoading });
+const StagesStep = dynamic(() => import('./steps/StagesStep').then((m) => m.StagesStep), { loading: StepLoading });
 
 const editPath = (id: string) => `/organizador/campeonatos/${id}/editar`;
 const managePath = (id: string) => `/organizador/campeonatos/${id}`;

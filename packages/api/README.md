@@ -27,6 +27,20 @@ A API simulada (`apps/web/mocks/handlers/*.ts`) é a especificação executável
 | `src/modules/reports` | Denúncias, fila de moderação e disputas escaladas. |
 | `src/modules/site` | Configurações e flags (banco como fonte de verdade; leitura pelo Edge Config quando `EDGE_CONFIG` existe; gravação pela API da Vercel com `EDGE_CONFIG_ID` e `VERCEL_API_TOKEN`), `isFlagEnabled(c, key)` para os outros módulos, saúde do sistema e eventos de produto sem cookies (`/events`, `/me/nps`). |
 
+## R2: antifraude, LGPD e observabilidade
+
+| Arquivo | O que faz |
+|---|---|
+| `src/fraud.ts` | Detecção antifraude (#114): várias contas por IP (5 em 24 h) e por aparelho (cookie `na_dev`, 3 em 30 dias) a cada sessão nova; ID de jogo repetido ao salvar; ações administrativas em massa lidas da auditoria (10 banimentos/min…), com aviso ao Super Admin. Limites em `FRAUD_THRESHOLDS` (`@nova/schemas`). Nunca derruba a requisição. |
+| `src/modules/fraud` | `GET/PATCH /admin/fraud-alerts` (alerta sobre Admin só para o Super Admin; quem disparou não analisa) e o middleware `watchAdminActions` em `/admin/*`. |
+| `src/privacy.ts`, `src/modules/privacy` | LGPD (#115): `POST /me/export` (JSON na hora; conta grande vai para o job `/jobs/privacy/export` com o arquivo no Blob privado), `GET /me/exports`, `GET /me/exports/:id/download`, `GET /me/deletion`, `DELETE /me` (anonimização conforme `docs/modelo-de-dados.md`). |
+| `src/observability.ts` | Erros do Sentry na última hora para a Saúde do Sistema (#116), com `SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/`SENTRY_PROJECT`. |
+| `deps.reportError` | Todo 500 da API e toda falha de job vão para o monitoramento de erros (a rota do Next liga o Sentry). |
+| `jobs/runner.ts` | Batimento do Cron (`cron ok` no log + `cron:last:<job>` no cache) para o alerta "Cron sem rodar". |
+
+Testes: `fraud.integration`, `privacy.integration`, `idor.integration` (acesso a dados de outra pessoa em todos os
+recursos com dono) e `observability.unit`.
+
 Efeitos depois do commit (notificação, tempo real) passam por `AfterCommit` (`modules/admin/shared.ts`), que usa `notify()` e `publish()` de `src/notify.ts`.
 
 ## Ranking de temporada e ligas (#120, ADR-0003)

@@ -5,7 +5,7 @@ import { Gamepad2, Home, Medal, Trophy, User } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { NotificationBell } from '@/features/notifications/NotificationBell';
+import { NotificationBell } from '@/features/notifications/LazyNotificationBell';
 import { useFlag } from '../flags/useFlag';
 import { useSession } from '../session/useSession';
 import { ThemeToggle } from '../theme/ThemeToggle';

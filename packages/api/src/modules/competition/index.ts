@@ -28,6 +28,7 @@ import { announceBracket } from '../discord/announce';
 import { clearRun, engine, isLocked, projectRun, readRun, snapshotOf, stageWithTournament, toEngineConfig } from '../../competition/run';
 import { revalidateTournaments } from '../../revalidate';
 import { clientIp } from '../../security';
+import { EDGE_CACHE, isSettled, visitorCache } from '../../http-cache';
 import { toStage } from '../tournaments/views';
 import { entrantRatings } from '../seasons/ratings';
 
@@ -65,6 +66,9 @@ export const competition = new Hono<AppEnv>();
 competition.get('/stages/:id/bracket', async (c) => {
   const stage = await loadStage(c, c.req.param('id'));
   if (stage.tournament.status === 'DRAFT' && !(await isStaff(c, stage.tournament))) throw notFound('Fase');
+  // Ao vivo, a chave muda a cada resultado (o tempo real manda buscar de novo): sem cache na borda. Encerrado,
+  // ela não muda mais. A prévia aparece para a organização: cache só para visitante.
+  if (isSettled(stage.tournament.status)) visitorCache(c, EDGE_CACHE.finished);
   return respond(c, Bracket, await buildBracket(c.get('deps').db(), stage, { includePreview: await isStaff(c, stage.tournament) }));
 });
 

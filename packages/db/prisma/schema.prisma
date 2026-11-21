@@ -232,6 +232,10 @@ model User {
   lastSeenAt      DateTime?  @db.Timestamptz(3)
   /// Conta de destino quando esta foi mesclada (RN-13).
   mergedIntoId    String?    @db.Uuid
+  /// Menor de 18 anos: quando declarou ter a autorização do responsável no cadastro (LGPD art. 14, issue #115).
+  guardianConsentAt DateTime? @db.Timestamptz(3)
+  /// Exclusão da conta (LGPD, issue #115): a conta foi anonimizada neste instante.
+  deletedAt       DateTime?  @db.Timestamptz(3)
   createdAt       DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime   @updatedAt @db.Timestamptz(3)
 
@@ -294,12 +298,17 @@ model Session {
   revokedAt         DateTime? @db.Timestamptz(3)
   replacedById      String?   @db.Uuid
   lastUsedAt        DateTime? @db.Timestamptz(3)
+  /// Aparelho (cookie `na_dev`, aleatório e sem dado pessoal): base do alerta de várias contas no mesmo aparelho (#114).
+  deviceId          String?   @db.Uuid
   createdAt         DateTime  @default(now()) @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([familyId])
+  /// Antifraude (#114): contas distintas que entraram do mesmo IP ou do mesmo aparelho numa janela.
+  @@index([ip, createdAt])
+  @@index([deviceId, createdAt])
   @@map("sessions")
 }
 
@@ -422,6 +431,8 @@ model GameAccount {
   gameId    String   @db.Uuid
   /// Ex.: `{ "playerId": "123", "nick": "Alfa" }`. Visível só para a organização e os adversários.
   fields    Json
+  /// ID do jogador normalizado (primeiro campo do jogo, sem espaços e em minúsculas): base do alerta de ID duplicado (#114).
+  externalKey String?
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
@@ -429,6 +440,7 @@ model GameAccount {
   game Game @relation(fields: [gameId], references: [id])
 
   @@unique([userId, gameId])
+  @@index([gameId, externalKey])
   @@map("game_accounts")
 }
 
@@ -798,6 +810,10 @@ model Registration {
   @@unique([tournamentId, userId])
   @@unique([tournamentId, teamId])
   @@index([tournamentId, status, createdAt])
+  /// "Minhas inscrições", perfil e disputas de uma pessoa em todos os campeonatos (revisão R2, #111).
+  @@index([userId])
+  /// Cron: reservas de vaga vencidas (`status = PENDING_MEMBERS` e `reservedUntil` no passado).
+  @@index([status, reservedUntil])
   @@map("registrations")
 }
 
@@ -817,6 +833,8 @@ model RegistrationMember {
 
   @@unique([tournamentId, userId])
   @@index([registrationId])
+  /// Elencos de que a pessoa faz parte, em qualquer campeonato (revisão R2, #111).
+  @@index([userId])
   @@map("registration_members")
 }
 
@@ -1371,4 +1389,77 @@ model MatchChatMessage {
   @@index([matchId, createdAt])
   @@index([authorId, createdAt])
   @@map("match_chat_messages")
+}
+
+// ── Antifraude e LGPD (R2) ───────────────────────────────────────────
+
+enum FraudAlertKind {
+  /// Várias contas entraram do mesmo IP numa janela curta.
+  MULTI_ACCOUNT_IP
+  /// Várias contas entraram do mesmo aparelho.
+  MULTI_ACCOUNT_DEVICE
+  /// O mesmo ID de jogo cadastrado em contas diferentes.
+  DUPLICATE_GAME_ID
+  /// Muitas ações administrativas do mesmo Admin em pouco tempo (PRD §22, R4).
+  MASS_ADMIN_ACTION
+}
+
+enum FraudAlertStatus {
+  OPEN
+  ACTIONED
+  DISMISSED
+}
+
+/// Fila de alertas antifraude (issue #114), tratada no painel de moderação. Um alerta aberto por `dedupeKey`:
+/// a repetição soma `occurrences` e atualiza `lastSeenAt` em vez de abrir outro.
+model FraudAlert {
+  id            String           @id @default(uuid()) @db.Uuid
+  kind          FraudAlertKind
+  status        FraudAlertStatus @default(OPEN)
+  /// `LOW`, `MEDIUM` ou `HIGH`.
+  severity      String
+  /// Ex.: `MULTI_ACCOUNT_IP:200.1.2.3`, `MASS_ADMIN_ACTION:BAN:<adminId>`.
+  dedupeKey     String
+  /// Contas envolvidas (para o Admin abrir cada uma).
+  userIds       String[]         @db.Uuid
+  /// Admin que disparou o alerta de ações em massa.
+  actorId       String?          @db.Uuid
+  /// Números e rótulos do alerta (janela, limite, contagem, jogo…). Nunca senha, token ou texto livre da pessoa.
+  details       Json             @default("{}")
+  occurrences   Int              @default(1)
+  firstSeenAt   DateTime         @default(now()) @db.Timestamptz(3)
+  lastSeenAt    DateTime         @default(now()) @db.Timestamptz(3)
+  reviewedById  String?          @db.Uuid
+  reviewedAt    DateTime?        @db.Timestamptz(3)
+  resolution    String?
+  createdAt     DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@index([status, lastSeenAt])
+  @@index([dedupeKey, status])
+  @@map("fraud_alerts")
+}
+
+enum DataExportStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+/// Exportação dos dados pessoais (LGPD, issue #115) gerada em job quando é grande. O arquivo fica no Blob privado
+/// e só o dono baixa, por `GET /me/exports/:id`, até `expiresAt`.
+model DataExport {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  status    DataExportStatus @default(PENDING)
+  blobUrl   String?
+  size      Int?
+  error     String?
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+  readyAt   DateTime?        @db.Timestamptz(3)
+  expiresAt DateTime         @db.Timestamptz(3)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+  @@map("data_exports")
 }

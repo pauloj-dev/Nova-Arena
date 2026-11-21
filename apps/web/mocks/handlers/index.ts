@@ -9,6 +9,7 @@
  */
 import type { HttpHandler } from 'msw';
 import * as adminAudit from './admin-audit';
+import * as adminFraud from './admin-fraud';
 import * as adminModeration from './admin-moderation';
 import * as adminRoles from './admin-roles';
 import * as adminSettings from './admin-settings';
@@ -22,6 +23,7 @@ import * as competition from './competition';
 import * as games from './games';
 import * as gamesAdmin from './games-admin';
 import * as notificationsModule from './notifications';
+import * as privacy from './privacy';
 import * as profileStats from './profile-stats';
 import * as registrations from './registrations';
 import * as registrationsManage from './registrations-manage';
@@ -49,12 +51,14 @@ export const modules: MockModule[] = [
   adminTournaments,
   adminAudit,
   adminModeration,
+  adminFraud,
   adminSettings,
   notificationsModule,
   // Pós-lançamento (issues 121 e 125): rotas específicas, antes de `/tournaments/:slug`.
   discord,
   chat,
   calendar,
+  privacy,
   reports,
   seasons,
   profileStats,
@@ -79,7 +83,9 @@ export const modules: MockModule[] = [
 export const B1_REAL_MODULES = ['auth', 'users', 'uploads', 'games', 'games-admin', 'tournaments', 'tournaments-manage', 'tournaments-ops', 'registrations', 'registrations-manage', 'teams'] as const;
 export const B2_REAL_MODULES = ['competition', 'submissions', 'profile-stats', 'notifications', 'reports', 'admin-users', 'admin-roles', 'admin-tournaments', 'admin-audit', 'admin-moderation', 'admin-settings'] as const;
 export const POS_REAL_MODULES = ['seasons', 'discord', 'chat', 'calendar'] as const;
-export const REAL_MODULES: readonly string[] = [...B1_REAL_MODULES, ...B2_REAL_MODULES, ...POS_REAL_MODULES];
+/** R2 (issues 114 e 115): alertas antifraude e privacidade (LGPD). */
+export const R2_REAL_MODULES = ['admin-fraud', 'privacy'] as const;
+export const REAL_MODULES: readonly string[] = [...B1_REAL_MODULES, ...B2_REAL_MODULES, ...POS_REAL_MODULES, ...R2_REAL_MODULES];
 
 /**
  * Valor de `NEXT_PUBLIC_API_MOCK` para o preview e o staging: só os módulos que ainda não têm API real. Desde a #102

@@ -3,6 +3,7 @@
 import type { Tournament } from '@nova/schemas';
 import { Button, Card, ErrorState, Progress, Skeleton } from '@nova/ui';
 import { CalendarClock, Hourglass, Lock, ShieldCheck, XCircle } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
@@ -12,8 +13,10 @@ import { useMyRegistration, useRegistrationEligibility } from '@/shared/api/hook
 import { formatDateTime } from '@/shared/lib/datetime';
 import { useSession } from '@/shared/session/useSession';
 import { registrationPanelView } from './lib/rules';
-import { MyRegistrationCard } from './MyRegistrationCard';
-import { RegisterForm } from './RegisterForm';
+
+// Só quem está logado vê o formulário (squads, contas de jogo) e o cartão da inscrição: fora do JS inicial (#111).
+const MyRegistrationCard = dynamic(() => import('./MyRegistrationCard').then((m) => m.MyRegistrationCard), { loading: () => <Skeleton className="h-32 w-full" /> });
+const RegisterForm = dynamic(() => import('./RegisterForm').then((m) => m.RegisterForm), { loading: () => <Skeleton className="h-32 w-full" /> });
 
 function Notice({ icon, title, children }: { icon: ReactNode; title: string; children?: ReactNode }) {
   return (

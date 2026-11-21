@@ -197,6 +197,8 @@ export const AUDIT_ACTIONS = {
   TWO_FACTOR_CHANGED: 'Verificação em duas etapas alterada',
   SEASON_CHANGED: 'Temporada do ranking criada ou alterada',
   LEAGUE_CHANGED: 'Liga criada ou alterada',
+  FRAUD_ALERT_REVIEWED: 'Alerta antifraude analisado',
+  ACCOUNT_DELETED: 'Conta excluída a pedido (LGPD)',
 } as const satisfies Record<string, string>;
 export type AuditAction = keyof typeof AUDIT_ACTIONS;
 export const AuditActionSchema = z.enum(Object.keys(AUDIT_ACTIONS) as [AuditAction, ...AuditAction[]]);
@@ -280,8 +282,11 @@ export const SystemHealth = z.object({
   version: z.string(),
   environment: z.string(),
   checkedAt: IsoDateTime,
-  errorRate: z.number(),
+  /** Percentual de requisições com erro na última hora. Nulo quando o ambiente não mede (veja `errorTracking`). */
+  errorRate: z.number().nullable(),
   services: z.array(z.object({ key: z.string(), name: z.string(), status: z.enum(['ok', 'degraded', 'down']), detail: z.string(), latencyMs: z.number().nullable() })),
+  /** Monitoramento de erros (Sentry, issue #116): erros recebidos na última hora, quando o ambiente tem leitura. */
+  errorTracking: z.object({ configured: z.boolean(), eventsLastHour: z.number().int().nullable() }).optional(),
   failedJobs: z.number().int(),
   storageUsedMb: z.number(),
 });

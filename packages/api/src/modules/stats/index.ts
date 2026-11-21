@@ -12,6 +12,8 @@ import { CompetitiveStats, GameRanking, type GameRankingEntry } from '@nova/sche
 import { Hono } from 'hono';
 import { respond, type AppEnv } from '../../context';
 import { notFound } from '../../errors';
+import { EDGE_CACHE, publicCache } from '../../http-cache';
+import { registrationIdsOfUser } from '../registrations/core';
 import { readRun, type StageRun } from '../../competition/run';
 
 type PerGame = CompetitiveStats['perGame'][number];
@@ -69,7 +71,7 @@ stats.get('/users/:nickname/stats', async (c) => {
   const registrations = await db.registration.findMany({
     where: {
       status: { in: ['CONFIRMED', 'WITHDRAWN', 'DISQUALIFIED'] },
-      OR: [{ userId: user.id }, { members: { some: { userId: user.id, confirmedAt: { not: null } } } }],
+      id: { in: await registrationIdsOfUser(db, user.id, { confirmedMember: true }) },
       tournament: { status: { not: 'CANCELLED' } },
     },
     select: {
@@ -169,6 +171,7 @@ stats.get('/users/:nickname/stats', async (c) => {
   // Em andamento primeiro; depois os encerrados, do mais recente para o mais antigo.
   history.sort((a, b) => (a.finishedAt === null ? 0 : 1) - (b.finishedAt === null ? 0 : 1) || (b.finishedAt ?? '').localeCompare(a.finishedAt ?? ''));
   achievements.sort((a, b) => b.awardedAt.localeCompare(a.awardedAt));
+  publicCache(c, EDGE_CACHE.profile);
   return respond(c, CompetitiveStats, {
     userId: user.id,
     perGame: [...perGame.values()].sort((a, b) => b.tournaments - a.tournaments || a.gameName.localeCompare(b.gameName)),

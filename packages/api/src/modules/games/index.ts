@@ -20,6 +20,7 @@ import { badRequest, conflict, HttpProblem, notFound } from '../../errors';
 import { ADMIN_ROLES, assertRole, isAdmin } from '../../auth/rbac';
 import { currentSession } from '../../auth/session';
 import { clientIp } from '../../security';
+import { EDGE_CACHE, visitorCache } from '../../http-cache';
 
 export const GAMES_CACHE_KEY = 'games:active:v1';
 const CACHE_TTL_SECONDS = 600;
@@ -142,6 +143,8 @@ games.get('/games', async (c) => {
     return respond(c, z.array(Game), rows.map(toGame));
   }
   const catalog = await activeCatalog(c);
+  // Visitante: catálogo igual para todos (cache na borda). Logado: entram os modelos da pessoa (sem cache).
+  visitorCache(c, EDGE_CACHE.catalog);
   if (!who.id) return respond(c, z.array(Game), catalog);
   // Logado: junta os modelos personalizados da pessoa (o Admin vê os de todos).
   const custom = await c
@@ -157,6 +160,7 @@ games.get('/games', async (c) => {
 
 games.get('/games/:slug', async (c) => {
   const game = await findGameRow(c.get('deps').db(), c.req.param('slug'));
+  visitorCache(c, EDGE_CACHE.catalog);
   return respond(c, Game, visibleModels(toGame(game), await viewer(c)));
 });
 

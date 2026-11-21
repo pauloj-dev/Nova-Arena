@@ -20,3 +20,6 @@ export function isModuleMocked(moduleName: string, setting: string = process.env
     .map((s) => s.trim())
     .includes(moduleName);
 }
+
+/** Mesmo que `isMockEnabled()`: nome usado pelo `MockGate` e pelas telas do protótipo (#111). */
+export const isMockApiEnabled = isMockEnabled;

@@ -76,6 +76,7 @@ export const keys = {
     flags: ['admin', 'flags'] as const,
     health: ['admin', 'health'] as const,
     announcements: ['admin', 'announcements'] as const,
+    fraudAlerts: (params?: Params) => ['admin', 'fraud-alerts', params ?? {}] as const,
   },
   site: { settings: ['site', 'settings'] as const, banner: ['site', 'banner'] as const, flags: ['site', 'flags'] as const },
   seasons: {
@@ -98,4 +99,5 @@ export const keys = {
   discord: { link: (tournamentId: string) => ['discord', 'link', tournamentId] as const },
   chat: { match: (matchId: string) => ['chat', matchId] as const },
   calendar: { mine: ['calendar', 'mine'] as const, tournament: (idOrSlug: string) => ['calendar', 'tournament', idOrSlug] as const },
+  privacy: { deletion: ['privacy', 'deletion'] as const, exports: ['privacy', 'exports'] as const },
 };

@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@nova/ui';
-import { Bell, Flag, ShieldCheck, Trophy, User, Users } from 'lucide-react';
+import { Bell, FileLock2, Flag, ShieldCheck, Trophy, User, Users } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
@@ -13,6 +13,7 @@ const items = [
   { href: '/minha-conta/notificacoes', label: 'Notificações', icon: Bell, exact: false },
   { href: '/minha-conta/denuncias', label: 'Denúncias', icon: Flag, exact: false },
   { href: '/minha-conta/seguranca', label: 'Segurança', icon: ShieldCheck, exact: false },
+  { href: '/minha-conta/privacidade', label: 'Privacidade', icon: FileLock2, exact: false },
 ];
 
 /** Navegação secundária da conta. No celular rola na horizontal dentro de si mesma, sem empurrar a página. */

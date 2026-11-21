@@ -1,7 +1,7 @@
 'use client';
 
 import { Controller, useFormContext } from 'react-hook-form';
-import { RichTextEditor } from '../../components/RichTextEditor';
+import { RichTextEditor } from '../../components/LazyRichTextEditor';
 import type { WizardValues } from '../../lib/draft';
 import { useWizard } from '../context';
 

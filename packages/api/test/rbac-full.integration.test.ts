@@ -331,6 +331,15 @@ const MATRIX: Row[] = [
   r('GET /calendar/t/:file', PUBLIC, ({ ids }) => `/calendar/t/${ids.tournamentSlug}.ics`),
   r('POST /discord/interactions', MACHINE, undefined, 'só o Discord, com a assinatura Ed25519'),
 
+  // ── R2: antifraude e LGPD (issues 114 e 115) ─────────────────────
+  r('GET /admin/fraud-alerts', ADMIN, undefined, 'alerta sobre um Admin só aparece para o Super Admin (filtro, não permissão)'),
+  r('PATCH /admin/fraud-alerts/:id', ADMIN, () => '/admin/fraud-alerts/00000000-0000-4000-8000-000000000000'),
+  r('POST /me/export', AUTH, undefined, 'exportação dos próprios dados'),
+  r('GET /me/exports', AUTH),
+  r('GET /me/exports/:id/download', AUTH, () => '/me/exports/00000000-0000-4000-8000-000000000000/download', 'só o dono: de outra pessoa dá 404 (teste de IDOR)'),
+  r('GET /me/deletion', AUTH),
+  r('DELETE /me', AUTH, undefined, 'sem senha e frase de confirmação: 400 depois da sessão'),
+
   // ── Máquinas ─────────────────────────────────────────────────────
   // Por último: muda o estado da inscrição da participante (W.O. na partida).
   r(
@@ -340,7 +349,7 @@ const MATRIX: Row[] = [
     'desistir: a própria pessoa (ou a organização registra); desclassificar: quem gerencia — moderador não (PRD §6)',
     () => ({ kind: 'WITHDRAWN', reason: 'Teste da matriz' }),
   ),
-  ...['GET /cron/daily-cleanup', 'GET /cron/sanctions', 'GET /cron/sweep', 'GET /cron/tournaments', 'POST /jobs/announcements/deliver', 'POST /jobs/discord/announce', 'POST /jobs/discord/reminder', 'POST /jobs/failures', 'POST /jobs/matches/check-in', 'POST /jobs/notifications/email', 'POST /jobs/notifications/push', 'POST /jobs/tournaments/registration'].map((route) => r(route, MACHINE)),
+  ...['GET /cron/daily-cleanup', 'GET /cron/sanctions', 'GET /cron/sweep', 'GET /cron/tournaments', 'POST /jobs/announcements/deliver', 'POST /jobs/discord/announce', 'POST /jobs/discord/reminder', 'POST /jobs/privacy/export', 'POST /jobs/failures', 'POST /jobs/matches/check-in', 'POST /jobs/notifications/email', 'POST /jobs/notifications/push', 'POST /jobs/tournaments/registration'].map((route) => r(route, MACHINE)),
 ];
 
 describe.skipIf(!url)('matriz RBAC completa (PRD §6) — toda rota × 8 perfis', () => {

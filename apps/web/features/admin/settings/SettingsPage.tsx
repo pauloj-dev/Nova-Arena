@@ -11,6 +11,7 @@ import { ApiError, errorMessage } from '@/shared/api/client';
 import { useSiteSettingsAdmin, useUpdateSiteSettings } from '@/shared/api/hooks/admin-settings';
 import { uploadErrorMessage, uploadImage } from '@/shared/api/upload';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
+import { BlobImage } from '@/shared/lib/blob-image';
 import { useSession } from '@/shared/session/useSession';
 import { FlagsSection } from './FlagsSection';
 
@@ -71,9 +72,8 @@ function SettingsForm({ settings, canEdit }: { settings: SiteSettings; canEdit: 
             <div className="flex flex-col gap-2">
               <span className="text-sm font-medium text-text">Logo</span>
               <div className="flex flex-wrap items-center gap-3">
-                <span className="flex size-16 items-center justify-center overflow-hidden rounded-md border border-border bg-surface-2 text-xs text-muted">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- imagem enviada pelo Admin, de origem variável */}
-                  {logoUrl ? <img src={logoUrl} alt="Logo atual" className="size-full object-contain" /> : 'Padrão'}
+                <span className="relative flex size-16 items-center justify-center overflow-hidden rounded-md border border-border bg-surface-2 text-xs text-muted">
+                  {logoUrl ? <BlobImage src={logoUrl} alt="Logo atual" sizes="64px" className="object-contain" /> : 'Padrão'}
                 </span>
                 <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" aria-label="Arquivo do logo" tabIndex={-1} onChange={(event) => void pickLogo(event.target.files?.[0])} />
                 <Button variant="secondary" size="sm" loading={uploading} onClick={() => fileRef.current?.click()} iconLeft={<ImagePlus className="size-4" aria-hidden />}>

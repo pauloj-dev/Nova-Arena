@@ -27,6 +27,7 @@ import { announceChampion } from '../discord/announce';
 import { revalidateTournaments, revalidateUser } from '../../revalidate';
 import { toRegistration, tournamentForRegistration } from '../registrations/core';
 import { auditCtx, isUuid } from './access';
+import { EDGE_CACHE, noStore, publicCache } from '../../http-cache';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -122,6 +123,9 @@ closing.post('/registrations/:id/withdraw', async (c) => {
 // ── Encerramento e pódio ─────────────────────────────────────────────
 closing.get('/tournaments/:id/podium', async (c) => {
   const t = await findTournament(c, c.req.param('id'));
+  // O pódio só existe depois do encerramento e é igual para todos (rascunho nunca tem pódio).
+  if (t.status === 'DRAFT') noStore(c);
+  else publicCache(c, t.status === 'FINISHED' || t.status === 'ARCHIVED' ? EDGE_CACHE.finished : EDGE_CACHE.listing);
   return respond(c, Podium.nullable(), await toPodium(c.get('deps').db(), t.id));
 });
 

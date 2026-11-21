@@ -76,7 +76,15 @@ export function HealthPage() {
 
           <section aria-label="Resumo" className="grid grid-cols-1 gap-3 xs:grid-cols-2 lg:grid-cols-4">
             <Metric label="Versão publicada" value={health.data.version} hint={`Ambiente: ${health.data.environment}`} />
-            <Metric label="Taxa de erro" value={`${formatNumber(health.data.errorRate)}%`} hint="das requisições, última hora" />
+            {health.data.errorRate !== null ? (
+              <Metric label="Taxa de erro" value={`${formatNumber(health.data.errorRate)}%`} hint="das requisições, última hora" />
+            ) : (
+              <Metric
+                label="Erros na última hora"
+                value={health.data.errorTracking?.eventsLastHour != null ? formatNumber(health.data.errorTracking.eventsLastHour) : '—'}
+                hint={health.data.errorTracking?.configured ? 'recebidos pelo Sentry' : 'Sentry não configurado'}
+              />
+            )}
             <Metric label="Tarefas com falha" value={formatNumber(health.data.failedJobs)} hint="filas e tarefas agendadas" />
             <Metric label="Armazenamento em uso" value={`${formatNumber(health.data.storageUsedMb)} MB`} hint="provas, logos e banners" />
           </section>

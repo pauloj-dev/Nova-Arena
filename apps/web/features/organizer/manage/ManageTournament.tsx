@@ -2,6 +2,7 @@
 
 import { Badge, Button, ErrorState, Skeleton, StatusPill, Tabs, type TabItem } from '@nova/ui';
 import { ExternalLink, Hourglass } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
@@ -13,16 +14,26 @@ import { useTournamentChannel } from '@/shared/realtime/RealtimeProvider';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { NoAccess, TournamentNotFound } from '../components/NoAccess';
 import { permissionsOf } from '../operation/stageUtils';
-import { AnnouncementsTab } from './AnnouncementsTab';
-import { AuditTab } from './AuditTab';
-import { DiscordTab } from './DiscordTab';
-import { MatchesTab } from './MatchesTab';
-import { PublicPageTab } from './PublicPageTab';
-import { RegistrationsTab } from './RegistrationsTab';
-import { StaffTab } from './StaffTab';
-import { StagesTab } from './StagesTab';
 import { SummaryTab } from './SummaryTab';
-import { ValidationTab } from './ValidationTab';
+
+// As outras abas (chave com arrastar e soltar, editor de texto, importação de CSV…) só descem quando abertas (#111).
+function TabLoading() {
+  return (
+    <div className="flex flex-col gap-3" role="status" aria-label="Carregando">
+      <Skeleton className="h-11 w-full" />
+      <Skeleton className="h-64 w-full" />
+    </div>
+  );
+}
+const AnnouncementsTab = dynamic(() => import('./AnnouncementsTab').then((m) => m.AnnouncementsTab), { loading: TabLoading });
+const DiscordTab = dynamic(() => import('./DiscordTab').then((m) => m.DiscordTab), { loading: TabLoading });
+const AuditTab = dynamic(() => import('./AuditTab').then((m) => m.AuditTab), { loading: TabLoading });
+const MatchesTab = dynamic(() => import('./MatchesTab').then((m) => m.MatchesTab), { loading: TabLoading });
+const PublicPageTab = dynamic(() => import('./PublicPageTab').then((m) => m.PublicPageTab), { loading: TabLoading });
+const RegistrationsTab = dynamic(() => import('./RegistrationsTab').then((m) => m.RegistrationsTab), { loading: TabLoading });
+const StaffTab = dynamic(() => import('./StaffTab').then((m) => m.StaffTab), { loading: TabLoading });
+const StagesTab = dynamic(() => import('./StagesTab').then((m) => m.StagesTab), { loading: TabLoading });
+const ValidationTab = dynamic(() => import('./ValidationTab').then((m) => m.ValidationTab), { loading: TabLoading });
 
 const TABS = ['resumo', 'inscricoes', 'fases', 'partidas', 'validacao', 'equipe', 'comunicados', 'auditoria', 'pagina', 'discord'] as const;
 type TabId = (typeof TABS)[number];

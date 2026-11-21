@@ -38,6 +38,8 @@ export function findColorsInSource(source) {
     for (const pattern of [HEX, COLOR_FUNCTION]) {
       for (const m of text.matchAll(pattern)) {
         if (pattern === HEX && ISSUE_REF.test(text.slice(0, m.index + 1))) continue;
+        // Só dígitos ("#111") entre parênteses ou num comentário é número de issue ("(#111)", "issues #115 e #116").
+        if (pattern === HEX && /^#\d+$/.test(m[0]) && (text[m.index - 1] === '(' || /^\s*(?:\/\/|\/?\*)/.test(text))) continue;
         found.push({ line: index + 1, column: m.index + 1, match: m[0], text: text.trim() });
       }
     }

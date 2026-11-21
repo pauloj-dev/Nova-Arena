@@ -1,0 +1,37 @@
+# Smoke test pós-deploy (issue #117): a cada deploy concluído na Vercel (preview, staging ou produção),
+# confere páginas públicas, headers de segurança, /api/v1/health e a API pública (`ops/smoke/smoke.mjs`).
+# Sem dependências: não instala o monorepo. Os previews passam pela proteção de deploy com o segredo
+# VERCEL_AUTOMATION_BYPASS_SECRET (Vercel → Deployment Protection → "Protection Bypass for Automation").
+# Falhou em produção: siga docs/runbook.md (Instant Rollback em < 5 min).
+name: Smoke pós-deploy
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-${{ github.event.deployment.id }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Smoke (${{ github.event.deployment.environment }})
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.deployment.sha }}
+          sparse-checkout: ops/smoke
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Smoke test
+        # A URL entra por variável de ambiente, não interpolada no comando (evita injeção no shell).
+        run: node ops/smoke/smoke.mjs
+        env:
+          SMOKE_BASE_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}

@@ -10,6 +10,11 @@ export const metadata: Metadata = {
   alternates: { canonical: '/campeonatos' },
 };
 
+// Renderizada a cada visita (#111): com os filtros da URL em mãos, o servidor já manda o cabeçalho e os filtros
+// prontos no HTML. Estática, a página inteira esperava o JavaScript (o `useSearchParams` só existe no navegador) e o
+// LCP no celular passava de 4 s.
+export const dynamic = 'force-dynamic';
+
 function Fallback() {
   return (
     <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-4 px-4 py-6 md:px-6 md:py-8" role="status" aria-label="Carregando campeonatos">

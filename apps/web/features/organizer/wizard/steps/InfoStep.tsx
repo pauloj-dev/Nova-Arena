@@ -3,7 +3,7 @@
 import { Input, Textarea } from '@nova/ui';
 import { Controller, useFormContext } from 'react-hook-form';
 import { BannerUpload } from '../../components/BannerUpload';
-import { RichTextEditor } from '../../components/RichTextEditor';
+import { RichTextEditor } from '../../components/LazyRichTextEditor';
 import { StreamLinksField } from '../../components/StreamLinksField';
 import type { WizardValues } from '../../lib/draft';
 import { useWizard } from '../context';

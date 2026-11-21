@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MIN_AGE, RegisterInput } from '@nova/schemas';
+import { isMinor, MIN_AGE, RegisterInput } from '@nova/schemas';
 import { Button, Checkbox, Input } from '@nova/ui';
 import { AlertCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -16,7 +16,7 @@ import { applyFieldErrors, hasFieldErrors } from './formErrors';
 import { PasswordStrengthMeter } from './PasswordStrengthMeter';
 import { safeNext, withNext } from './safeNext';
 
-const FIELDS = ['nickname', 'email', 'password', 'birthDate', 'acceptTerms'] as const;
+const FIELDS = ['nickname', 'email', 'password', 'birthDate', 'acceptTerms', 'guardianConsent'] as const;
 
 /** Hoje, no formato do `<input type="date">`: ninguém nasceu no futuro. */
 function today(): string {
@@ -42,6 +42,8 @@ export function RegisterScreen() {
     defaultValues: { nickname: '', email: '', password: '', birthDate: '' },
   });
   const password = useWatch({ control, name: 'password' }) ?? '';
+  // Entre a idade mínima e 18 anos, o cadastro pede a autorização do responsável (LGPD art. 14).
+  const minor = isMinor(useWatch({ control, name: 'birthDate' }));
 
   // Erro que não pertence a nenhum campo (os 409 de e-mail e apelido vão para o campo).
   const generalError = signUp.isError && !hasFieldErrors(signUp.error, FIELDS) ? errorMessage(signUp.error) : null;
@@ -100,6 +102,28 @@ export function RegisterScreen() {
           error={errors.birthDate?.message}
           {...register('birthDate')}
         />
+        {minor && (
+          <div className="flex flex-col gap-1">
+            <Controller
+              control={control}
+              name="guardianConsent"
+              render={({ field }) => (
+                <Checkbox
+                  label="Tenho menos de 18 anos e meu pai, mãe ou responsável autorizou o cadastro"
+                  hint="Seu responsável pode pedir a exclusão da conta a qualquer momento pelo e-mail do suporte."
+                  checked={field.value === true}
+                  onCheckedChange={(checked) => field.onChange(checked)}
+                />
+              )}
+            />
+            {errors.guardianConsent?.message && (
+              <p role="alert" className="flex items-center gap-1 text-xs font-medium text-danger">
+                <AlertCircle className="size-3.5 shrink-0" aria-hidden />
+                {errors.guardianConsent.message}
+              </p>
+            )}
+          </div>
+        )}
         <div className="flex flex-col gap-1">
           <Controller
             control={control}

@@ -1,0 +1,26 @@
+# Varredura de segredos (issue #113): regras padrão do gitleaks + exceções do repositório.
+# Roda no CI (job "Segurança") sobre todo o histórico. Achou um segredo de verdade? docs/runbook.md, "Vazamento de segredo".
+title = "Nova Arena"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Valores falsos de teste, catálogo vazio de variáveis e arquivos gerados"
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)pnpm-lock\.yaml$''',
+  '''(^|/)node_modules/''',
+  '''(^|/)ops/k6/dados/''',
+  '''(^|/)public/mockServiceWorker\.js$''',
+  # Testes usam senhas e tokens de mentira (nunca de um serviço real).
+  '''\.test\.tsx?$''',
+  '''(^|/)packages/api/test/''',
+]
+# Segredos de teste (assinatura de JWT, cron, chaves de cifra) usados só nos testes e no Docker local.
+regexes = [
+  '''segredo-de-teste-com-mais-de-32-caracteres''',
+  '''segredo-do-cron-de-teste''',
+  '''segredo-do-ci-de-desempenho-com-mais-de-32-caracteres''',
+  '''postgres://nova:nova@localhost''',
+]
