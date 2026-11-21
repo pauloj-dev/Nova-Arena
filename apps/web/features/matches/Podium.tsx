@@ -1,6 +1,10 @@
+'use client';
+
 import type { Podium as PodiumData } from '@nova/schemas';
 import { Avatar, cn } from '@nova/ui';
 import { Medal, Trophy } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Confetti } from '@/features/organizer/operation/Confetti';
 import { formatDate } from '@/shared/lib/datetime';
 
 const PLACES: Record<number, { title: string; icon: typeof Trophy; medal: string; border: string; order: string }> = {
@@ -16,12 +20,44 @@ export interface PodiumProps {
   className?: string;
 }
 
+/**
+ * Confete do campeão (PRD §15.8): quando quem está vendo é o campeão, uma vez por sessão para cada pódio.
+ * O `Confetti` não anima nada para quem pede menos movimento (`prefers-reduced-motion`).
+ */
+function useChampionCelebration(podium: PodiumData, highlightRegistrationId: string | null | undefined): boolean {
+  const champion = podium.places.find((p) => p.place === 1)?.registrationId;
+  const isChampion = Boolean(highlightRegistrationId) && champion === highlightRegistrationId;
+  const [celebrate, setCelebrate] = useState(false);
+  useEffect(() => {
+    if (!isChampion) return;
+    const key = `nova-confete:${podium.finishedAt}:${champion}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+    } catch {
+      // Sem armazenamento: comemora mesmo assim.
+    }
+    // Marca como visto só quando o confete sai de fato (o efeito pode ser montado, desfeito e refeito).
+    const id = requestAnimationFrame(() => {
+      try {
+        sessionStorage.setItem(key, '1');
+      } catch {
+        // idem
+      }
+      setCelebrate(true);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [isChampion, podium.finishedAt, champion]);
+  return celebrate;
+}
+
 /** Pódio do campeonato encerrado: ouro, prata e bronze, sempre com o lugar por escrito. */
 export function Podium({ podium, highlightRegistrationId, className }: PodiumProps) {
   const places = [...podium.places].sort((a, b) => a.place - b.place);
+  const celebrate = useChampionCelebration(podium, highlightRegistrationId);
   if (places.length === 0) return null;
   return (
     <section className={cn('flex flex-col gap-3', className)} aria-labelledby="podium-title" data-testid="podium">
+      {celebrate && <Confetti />}
       <div>
         <h3 id="podium-title" className="text-lg">
           Pódio
