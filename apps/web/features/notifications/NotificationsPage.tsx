@@ -6,14 +6,16 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useMarkAllNotificationsRead, useNotifications, useUnreadCount } from '@/shared/api/hooks/notifications';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
+import { messages } from './messages';
 import { NotificationItem } from './NotificationItem';
 import { useOpenNotification } from './useOpenNotification';
 
 type Filter = 'all' | 'unread';
-const FILTERS: { value: Filter; label: string }[] = [
-  { value: 'all', label: 'Todas' },
-  { value: 'unread', label: 'Não lidas' },
+const FILTERS: { value: Filter; label: 'filtroTodas' | 'filtroNaoLidas' }[] = [
+  { value: 'all', label: 'filtroTodas' },
+  { value: 'unread', label: 'filtroNaoLidas' },
 ];
 
 /** `/notificacoes`: lista completa, com filtro de não lidas e "carregar mais". */
@@ -25,25 +27,26 @@ export function NotificationsPage() {
   const openNotification = useOpenNotification();
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   const unreadCount = unread.data ?? 0;
+  const t = useT(messages, 'NotificationsPage');
 
   return (
     <PageContainer narrow>
       <PageHeader
-        title="Notificações"
-        description={unreadCount === 0 ? 'Você está em dia: nenhuma notificação por ler.' : unreadCount === 1 ? '1 notificação não lida.' : `${unreadCount} notificações não lidas.`}
+        title={t('titulo')}
+        description={t('descricao', { count: unreadCount })}
         actions={
           <>
             <Button variant="secondary" size="sm" disabled={unreadCount === 0} loading={markAll.isPending} iconLeft={<CheckCheck className="size-4" aria-hidden />} onClick={() => markAll.mutate()}>
-              Marcar todas como lidas
+              {t('marcarTodas')}
             </Button>
             <Button asChild variant="ghost" size="sm" iconLeft={<Settings className="size-4" aria-hidden />}>
-              <Link href="/minha-conta/notificacoes">Preferências</Link>
+              <Link href="/minha-conta/notificacoes">{t('preferencias')}</Link>
             </Button>
           </>
         }
       />
 
-      <div role="group" aria-label="Filtrar notificações" className="flex gap-2">
+      <div role="group" aria-label={t('filtrar')} className="flex gap-2">
         {FILTERS.map((f) => (
           <button
             key={f.value}
@@ -55,13 +58,13 @@ export function NotificationsPage() {
               filter === f.value ? 'border-accent bg-accent-soft text-accent-soft-text' : 'border-border-strong bg-surface text-muted hover:text-text',
             )}
           >
-            {f.label}
+            {t(f.label)}
           </button>
         ))}
       </div>
 
       {list.isPending ? (
-        <Card padding="sm" role="status" aria-label="Carregando notificações">
+        <Card padding="sm" role="status" aria-label={t('carregando')}>
           <div className="flex flex-col gap-4 p-2">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="flex gap-3">
@@ -76,27 +79,27 @@ export function NotificationsPage() {
           </div>
         </Card>
       ) : list.isError ? (
-        <ErrorState title="Não foi possível carregar as notificações" description={errorMessage(list.error)} onRetry={() => void list.refetch()} />
+        <ErrorState title={t('erro')} description={errorMessage(list.error)} onRetry={() => void list.refetch()} />
       ) : items.length === 0 ? (
         filter === 'unread' ? (
           <EmptyState
             icon={<CheckCheck className="size-7" />}
-            title="Tudo lido"
-            description="Você não tem notificações por ler."
+            title={t('tudoLidoTitulo')}
+            description={t('tudoLidoDescricao')}
             action={
               <Button variant="secondary" onClick={() => setFilter('all')}>
-                Ver todas
+                {t('verTodas')}
               </Button>
             }
           />
         ) : (
           <EmptyState
             icon={<BellOff className="size-7" />}
-            title="Nenhuma notificação ainda"
-            description="Quando você se inscrever em um campeonato, os avisos de check-in, partidas e resultados aparecem aqui."
+            title={t('vazioTitulo')}
+            description={t('vazioDescricao')}
             action={
               <Button asChild>
-                <Link href="/campeonatos?status=open">Ver campeonatos abertos</Link>
+                <Link href="/campeonatos?status=open">{t('verAbertos')}</Link>
               </Button>
             }
           />
@@ -104,7 +107,7 @@ export function NotificationsPage() {
       ) : (
         <>
           <Card padding="none">
-            <ul className="flex flex-col divide-y divide-border p-1" aria-label={filter === 'unread' ? 'Notificações não lidas' : 'Todas as notificações'}>
+            <ul className="flex flex-col divide-y divide-border p-1" aria-label={filter === 'unread' ? t('listaNaoLidas') : t('listaTodas')}>
               {items.map((n) => (
                 <li key={n.id}>
                   <NotificationItem notification={n} onOpen={openNotification} />
@@ -114,7 +117,7 @@ export function NotificationsPage() {
           </Card>
           {list.hasNextPage && (
             <Button variant="secondary" className="self-center" loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>
-              Carregar mais
+              {t('carregarMais')}
             </Button>
           )}
         </>

@@ -7,7 +7,10 @@ import { Popover } from 'radix-ui';
 import { useCallback, useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useMarkAllNotificationsRead, useRecentNotifications, useUnreadCount } from '@/shared/api/hooks/notifications';
+import { getT } from '@/shared/i18n/core';
+import { useT } from '@/shared/i18n/react';
 import { useSession } from '@/shared/session/useSession';
+import { messages } from './messages';
 import { NotificationItem } from './NotificationItem';
 import { PushPrompt } from './push/PushPrompt';
 import { useOpenNotification } from './useOpenNotification';
@@ -21,8 +24,9 @@ export function badgeText(count: number): string {
 
 /** Nome acessível do sino: "Notificações, 3 não lidas". */
 export function bellLabel(count: number): string {
-  if (count <= 0) return 'Notificações';
-  return count === 1 ? 'Notificações, 1 não lida' : `Notificações, ${count} não lidas`;
+  const t = getT(messages, 'NotificationBell');
+  if (count <= 0) return t('titulo');
+  return t('rotuloNaoLidas', { count });
 }
 
 /**
@@ -33,6 +37,7 @@ export function bellLabel(count: number): string {
 export function NotificationBell() {
   const { user } = useSession();
   const [open, setOpen] = useState(false);
+  const t = useT(messages, 'NotificationBell');
   const unread = useUnreadCount(Boolean(user));
   const count = unread.data ?? 0;
 
@@ -53,7 +58,7 @@ export function NotificationBell() {
           align="end"
           sideOffset={8}
           collisionPadding={12}
-          aria-label="Notificações"
+          aria-label={t('titulo')}
           className="z-50 flex max-h-[min(32rem,calc(100dvh-5rem))] w-[min(24rem,calc(100vw-1.5rem))] flex-col rounded-lg border border-border bg-surface text-text shadow-lg animate-fade-in"
         >
           {open && <BellPanel unreadCount={count} onClose={() => setOpen(false)} />}
@@ -69,19 +74,20 @@ function BellPanel({ unreadCount, onClose }: { unreadCount: number; onClose: () 
   const markAll = useMarkAllNotificationsRead();
   const close = useCallback(() => onClose(), [onClose]);
   const openNotification = useOpenNotification(close);
+  const t = useT(messages, 'NotificationBell');
 
   return (
     <>
       <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-2">
-        <h2 className="font-display text-base font-bold">Notificações</h2>
+        <h2 className="font-display text-base font-bold">{t('titulo')}</h2>
         <Button variant="ghost" size="sm" disabled={unreadCount === 0} loading={markAll.isPending} iconLeft={<CheckCheck className="size-4" aria-hidden />} onClick={() => markAll.mutate()}>
-          Marcar todas como lidas
+          {t('marcarTodas')}
         </Button>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-1">
         {recent.isPending ? (
-          <div className="flex flex-col gap-2 p-3" role="status" aria-label="Carregando notificações">
+          <div className="flex flex-col gap-2 p-3" role="status" aria-label={t('carregando')}>
             {[0, 1, 2].map((i) => (
               <div key={i} className="flex gap-3">
                 <Skeleton className="size-8 shrink-0 rounded-full" />
@@ -93,12 +99,12 @@ function BellPanel({ unreadCount, onClose }: { unreadCount: number; onClose: () 
             ))}
           </div>
         ) : recent.isError ? (
-          <ErrorState className="m-2 border-0 px-4 py-6" title="Não foi possível carregar as notificações" description={errorMessage(recent.error)} onRetry={() => void recent.refetch()} />
+          <ErrorState className="m-2 border-0 px-4 py-6" title={t('erro')} description={errorMessage(recent.error)} onRetry={() => void recent.refetch()} />
         ) : recent.data.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
             <BellOff className="size-6 text-muted" aria-hidden />
-            <p className="text-sm font-semibold">Nenhuma notificação por aqui</p>
-            <p className="text-sm text-muted">Avisos de inscrição, check-in e resultados aparecem neste painel.</p>
+            <p className="text-sm font-semibold">{t('vazioTitulo')}</p>
+            <p className="text-sm text-muted">{t('vazioDescricao')}</p>
           </div>
         ) : (
           <ul className="flex flex-col gap-0.5">
@@ -113,7 +119,7 @@ function BellPanel({ unreadCount, onClose }: { unreadCount: number; onClose: () 
 
       <footer className="border-t border-border p-2">
         <Link href="/notificacoes" onClick={onClose} className="flex min-h-11 items-center justify-center rounded-md text-sm font-semibold text-primary-text hover:bg-neutral-soft">
-          Ver todas
+          {t('verTodas')}
         </Link>
       </footer>
     </>
