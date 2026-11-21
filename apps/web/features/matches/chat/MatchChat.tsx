@@ -6,8 +6,10 @@ import { EyeOff, Lock, MessagesSquare, Send, ShieldCheck } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useHideChatMessage, useMatchChat, useSendChatMessage } from '@/shared/api/hooks/chat';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime, formatTime } from '@/shared/lib/datetime';
 import { ReportButton } from '@/features/reports/ReportButton';
+import { messages } from '../messages';
 import { useMatchViewer, type MatchViewer } from '../viewer';
 
 /** Quem pode abrir o chat (a API confere de novo): a organização ou quem tem lado nesta partida. */
@@ -21,6 +23,7 @@ export function canSeeMatchChat(match: Pick<Match, 'participants'>, viewer: Matc
 const sameDay = (a: string, b: Date) => new Date(a).toDateString() === b.toDateString();
 
 function MessageItem({ message, mine, canModerate, onHide, hiding }: { message: MatchChatMessage; mine: boolean; canModerate: boolean; onHide: () => void; hiding: boolean }) {
+  const t = useT(messages, 'MatchChat');
   const staff = message.authorRole === 'STAFF';
   const when = sameDay(message.createdAt, new Date()) ? formatTime(message.createdAt) : formatDateTime(message.createdAt);
   return (
@@ -28,10 +31,10 @@ function MessageItem({ message, mine, canModerate, onHide, hiding }: { message: 
       <Avatar name={message.authorNickname} src={message.authorAvatarUrl} size="sm" className="mt-0.5 shrink-0" />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
-          <span className="font-semibold text-text">{mine ? 'Você' : message.authorNickname}</span>
+          <span className="font-semibold text-text">{mine ? t('voce') : message.authorNickname}</span>
           {staff && (
             <Badge tone="info" icon={<ShieldCheck className="size-3.5" aria-hidden />}>
-              Organização
+              {t('organizacao')}
             </Badge>
           )}
           <time dateTime={message.createdAt} className="text-xs text-muted">
@@ -41,7 +44,7 @@ function MessageItem({ message, mine, canModerate, onHide, hiding }: { message: 
         {message.hidden && !message.body ? (
           <p className="flex items-center gap-1 text-sm italic text-muted">
             <EyeOff className="size-3.5 shrink-0" aria-hidden />
-            Mensagem ocultada pela organização.
+            {t('ocultadaPelaOrganizacao')}
           </p>
         ) : (
           <>
@@ -49,21 +52,21 @@ function MessageItem({ message, mine, canModerate, onHide, hiding }: { message: 
             {message.hidden && (
               <p className="flex items-center gap-1 text-xs text-muted">
                 <EyeOff className="size-3.5 shrink-0" aria-hidden />
-                Oculta para os jogadores
+                {t('ocultaParaJogadores')}
               </p>
             )}
           </>
         )}
       </div>
       <div className="flex shrink-0 items-start">
-        {!mine && !message.hidden && <ReportButton variant="icon" targetType="CHAT_MESSAGE" targetId={message.id} targetLabel={`a mensagem de ${message.authorNickname}`} />}
+        {!mine && !message.hidden && <ReportButton variant="icon" targetType="CHAT_MESSAGE" targetId={message.id} targetLabel={t('alvoDenuncia', { autor: message.authorNickname })} />}
         {(canModerate || mine) && !message.hidden && (
           <button
             type="button"
             onClick={onHide}
             disabled={hiding}
-            aria-label={mine && !canModerate ? 'Apagar minha mensagem' : `Ocultar a mensagem de ${mine ? 'você' : message.authorNickname}`}
-            title={mine && !canModerate ? 'Apagar' : 'Ocultar'}
+            aria-label={mine && !canModerate ? t('apagarMinha') : mine ? t('ocultarDeVoce') : t('ocultarDe', { autor: message.authorNickname })}
+            title={mine && !canModerate ? t('apagar') : t('ocultar')}
             className="flex size-11 shrink-0 items-center justify-center rounded-md text-muted hover:bg-neutral-soft hover:text-text disabled:opacity-50"
           >
             <EyeOff className="size-4" aria-hidden />
@@ -87,6 +90,7 @@ export interface MatchChatProps {
  * Mensagens chegam pelo canal `match:{id}`; dá para denunciar (`ReportButton`) e a organização oculta o que for preciso.
  */
 export function MatchChat({ match, viewer: viewerProp, headingLevel = 3, className }: MatchChatProps) {
+  const t = useT(messages, 'MatchChat');
   const contextViewer = useMatchViewer();
   const viewer = viewerProp ?? contextViewer;
   const visible = canSeeMatchChat(match, viewer);
@@ -117,7 +121,7 @@ export function MatchChat({ match, viewer: viewerProp, headingLevel = 3, classNa
   function submit(event?: FormEvent) {
     event?.preventDefault();
     if (!trimmed) {
-      setFieldError('Escreva a mensagem');
+      setFieldError(t('escrevaAMensagem'));
       return;
     }
     send.mutate(
@@ -129,7 +133,7 @@ export function MatchChat({ match, viewer: viewerProp, headingLevel = 3, classNa
         },
         onError: (e) => {
           if (e instanceof ApiError && e.fieldErrors.body) setFieldError(e.fieldErrors.body);
-          else toastError('Não foi possível enviar a mensagem', errorMessage(e));
+          else toastError(t('toastErroEnviar'), errorMessage(e));
         },
       },
     );
@@ -145,8 +149,8 @@ export function MatchChat({ match, viewer: viewerProp, headingLevel = 3, classNa
 
   function hideMessage(message: MatchChatMessage) {
     hide.mutate(message.id, {
-      onSuccess: () => success(message.authorId === viewer.userId && !chat.data?.canModerate ? 'Mensagem apagada' : 'Mensagem ocultada'),
-      onError: (e) => toastError('Não foi possível ocultar a mensagem', errorMessage(e)),
+      onSuccess: () => success(message.authorId === viewer.userId && !chat.data?.canModerate ? t('toastApagada') : t('toastOcultada')),
+      onError: (e) => toastError(t('toastErroOcultar'), errorMessage(e)),
     });
   }
 
@@ -155,27 +159,27 @@ export function MatchChat({ match, viewer: viewerProp, headingLevel = 3, classNa
       <div className="flex flex-col gap-0.5">
         <Heading id={headingId} className="flex items-center gap-2 text-base">
           <MessagesSquare className="size-4 text-muted" aria-hidden />
-          Chat da partida
+          {t('titulo')}
         </Heading>
-        <p className="text-xs text-muted">Só quem joga esta partida e a organização leem. Combine horário e sala com respeito: mensagens podem ser denunciadas.</p>
+        <p className="text-xs text-muted">{t('descricao')}</p>
       </div>
 
       {chat.isPending ? (
-        <div className="flex flex-col gap-2" role="status" aria-label="Carregando o chat">
+        <div className="flex flex-col gap-2" role="status" aria-label={t('carregando')}>
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-12 w-3/4" />
         </div>
       ) : chat.error ? (
-        <ErrorState title="Não foi possível carregar o chat" description={errorMessage(chat.error)} onRetry={() => void chat.refetch()} />
+        <ErrorState title={t('erroCarregar')} description={errorMessage(chat.error)} onRetry={() => void chat.refetch()} />
       ) : (
         <>
           {chat.data.messages.length === 0 ? (
             <p className="flex items-center gap-2 rounded-md bg-surface-2 px-3 py-3 text-sm text-muted">
               <MessagesSquare className="size-4 shrink-0" aria-hidden />
-              Nenhuma mensagem ainda. {chat.data.canPost ? 'Comece a conversa.' : ''}
+              {chat.data.canPost ? t('vazioComecar') : t('vazio')}
             </p>
           ) : (
-            <div ref={listRef} role="log" aria-live="polite" aria-label="Mensagens do chat" tabIndex={0} className="max-h-80 overflow-y-auto rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+            <div ref={listRef} role="log" aria-live="polite" aria-label={t('mensagens')} tabIndex={0} className="max-h-80 overflow-y-auto rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
               <ol className="flex flex-col gap-1.5">
               {chat.data.messages.map((m) => (
                 <MessageItem key={m.id} message={m} mine={m.authorId === viewer.userId} canModerate={chat.data.canModerate} onHide={() => hideMessage(m)} hiding={hide.isPending && hide.variables === m.id} />
@@ -187,7 +191,7 @@ export function MatchChat({ match, viewer: viewerProp, headingLevel = 3, classNa
           {chat.data.canPost ? (
             <form onSubmit={submit} noValidate className="flex flex-col gap-2">
               <Textarea
-                label="Mensagem"
+                label={t('mensagem')}
                 rows={2}
                 maxLength={CHAT_MESSAGE_MAX_LENGTH}
                 value={text}
@@ -197,18 +201,18 @@ export function MatchChat({ match, viewer: viewerProp, headingLevel = 3, classNa
                 }}
                 onKeyDown={onKeyDown}
                 error={fieldError}
-                hint={`Enter envia; Shift+Enter quebra a linha. ${remaining} ${remaining === 1 ? 'caractere restante' : 'caracteres restantes'}.`}
+                hint={t('dica', { restantes: remaining })}
               />
               <div className="flex justify-end">
                 <Button type="submit" size="sm" loading={send.isPending} iconLeft={<Send className="size-4" aria-hidden />}>
-                  Enviar
+                  {t('enviar')}
                 </Button>
               </div>
             </form>
           ) : (
             <p role="status" className="flex items-center gap-2 text-sm text-muted">
               <Lock className="size-4 shrink-0" aria-hidden />
-              {chat.data.closedReason ?? 'O chat está fechado.'}
+              {chat.data.closedReason ?? t('fechado')}
             </p>
           )}
         </>

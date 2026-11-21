@@ -3,6 +3,8 @@
  * aqui só se decide o que mostrar para quem está olhando.
  */
 import type { Match, Registration } from '@nova/schemas';
+import { getT } from '@/shared/i18n/core';
+import { messages } from './messages';
 
 /** NONE: a partida não tem janela (sem horário ou check-in desligado). */
 export type CheckInPhase = 'NONE' | 'BEFORE' | 'OPEN' | 'CLOSED';
@@ -36,17 +38,15 @@ export function formatCountdown(ms: number): string {
  * para a região `aria-live` não falar a cada segundo.
  */
 export function countdownSpoken(ms: number): string {
+  const t = getT(messages, 'checkin');
   const seconds = Math.max(0, Math.ceil(ms / 1000));
-  if (seconds === 0) return 'A janela de check-in fechou.';
-  if (seconds <= 10) return 'Faltam menos de 10 segundos para o check-in fechar.';
-  if (seconds <= 30) return 'Faltam menos de 30 segundos para o check-in fechar.';
-  if (seconds <= 60) return 'Falta menos de 1 minuto para o check-in fechar.';
+  if (seconds === 0) return t('fechou');
+  if (seconds <= 10) return t('menosDe10s');
+  if (seconds <= 30) return t('menosDe30s');
+  if (seconds <= 60) return t('menosDe1min');
   const minutes = Math.ceil(seconds / 60);
-  if (minutes >= 60) {
-    const hours = Math.floor(minutes / 60);
-    return `Falta mais de ${hours} ${hours === 1 ? 'hora' : 'horas'} para o check-in fechar.`;
-  }
-  return `Faltam ${minutes} minutos para o check-in fechar.`;
+  if (minutes >= 60) return t('maisDeHoras', { count: Math.floor(minutes / 60) });
+  return t('minutos', { minutos: minutes });
 }
 
 export interface CheckInDuty {
@@ -63,6 +63,7 @@ export interface CheckInDuty {
  */
 export function checkInDuty(registration: Pick<Registration, 'userId' | 'teamId' | 'members'> | null, viewerId: string | null, requireAllMembers: boolean | null): CheckInDuty {
   if (!registration || !viewerId) return { mustCheckIn: false, explanation: null };
+  const t = getT(messages, 'checkin');
   if (registration.teamId === null) return { mustCheckIn: registration.userId === viewerId, explanation: null };
 
   const me = registration.members.find((m) => m.userId === viewerId);
@@ -70,15 +71,15 @@ export function checkInDuty(registration: Pick<Registration, 'userId' | 'teamId'
   if (requireAllMembers === true) {
     return {
       mustCheckIn: starter,
-      explanation: starter ? 'Neste campeonato, todos os titulares do squad precisam fazer check-in.' : 'Neste campeonato, o check-in é feito por todos os titulares do squad. Reservas não precisam.',
+      explanation: starter ? t('todosTitularesTitular') : t('todosTitularesReserva'),
     };
   }
   if (requireAllMembers === false) {
     const captain = Boolean(me?.isCaptain);
     return {
       mustCheckIn: captain,
-      explanation: captain ? 'Você é o capitão: o seu check-in vale para o squad inteiro.' : 'Quem faz o check-in do squad é o capitão.',
+      explanation: captain ? t('capitaoVoce') : t('capitaoOutro'),
     };
   }
-  return { mustCheckIn: starter, explanation: 'Em squad, o check-in é feito pelo capitão — ou por todos os titulares, se a organização exigir.' };
+  return { mustCheckIn: starter, explanation: t('regraDesconhecida') };
 }
