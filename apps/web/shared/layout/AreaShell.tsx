@@ -9,6 +9,7 @@ import { NotificationBell } from '@/features/notifications/NotificationBell';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { Logo } from './Logo';
 import { SiteBanner } from './SiteBanner';
+import { UnreadAnnouncer } from './UnreadAnnouncer';
 import { UserMenu } from './UserMenu';
 
 export interface AreaNavItem {
@@ -108,6 +109,7 @@ export function AreaShell({ area, title, nav, children }: AreaShellProps) {
             <NavList nav={nav} pathname={pathname} rail={rail} />
           </nav>
         </aside>
+        <UnreadAnnouncer />
         <div className="min-w-0 flex-1">{children}</div>
       </div>
       <Drawer open={open} onOpenChange={setOpen} title={title} side="left">

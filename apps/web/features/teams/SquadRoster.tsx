@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { DropdownMenu } from 'radix-ui';
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime';
 
-const menuItem = 'flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 text-sm text-text outline-none data-[highlighted]:bg-neutral-soft';
+const menuItem = 'flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 text-sm text-text outline-none data-[highlighted]:bg-neutral-soft data-[highlighted]:outline-2 data-[highlighted]:-outline-offset-2 data-[highlighted]:outline-accent';
 
 export interface SquadRosterProps {
   team: Team;

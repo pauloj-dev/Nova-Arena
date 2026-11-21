@@ -11,6 +11,7 @@ import { useSession } from '../session/useSession';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { Logo } from './Logo';
 import { SiteFooter } from './SiteFooter';
+import { UnreadAnnouncer } from './UnreadAnnouncer';
 import { SiteBanner } from './SiteBanner';
 import { UserMenu } from './UserMenu';
 
@@ -65,6 +66,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
+      <UnreadAnnouncer />
       <div className="flex-1">{children}</div>
 
       <SiteFooter />
