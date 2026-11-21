@@ -42,6 +42,7 @@ import { badRequest, conflict, forbidden, HttpProblem, notFound } from '../../er
 import { assertTournamentAccess } from '../../auth/rbac';
 import { currentSession, requireSession } from '../../auth/session';
 import { clientIp } from '../../security';
+import { replaceEntrantInPreview } from '../../competition/maintenance';
 import { revalidateTournaments } from '../../revalidate';
 import { checkInOf, countsOf, toTournamentSummary, tournamentInclude } from '../tournaments/views';
 import { LOCKED_TX, lockTournament, registrationInclude, releaseMembers, settleWaitlist, takenSlots, toRegistration, toRegistrations, tournamentForRegistration, type TournamentForRegistration, type Tx } from './core';
@@ -387,6 +388,8 @@ registrations.patch('/registrations/:id', async (c) => {
         await tx.registration.update({ where: { id: r.id }, data: { status: 'CANCELLED', statusReason: `Substituída por ${substituteName}.`, reservedUntil: null, seed: null } });
         await releaseMembers(tx, r.id);
         await tx.registration.update({ where: { id: substitute.id }, data: { status: next.status, reservedUntil: next.reservedUntil ? new Date(next.reservedUntil) : null, statusReason: null, seed: current.seed } });
+        // #100: com a prévia da chave já gerada, o substituto entra no mesmo lugar (sem precisar regerar).
+        await replaceEntrantInPreview(tx, t.id, r.id, substitute.id, substituteName);
         break;
       }
     }

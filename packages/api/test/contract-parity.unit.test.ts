@@ -20,7 +20,6 @@ const EXPECTED_GAPS: Record<string, string> = {
   'POST /uploads/token': 'o envio real usa o `@vercel/blob/client` em `/uploads/blob` (#73)',
   'PUT /uploads/:param': 'o arquivo vai direto para o Blob; a confirmação é `/uploads/complete` (#73)',
   'GET /games/:param/ranking': 'ranking por jogo sai dos resultados das partidas (B2)',
-  'PATCH /stages/:param/scoring': 'troca do modelo de pontuação com a fase em andamento e recálculo (#87)',
   'GET /me/follows': 'seguir campeonato ou jogo (RN-15) entra com as notificações (#98)',
   'PUT /me/follows/:param/:param': 'seguir campeonato ou jogo (RN-15) entra com as notificações (#98)',
   'DELETE /me/follows/:param/:param': 'seguir campeonato ou jogo (RN-15) entra com as notificações (#98)',

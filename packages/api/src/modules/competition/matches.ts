@@ -21,7 +21,10 @@ import { currentSession, requireSession } from '../../auth/session';
 import { checkInWindow, findMatch, listMatches, matchView } from '../../competition/bracket';
 import { requiredUsers, rosterSelect } from '../../competition/check-in';
 import { decryptLobby, encryptLobby } from '../../competition/lobby-crypto';
-import { applyManualWalkover } from '../../competition/walkover';
+import { applyManualWalkover, type WalkoverApplied } from '../../competition/walkover';
+import { publishStage, usersOfRegistrations } from '../../competition/results';
+import { standingsKey } from '../../competition/standings';
+import { notify } from '../../notify';
 import { checkInOf } from '../tournaments/views';
 import { scheduleMatchJobs } from '../../jobs/matches';
 import { revalidateTournaments } from '../../revalidate';
@@ -56,6 +59,22 @@ async function rescheduleJobs(c: AppContext, match: { id: string; scheduledAt: D
   await scheduleMatchJobs(c.get('deps').queue(c.get('env'), c.get('log')), match, checkInWindow(tournament, match.scheduledAt)?.closesAt ?? null).catch((error: unknown) =>
     c.get('log').warn('não foi possível agendar as mensagens da partida; o Cron cobre', { matchId: match.id, error: String(error) }),
   );
+}
+
+/** Depois do W.O. (manual ou automático): avisa os dois lados, publica e revalida. Nunca lança. */
+export async function afterWalkover(c: AppContext, matchId: string, applied: WalkoverApplied, automatic = false): Promise<void> {
+  const db = c.get('deps').db();
+  await c.get('deps').cache(c.get('env')).del(standingsKey(applied.stageId)).catch(() => undefined);
+  const users = await usersOfRegistrations(db, [applied.winnerId, ...(applied.loserId ? [applied.loserId] : [])]).catch(() => new Map<string, string[]>());
+  const link = `/c/${applied.tournament.slug}?aba=partidas`;
+  if (automatic) {
+    await notify(c, users.get(applied.loserId ?? '') ?? [], { type: 'RESULT_POSTED', title: 'Você levou W.O.', body: `O check-in de ${applied.label} não foi feito a tempo em ${applied.tournament.name}.`, link });
+    await notify(c, users.get(applied.winnerId) ?? [], { type: 'RESULT_POSTED', title: 'Vitória por W.O.', body: `Seu adversário não fez check-in em ${applied.label} de ${applied.tournament.name}.`, link });
+  } else {
+    await notify(c, [...users.values()].flat(), { type: 'RESULT_POSTED', title: 'W.O. aplicado', body: `${applied.label} · ${applied.tournament.name}`, link });
+  }
+  await publishStage(c, applied.tournament.id, applied.stageId, { matchId, status: 'WALKOVER' });
+  revalidateTournaments(c);
 }
 
 export const matches = new Hono<AppEnv>();
@@ -238,7 +257,7 @@ matches.post('/matches/:id/walkover', async (c) => {
   await assertTournamentAccess(c, stage.tournamentId, 'moderate');
   const input = await body(c, WalkoverInput);
   if (!node.slots.some((s) => s.entrantId === input.winnerRegistrationId)) throw badRequest('O vencedor precisa ser um dos participantes da partida.', 'NOT_IN_MATCH');
-  await applyManualWalkover(db, { ...(await auditCtx(c)), reason: input.reason }, row.id, stage.id, input.winnerRegistrationId);
-  revalidateTournaments(c);
+  const applied = await applyManualWalkover(db, { ...(await auditCtx(c)), reason: input.reason }, row.id, stage.id, input.winnerRegistrationId);
+  await afterWalkover(c, row.id, applied);
   return respond(c, Match, (await matchView(db, row.id)) as Match);
 });

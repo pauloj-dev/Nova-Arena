@@ -7,53 +7,80 @@
  *
  * Idempotente: roda numa transação com a linha da fase travada (`FOR UPDATE`) e não faz nada se a partida já tem
  * resultado — a mesma mensagem entregue duas vezes (ou o Cron junto com ela) aplica uma vez só.
+ *
+ * Todo W.O. entra no histórico do resultado (issue #86) e recalcula a tabela `standings` (issue #87).
  */
 import { audited, withAudit, type AuditContext, type Prisma, type PrismaClient } from '@nova/db';
 import { applyWalkover } from '@nova/engine';
-import { checkInWindow } from './bracket';
+import { checkInWindow, namesFor } from './bracket';
 import { isComplete, requiredUsers, rosterSelect } from './check-in';
-import { projectRun, readRun, snapshotOf, engine } from './run';
+import { lockStage, matchLabelOf, recordResultEvent, resultSummary, writeRun } from './results';
+import { readRun, engine } from './run';
 
 type Tx = Prisma.TransactionClient;
 
 /** Trava a fase da partida e devolve o que é preciso para mexer na chave. */
 async function lockedMatch(tx: Tx, matchId: string, stageId: string) {
   // Uma operação de chave por vez nesta fase.
-  await tx.$queryRaw`SELECT id FROM stages WHERE id = ${stageId}::uuid FOR UPDATE`;
-  const match = await tx.match.findUniqueOrThrow({ where: { id: matchId }, include: { stage: { include: { tournament: true } } } });
-  const run = readRun(match.stage);
+  const stage = await lockStage(tx, stageId);
+  const match = await tx.match.findUniqueOrThrow({ where: { id: matchId }, select: { id: true, nodeId: true, stageId: true, scheduledAt: true } });
+  const run = readRun(stage);
   const node = run?.structure.matches.find((m) => m.id === match.nodeId);
-  return { match, run, node };
+  return { stage, match, run, node };
+}
+
+export interface WalkoverApplied {
+  winnerId: string;
+  loserId: string | null;
+  label: string;
+  tournament: { id: string; slug: string; name: string };
+  stageId: string;
 }
 
 /** Grava o W.O. no retrato do motor e na projeção; o vencedor avança na chave. */
-async function writeWalkover(tx: Tx, found: Awaited<ReturnType<typeof lockedMatch>>, winnerId: string, after: Record<string, unknown>) {
-  const { match, run, node } = found;
+async function writeWalkover(tx: Tx, found: Awaited<ReturnType<typeof lockedMatch>>, winnerId: string, ctx: { actorId: string | null; automatic: boolean; reason: string | null }, after: Record<string, unknown>): Promise<WalkoverApplied> {
+  const { stage, match, run, node } = found;
   if (!run || !node) throw new Error('partida sem chave');
+  const previous = run.state.results[node.id];
   const snapshot = engine(() => applyWalkover(run.structure, run.state, { matchId: node.id, winnerId }));
-  await tx.stage.update({ where: { id: match.stageId }, data: { engineSnapshot: snapshotOf(snapshot.structure, snapshot.state) } });
-  await projectRun(tx, match.stageId, { ...run, structure: snapshot.structure, state: snapshot.state });
+  await writeRun(tx, stage, run, snapshot);
   await tx.match.update({ where: { id: match.id }, data: { status: 'WALKOVER' } });
+  const names = await namesFor(tx, stage.tournamentId);
+  const label = matchLabelOf(node, names, stage, null);
+  await recordResultEvent(tx, {
+    matchId: match.id,
+    actorId: ctx.actorId,
+    type: 'WALKOVER',
+    before: previous,
+    after: snapshot.state.results[node.id],
+    summary: ctx.automatic ? 'W.O. automático: adversário não fez check-in' : `W.O. aplicado pela organização (${resultSummary(node, snapshot.state.results[node.id], names)})`,
+    reason: ctx.reason,
+    source: ctx.automatic ? 'SYSTEM' : 'STAFF',
+  });
   await audited(tx, {
     action: 'WALKOVER_APPLIED',
     entityType: 'Match',
     entityId: match.id,
-    entityLabel: `${match.stage.name} · ${node.roundLabel}`,
-    tournamentId: match.stage.tournamentId,
+    entityLabel: `${stage.name} · ${node.roundLabel}`,
+    tournamentId: stage.tournamentId,
     after: { vencedor: winnerId, ...after },
   });
+  const loserId = node.slots.map((s) => s.entrantId).find((id) => id && id !== winnerId) ?? null;
+  const t = stage.tournament;
+  return { winnerId, loserId, label, tournament: { id: t.id, slug: t.slug, name: t.name }, stageId: stage.id };
 }
 
 export type WalkoverOutcome = 'APPLIED' | 'ALREADY_DECIDED' | 'NOT_DUE' | 'BOTH_PRESENT' | 'BOTH_ABSENT' | 'NOT_APPLICABLE';
 
 /** Aplica o W.O. automático de uma partida se a janela fechou e só um lado fez check-in. */
-export async function applyDueWalkover(db: PrismaClient, matchId: string, now: Date): Promise<{ outcome: WalkoverOutcome; winnerId?: string; loserId?: string }> {
+export async function applyDueWalkover(db: PrismaClient, matchId: string, now: Date): Promise<{ outcome: WalkoverOutcome; winnerId?: string; loserId?: string; applied?: WalkoverApplied }> {
   const head = await db.match.findUnique({ where: { id: matchId }, select: { stageId: true } });
   if (!head) return { outcome: 'NOT_APPLICABLE' };
-  return withAudit(db, { actorId: null, reason: 'Check-in não realizado até o fechamento da janela (automático)' }, async (tx) => {
+  const reason = 'Check-in não realizado até o fechamento da janela (automático)';
+  return withAudit(db, { actorId: null, reason }, async (tx) => {
     const found = await lockedMatch(tx, matchId, head.stageId);
-    const { match, run, node } = found;
-    const t = match.stage.tournament;
+    const { stage, match, run, node } = found;
+    const t = stage.tournament;
     if (!run?.confirmed || t.status !== 'IN_PROGRESS' || !node) return { outcome: 'NOT_APPLICABLE' as const };
     if (node.kind !== 'DUEL' || node.slots.length !== 2) return { outcome: 'NOT_APPLICABLE' as const };
     if (run.state.results[node.id]) return { outcome: 'ALREADY_DECIDED' as const };
@@ -76,16 +103,16 @@ export async function applyDueWalkover(db: PrismaClient, matchId: string, now: D
     if (!aIn && !bIn) return { outcome: 'BOTH_ABSENT' as const };
     const winnerId = aIn ? a : b;
     const loserId = aIn ? b : a;
-    await writeWalkover(tx, found, winnerId, { motivo: 'check-in não realizado', automatico: true });
-    return { outcome: 'APPLIED' as const, winnerId, loserId };
+    const applied = await writeWalkover(tx, found, winnerId, { actorId: null, automatic: true, reason: 'Check-in não realizado até o fechamento da janela' }, { motivo: 'check-in não realizado', automatico: true });
+    return { outcome: 'APPLIED' as const, winnerId, loserId, applied };
   });
 }
 
 /** W.O. manual da organização (moderador também pode), com motivo. */
-export async function applyManualWalkover(db: PrismaClient, ctx: AuditContext, matchId: string, stageId: string, winnerId: string): Promise<void> {
-  await withAudit(db, ctx, async (tx) => {
+export async function applyManualWalkover(db: PrismaClient, ctx: AuditContext, matchId: string, stageId: string, winnerId: string): Promise<WalkoverApplied> {
+  return withAudit(db, ctx, async (tx) => {
     const found = await lockedMatch(tx, matchId, stageId);
-    await writeWalkover(tx, found, winnerId, { automatico: false });
+    return writeWalkover(tx, found, winnerId, { actorId: ctx.actorId, automatic: false, reason: ctx.reason ?? null }, { automatico: false });
   });
 }
 

@@ -21,6 +21,7 @@ import { ADMIN_ROLES, requireRole } from '../../auth/rbac';
 import { requireCron, requireQStash } from '../../jobs';
 import { dailyCleanup } from '../../jobs/cleanup';
 import { applyDueWalkover } from '../../competition/walkover';
+import { afterWalkover } from '../competition/matches';
 import { isCurrentSchedule } from '../../jobs/matches';
 import { runRegistrationJob } from '../../jobs/registration';
 import { recordJobFailure, runJob } from '../../jobs/runner';
@@ -99,7 +100,9 @@ jobs.post('/jobs/matches/check-in', requireQStash, async (c) => {
   const result = await runJob(c, 'jobs/matches/check-in', 'qstash', () => applyDueWalkover(db(), parsed.data.matchId, now()));
   if (result.outcome === 'APPLIED') {
     c.get('log').info('W.O. automático aplicado', { matchId: parsed.data.matchId });
-    revalidateTournaments(c);
+    // Avisos aos dois lados, tempo real e revalidação (#85/#98); o W.O. já está gravado.
+    if (result.applied) await afterWalkover(c, parsed.data.matchId, result.applied, true);
+    else revalidateTournaments(c);
   }
   return c.json({ ok: true, stale, outcome: result.outcome });
 });
