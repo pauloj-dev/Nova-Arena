@@ -4,7 +4,6 @@
  * "nenhum texto de interface fixo no código". Conferir uma área: `pnpm --filter web check:i18n features/<área>`.
  */
 export const I18N_PENDENTES = [
-  'app/**',
   'features/admin/**',
   'features/calendar/**',
   'features/games/**',
@@ -14,5 +13,4 @@ export const I18N_PENDENTES = [
   'features/seasons/**',
   'features/teams/**',
   'features/tournaments/**',
-  'shared/**',
 ];
