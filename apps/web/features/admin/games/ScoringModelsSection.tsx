@@ -11,6 +11,8 @@ import { normalizeTiebreakers, tiebreakerLabel } from '@/features/scoring/tiebre
 import { fieldErrorsToMessages, validateDraft } from '@/features/scoring/validation';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useCreateScoringModel, useDeleteScoringModel, useDuplicateScoringModel, useUpdateScoringModel } from '@/shared/api/hooks/games-admin';
+import { useT } from '@/shared/i18n/react';
+import { adminGamesMessages } from './messages';
 
 interface EditorState {
   /** Nulo = modelo novo. */
@@ -26,6 +28,7 @@ function hasDefault(game: Game, matchType: ScoringModel['matchType'], exceptId?:
 
 /** Seção "Modelos de pontuação" da página do jogo: cartões com resumo e prévia, e o editor em modal. */
 export function ScoringModelsSection({ game }: { game: Game }) {
+  const t = useT(adminGamesMessages, 'ScoringModelsSection');
   const toast = useToast();
   const create = useCreateScoringModel(game.id);
   const update = useUpdateScoringModel(game.id);
@@ -39,6 +42,10 @@ export function ScoringModelsSection({ game }: { game: Game }) {
   // Só os modelos do catálogo: os personalizados de organizador são editados no campeonato.
   const models = game.scoringModels.filter((m) => m.ownerId === null);
   const saving = create.isPending || update.isPending;
+
+  function tiebreakText(model: ScoringModel): string {
+    return model.tiebreakers.map((tb) => tiebreakerLabel(tb, { matchType: model.matchType, scoreLabel })).join(' → ');
+  }
 
   function openNew() {
     const matchType = game.modes[0]?.matchType ?? 'BATTLE_ROYALE';
@@ -55,19 +62,19 @@ export function ScoringModelsSection({ game }: { game: Game }) {
     const problems = validateDraft(draft);
     if (problems.length > 0) {
       setEditor({ ...editor, errors: problems });
-      toast.error('Confira as regras do modelo', problems[0]);
+      toast.error(t('toastConfira'), problems[0]);
       return;
     }
     const input = { ...draft, isDefault: editor.isDefault };
     const options = {
       onSuccess: (model: ScoringModel) => {
         setEditor(null);
-        toast.success(editor.modelId ? 'Modelo atualizado' : 'Modelo criado', model.name);
+        toast.success(editor.modelId ? t('toastAtualizado') : t('toastCriado'), model.name);
       },
       onError: (error: unknown) => {
         const fromApi = error instanceof ApiError ? fieldErrorsToMessages(error.fieldErrors) : [];
         setEditor((current) => (current ? { ...current, errors: fromApi.length > 0 ? fromApi : [errorMessage(error)] } : current));
-        toast.error('Não foi possível salvar o modelo', errorMessage(error));
+        toast.error(t('toastErroSalvar'), errorMessage(error));
       },
     };
     if (editor.modelId) update.mutate({ modelId: editor.modelId, patch: input }, options);
@@ -78,16 +85,16 @@ export function ScoringModelsSection({ game }: { game: Game }) {
     update.mutate(
       { modelId: model.id, patch: { isDefault: true } },
       {
-        onSuccess: () => toast.success('Modelo padrão atualizado', `"${model.name}" agora é o padrão de ${MATCH_TYPE_LABELS[model.matchType]}.`),
-        onError: (error) => toast.error('Não foi possível tornar padrão', errorMessage(error)),
+        onSuccess: () => toast.success(t('toastPadrao'), t('toastPadraoDetalhe', { nome: model.name, tipo: MATCH_TYPE_LABELS[model.matchType] })),
+        onError: (error) => toast.error(t('toastErroPadrao'), errorMessage(error)),
       },
     );
   }
 
   function duplicateModel(model: ScoringModel) {
     duplicate.mutate(model.id, {
-      onSuccess: (copy) => toast.success('Modelo duplicado', copy.name),
-      onError: (error) => toast.error('Não foi possível duplicar', errorMessage(error)),
+      onSuccess: (copy) => toast.success(t('toastDuplicado'), copy.name),
+      onError: (error) => toast.error(t('toastErroDuplicar'), errorMessage(error)),
     });
   }
 
@@ -97,7 +104,7 @@ export function ScoringModelsSection({ game }: { game: Game }) {
     remove.mutate(model.id, {
       onSuccess: () => {
         setDeleting(null);
-        toast.success('Modelo excluído', model.name);
+        toast.success(t('toastExcluido'), model.name);
       },
       onError: (error) => setDeleting({ model, error: errorMessage(error) }),
     });
@@ -108,13 +115,13 @@ export function ScoringModelsSection({ game }: { game: Game }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 id="modelos-de-pontuacao" className="text-lg">
-            Modelos de pontuação
+            {t('titulo')}
           </h2>
-          <p className="mt-1 text-sm text-muted">Regras que transformam o resultado da partida em pontos. O modelo padrão já vem escolhido quando alguém cria um campeonato deste jogo.</p>
+          <p className="mt-1 text-sm text-muted">{t('descricao')}</p>
         </div>
         {models.length > 0 && (
           <Button onClick={openNew} iconLeft={<Plus className="size-4" aria-hidden />}>
-            Novo modelo
+            {t('novo')}
           </Button>
         )}
       </div>
@@ -122,11 +129,11 @@ export function ScoringModelsSection({ game }: { game: Game }) {
       {models.length === 0 ? (
         <EmptyState
           icon={<Calculator className="size-7" />}
-          title="Nenhum modelo de pontuação"
-          description="Sem um modelo, os organizadores precisam montar a pontuação do zero em cada campeonato."
+          title={t('vazio')}
+          description={t('vazioDescricao')}
           action={
             <Button onClick={openNew} iconLeft={<Plus className="size-4" aria-hidden />}>
-              Criar o primeiro modelo
+              {t('criarPrimeiro')}
             </Button>
           }
         />
@@ -141,7 +148,7 @@ export function ScoringModelsSection({ game }: { game: Game }) {
                     <Badge>{MATCH_TYPE_LABELS[model.matchType]}</Badge>
                     {model.isDefault && (
                       <Badge tone="gold" icon={<Star className="size-3.5" aria-hidden />}>
-                        Padrão
+                        {t('padrao')}
                       </Badge>
                     )}
                   </div>
@@ -150,23 +157,23 @@ export function ScoringModelsSection({ game }: { game: Game }) {
                 <ScoringPreview rules={model.rules} matchType={model.matchType} extraStats={game.extraStatFields} scoreLabel={scoreLabel} />
 
                 <p className="text-sm text-muted">
-                  <span className="font-semibold text-text">Desempate:</span> {model.tiebreakers.map((t) => tiebreakerLabel(t, { matchType: model.matchType, scoreLabel })).join(' → ')}
+                  <span className="font-semibold text-text">{t('desempate')}</span> {tiebreakText(model)}
                 </p>
 
                 <div className="mt-auto flex flex-wrap gap-2 pt-1">
-                  <Button variant="secondary" size="sm" onClick={() => openEdit(model)} iconLeft={<Pencil className="size-4" aria-hidden />} aria-label={`Editar ${model.name}`}>
-                    Editar
+                  <Button variant="secondary" size="sm" onClick={() => openEdit(model)} iconLeft={<Pencil className="size-4" aria-hidden />} aria-label={t('editarRotulo', { nome: model.name })}>
+                    {t('editar')}
                   </Button>
-                  <Button variant="secondary" size="sm" onClick={() => duplicateModel(model)} disabled={duplicate.isPending} iconLeft={<Copy className="size-4" aria-hidden />} aria-label={`Duplicar ${model.name}`}>
-                    Duplicar
+                  <Button variant="secondary" size="sm" onClick={() => duplicateModel(model)} disabled={duplicate.isPending} iconLeft={<Copy className="size-4" aria-hidden />} aria-label={t('duplicarRotulo', { nome: model.name })}>
+                    {t('duplicar')}
                   </Button>
                   {!model.isDefault && (
-                    <Button variant="secondary" size="sm" onClick={() => makeDefault(model)} disabled={update.isPending} iconLeft={<Star className="size-4" aria-hidden />} aria-label={`Tornar padrão: ${model.name}`}>
-                      Tornar padrão
+                    <Button variant="secondary" size="sm" onClick={() => makeDefault(model)} disabled={update.isPending} iconLeft={<Star className="size-4" aria-hidden />} aria-label={t('tornarPadraoRotulo', { nome: model.name })}>
+                      {t('tornarPadrao')}
                     </Button>
                   )}
-                  <Button variant="ghost" size="sm" className="text-danger" onClick={() => setDeleting({ model, error: null })} iconLeft={<Trash2 className="size-4" aria-hidden />} aria-label={`Excluir ${model.name}`}>
-                    Excluir
+                  <Button variant="ghost" size="sm" className="text-danger" onClick={() => setDeleting({ model, error: null })} iconLeft={<Trash2 className="size-4" aria-hidden />} aria-label={t('excluirRotulo', { nome: model.name })}>
+                    {t('excluir')}
                   </Button>
                 </div>
               </Card>
@@ -180,16 +187,16 @@ export function ScoringModelsSection({ game }: { game: Game }) {
         onOpenChange={(open) => {
           if (!open && !saving) setEditor(null);
         }}
-        title={editor?.modelId ? 'Editar modelo de pontuação' : 'Novo modelo de pontuação'}
+        title={editor?.modelId ? t('editarTitulo') : t('novoTitulo')}
         description={`${game.icon} ${game.name}`}
         size="lg"
         footer={
           <>
             <Button variant="secondary" onClick={() => setEditor(null)} disabled={saving}>
-              Cancelar
+              {t('cancelar')}
             </Button>
             <Button onClick={save} loading={saving}>
-              Salvar modelo
+              {t('salvar')}
             </Button>
           </>
         }
@@ -205,11 +212,11 @@ export function ScoringModelsSection({ game }: { game: Game }) {
               errors={editor.errors}
             />
             <Checkbox
-              label={`Usar como padrão de ${MATCH_TYPE_LABELS[editor.draft.matchType]}`}
+              label={t('usarPadrao', { tipo: MATCH_TYPE_LABELS[editor.draft.matchType] })}
               hint={
                 hasDefault(game, editor.draft.matchType, editor.modelId ?? undefined)
-                  ? 'O padrão atual deste tipo de partida deixa de ser o padrão.'
-                  : 'É o modelo que já vem escolhido na criação de campeonatos.'
+                  ? t('padraoSubstitui')
+                  : t('padraoExplica')
               }
               checked={editor.isDefault}
               onCheckedChange={(isDefault) => setEditor({ ...editor, isDefault })}
@@ -223,17 +230,17 @@ export function ScoringModelsSection({ game }: { game: Game }) {
         onOpenChange={(open) => {
           if (!open && !remove.isPending) setDeleting(null);
         }}
-        title="Excluir modelo de pontuação?"
-        description={deleting ? `"${deleting.model.name}" sai do catálogo e não pode ser recuperado.` : undefined}
+        title={t('excluirTitulo')}
+        description={deleting ? t('excluirDescricao', { nome: deleting.model.name }) : undefined}
         size="sm"
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleting(null)} disabled={remove.isPending}>
-              Voltar
+              {t('voltar')}
             </Button>
             {!deleting?.error && (
               <Button variant="danger" onClick={confirmDelete} loading={remove.isPending}>
-                Excluir modelo
+                {t('excluirModelo')}
               </Button>
             )}
           </>
@@ -245,7 +252,7 @@ export function ScoringModelsSection({ game }: { game: Game }) {
             {deleting.error}
           </p>
         ) : (
-          <p className="text-sm text-muted">Campeonatos só podem usar modelos que existem: se alguma fase usa este, a exclusão é barrada.</p>
+          <p className="text-sm text-muted">{t('excluirAviso')}</p>
         )}
       </Modal>
     </section>

@@ -4,28 +4,18 @@ import type { AuditLog } from '@nova/schemas';
 import { EmptyState, Skeleton } from '@nova/ui';
 import { ChevronDown, ScrollText } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { getT } from '@/shared/i18n/core';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime';
 import { AuditDiff } from './AuditDiff';
+import { adminAuditMessages } from './messages';
 
-const ENTITY_LABELS: Record<string, string> = {
-  User: 'Usuário',
-  Tournament: 'Campeonato',
-  Stage: 'Fase',
-  Match: 'Partida',
-  Registration: 'Inscrição',
-  Game: 'Jogo',
-  ScoringModel: 'Modelo de pontuação',
-  RoleInvite: 'Convite',
-  OrganizerRequest: 'Pedido de organizador',
-  Report: 'Denúncia',
-  Dispute: 'Disputa',
-  SiteSettings: 'Configurações',
-  FeatureFlag: 'Recurso',
-  GlobalAnnouncement: 'Comunicado',
-};
+const ENTITY_LABELS = adminAuditMessages['pt-BR'].AuditTimeline.recursos;
 
+/** Nome do recurso na tela ("Campeonato"); tipo sem rótulo aparece como veio. */
 export function entityTypeLabel(type: string): string {
-  return ENTITY_LABELS[type] ?? type;
+  if (!Object.prototype.hasOwnProperty.call(ENTITY_LABELS, type)) return type;
+  return getT(adminAuditMessages, 'AuditTimeline')(`recursos.${type as keyof typeof ENTITY_LABELS}`);
 }
 
 export interface AuditTimelineProps {
@@ -46,10 +36,11 @@ export interface AuditTimelineProps {
  * Reutilizável: a tela do Admin passa os logs de `useAuditLogs`; a área do organizador passa os de
  * `useTournamentAuditLogs(tournamentId)`.
  */
-export function AuditTimeline({ logs, loading = false, empty, compact = false, expanded = false, label = 'Registros de auditoria' }: AuditTimelineProps) {
+export function AuditTimeline({ logs, loading = false, empty, compact = false, expanded = false, label }: AuditTimelineProps) {
+  const t = useT(adminAuditMessages, 'AuditTimeline');
   if (loading || !logs) {
     return (
-      <div className="flex flex-col gap-3" role="status" aria-label="Carregando registros">
+      <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
         {Array.from({ length: compact ? 3 : 5 }).map((_, i) => (
           <Skeleton key={i} className={compact ? 'h-12 w-full' : 'h-20 w-full'} />
         ))}
@@ -57,10 +48,10 @@ export function AuditTimeline({ logs, loading = false, empty, compact = false, e
     );
   }
   if (logs.length === 0) {
-    return <>{empty ?? <EmptyState icon={<ScrollText className="size-7" />} title="Nenhum registro" description="As ações sensíveis aparecem aqui assim que acontecem." />}</>;
+    return <>{empty ?? <EmptyState icon={<ScrollText className="size-7" />} title={t('vazio')} description={t('vazioDescricao')} />}</>;
   }
   return (
-    <ol className="flex flex-col" aria-label={label}>
+    <ol className="flex flex-col" aria-label={label ?? t('rotulo')}>
       {logs.map((log, index) => {
         const hasDiff = Boolean(log.before || log.after);
         return (
@@ -78,20 +69,20 @@ export function AuditTimeline({ logs, loading = false, empty, compact = false, e
               </p>
               <p className="text-xs text-muted">
                 <time dateTime={log.createdAt} title={formatDateTime(log.createdAt)}>
-                  {compact ? formatRelative(log.createdAt) : `${formatDateTime(log.createdAt)} (${formatRelative(log.createdAt)})`}
+                  {compact ? formatRelative(log.createdAt) : t('quando', { data: formatDateTime(log.createdAt), relativo: formatRelative(log.createdAt) })}
                 </time>
-                {!compact && <> · IP {log.ip}</>}
+                {!compact && t('ip', { ip: log.ip })}
               </p>
               {log.reason && (
                 <p className="text-sm text-text [overflow-wrap:anywhere]">
-                  <span className="font-medium">Motivo:</span> {log.reason}
+                  <span className="font-medium">{t('motivo')}</span> {log.reason}
                 </p>
               )}
               {!compact && hasDiff && (
                 <details className="group mt-1" open={expanded}>
                   <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1 rounded-sm text-sm font-semibold text-primary-text md:min-h-8 [&::-webkit-details-marker]:hidden">
                     <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden />
-                    Antes e depois
+                    {t('antesDepois')}
                   </summary>
                   <AuditDiff before={log.before} after={log.after} className="mt-1" />
                 </details>

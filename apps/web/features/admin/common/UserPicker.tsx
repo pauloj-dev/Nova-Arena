@@ -6,6 +6,8 @@ import { X } from 'lucide-react';
 import { useId, useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useAdminUsers } from '@/shared/api/hooks/admin';
+import { useT } from '@/shared/i18n/react';
+import { adminCommonMessages } from './messages';
 import { UserIdentity, UserStatusPill } from './UserBits';
 import { useDebouncedValue } from './useDebouncedValue';
 
@@ -25,6 +27,7 @@ interface UserPickerProps {
 
 /** Busca de conta por apelido ou e-mail, com a escolha destacada. Usa a lista de usuários do Admin. */
 export function UserPicker({ label, hint, role, excludeIds = [], excludeRoles = [], value, onChange, error }: UserPickerProps) {
+  const t = useT(adminCommonMessages, 'UserPicker');
   const [search, setSearch] = useState('');
   const term = useDebouncedValue(search.trim());
   const listId = useId();
@@ -39,7 +42,7 @@ export function UserPicker({ label, hint, role, excludeIds = [], excludeRoles = 
         <div className="flex items-center justify-between gap-3 rounded-md border border-border-strong bg-surface-2 px-3 py-2">
           <UserIdentity user={value} />
           <Button variant="ghost" size="sm" onClick={() => onChange(null)} iconLeft={<X className="size-4" aria-hidden />}>
-            Trocar
+            {t('trocar')}
           </Button>
         </div>
       </div>
@@ -50,7 +53,7 @@ export function UserPicker({ label, hint, role, excludeIds = [], excludeRoles = 
     <div className="flex flex-col gap-2">
       <Input
         label={label}
-        hint={hint ?? 'Digite pelo menos 2 letras do apelido ou do e-mail.'}
+        hint={hint ?? t('dica')}
         type="search"
         value={search}
         onChange={(event) => setSearch(event.target.value)}
@@ -61,9 +64,9 @@ export function UserPicker({ label, hint, role, excludeIds = [], excludeRoles = 
       <div id={listId} aria-live="polite">
         {enabled && results.isPending && <Skeleton className="h-12 w-full" />}
         {enabled && results.isError && <p className="text-sm text-danger">{errorMessage(results.error)}</p>}
-        {enabled && results.isSuccess && options.length === 0 && <p className="text-sm text-muted">Nenhuma conta ativa encontrada com “{term}”.</p>}
+        {enabled && results.isSuccess && options.length === 0 && <p className="text-sm text-muted">{t('nenhuma', { termo: term })}</p>}
         {enabled && options.length > 0 && (
-          <ul className="flex flex-col gap-1" aria-label={`Resultados para ${label}`}>
+          <ul className="flex flex-col gap-1" aria-label={t('resultados', { rotulo: label })}>
             {options.map((user) => (
               <li key={user.id}>
                 <button

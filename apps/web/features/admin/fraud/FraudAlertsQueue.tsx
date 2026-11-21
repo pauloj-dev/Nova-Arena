@@ -7,10 +7,12 @@ import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useFraudAlerts, useReviewFraudAlert } from '@/shared/api/hooks/admin-fraud';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime';
 import { Pager } from '../common/Pager';
 import { ReasonModal } from '../common/ReasonModal';
 import { UserStatusPill } from '../common/UserBits';
+import { adminFraudMessages } from './messages';
 
 const KIND_ICON: Record<FraudAlert['kind'], ReactNode> = {
   MULTI_ACCOUNT_IP: <Network className="size-4" aria-hidden />,
@@ -18,30 +20,25 @@ const KIND_ICON: Record<FraudAlert['kind'], ReactNode> = {
   DUPLICATE_GAME_ID: <Gamepad2 className="size-4" aria-hidden />,
   MASS_ADMIN_ACTION: <ShieldAlert className="size-4" aria-hidden />,
 };
-const SEVERITY: Record<FraudSeverity, { label: string; tone: 'danger' | 'warning' | 'neutral' }> = {
-  HIGH: { label: 'Alta', tone: 'danger' },
-  MEDIUM: { label: 'Média', tone: 'warning' },
-  LOW: { label: 'Baixa', tone: 'neutral' },
-};
-const STATUS_LABEL: Record<FraudAlert['status'], string> = { OPEN: 'Abertos', ACTIONED: 'Tratados', DISMISSED: 'Improcedentes' };
-const STATUS_OPTIONS = FraudAlertStatus.options.map((value) => ({ value, label: STATUS_LABEL[value] }));
+const SEVERITY_TONE: Record<FraudSeverity, 'danger' | 'warning' | 'neutral'> = { HIGH: 'danger', MEDIUM: 'warning', LOW: 'neutral' };
 const KIND_OPTIONS = FraudAlertKind.options.map((value) => ({ value, label: FRAUD_ALERT_LABELS[value] }));
 
 function AlertStatusBadge({ status }: { status: FraudAlert['status'] }) {
+  const t = useT(adminFraudMessages, 'AlertStatusBadge');
   if (status === 'OPEN') {
     return (
       <Badge tone="warning" icon={<AlertTriangle className="size-3.5" aria-hidden />}>
-        Aberto
+        {t('aberto')}
       </Badge>
     );
   }
   return status === 'ACTIONED' ? (
     <Badge tone="primary" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>
-      Tratado
+      {t('tratado')}
     </Badge>
   ) : (
     <Badge tone="neutral" icon={<XCircle className="size-3.5" aria-hidden />}>
-      Improcedente
+      {t('improcedente')}
     </Badge>
   );
 }
@@ -53,6 +50,8 @@ type Review = { alert: FraudAlert; status: 'ACTIONED' | 'DISMISSED' } | null;
  * em massa (só o Super Admin vê estas). Cada alerta leva às contas envolvidas; fechar pede a explicação (auditada).
  */
 export function FraudAlertsQueue() {
+  const t = useT(adminFraudMessages, 'FraudAlertsQueue');
+  const statusOptions = FraudAlertStatus.options.map((value) => ({ value, label: t(`filtro.${value}`) }));
   const toast = useToast();
   const [status, setStatus] = useState('OPEN');
   const [kind, setKind] = useState('');
@@ -65,12 +64,12 @@ export function FraudAlertsQueue() {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted">Sinais automáticos de conta duplicada, ID de jogo repetido e ações administrativas em massa. Um alerta não é prova: confira as contas antes de agir.</p>
+      <p className="text-sm text-muted">{t('explicacao')}</p>
       <div className="flex flex-col gap-3 sm:flex-row">
         <Select
-          label="Situação"
-          placeholder="Todos"
-          options={STATUS_OPTIONS}
+          label={t('situacao')}
+          placeholder={t('todos')}
+          options={statusOptions}
           value={status}
           onChange={(event) => {
             setStatus(event.target.value);
@@ -79,8 +78,8 @@ export function FraudAlertsQueue() {
           className="sm:max-w-xs"
         />
         <Select
-          label="Tipo"
-          placeholder="Todos os tipos"
+          label={t('tipo')}
+          placeholder={t('todosTipos')}
           options={KIND_OPTIONS}
           value={kind}
           onChange={(event) => {
@@ -91,15 +90,15 @@ export function FraudAlertsQueue() {
         />
       </div>
       {alerts.isPending ? (
-        <div className="flex flex-col gap-3" role="status" aria-label="Carregando alertas">
+        <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
           <Skeleton className="h-36 w-full" />
           <Skeleton className="h-36 w-full" />
         </div>
       ) : alerts.data.items.length === 0 ? (
         <EmptyState
           icon={<ShieldAlert className="size-7" />}
-          title={status === 'OPEN' ? 'Nenhum alerta aberto' : 'Nenhum alerta neste filtro'}
-          description={status === 'OPEN' ? 'Quando o sistema notar contas repetidas ou ações em massa, o alerta aparece aqui.' : 'Troque o filtro para ver os outros.'}
+          title={status === 'OPEN' ? t('nenhumAberto') : t('nenhumFiltro')}
+          description={status === 'OPEN' ? t('nenhumAbertoDescricao') : t('trocarFiltro')}
           action={
             status || kind ? (
               <Button
@@ -109,13 +108,13 @@ export function FraudAlertsQueue() {
                   setKind('');
                 }}
               >
-                Ver todos
+                {t('verTodos')}
               </Button>
             ) : undefined
           }
         />
       ) : (
-        <ul className="flex flex-col gap-3" aria-label="Alertas antifraude">
+        <ul className="flex flex-col gap-3" aria-label={t('lista')}>
           {alerts.data.items.map((alert) => (
             <li key={alert.id}>
               <Card className="flex flex-col gap-3" data-testid="fraud-alert">
@@ -125,14 +124,14 @@ export function FraudAlertsQueue() {
                     {FRAUD_ALERT_LABELS[alert.kind]}
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    <Badge tone={SEVERITY[alert.severity].tone}>Gravidade {SEVERITY[alert.severity].label.toLowerCase()}</Badge>
+                    <Badge tone={SEVERITY_TONE[alert.severity]}>{t('gravidade', { nivel: alert.severity })}</Badge>
                     <AlertStatusBadge status={alert.status} />
                   </div>
                 </div>
                 <p className="text-sm [overflow-wrap:anywhere]">{alert.summary}</p>
                 {alert.actor && (
                   <p className="flex flex-wrap items-center gap-2 text-sm">
-                    Admin:
+                    {t('admin')}
                     <Link href={`/admin/usuarios/${alert.actor.id}`} className="font-semibold hover:underline">
                       {alert.actor.nickname}
                     </Link>
@@ -140,7 +139,7 @@ export function FraudAlertsQueue() {
                   </p>
                 )}
                 {alert.users.length > 0 && (
-                  <ul className="flex flex-wrap gap-2" aria-label="Contas envolvidas">
+                  <ul className="flex flex-wrap gap-2" aria-label={t('contas')}>
                     {alert.users.map((user) => (
                       <li key={user.id}>
                         <Link href={`/admin/usuarios/${user.id}`} className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border-strong px-3 text-sm font-medium hover:bg-surface-2 md:min-h-8">
@@ -152,26 +151,28 @@ export function FraudAlertsQueue() {
                   </ul>
                 )}
                 <p className="text-xs text-muted">
-                  Visto pela primeira vez <time dateTime={alert.firstSeenAt} title={formatDateTime(alert.firstSeenAt)}>{formatRelative(alert.firstSeenAt)}</time>
+                  {t('vistoPrimeira')}
+                  <time dateTime={alert.firstSeenAt} title={formatDateTime(alert.firstSeenAt)}>{formatRelative(alert.firstSeenAt)}</time>
                   {alert.occurrences > 1 && (
                     <>
                       {' '}
-                      · repetiu {alert.occurrences} vezes, a última <time dateTime={alert.lastSeenAt} title={formatDateTime(alert.lastSeenAt)}>{formatRelative(alert.lastSeenAt)}</time>
+                      {t('repetiu', { n: String(alert.occurrences) })}
+                      <time dateTime={alert.lastSeenAt} title={formatDateTime(alert.lastSeenAt)}>{formatRelative(alert.lastSeenAt)}</time>
                     </>
                   )}
                 </p>
                 {alert.resolution && (
                   <p className="rounded-md bg-surface-2 px-3 py-2 text-sm [overflow-wrap:anywhere]">
-                    <span className="font-medium">Decisão{alert.reviewedByNickname ? ` de ${alert.reviewedByNickname}` : ''}:</span> {alert.resolution}
+                    <span className="font-medium">{t('decisao', { temAutor: alert.reviewedByNickname ? 'sim' : 'nao', autor: alert.reviewedByNickname ?? '' })}</span> {alert.resolution}
                   </p>
                 )}
                 {alert.status === 'OPEN' && (
-                  <div className="flex flex-wrap gap-2" role="group" aria-label={`Ações para o alerta: ${FRAUD_ALERT_LABELS[alert.kind]}`}>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label={t('acoes', { tipo: FRAUD_ALERT_LABELS[alert.kind] })}>
                     <Button size="sm" onClick={() => setAction({ alert, status: 'ACTIONED' })} iconLeft={<CheckCircle2 className="size-4" aria-hidden />}>
-                      Marcar como tratado
+                      {t('marcarTratado')}
                     </Button>
                     <Button size="sm" variant="secondary" onClick={() => setAction({ alert, status: 'DISMISSED' })} iconLeft={<ThumbsDown className="size-4" aria-hidden />}>
-                      Improcedente
+                      {t('improcedente')}
                     </Button>
                   </div>
                 )}
@@ -180,17 +181,17 @@ export function FraudAlertsQueue() {
           ))}
         </ul>
       )}
-      {alerts.data && <Pager page={alerts.data.page} pageCount={alerts.data.pageCount} total={alerts.data.total} onPageChange={setPage} label="Paginação dos alertas" />}
+      {alerts.data && <Pager page={alerts.data.page} pageCount={alerts.data.pageCount} total={alerts.data.total} onPageChange={setPage} label={t('paginacao')} />}
 
       <ReasonModal
         open={action !== null}
         onOpenChange={(open) => {
           if (!open) setAction(null);
         }}
-        title={action?.status === 'ACTIONED' ? 'Marcar alerta como tratado' : 'Marcar alerta como improcedente'}
-        description="A decisão fica na auditoria. Para sancionar uma conta, abra o perfil dela pelo alerta."
-        reasonLabel="O que foi decidido"
-        confirmLabel={action?.status === 'ACTIONED' ? 'Marcar como tratado' : 'Fechar como improcedente'}
+        title={action?.status === 'ACTIONED' ? t('tituloTratado') : t('tituloImprocedente')}
+        description={t('modalDescricao')}
+        reasonLabel={t('decidido')}
+        confirmLabel={action?.status === 'ACTIONED' ? t('marcarTratado') : t('fecharImprocedente')}
         loading={review.isPending}
         onConfirm={(resolution) => {
           if (!action) return;
@@ -198,10 +199,10 @@ export function FraudAlertsQueue() {
             { alertId: action.alert.id, status: action.status, resolution },
             {
               onSuccess: () => {
-                toast.success(action.status === 'ACTIONED' ? 'Alerta tratado' : 'Alerta fechado como improcedente');
+                toast.success(action.status === 'ACTIONED' ? t('toastTratado') : t('toastImprocedente'));
                 setAction(null);
               },
-              onError: (error) => toast.error('Não foi possível atualizar o alerta', errorMessage(error)),
+              onError: (error) => toast.error(t('toastErro'), errorMessage(error)),
             },
           );
         }}

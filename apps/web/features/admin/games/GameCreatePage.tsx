@@ -5,14 +5,17 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCreateGame } from '@/shared/api/hooks/games-admin';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { GameForm } from './GameForm';
 import { emptyGame } from './game-values';
+import { adminGamesMessages } from './messages';
 
 const backLink = 'inline-flex min-h-11 items-center gap-1 self-start rounded-sm text-sm font-semibold text-primary-text hover:underline md:min-h-0';
 
 /** `/admin/jogos/novo`: cadastro de um jogo. Os modelos de pontuação entram na página do jogo, logo depois. */
 export function GameCreatePage() {
+  const t = useT(adminGamesMessages, 'GameCreatePage');
   const router = useRouter();
   const toast = useToast();
   const create = useCreateGame();
@@ -21,16 +24,16 @@ export function GameCreatePage() {
     <PageContainer>
       <Link href="/admin/jogos" className={backLink}>
         <ArrowLeft className="size-4" aria-hidden />
-        Jogos e regras
+        {t('voltarJogos')}
       </Link>
-      <PageHeader title="Novo jogo" description="Cadastre o jogo e seus modos. Depois de salvar, você cria os modelos de pontuação." />
+      <PageHeader title={t('titulo')} description={t('descricao')} />
       <GameForm
         mode="create"
         defaultValues={emptyGame()}
         cancelHref="/admin/jogos"
         onSubmit={async (input) => {
           const game = await create.mutateAsync(input);
-          toast.success('Jogo cadastrado', 'Agora crie um modelo de pontuação para ele.');
+          toast.success(t('toastCriado'), t('toastCriadoDetalhe'));
           router.push(`/admin/jogos/${game.id}`);
           return game;
         }}

@@ -1,6 +1,8 @@
 import { cn, Skeleton } from '@nova/ui';
 import { AlertTriangle, ArrowRight, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
+import { useT } from '@/shared/i18n/react';
+import { adminDashboardMessages } from './messages';
 
 export interface KpiCardProps {
   label: string;
@@ -24,10 +26,15 @@ export interface KpiCardProps {
  * O cartão inteiro é um link (um alvo de toque só), com nome acessível completo.
  */
 export function KpiCard({ label, value, hint, icon: Icon, href, linkLabel, attention = false, highlight = false }: KpiCardProps) {
+  const t = useT(adminDashboardMessages, 'KpiCard');
   return (
     <Link
       href={href}
-      aria-label={value === undefined ? `${label}: carregando. ${linkLabel}` : `${label}: ${value}${hint ? `, ${hint}` : ''}${attention ? '. Pede atenção' : ''}. ${linkLabel}`}
+      aria-label={
+        value === undefined
+          ? t('carregando', { rotulo: label, atalho: linkLabel })
+          : t('rotulo', { rotulo: label, valor: value, temDica: hint ? 'sim' : 'nao', dica: hint ?? '', atencao: attention ? 'sim' : 'nao', atalho: linkLabel })
+      }
       className={cn(
         'group flex min-h-28 flex-col justify-between gap-2 rounded-lg border bg-surface p-4 shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         highlight ? 'border-accent' : 'border-border',
@@ -49,7 +56,7 @@ export function KpiCard({ label, value, hint, icon: Icon, href, linkLabel, atten
           {attention && (
             <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning-soft-text">
               <AlertTriangle className="size-3.5" aria-hidden />
-              Pede atenção
+              {t('pedeAtencao')}
             </span>
           )}
         </span>

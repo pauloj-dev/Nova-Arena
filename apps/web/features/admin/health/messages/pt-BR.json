@@ -1,0 +1,37 @@
+{
+  "HealthPage": {
+    "status": {
+      "ok": "Funcionando",
+      "degraded": "Instável",
+      "down": "Fora do ar"
+    },
+    "titulo": "Saúde do sistema",
+    "descricao": "Estado dos serviços da plataforma. Atualiza sozinha a cada {segundos} segundos.",
+    "atualizar": "Atualizar",
+    "simulado": "<strong>Valores simulados no protótipo.</strong> Latências, taxa de erro e estado dos serviços são gerados pela API simulada. Na versão final vêm do banco, do cache, das filas, do tempo real e do monitoramento de erros.",
+    "carregando": "Carregando a saúde do sistema",
+    "geral": {
+      "ok": "Todos os serviços funcionando",
+      "degraded": "Há serviço instável",
+      "down": "Há serviço fora do ar"
+    },
+    "conferido": "Conferido em <time>{quando}</time>",
+    "resumo": "Resumo",
+    "versao": "Versão publicada",
+    "ambiente": "Ambiente: {ambiente}",
+    "taxaErro": "Taxa de erro",
+    "taxaErroValor": "{taxa}%",
+    "taxaErroDica": "das requisições, última hora",
+    "errosHora": "Erros na última hora",
+    "sentryRecebidos": "recebidos pelo Sentry",
+    "sentryAusente": "Sentry não configurado",
+    "tarefasFalha": "Tarefas com falha",
+    "tarefasFalhaDica": "filas e tarefas agendadas",
+    "armazenamento": "Armazenamento em uso",
+    "armazenamentoValor": "{mb} MB",
+    "armazenamentoDica": "provas, logos e banners",
+    "servicos": "Serviços",
+    "semLatencia": "Sem medição de latência",
+    "latencia": "Latência: {ms} ms"
+  }
+}

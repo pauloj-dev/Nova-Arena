@@ -3,12 +3,15 @@
 import { Card, ErrorState, Skeleton, Switch, useToast } from '@nova/ui';
 import { errorMessage } from '@/shared/api/client';
 import { useAdminFlags, useSetFlag } from '@/shared/api/hooks/admin-settings';
+import { useT } from '@/shared/i18n/react';
+import { adminSettingsMessages } from './messages';
 
 /**
  * Recursos liga/desliga (feature flags). Mudar aqui muda o site na hora, sem novo deploy:
  * a consulta pública das flags é invalidada e as telas que usam `useFlag` reagem.
  */
 export function FlagsSection({ canEdit }: { canEdit: boolean }) {
+  const t = useT(adminSettingsMessages, 'FlagsSection');
   const toast = useToast();
   const flags = useAdminFlags();
   const setFlag = useSetFlag();
@@ -18,12 +21,12 @@ export function FlagsSection({ canEdit }: { canEdit: boolean }) {
       <section aria-labelledby="flags" className="flex flex-col gap-3">
         <div>
           <h2 id="flags" className="text-lg">
-            Recursos
+            {t('titulo')}
           </h2>
-          <p className="text-sm text-muted">Ligue ou desligue partes do site. A mudança vale na hora, para todo mundo, e fica na auditoria.</p>
+          <p className="text-sm text-muted">{t('descricao')}</p>
         </div>
         {flags.isPending ? (
-          <div className="flex flex-col gap-2" role="status" aria-label="Carregando recursos">
+          <div className="flex flex-col gap-2" role="status" aria-label={t('carregando')}>
             <Skeleton className="h-12 w-full" />
             <Skeleton className="h-12 w-full" />
             <Skeleton className="h-12 w-full" />
@@ -43,8 +46,8 @@ export function FlagsSection({ canEdit }: { canEdit: boolean }) {
                     setFlag.mutate(
                       { key: flag.key, enabled },
                       {
-                        onSuccess: () => toast.success(enabled ? `${flag.label}: ligado` : `${flag.label}: desligado`, 'O site já está usando a nova configuração.'),
-                        onError: (error) => toast.error('Não foi possível mudar o recurso', errorMessage(error)),
+                        onSuccess: () => toast.success(enabled ? t('ligado', { recurso: flag.label }) : t('desligado', { recurso: flag.label }), t('toastDetalhe')),
+                        onError: (error) => toast.error(t('toastErro'), errorMessage(error)),
                       },
                     )
                   }

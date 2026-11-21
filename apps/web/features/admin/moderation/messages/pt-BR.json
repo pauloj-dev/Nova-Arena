@@ -1,0 +1,70 @@
+{
+  "ReportStatusBadge": {
+    "tratada": "Tratada",
+    "improcedente": "Improcedente"
+  },
+  "ReportsQueue": {
+    "alvo": {
+      "USER": "Usuário",
+      "TEAM": "Squad",
+      "MATCH": "Partida",
+      "RESULT": "Resultado",
+      "CHAT_MESSAGE": "Mensagem no chat"
+    },
+    "filtro": {
+      "OPEN": "Abertas",
+      "IN_REVIEW": "Em análise",
+      "ACTIONED": "Tratadas",
+      "DISMISSED": "Improcedentes"
+    },
+    "mostrar": "Mostrar",
+    "todas": "Todas as denúncias",
+    "carregando": "Carregando denúncias",
+    "nenhumaFiltro": "Nenhuma denúncia neste filtro",
+    "nenhuma": "Nenhuma denúncia",
+    "trocarFiltro": "Troque o filtro para ver as outras.",
+    "nenhumaDescricao": "Quando alguém denunciar um usuário, squad, partida ou resultado, a denúncia aparece aqui.",
+    "verTodas": "Ver todas",
+    "lista": "Denúncias",
+    "anexos": "Anexos da denúncia",
+    "anexo": "Anexo {n}",
+    "denunciadoPor": "Denunciado por {nome} · ",
+    "respondePeloAlvo": "Responde pelo alvo:",
+    "decisao": "Decisão{temAutor, select, sim { de {autor}} other {}}:",
+    "acoesRapidas": "Ações rápidas para a denúncia sobre {alvo}",
+    "toastErroAtualizar": "Não foi possível atualizar a denúncia",
+    "marcarAnalise": "Marcar em análise",
+    "advertir": "Advertir",
+    "suspender": "Suspender",
+    "banir": "Banir",
+    "improcedente": "Improcedente",
+    "paginacao": "Paginação das denúncias",
+    "improcedenteTitulo": "Marcar como improcedente",
+    "improcedenteDescricao": "A denúncia é fechada sem sanção. Quem denunciou recebe a explicação.",
+    "explicacao": "Explicação para quem denunciou",
+    "fecharImprocedente": "Fechar como improcedente",
+    "toastFechada": "Denúncia fechada como improcedente",
+    "toastFechadaDetalhe": "Quem denunciou foi avisado.",
+    "toastErroFechar": "Não foi possível fechar a denúncia"
+  },
+  "DisputesQueue": {
+    "carregando": "Carregando disputas",
+    "nenhuma": "Nenhuma disputa escalada",
+    "nenhumaDescricao": "Quando um organizador não consegue resolver um resultado contestado, ele escala a disputa e ela aparece aqui.",
+    "lista": "Disputas escaladas",
+    "abertaPor": "Aberta por {nome} · {quando} · {n} mensagem(ns)",
+    "abrir": "Abrir a disputa",
+    "abrirSr": ": {partida}"
+  },
+  "ModerationPage": {
+    "titulo": "Moderação",
+    "descricao": "Denúncias da comunidade, disputas que os organizadores escalaram e alertas antifraude. Toda decisão fica na auditoria e quem denunciou é avisado.",
+    "filas": "Filas da moderação",
+    "denuncias": "Denúncias",
+    "disputas": "Disputas escaladas",
+    "naFila": " na fila",
+    "alertas": "Alertas",
+    "alertasSr": " antifraude",
+    "abertos": " abertos"
+  }
+}

@@ -9,7 +9,9 @@ import { useState, type ReactNode } from 'react';
 import { Controller, useFieldArray, useForm, useWatch, type FieldError, type FieldPath } from 'react-hook-form';
 import { MATCH_TYPE_OPTIONS } from '@/features/scoring/describe';
 import { ApiError, errorMessage } from '@/shared/api/client';
+import { useT } from '@/shared/i18n/react';
 import { cleanGameInput, coverFileError, coverToDataUrl, DEFAULT_LOBBY_SIZE, emptyMode, gameToForm, slugify, type GameFormValues } from './game-values';
+import { adminGamesMessages } from './messages';
 
 interface GameFormProps {
   mode: 'create' | 'edit';
@@ -18,11 +20,6 @@ interface GameFormProps {
   onSubmit: (input: GameAdminInput) => Promise<Game>;
   cancelHref: string;
 }
-
-const WHEN_OPTIONS = [
-  { value: 'always', label: 'Sempre' },
-  { value: 'tiebreak', label: 'Só no desempate' },
-];
 
 /** As mensagens escritas no schema estão em português; as automáticas do Zod vêm em inglês e são trocadas pela `fallback`. */
 function message(error: FieldError | undefined, fallback: string): string | undefined {
@@ -66,6 +63,7 @@ function Row({ legend, onRemove, removeLabel, removeDisabled, children }: { lege
 
 /** Formulário de jogo do catálogo (ADM-06): dados, modos, campos de ID exigidos e estatísticas extras. */
 export function GameForm({ mode, defaultValues, onSubmit, cancelHref }: GameFormProps) {
+  const t = useT(adminGamesMessages, 'GameForm');
   const toast = useToast();
   const form = useForm<GameFormValues, unknown, GameAdminInput>({ resolver: zodResolver(GameAdminInput), defaultValues, mode: 'onBlur' });
   const { register, control, handleSubmit, setValue, setError, formState } = form;
@@ -95,7 +93,7 @@ export function GameForm({ mode, defaultValues, onSubmit, cancelHref }: GameForm
       setValue('coverUrl', await coverToDataUrl(file), { shouldDirty: true });
       setCoverError(null);
     } catch (error) {
-      setCoverError(error instanceof Error ? error.message : 'Não foi possível ler esta imagem.');
+      setCoverError(error instanceof Error ? error.message : t('imagemIlegivel'));
     }
   }
 
@@ -112,36 +110,47 @@ export function GameForm({ mode, defaultValues, onSubmit, cancelHref }: GameForm
           }
         }
         setFormError(errorMessage(error));
-        toast.error('Não foi possível salvar o jogo', errorMessage(error));
+        toast.error(t('toastErroSalvar'), errorMessage(error));
       }
     },
-    () => setFormError('Confira os campos destacados.'),
+    () => setFormError(t('confiraCampos')),
   );
 
+  const whenOptions = [
+    { value: 'always', label: t('quandoSempre') },
+    { value: 'tiebreak', label: t('quandoDesempate') },
+  ];
+  // Registro dos campos fixos fora do JSX (o nome do campo não é texto de interface).
+  const nameField = register('name', {
+    onChange: (event: { target: { value: string } }) => {
+      if (!slugEdited) setValue('slug', slugify(event.target.value), { shouldValidate: formState.isSubmitted });
+    },
+  });
+  const slugField = register('slug', { onChange: () => setSlugEdited(true) });
+  const iconField = register('icon');
+  const platformField = register('platform');
+  const removeCover = () => setValue('coverUrl', null, { shouldDirty: true });
+
   return (
-    <form onSubmit={(event) => void submit(event)} noValidate className="flex flex-col gap-6" aria-label={mode === 'create' ? 'Cadastro de jogo' : 'Dados do jogo'}>
-      <Section title="Dados do jogo">
+    <form onSubmit={(event) => void submit(event)} noValidate className="flex flex-col gap-6" aria-label={mode === 'create' ? t('rotuloCadastro') : t('rotuloEdicao')}>
+      <Section title={t('dados.titulo')}>
         <div className="grid gap-4 md:grid-cols-2">
           <Input
-            label="Nome"
+            label={t('dados.nome')}
             required
             autoComplete="off"
-            error={message(errors.name, 'Dê um nome ao jogo')}
-            {...register('name', {
-              onChange: (event: { target: { value: string } }) => {
-                if (!slugEdited) setValue('slug', slugify(event.target.value), { shouldValidate: formState.isSubmitted });
-              },
-            })}
+            error={message(errors.name, t('dados.nomeErro'))}
+            {...nameField}
           />
           <Input
-            label="Endereço (slug)"
+            label={t('dados.slug')}
             required
             autoComplete="off"
             autoCapitalize="none"
             spellCheck={false}
-            hint="Aparece no link da página do jogo. Só letras minúsculas, números e hífens."
-            error={message(errors.slug, 'Use só letras minúsculas, números e hífens')}
-            {...register('slug', { onChange: () => setSlugEdited(true) })}
+            hint={t('dados.slugDica')}
+            error={message(errors.slug, t('dados.slugErro'))}
+            {...slugField}
           />
           <div className="flex items-start gap-3">
             <span className="mt-6 flex size-11 shrink-0 items-center justify-center rounded-md bg-accent-soft text-lg font-bold text-accent-soft-text" aria-hidden>
@@ -149,23 +158,23 @@ export function GameForm({ mode, defaultValues, onSubmit, cancelHref }: GameForm
             </span>
             <Input
               className="min-w-0 flex-1"
-              label="Ícone"
+              label={t('dados.icone')}
               required
               autoComplete="off"
-              hint="Um emoji ou uma sigla de até 4 letras. Não usamos logos oficiais dos jogos."
-              error={message(errors.icon, 'Use um emoji ou uma sigla de até 4 letras')}
-              {...register('icon')}
+              hint={t('dados.iconeDica')}
+              error={message(errors.icon, t('dados.iconeErro'))}
+              {...iconField}
             />
           </div>
-          <Input label="Plataforma" required autoComplete="off" placeholder="Ex.: Mobile" error={message(errors.platform, 'Informe a plataforma')} {...register('platform')} />
+          <Input label={t('dados.plataforma')} required autoComplete="off" placeholder={t('dados.plataformaExemplo')} error={message(errors.platform, t('dados.plataformaErro'))} {...platformField} />
 
           <div className="flex flex-col gap-2 md:col-span-2">
             <Input
-              label="Capa (opcional)"
+              label={t('dados.capa')}
               type="file"
               accept="image/*"
               inputClassName="py-2"
-              hint="PNG, JPG ou WebP, até 5 MB. No protótipo a imagem fica guardada só neste navegador."
+              hint={t('dados.capaDica')}
               error={coverError ?? undefined}
               onChange={(event) => {
                 void chooseCover(event.target.files?.[0]);
@@ -175,13 +184,13 @@ export function GameForm({ mode, defaultValues, onSubmit, cancelHref }: GameForm
             {coverUrl ? (
               <div className="flex flex-wrap items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element -- data URL do upload simulado: não passa pelo otimizador de imagens */}
-                <img src={coverUrl} alt="Capa escolhida para o jogo" className="h-24 w-44 rounded-md border border-border object-cover" />
-                <Button variant="secondary" size="sm" onClick={() => setValue('coverUrl', null, { shouldDirty: true })} iconLeft={<ImageOff className="size-4" aria-hidden />}>
-                  Remover capa
+                <img src={coverUrl} alt={t('dados.capaAlt')} className="h-24 w-44 rounded-md border border-border object-cover" />
+                <Button variant="secondary" size="sm" onClick={removeCover} iconLeft={<ImageOff className="size-4" aria-hidden />}>
+                  {t('dados.removerCapa')}
                 </Button>
               </div>
             ) : (
-              <p className="text-xs text-muted">Sem capa: a página do jogo usa o ícone no lugar.</p>
+              <p className="text-xs text-muted">{t('dados.semCapa')}</p>
             )}
           </div>
 
@@ -191,8 +200,8 @@ export function GameForm({ mode, defaultValues, onSubmit, cancelHref }: GameForm
             render={({ field }) => (
               <Switch
                 className="md:col-span-2"
-                label="Jogo ativo"
-                hint="Desativado, o jogo some da criação de campeonatos e da lista pública. Os campeonatos que já existem continuam no ar."
+                label={t('dados.ativo')}
+                hint={t('dados.ativoDica')}
                 checked={field.value}
                 onCheckedChange={field.onChange}
               />
@@ -202,11 +211,11 @@ export function GameForm({ mode, defaultValues, onSubmit, cancelHref }: GameForm
       </Section>
 
       <Section
-        title="Modos"
-        description="Cada modo define quantos jogadores formam uma equipe e como a partida é disputada."
+        title={t('modos.titulo')}
+        description={t('modos.descricao')}
         action={
           <Button variant="secondary" size="sm" onClick={() => modes.append(emptyMode(watchedModes?.[0]?.matchType))} iconLeft={<Plus className="size-4" aria-hidden />}>
-            Adicionar modo
+            {t('modos.adicionar')}
           </Button>
         }
       >
@@ -215,12 +224,12 @@ export function GameForm({ mode, defaultValues, onSubmit, cancelHref }: GameForm
             const modeErrors = errors.modes?.[i];
             const battleRoyale = watchedModes?.[i]?.matchType === 'BATTLE_ROYALE';
             return (
-              <Row key={field.rowKey} legend={`Modo ${i + 1}`} removeLabel={`Remover modo ${i + 1}`} removeDisabled={modes.fields.length === 1} onRemove={() => modes.remove(i)}>
-                <Input label="Nome do modo" required autoComplete="off" placeholder="Ex.: Squad" error={message(modeErrors?.name, 'Dê um nome ao modo')} {...register(`modes.${i}.name`)} />
+              <Row key={field.rowKey} legend={t('modos.legenda', { n: String(i + 1) })} removeLabel={t('modos.remover', { n: String(i + 1) })} removeDisabled={modes.fields.length === 1} onRemove={() => modes.remove(i)}>
+                <Input label={t('modos.nome')} required autoComplete="off" placeholder={t('modos.nomeExemplo')} error={message(modeErrors?.name, t('modos.nomeErro'))} {...register(`modes.${i}.name`)} />
                 <Select
-                  label="Tipo de partida"
+                  label={t('modos.tipo')}
                   options={MATCH_TYPE_OPTIONS}
-                  error={message(modeErrors?.matchType, 'Escolha o tipo de partida')}
+                  error={message(modeErrors?.matchType, t('modos.tipoErro'))}
                   {...register(`modes.${i}.matchType`, {
                     onChange: (event: { target: { value: string } }) => {
                       if (event.target.value === 'BATTLE_ROYALE' && !form.getValues(`modes.${i}.maxLobbySize`)) setValue(`modes.${i}.maxLobbySize`, DEFAULT_LOBBY_SIZE);
@@ -228,34 +237,34 @@ export function GameForm({ mode, defaultValues, onSubmit, cancelHref }: GameForm
                   })}
                 />
                 <Input
-                  label="Tamanho da equipe"
+                  label={t('modos.equipe')}
                   type="number"
                   min={1}
                   max={10}
                   required
-                  hint="Jogadores titulares (1 a 10)."
-                  error={message(modeErrors?.teamSize, 'Informe de 1 a 10 jogadores')}
+                  hint={t('modos.equipeDica')}
+                  error={message(modeErrors?.teamSize, t('modos.equipeErro'))}
                   {...register(`modes.${i}.teamSize`, { valueAsNumber: true })}
                 />
                 <Input
-                  label="Reservas"
+                  label={t('modos.reservas')}
                   type="number"
                   min={0}
                   max={5}
                   required
-                  hint="Quantos reservas a equipe pode levar (0 a 5)."
-                  error={message(modeErrors?.maxSubs, 'Informe de 0 a 5 reservas')}
+                  hint={t('modos.reservasDica')}
+                  error={message(modeErrors?.maxSubs, t('modos.reservasErro'))}
                   {...register(`modes.${i}.maxSubs`, { valueAsNumber: true })}
                 />
                 {battleRoyale && (
                   <Input
-                    label="Tamanho máximo da sala"
+                    label={t('modos.sala')}
                     type="number"
                     min={2}
                     max={100}
                     required
-                    hint="Quantas equipes cabem na mesma sala (2 a 100)."
-                    error={message(modeErrors?.maxLobbySize, 'Informe de 2 a 100 equipes')}
+                    hint={t('modos.salaDica')}
+                    error={message(modeErrors?.maxLobbySize, t('modos.salaErro'))}
                     {...register(`modes.${i}.maxLobbySize`, { setValueAs: (v: unknown) => (v === '' || v === null || v === undefined ? null : Number(v)) })}
                   />
                 )}
@@ -266,41 +275,41 @@ export function GameForm({ mode, defaultValues, onSubmit, cancelHref }: GameForm
       </Section>
 
       <Section
-        title="Campos de ID exigidos"
-        description="O que o jogador precisa informar no perfil para se inscrever em campeonatos deste jogo (ex.: ID Free Fire)."
+        title={t('campos.titulo')}
+        description={t('campos.descricao')}
         action={
           <Button variant="secondary" size="sm" onClick={() => accountFields.append({ key: '', label: '', placeholder: '', pattern: '' })} iconLeft={<Plus className="size-4" aria-hidden />}>
-            Adicionar campo
+            {t('campos.adicionar')}
           </Button>
         }
       >
-        {accountFields.fields.length === 0 && <p className="text-sm text-muted">Nenhum campo exigido. O jogador se inscreve sem informar ID do jogo.</p>}
+        {accountFields.fields.length === 0 && <p className="text-sm text-muted">{t('campos.vazio')}</p>}
         <div className="flex flex-col gap-3">
           {accountFields.fields.map((field, i) => {
             const fieldErrors = errors.requiredAccountFields?.[i];
             return (
-              <Row key={field.rowKey} legend={`Campo de ID ${i + 1}`} removeLabel={`Remover campo de ID ${i + 1}`} onRemove={() => accountFields.remove(i)}>
+              <Row key={field.rowKey} legend={t('campos.legenda', { n: String(i + 1) })} removeLabel={t('campos.remover', { n: String(i + 1) })} onRemove={() => accountFields.remove(i)}>
                 <Input
-                  label="Chave"
+                  label={t('chave')}
                   required
                   autoComplete="off"
                   autoCapitalize="none"
                   spellCheck={false}
-                  placeholder="Ex.: playerId"
-                  hint="Nome interno, sem espaços nem acentos."
-                  error={message(fieldErrors?.key, 'Use só letras e números, começando por uma letra')}
+                  placeholder={t('campos.chaveExemplo')}
+                  hint={t('chaveDica')}
+                  error={message(fieldErrors?.key, t('chaveErro'))}
                   {...register(`requiredAccountFields.${i}.key`)}
                 />
-                <Input label="Rótulo" required autoComplete="off" placeholder="Ex.: ID Free Fire" error={message(fieldErrors?.label, 'Informe o rótulo que o jogador vai ver')} {...register(`requiredAccountFields.${i}.label`)} />
-                <Input label="Exemplo" autoComplete="off" placeholder="Ex.: 1234567890" hint="Aparece dentro do campo, como dica." {...register(`requiredAccountFields.${i}.placeholder`)} />
+                <Input label={t('rotulo')} required autoComplete="off" placeholder={t('campos.rotuloExemplo')} error={message(fieldErrors?.label, t('campos.rotuloErro'))} {...register(`requiredAccountFields.${i}.label`)} />
+                <Input label={t('campos.exemplo')} autoComplete="off" placeholder={t('campos.exemploExemplo')} hint={t('campos.exemploDica')} {...register(`requiredAccountFields.${i}.placeholder`)} />
                 <Input
-                  label="Padrão de validação"
+                  label={t('campos.padrao')}
                   autoComplete="off"
                   autoCapitalize="none"
                   spellCheck={false}
-                  placeholder="Ex.: ^[0-9]{6,12}$"
-                  hint="Expressão regular, opcional."
-                  error={message(fieldErrors?.pattern, 'Esta expressão regular não é válida')}
+                  placeholder={t('campos.padraoExemplo')}
+                  hint={t('campos.padraoDica')}
+                  error={message(fieldErrors?.pattern, t('campos.padraoErro'))}
                   {...register(`requiredAccountFields.${i}.pattern`)}
                 />
               </Row>
@@ -310,33 +319,33 @@ export function GameForm({ mode, defaultValues, onSubmit, cancelHref }: GameForm
       </Section>
 
       <Section
-        title="Estatísticas extras"
-        description="Números lançados no resultado além do placar (ex.: pênaltis no eFootball). Podem entrar nas regras de pontuação."
+        title={t('estatisticas.titulo')}
+        description={t('estatisticas.descricao')}
         action={
           <Button variant="secondary" size="sm" onClick={() => statFields.append({ key: '', label: '', when: 'always' })} iconLeft={<Plus className="size-4" aria-hidden />}>
-            Adicionar estatística
+            {t('estatisticas.adicionar')}
           </Button>
         }
       >
-        {statFields.fields.length === 0 && <p className="text-sm text-muted">Nenhuma estatística extra. O resultado usa só o placar padrão do tipo de partida.</p>}
+        {statFields.fields.length === 0 && <p className="text-sm text-muted">{t('estatisticas.vazio')}</p>}
         <div className="flex flex-col gap-3">
           {statFields.fields.map((field, i) => {
             const fieldErrors = errors.extraStatFields?.[i];
             return (
-              <Row key={field.rowKey} legend={`Estatística extra ${i + 1}`} removeLabel={`Remover estatística extra ${i + 1}`} onRemove={() => statFields.remove(i)}>
+              <Row key={field.rowKey} legend={t('estatisticas.legenda', { n: String(i + 1) })} removeLabel={t('estatisticas.remover', { n: String(i + 1) })} onRemove={() => statFields.remove(i)}>
                 <Input
-                  label="Chave"
+                  label={t('chave')}
                   required
                   autoComplete="off"
                   autoCapitalize="none"
                   spellCheck={false}
-                  placeholder="Ex.: penalties"
-                  hint="Nome interno, sem espaços nem acentos."
-                  error={message(fieldErrors?.key, 'Use só letras e números, começando por uma letra')}
+                  placeholder={t('estatisticas.chaveExemplo')}
+                  hint={t('chaveDica')}
+                  error={message(fieldErrors?.key, t('chaveErro'))}
                   {...register(`extraStatFields.${i}.key`)}
                 />
-                <Input label="Rótulo" required autoComplete="off" placeholder="Ex.: Pênaltis" error={message(fieldErrors?.label, 'Informe o rótulo que aparece no resultado')} {...register(`extraStatFields.${i}.label`)} />
-                <Select label="Quando aparece" options={WHEN_OPTIONS} hint="No desempate: só quando o placar empata em partida eliminatória." {...register(`extraStatFields.${i}.when`)} />
+                <Input label={t('rotulo')} required autoComplete="off" placeholder={t('estatisticas.rotuloExemplo')} error={message(fieldErrors?.label, t('estatisticas.rotuloErro'))} {...register(`extraStatFields.${i}.label`)} />
+                <Select label={t('estatisticas.quando')} options={whenOptions} hint={t('estatisticas.quandoDica')} {...register(`extraStatFields.${i}.when`)} />
               </Row>
             );
           })}
@@ -352,10 +361,10 @@ export function GameForm({ mode, defaultValues, onSubmit, cancelHref }: GameForm
 
       <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end">
         <Button variant="secondary" asChild>
-          <Link href={cancelHref}>{mode === 'create' ? 'Cancelar' : 'Voltar ao catálogo'}</Link>
+          <Link href={cancelHref}>{mode === 'create' ? t('cancelar') : t('voltarCatalogo')}</Link>
         </Button>
         <Button type="submit" loading={isSubmitting}>
-          {mode === 'create' ? 'Cadastrar jogo' : 'Salvar jogo'}
+          {mode === 'create' ? t('cadastrar') : t('salvar')}
         </Button>
       </div>
     </form>

@@ -8,16 +8,19 @@ import { useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useAdminOrganizerRequests, useAdminOrganizers, useGrantRole, useRevokeRole } from '@/shared/api/hooks/admin';
 import { useGames } from '@/shared/api/hooks/games';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { ReasonModal } from '../common/ReasonModal';
 import { useDebouncedValue } from '../common/useDebouncedValue';
 import { UserIdentity, UserStatusPill } from '../common/UserBits';
 import { UserPicker } from '../common/UserPicker';
 import { InvitesSection } from './InvitesSection';
+import { adminRolesMessages } from './messages';
 import { OrganizerLimitsModal } from './OrganizerLimitsModal';
 import { OrganizerRequestsQueue } from './OrganizerRequestsQueue';
 
 function PromoteModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT(adminRolesMessages, 'PromoteModal');
   const toast = useToast();
   const grant = useGrantRole();
   const [picked, setPicked] = useState<AdminUser | null>(null);
@@ -35,13 +38,13 @@ function PromoteModal({ open, onClose }: { open: boolean; onClose: () => void })
       onOpenChange={(next) => {
         if (!next && !grant.isPending) close();
       }}
-      title="Promover participante a organizador"
-      description="A conta ganha a área de organização, com limite de 3 campeonatos simultâneos e todos os jogos. Você ajusta os limites depois."
+      title={t('titulo')}
+      description={t('descricao')}
       size="sm"
       footer={
         <>
           <Button variant="secondary" onClick={close} disabled={grant.isPending}>
-            Voltar
+            {t('voltar')}
           </Button>
           <Button
             disabled={!picked}
@@ -52,28 +55,29 @@ function PromoteModal({ open, onClose }: { open: boolean; onClose: () => void })
                 { userId: picked.id, role: 'ORGANIZER', reason: reason.trim() },
                 {
                   onSuccess: () => {
-                    toast.success(`${picked.nickname} agora é organizador`, 'A pessoa foi avisada.');
+                    toast.success(t('promovido', { nome: picked.nickname }), t('promovidoDescricao'));
                     close();
                   },
-                  onError: (error) => toast.error('Não foi possível promover', errorMessage(error)),
+                  onError: (error) => toast.error(t('erroPromover'), errorMessage(error)),
                 },
               );
             }}
           >
-            Promover a organizador
+            {t('confirmar')}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <UserPicker label="Participante" value={picked} onChange={setPicked} excludeRoles={['ORGANIZER']} />
-        <Textarea label="Motivo (opcional)" rows={2} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} hint="Fica registrado na auditoria." />
+        <UserPicker label={t('participante')} value={picked} onChange={setPicked} excludeRoles={['ORGANIZER']} />
+        <Textarea label={t('motivo')} rows={2} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} hint={t('motivoDica')} />
       </div>
     </Modal>
   );
 }
 
 function OrganizersList() {
+  const t = useT(adminRolesMessages, 'OrganizersList');
   const toast = useToast();
   const games = useGames({ includeInactive: true });
   const [search, setSearch] = useState('');
@@ -85,44 +89,44 @@ function OrganizersList() {
   const [revoking, setRevoking] = useState<AdminOrganizer | null>(null);
   const [promoting, setPromoting] = useState(false);
 
-  const gameNames = (ids: string[]) => (ids.length === 0 ? 'Todos os jogos' : ids.map((id) => games.data?.find((g) => g.id === id)?.name ?? 'Jogo').join(', '));
+  const gameNames = (ids: string[]) => (ids.length === 0 ? t('todosOsJogos') : ids.map((id) => games.data?.find((g) => g.id === id)?.name ?? t('jogo')).join(', '));
 
   const columns: Column<AdminOrganizer>[] = [
     {
       id: 'organizer',
-      header: 'Organizador',
+      header: t('colunaOrganizador'),
       primary: true,
       cell: (o) => (
         <Link href={`/admin/usuarios/${o.id}`} className="inline-flex min-h-11 items-center rounded-sm hover:underline md:min-h-0">
-          <span className="sr-only">Abrir o perfil de </span>
+          <span className="sr-only">{t('abrirPerfilSr')}</span>
           <UserIdentity user={o} />
         </Link>
       ),
     },
     {
       id: 'verified',
-      header: 'Selo',
+      header: t('colunaSelo'),
       cell: (o) =>
         o.verifiedOrganizer ? (
           <Badge tone="primary" icon={<BadgeCheck className="size-3.5" aria-hidden />}>
-            Verificado
+            {t('verificado')}
           </Badge>
         ) : (
-          <span className="text-sm text-muted">Sem selo</span>
+          <span className="text-sm text-muted">{t('semSelo')}</span>
         ),
     },
     {
       id: 'active',
-      header: 'Campeonatos ativos',
+      header: t('colunaAtivos'),
       cell: (o) => (
         <span className="tabular">
-          {o.activeTournaments} de {o.organizerLimits.maxActiveTournaments}
-          <span className="sr-only"> permitidos</span>
+          {t('ativos', { ativos: String(o.activeTournaments), max: String(o.organizerLimits.maxActiveTournaments) })}
+          <span className="sr-only">{t('permitidosSr')}</span>
         </span>
       ),
     },
-    { id: 'games', header: 'Jogos permitidos', cell: (o) => <span title={gameNames(o.organizerLimits.allowedGameIds)}>{gameNames(o.organizerLimits.allowedGameIds)}</span> },
-    { id: 'status', header: 'Conta', hideOnMobile: true, cell: (o) => <UserStatusPill status={o.status} /> },
+    { id: 'games', header: t('colunaJogos'), cell: (o) => <span title={gameNames(o.organizerLimits.allowedGameIds)}>{gameNames(o.organizerLimits.allowedGameIds)}</span> },
+    { id: 'status', header: t('colunaConta'), hideOnMobile: true, cell: (o) => <UserStatusPill status={o.status} /> },
   ];
 
   function confirmRevoke(reason: string) {
@@ -131,17 +135,15 @@ function OrganizersList() {
       { userId: revoking.id, role: 'ORGANIZER', reason },
       {
         onSuccess: (result) => {
-          const transferred = result.affectedTournaments.filter((t) => t.outcome === 'TRANSFERRED').length;
-          const paused = result.affectedTournaments.filter((t) => t.outcome === 'PAUSED').length;
+          const transferred = result.affectedTournaments.filter((a) => a.outcome === 'TRANSFERRED').length;
+          const paused = result.affectedTournaments.filter((a) => a.outcome === 'PAUSED').length;
           toast.success(
-            `${revoking.nickname} não é mais organizador`,
-            result.affectedTournaments.length === 0
-              ? 'Não havia campeonato em curso.'
-              : `${transferred} campeonato(s) passaram para o co-organizador mais antigo; ${paused} foram pausados e estão na fila "Sem responsável".`,
+            t('revogado', { nome: revoking.nickname }),
+            result.affectedTournaments.length === 0 ? t('semCampeonato') : t('afetados', { transferidos: String(transferred), pausados: String(paused) }),
           );
           setRevoking(null);
         },
-        onError: (error) => toast.error('Não foi possível revogar', errorMessage(error)),
+        onError: (error) => toast.error(t('erroRevogar'), errorMessage(error)),
       },
     );
   }
@@ -152,9 +154,9 @@ function OrganizersList() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <Input
-          label="Buscar organizador"
+          label={t('buscar')}
           type="search"
-          placeholder="Apelido ou e-mail"
+          placeholder={t('buscarPlaceholder')}
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
@@ -164,11 +166,11 @@ function OrganizersList() {
           className="w-full max-w-md"
         />
         <Button onClick={() => setPromoting(true)} iconLeft={<UserPlus className="size-4" aria-hidden />}>
-          Promover participante
+          {t('promover')}
         </Button>
       </div>
       <DataTable
-        caption="Organizadores"
+        caption={t('tabela')}
         columns={columns}
         rows={organizers.data?.items ?? []}
         getRowId={(o) => o.id}
@@ -180,10 +182,10 @@ function OrganizersList() {
         rowActions={(o) => (
           <div className="flex flex-wrap justify-end gap-2">
             <Button size="sm" variant="secondary" onClick={() => setEditing(o)} iconLeft={<SlidersHorizontal className="size-4" aria-hidden />}>
-              Limites<span className="sr-only"> de {o.nickname}</span>
+              {t('limites')}<span className="sr-only">{t('limitesSr', { nome: o.nickname })}</span>
             </Button>
             <Button size="sm" variant="secondary" onClick={() => setRevoking(o)} iconLeft={<UserMinus className="size-4" aria-hidden />}>
-              Revogar<span className="sr-only"> {o.nickname}</span>
+              {t('revogar')}<span className="sr-only">{t('revogarSr', { nome: o.nickname })}</span>
             </Button>
           </div>
         )}
@@ -191,16 +193,16 @@ function OrganizersList() {
           q ? (
             <EmptyState
               icon={<SearchX className="size-7" />}
-              title="Nenhum organizador encontrado"
-              description={`Nada combina com "${q}".`}
+              title={t('nenhumEncontrado')}
+              description={t('nadaCombina', { termo: q })}
               action={
                 <Button variant="secondary" onClick={() => setSearch('')}>
-                  Limpar busca
+                  {t('limparBusca')}
                 </Button>
               }
             />
           ) : (
-            <EmptyState icon={<Target className="size-7" />} title="Nenhum organizador ainda" description="Promova um participante ou aprove um pedido para a primeira pessoa começar a criar campeonatos." />
+            <EmptyState icon={<Target className="size-7" />} title={t('nenhumAinda')} description={t('nenhumAindaDescricao')} />
           )
         }
       />
@@ -214,14 +216,14 @@ function OrganizersList() {
         onOpenChange={(open) => {
           if (!open) setRevoking(null);
         }}
-        title={revoking ? `Revogar ${revoking.nickname}` : 'Revogar organizador'}
+        title={revoking ? t('revogarTituloNome', { nome: revoking.nickname }) : t('revogarTitulo')}
         description={
           revoking && revoking.activeTournaments > 0
-            ? `${revoking.nickname} tem ${revoking.activeTournaments} campeonato(s) em curso. Em cada um, o co-organizador mais antigo assume; sem co-organizador, o campeonato é pausado e vai para a fila "Sem responsável". Rascunhos e campeonatos finalizados ficam como estão.`
-            : 'A conta perde a área de organização e volta a ser só participante.'
+            ? t('revogarDescricaoAtivos', { nome: revoking.nickname, ativos: String(revoking.activeTournaments) })
+            : t('revogarDescricao')
         }
         minLength={0}
-        confirmLabel="Revogar organizador"
+        confirmLabel={t('revogarConfirmar')}
         variant="danger"
         loading={revoke.isPending}
         onConfirm={confirmRevoke}
@@ -232,25 +234,26 @@ function OrganizersList() {
 
 /** Organizadores (ADM-03): lista com selo, limites e campeonatos ativos; promover, revogar e a fila de pedidos. */
 export function OrganizersPage({ initialTab }: { initialTab?: string }) {
+  const t = useT(adminRolesMessages, 'OrganizersPage');
   const pending = useAdminOrganizerRequests('PENDING');
   const count = pending.data?.length ?? 0;
   return (
     <PageContainer>
-      <PageHeader title="Organizadores" description="Quem pode criar campeonatos, com que limites, e quem está pedindo para entrar." />
+      <PageHeader title={t('titulo')} description={t('descricao')} />
       <Tabs
-        label="Organizadores e pedidos"
+        label={t('abas')}
         defaultValue={initialTab === 'pedidos' ? 'pedidos' : 'organizadores'}
         items={[
-          { value: 'organizadores', label: 'Organizadores', content: <OrganizersList /> },
+          { value: 'organizadores', label: t('abaOrganizadores'), content: <OrganizersList /> },
           {
             value: 'pedidos',
             label: (
               <span className="inline-flex items-center gap-2">
-                Pedidos
+                {t('abaPedidos')}
                 {count > 0 && (
                   <Badge tone="warning">
                     {count}
-                    <span className="sr-only"> na fila</span>
+                    <span className="sr-only">{t('naFilaSr')}</span>
                   </Badge>
                 )}
               </span>

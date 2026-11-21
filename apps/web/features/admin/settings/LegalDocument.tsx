@@ -4,12 +4,15 @@ import { ErrorState, Skeleton } from '@nova/ui';
 import { useMemo } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { usePublicSiteSettings } from '@/shared/api/hooks/admin-settings';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer } from '@/shared/layout/AreaShell';
 import { sanitizeRichText } from '@/shared/lib/sanitize';
+import { adminSettingsMessages } from './messages';
 
+/** Campo das configurações de onde vem cada texto (o título fica no catálogo, `LegalDocument.docs`). */
 const DOCS = {
-  terms: { title: 'Termos de Uso', field: 'termsHtml' },
-  privacy: { title: 'Política de Privacidade', field: 'privacyHtml' },
+  terms: { field: 'termsHtml' },
+  privacy: { field: 'privacyHtml' },
 } as const;
 
 /** Remove o primeiro título do texto quando ele repete o título da página (a página já tem o seu `<h1>`). */
@@ -23,8 +26,10 @@ function withoutLeadingTitle(html: string, title: string): string {
  * sanitizado antes de ir para a tela (`sanitizeRichText`): só títulos, parágrafos, listas, ênfase e links.
  */
 export function LegalDocument({ doc }: { doc: keyof typeof DOCS }) {
+  const t = useT(adminSettingsMessages, 'LegalDocument');
   const settings = usePublicSiteSettings();
-  const { title, field } = DOCS[doc];
+  const { field } = DOCS[doc];
+  const title = t(`docs.${doc}`);
   const raw = settings.data?.[field];
   const html = useMemo(() => (raw === undefined ? '' : sanitizeRichText(withoutLeadingTitle(raw, title))), [raw, title]);
 
@@ -32,7 +37,7 @@ export function LegalDocument({ doc }: { doc: keyof typeof DOCS }) {
     <PageContainer narrow>
       <h1 className="text-xl md:text-2xl">{title}</h1>
       {settings.isPending ? (
-        <div className="flex flex-col gap-3" role="status" aria-label={`Carregando ${title}`}>
+        <div className="flex flex-col gap-3" role="status" aria-label={t('carregando', { titulo: title })}>
           <Skeleton className="h-5 w-full" />
           <Skeleton className="h-5 w-11/12" />
           <Skeleton className="h-5 w-4/5" />
@@ -41,7 +46,7 @@ export function LegalDocument({ doc }: { doc: keyof typeof DOCS }) {
       ) : settings.isError ? (
         <ErrorState description={errorMessage(settings.error)} onRetry={() => void settings.refetch()} />
       ) : html.trim() === '' ? (
-        <p className="rounded-lg border border-dashed border-border-strong px-6 py-10 text-center text-sm text-muted">Este texto ainda não foi publicado.</p>
+        <p className="rounded-lg border border-dashed border-border-strong px-6 py-10 text-center text-sm text-muted">{t('naoPublicado')}</p>
       ) : (
         <>
           <div
@@ -51,7 +56,7 @@ export function LegalDocument({ doc }: { doc: keyof typeof DOCS }) {
             dangerouslySetInnerHTML={{ __html: html }}
           />
           <p className="border-t border-border pt-4 text-sm text-muted">
-            Dúvidas? Fale com o suporte:{' '}
+            {t('duvidas')}{' '}
             <a href={`mailto:${settings.data.supportEmail}`} className="font-semibold text-primary-text hover:underline">
               {settings.data.supportEmail}
             </a>
