@@ -101,7 +101,7 @@ para não travar o cadastro.
   500 `CONFIG_INVALID` sem expor valores.
 - Erros no formato `application/problem+json` sem stack trace nem mensagem interna (`errors.ts`, `app.ts`
   `onError`); o detalhe fica só no log, com `requestId`.
-- Headers de segurança e CSP (abaixo). **Ação:** desligar o `X-Powered-By` no Next (`poweredByHeader: false` no `next.config.ts`).
+- Headers de segurança e CSP (abaixo); `X-Powered-By` desligado (`poweredByHeader: false` no `next.config.ts`).
 - Rotas de Cron exigem `Authorization: Bearer $CRON_SECRET`; jobs exigem assinatura do QStash (`jobs/index.ts`).
 - API simulada (MSW) desligada em produção (`NEXT_PUBLIC_API_MOCK=none`).
 
@@ -110,12 +110,20 @@ previews; membros com o papel mínimo; tokens da Vercel com escopo e validade.
 
 ### A06 — Componentes vulneráveis e desatualizados
 
-**O que protege:** lockfile congelado no CI (`--frozen-lockfile`); `pnpm audit --audit-level=high --prod` no CI
-quebra o build com vulnerabilidade alta ou crítica em dependência de produção; política de cadeia de suprimentos
-do pnpm (o lockfile passa pela verificação de *supply chain* do pnpm 11).
+**O que protege:** lockfile congelado no CI (`--frozen-lockfile`); `pnpm audit --audit-level=high` no CI (job
+"Segurança") quebra o build com vulnerabilidade alta ou crítica em qualquer dependência; política de cadeia de
+suprimentos do pnpm (o lockfile passa pela verificação de *supply chain* do pnpm 11).
 
-**Ação:** o resultado do `pnpm audit` mais recente fica no relatório do PR da #113; vulnerabilidade sem correção
-disponível é registrada aqui com a justificativa (não usada em produção, sem caminho de exploração etc.).
+**Resultado da varredura na #113 (21/11/2026):**
+
+| Pacote (indireto) | Gravidade | Caminho | Tratamento |
+|---|---|---|---|
+| `zod` < 4.6.6 | alta | `@vercel/blob` → `@vercel/oidc` → `@vercel/cli-config` | `overrides` no `pnpm-workspace.yaml` (`^4.6.6`) |
+| `effect` ≤ 3.22.0 | alta | `prisma` → `@prisma/config` (CLI) | `overrides` (`^3.22.1`) |
+| `minimatch` 7–11, `glob` 9–14 | moderada | ESLint e ferramentas de build | aceitas: só desenvolvimento, a correção é versão maior; rever quando o ESLint atualizar |
+
+Depois dos `overrides`: **nenhuma vulnerabilidade alta ou crítica** (`pnpm audit --audit-level=high` limpo). Tire
+cada `override` quando o pacote de cima atualizar.
 
 ### A07 — Falhas de identificação e autenticação
 
@@ -158,8 +166,17 @@ depois a API confere dono (prefixo do caminho), tipo e tamanho. Embeds de vídeo
 
 ## Headers de segurança
 
-Gerados no `apps/web/proxy.ts` para toda página (a CSP leva um **nonce novo por requisição**, repassado ao Next
-pelo cabeçalho da requisição para os scripts dele). O `smoke` pós-deploy confere todos (`ops/smoke/smoke.mjs`).
+- **CSP:** gerada no `apps/web/proxy.ts` para toda página, com um **nonce novo por requisição** (repassado ao Next
+  pelo cabeçalho da requisição, que o põe nos próprios scripts; o layout raiz o põe no script do tema). Montagem em
+  `apps/web/shared/security/headers.ts` (testada em `headers.test.ts`).
+- **Demais headers:** em toda resposta (páginas, API e arquivos) pelo `headers()` do `next.config.ts`.
+- O `smoke` pós-deploy confere todos (`ops/smoke/smoke.mjs`).
+
+**Preço do nonce:** o HTML de cada página é gerado na hora (o layout lê o `x-nonce`), então não há página inteira em
+cache na CDN nem ISR de página. Os dados públicos continuam em cache: `unstable_cache` no servidor do Next e
+`Cache-Control: s-maxage` + `stale-while-revalidate` nas respostas da API (#111). Se o custo de função pesar no beta,
+a alternativa é CSP sem nonce (com `'unsafe-inline'` em `script-src`) só nas páginas públicas — decisão a registrar
+em ADR.
 
 | Header | Valor | Por quê |
 |---|---|---|
@@ -167,7 +184,7 @@ pelo cabeçalho da requisição para os scripts dele). O `smoke` pós-deploy con
 | `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` (só em HTTPS) | nunca mais HTTP no domínio |
 | `X-Content-Type-Options` | `nosniff` | o navegador não "adivinha" tipo de arquivo |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | links externos não recebem o caminho (que pode ter IDs) |
-| `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), payment=(), usb=()` | o site não usa; um script injetado também não |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), hid=(), magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=()` | o site não usa; um script injetado também não |
 | `X-Frame-Options` | `DENY` | navegadores antigos (o `frame-ancestors` cobre os novos) |
 | `Cross-Origin-Opener-Policy` | `same-origin` | outra aba aberta pelo site não controla esta |
 
@@ -175,15 +192,20 @@ pelo cabeçalho da requisição para os scripts dele). O `smoke` pós-deploy con
 
 ```
 default-src 'self';
-script-src 'self' 'nonce-<aleatório>' 'strict-dynamic';          (+ 'unsafe-eval' só em desenvolvimento)
+script-src 'self' 'nonce-<aleatório>' 'strict-dynamic' 'wasm-unsafe-eval';  (+ 'unsafe-eval' só em desenvolvimento)
 style-src 'self' 'unsafe-inline';
-img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://i.ytimg.com https://static-cdn.jtvnw.net
-        https://lh3.googleusercontent.com https://cdn.discordapp.com;
-font-src 'self';
+img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://lh3.googleusercontent.com
+        https://cdn.discordapp.com https://i.ytimg.com https://static-cdn.jtvnw.net;
+font-src 'self' data:;
 connect-src 'self' https://*.ably.io wss://*.ably.io https://*.ably.net wss://*.ably.net
             https://*.ably-realtime.com wss://*.ably-realtime.com
+            https://vercel.com https://*.blob.vercel-storage.com
             https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://vitals.vercel-insights.com;
+                                                                    (+ ws: e http://localhost:* só em desenvolvimento)
+media-src 'self' blob: data:;
 frame-src https://www.youtube-nocookie.com https://www.youtube.com https://player.twitch.tv;
+worker-src 'self' blob:;
+manifest-src 'self';
 frame-ancestors 'none';
 form-action 'self';
 base-uri 'self';
@@ -199,17 +221,21 @@ De onde vem cada domínio (conferido no código):
 | `img-src` | `lh3.googleusercontent.com`, `cdn.discordapp.com` | foto do perfil trazida do login com Google/Discord (`auth/oauth.ts` grava a URL do provedor em `avatarUrl`) |
 | `img-src` | `i.ytimg.com`, `static-cdn.jtvnw.net` | miniaturas de YouTube e Twitch (hoje o código só usa o player em iframe; mantidas para a prévia do vídeo — pode sair se nenhuma tela usar) |
 | `connect-src` | `*.ably.net`, `*.ably-realtime.com`, `*.ably.io` | `ably` 2.x: `main.realtime.ably.net` e *fallbacks* `main.[a-e].fallback.ably-realtime.com`; `*.ably.io` para versões e rotas antigas (`rest.ably.io`) |
-| `connect-src` | `*.ingest.sentry.io`, `*.ingest.us.sentry.io` | envio de erros do Sentry no navegador (ou use o *tunnel* do Sentry pelo próprio domínio e tire estes) |
+| `connect-src` | `vercel.com`, `*.blob.vercel-storage.com` | envio direto do navegador para o Vercel Blob (`@vercel/blob/client` usa `https://vercel.com/api/blob`) |
+| `connect-src` | `*.ingest.sentry.io`, `*.ingest.us.sentry.io` | erros do Sentry no navegador. Com DSN, o build liga o túnel `/monitoring` (mesmo domínio) e estes ficam só de reserva |
+| `script-src` | `'wasm-unsafe-eval'` | o desafio do Vercel BotID pode usar WebAssembly (não libera `eval` de JavaScript) |
 | `connect-src` | `vitals.vercel-insights.com` | Speed Insights (a Vercel também serve por `/_vercel/speed-insights` no próprio domínio) |
 | `frame-src` | `youtube-nocookie.com`, `youtube.com`, `player.twitch.tv` | transmissão embutida na página do campeonato (`shared/lib/sanitize.ts` gera `youtube-nocookie.com/embed/…` e `player.twitch.tv/?channel=…`) |
 
 Observações:
-- O script inline do tema (`apps/web/app/layout.tsx`, `themeInitScript`) precisa receber o **nonce** da requisição;
-  sem ele a CSP o bloqueia. O JSON-LD (`type="application/ld+json"`) não é executado e não precisa.
+- O script inline do tema (`apps/web/app/layout.tsx`, `themeInitScript`) recebe o **nonce** da requisição. O JSON-LD
+  (`type="application/ld+json"`) não é executado e não precisa.
+- Conferido no build de produção (`next start`): as páginas públicas, o login, o cadastro e Minha conta hidratam com a
+  CSP ativa, sem violação no console (só o `/_vercel/speed-insights/script.js`, que não existe fora da Vercel).
 - O MSW (protótipo, `NEXT_PUBLIC_API_MOCK≠none`) registra um *service worker* do próprio domínio: coberto por `'self'`.
 - `style-src 'unsafe-inline'` fica porque o Next, o Radix e o editor rico injetam estilos; o risco de CSS injetado é
   baixo com scripts travados pelo nonce.
-- Mudou um domínio externo? Atualize o `proxy.ts`, esta tabela e rode o smoke.
+- Mudou um domínio externo? Atualize `CSP_SOURCES` em `apps/web/shared/security/headers.ts`, esta tabela e rode o smoke.
 
 ## Vercel Firewall
 
@@ -254,9 +280,15 @@ configurar o alerta de "regra disparando muito" no painel.
 
 | Varredura | Onde | Quebra o build quando |
 |---|---|---|
-| Dependências: `pnpm audit --audit-level=high --prod` | `.github/workflows/ci.yml` | vulnerabilidade **alta ou crítica** em dependência de produção |
-| Segredos: gitleaks (configuração em `.gitleaks.toml`) | `.github/workflows/ci.yml` | qualquer segredo no diff/histórico do PR |
+| Dependências: `pnpm audit --audit-level=high` | job "Segurança" do `.github/workflows/ci.yml` | vulnerabilidade **alta ou crítica** em qualquer dependência |
+| Segredos: gitleaks 8.28 (regras padrão + `.gitleaks.toml`) | job "Segurança" do `.github/workflows/ci.yml` | qualquer segredo nos arquivos do commit |
 | GitHub Secret Scanning + Push Protection | configuração do repositório (dono) | bloqueia o push com segredo conhecido |
+
+O gitleaks do CI varre os arquivos do commit (`gitleaks dir`). O **histórico** precisa de uma varredura única, à mão,
+antes do beta, num clone completo:
+`docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.28.0 git /repo --config /repo/.gitleaks.toml --redact`.
+Na #113 a varredura dos arquivos atuais deu **zero achados** (as senhas e tokens de mentira dos testes estão na
+exceção do `.gitleaks.toml`).
 
 Falso positivo do gitleaks: acrescente a regra de exceção no `.gitleaks.toml` com o motivo, nunca desligue a
 varredura. Segredo real encontrado: [runbook → Vazamento de segredo](runbook.md#vazamento-de-segredo) (rotacionar
@@ -264,14 +296,27 @@ primeiro).
 
 ## Teste de acesso a dados de outro usuário (IDOR)
 
-`packages/api/test/idor.integration.test.ts` (Postgres real): duas contas comuns (a "dona" e a "outra") e um
-organizador de outro campeonato tentam ler, alterar e apagar os recursos uma da outra pelos IDs. Recursos cobertos:
-inscrição, squad (e convites), notificações, disputas e mensagens, envios de resultado, 2FA, denúncias, perfil
-privado (e-mail, IDs de jogo, data de nascimento nunca no perfil público), sessões de aparelho, arquivos privados,
-exportação e exclusão de conta. A resposta esperada é 403 ou 404 (404 quando a existência do recurso não deve
-vazar) e **nenhuma alteração no banco**.
+`packages/api/test/idor.integration.test.ts` (Postgres real, 40 casos): a "intrusa" (conta comum sem relação), a
+"rival" (adversária, para o que ela pode ver de direito) e um segundo organizador tentam ler, alterar e apagar os
+recursos da "dona" e do campeonato do "org" pelos IDs. Cobertos: inscrição (cancelar, confirmar, recusar, desistir,
+analisar), squad (renomear, apagar, convidar, capitania, membros) e convites, notificações, envios de resultado
+(ver, confirmar, contestar, revisar), disputas (ver, escrever, resolver, escalar), sala da partida, lançamento de
+resultado, arquivos privados (prova e anexo de denúncia, inclusive pela pessoa denunciada), aparelhos, 2FA (reset só
+pelo Admin), IDs de jogo (perfil privado), exportação LGPD e a área do organizador (painel, edição, CSV de inscritos,
+auditoria, cancelamento). Cada tentativa precisa responder 401/403/404/409 (nunca 2xx nem 500); um caso confere que
+**nada mudou no banco**, outro que as listas pessoais e o perfil público não vazam nada, e um controle positivo
+garante que quem tem direito continua vendo.
 
 Recurso novo com dono? Acrescente ao teste no mesmo PR.
+
+## Antifraude (issue #114)
+
+Sinais automáticos, sem bloquear ninguém (um alerta não é prova): várias contas entrando do mesmo IP (5 em 24 h —
+limite alto por causa do CGNAT das operadoras) ou do mesmo aparelho (cookie `na_dev`, aleatório e sem dado pessoal,
+3 em 30 dias), o mesmo ID de jogo em contas diferentes e **ações administrativas em massa** (10 banimentos, 15
+sanções, 10 mudanças de papel ou 5 cancelamentos em 1 min pelo mesmo Admin — risco R4 do PRD), que também avisam o
+Super Admin. A fila fica em Moderação → Alertas; o alerta sobre um Admin só aparece para o Super Admin e quem o
+disparou não pode fechá-lo. Código: `packages/api/src/fraud.ts`; limites em `FRAUD_THRESHOLDS` (`@nova/schemas`).
 
 ## Checklist do PR de segurança
 
