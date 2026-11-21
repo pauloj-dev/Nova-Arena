@@ -29,6 +29,17 @@ A API simulada (`apps/web/mocks/handlers/*.ts`) é a especificação executável
 
 Efeitos depois do commit (notificação, tempo real) passam por `AfterCommit` (`modules/admin/shared.ts`), que usa `notify()` e `publish()` de `src/notify.ts`.
 
+## Pós-lançamento B (issues 121 e 125)
+
+| Arquivo | O que faz |
+|---|---|
+| `src/discord/index.ts` | Configuração do bot (`discordConfigured`), assinatura Ed25519 das interações, comandos (fonte única do `ops/discord/register-commands.mts`), `announceDiscord` e `scheduleDiscordReminder` (fila do QStash; nunca lançam). |
+| `src/modules/discord/*` | `POST /discord/interactions` (webhook do Discord, fora da checagem de `Origin`), aba Discord da organização e os jobs `/jobs/discord/announce` e `/jobs/discord/reminder`. `announce.ts` tem os avisos chamados pela competição, junto de `notify`/`publish`. |
+| `src/modules/chat` | Chat por partida (`/matches/:id/chat`), com limite de envio, ocultar e denúncia (`CHAT_MESSAGE`). |
+| `src/modules/calendar` | Calendário .ics pessoal (URL assinada) e do campeonato. |
+
+Detalhes em `docs/notificacoes.md` e `docs/jobs.md`.
+
 ## Novo módulo
 
 1. `src/modules/<nome>/index.ts` exporta `new Hono<AppEnv>()` com as rotas.
