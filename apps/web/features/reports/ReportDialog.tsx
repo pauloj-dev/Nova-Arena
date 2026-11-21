@@ -11,6 +11,8 @@ import type { z } from 'zod';
 import { EvidenceUpload } from '@/features/evidence/EvidenceUpload';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useCreateReport } from '@/shared/api/hooks/reports';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 import type { ReportButtonProps } from './ReportButton';
 
 export const MAX_REPORT_ATTACHMENTS = 3;
@@ -21,14 +23,6 @@ type FormValues = z.input<typeof FormSchema>;
 
 const REASON_OPTIONS = ReportReason.options.map((value) => ({ value, label: REPORT_REASON_LABELS[value] }));
 
-const WHAT: Record<ReportButtonProps['targetType'], string> = {
-  USER: 'o jogador',
-  TEAM: 'o squad',
-  MATCH: 'a partida',
-  RESULT: 'o resultado',
-  CHAT_MESSAGE: 'a mensagem',
-};
-
 interface ReportDialogProps extends Pick<ReportButtonProps, 'targetType' | 'targetId' | 'targetLabel'> {
   onClose: () => void;
 }
@@ -37,11 +31,14 @@ interface ReportDialogProps extends Pick<ReportButtonProps, 'targetType' | 'targ
 export function ReportDialog({ targetType, targetId, targetLabel, onClose }: ReportDialogProps) {
   const { success, error } = useToast();
   const create = useCreateReport();
+  const t = useT(messages, 'ReportDialog');
   const [evidenceUrls, setEvidenceUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [sent, setSent] = useState(false);
   const form = useForm<FormValues>({ resolver: zodResolver(FormSchema), defaultValues: { reason: '' as FormValues['reason'], description: '' } });
   const { errors } = form.formState;
+  const reasonField = form.register('reason');
+  const descriptionField = form.register('description');
 
   const submit = form.handleSubmit((values) => {
     create.mutate(
@@ -49,7 +46,7 @@ export function ReportDialog({ targetType, targetId, targetLabel, onClose }: Rep
       {
         onSuccess: () => {
           setSent(true);
-          success('Denúncia enviada', 'A moderação vai analisar. Acompanhe em Minha conta › Denúncias.');
+          success(t('toastEnviadaTitulo'), t('toastEnviadaDescricao'));
         },
         onError: (e) => {
           if (e instanceof ApiError) {
@@ -57,7 +54,7 @@ export function ReportDialog({ targetType, targetId, targetLabel, onClose }: Rep
               if (field === 'reason' || field === 'description') form.setError(field, { message });
             }
           }
-          error('Não foi possível enviar a denúncia', errorMessage(e));
+          error(t('toastErro'), errorMessage(e));
         },
       },
     );
@@ -68,30 +65,30 @@ export function ReportDialog({ targetType, targetId, targetLabel, onClose }: Rep
       <Modal
         open
         onOpenChange={(o) => !o && onClose()}
-        title="Denúncia enviada"
+        title={t('enviadaTitulo')}
         footer={
           <>
             <Button asChild variant="secondary">
               <Link href="/minha-conta/denuncias" onClick={onClose}>
-                Ver minhas denúncias
+                {t('verMinhas')}
               </Link>
             </Button>
-            <Button onClick={onClose}>Entendi</Button>
+            <Button onClick={onClose}>{t('entendi')}</Button>
           </>
         }
       >
         <div className="flex flex-col gap-3 text-sm text-text">
           <p className="flex items-center gap-2 font-semibold">
             <CheckCircle2 className="size-5 shrink-0 text-primary-text" aria-hidden />
-            Recebemos sua denúncia sobre {targetLabel}.
+            {t('recebemos', { alvo: targetLabel })}
           </p>
-          <p>O que acontece agora:</p>
+          <p>{t('oQueAcontece')}</p>
           <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-muted">
-            <li>A moderação da Nova Arena analisa o que você contou e os anexos.</li>
-            <li>Se for preciso, quem foi denunciado recebe uma advertência, suspensão ou banimento.</li>
-            <li>Você acompanha o andamento e a resposta em Minha conta › Denúncias.</li>
+            <li>{t('passo1')}</li>
+            <li>{t('passo2')}</li>
+            <li>{t('passo3')}</li>
           </ol>
-          <p className="text-muted">Quem foi denunciado não fica sabendo quem denunciou.</p>
+          <p className="text-muted">{t('anonimo')}</p>
         </div>
       </Modal>
     );
@@ -101,33 +98,33 @@ export function ReportDialog({ targetType, targetId, targetLabel, onClose }: Rep
     <Modal
       open
       onOpenChange={(o) => !o && onClose()}
-      title={`Denunciar ${targetLabel}`}
-      description={`Conte o que aconteceu com ${WHAT[targetType]}. Só a moderação vê a sua denúncia.`}
+      title={t('titulo', { alvo: targetLabel })}
+      description={t('descricao', { tipo: targetType })}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={create.isPending}>
-            Cancelar
+            {t('cancelar')}
           </Button>
           <Button type="submit" form="report-form" variant="danger" loading={create.isPending} disabled={uploading}>
-            Enviar denúncia
+            {t('enviar')}
           </Button>
         </>
       }
     >
       <form id="report-form" onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-4">
-        <Select label="Motivo" required placeholder="Escolha o motivo" options={REASON_OPTIONS} error={errors.reason ? 'Escolha um motivo' : undefined} {...form.register('reason')} />
+        <Select label={t('motivo')} required placeholder={t('motivoPlaceholder')} options={REASON_OPTIONS} error={errors.reason ? t('motivoErro') : undefined} {...reasonField} />
         <Textarea
-          label="O que aconteceu?"
+          label={t('oQueAconteceu')}
           required
           rows={5}
           maxLength={1000}
-          hint="Diga quando foi e em qual partida ou campeonato. Quanto mais detalhe, mais rápida a análise."
+          hint={t('oQueAconteceuDica')}
           error={errors.description?.message}
-          {...form.register('description')}
+          {...descriptionField}
         />
         <EvidenceUpload
-          label="Anexos (opcional)"
-          hint={`Até ${MAX_REPORT_ATTACHMENTS} imagens PNG, JPG ou WebP de até 5 MB: prints do chat, do placar ou do perfil.`}
+          label={t('anexos')}
+          hint={t('anexosDica', { max: MAX_REPORT_ATTACHMENTS })}
           purpose="report"
           max={MAX_REPORT_ATTACHMENTS}
           value={evidenceUrls}
