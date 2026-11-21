@@ -159,7 +159,7 @@ adminRoles.delete('/admin/invites/:id', async (c) => {
 });
 
 async function findInviteByToken(c: AppContext, token: string) {
-  const invite = token.length >= 20 && token.length <= 200 ? await c.get('deps').db().roleInvite.findUnique({ where: { tokenHash: sha256(token) } }) : null;
+  const invite = token.length >= 8 && token.length <= 200 ? await c.get('deps').db().roleInvite.findUnique({ where: { tokenHash: sha256(token) } }) : null;
   if (!invite) throw notFound('Convite');
   return invite;
 }

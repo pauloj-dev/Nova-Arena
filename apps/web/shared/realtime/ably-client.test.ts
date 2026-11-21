@@ -91,6 +91,19 @@ describe('AblyRealtimeClient', () => {
     expect(seen).toEqual(['connected', 'disconnected', 'connected', 'disconnected']);
   });
 
+  it('Ably fora desde o início (token recusado a cada tentativa): fica em "caiu" e o polling não recomeça (CT-10)', async () => {
+    const client = make();
+    const seen: string[] = [];
+    client.onStatusChange((s) => seen.push(s));
+    await flush();
+    fake.go('disconnected');
+    fake.go('connecting');
+    fake.go('disconnected');
+    fake.go('connecting');
+    expect(client.getStatus()).toBe('disconnected');
+    expect(seen).toEqual(['disconnected']);
+  });
+
   it('entrega só os eventos do contrato, só para quem assinou o canal; sair do canal para de entregar', async () => {
     const client = make();
     const got: RealtimeEvent[] = [];

@@ -4,6 +4,7 @@ import type { SystemHealth } from '@nova/schemas';
 import { Badge, Button, Card, ErrorState, Skeleton } from '@nova/ui';
 import { AlertTriangle, CheckCircle2, FlaskConical, RefreshCw, XCircle } from 'lucide-react';
 import { errorMessage } from '@/shared/api/client';
+import { isModuleMocked } from '@/shared/api/mode';
 import { HEALTH_REFRESH_MS, useSystemHealth } from '@/shared/api/hooks/admin-settings';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { formatDateTime } from '@/shared/lib/datetime';
@@ -45,12 +46,15 @@ export function HealthPage() {
           </Button>
         }
       />
-      <p role="note" className="flex items-start gap-2 rounded-lg border border-border-strong bg-warning-soft px-4 py-3 text-sm text-warning-soft-text" data-testid="health-simulated">
-        <FlaskConical className="mt-0.5 size-4 shrink-0" aria-hidden />
-        <span>
-          <strong>Valores simulados no protótipo.</strong> Latências, taxa de erro e estado dos serviços são gerados pela API simulada. Na versão final vêm do banco, do cache, das filas, do tempo real e do monitoramento de erros.
-        </span>
-      </p>
+      {/* Só quando a saúde vem da API simulada: com a API real, os valores são os de verdade. */}
+      {isModuleMocked('admin-settings') && (
+        <p role="note" className="flex items-start gap-2 rounded-lg border border-border-strong bg-warning-soft px-4 py-3 text-sm text-warning-soft-text" data-testid="health-simulated">
+          <FlaskConical className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>
+            <strong>Valores simulados no protótipo.</strong> Latências, taxa de erro e estado dos serviços são gerados pela API simulada. Na versão final vêm do banco, do cache, das filas, do tempo real e do monitoramento de erros.
+          </span>
+        </p>
+      )}
 
       {health.isPending ? (
         <div className="flex flex-col gap-4" role="status" aria-label="Carregando a saúde do sistema">

@@ -30,7 +30,7 @@ export function followersOf(targetType: DbFollow['targetType'], targetId: string
 const seedMarks = () => collection<{ key: string; at: string }>('notificationSeedMarks');
 const DEMO_MARK = 'demo-notifications-v1';
 
-interface DemoNotification {
+export interface DemoNotification {
   userId: string;
   type: NotificationType;
   title: string;
@@ -41,7 +41,8 @@ interface DemoNotification {
   read: boolean;
 }
 
-const DEMO: DemoNotification[] = [
+/** Também gravadas pela seed de demonstração da API real (`apps/web/scripts/seed-demo.ts`). */
+export const DEMO_NOTIFICATIONS: DemoNotification[] = [
   { userId: 'u_bianca', type: 'CHECKIN_OPEN', title: 'Check-in aberto', body: 'Sua partida das quartas da Liga Semanal Clash Royale 1v1 começa em breve. Faça o check-in para não levar W.O.', link: '/c/liga-semanal-clash-royale?aba=partidas', ago: 10 * MIN, read: false },
   { userId: 'u_bianca', type: 'ANNOUNCEMENT', title: 'Quartas de final hoje', body: 'Liga Semanal Clash Royale 1v1: as quartas começam às 20h. Façam check-in a partir das 19h30.', link: '/c/liga-semanal-clash-royale', ago: 3 * HOUR, read: false },
   { userId: 'u_bianca', type: 'TEAM_INVITE', title: 'Convite para o Squad Bravo', body: 'Você foi convidada para entrar no squad. O convite vale por 2 dias.', link: '/minha-conta/squads', ago: DAY, read: false },
@@ -60,7 +61,7 @@ function ensureDemoSeed(): void {
   const now = Date.now();
   const list = notifications();
   const known = new Set(db().users.map((u) => u.id));
-  DEMO.forEach((n, i) => {
+  DEMO_NOTIFICATIONS.forEach((n, i) => {
     if (!known.has(n.userId)) return;
     const createdAt = new Date(now - n.ago).toISOString();
     list.push({ id: `n_demo_${i + 1}`, userId: n.userId, type: n.type, title: n.title, body: n.body, link: n.link, readAt: n.read ? new Date(now - n.ago + 5 * MIN).toISOString() : null, inApp: true, emailQueued: false, createdAt });

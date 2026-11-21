@@ -6,7 +6,9 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
-    "./edge": "./src/auth/edge.ts"
+    "./edge": "./src/auth/edge.ts",
+    "./demo": "./src/demo/seed.ts",
+    "./demo-ids": "./src/demo/ids.ts"
   },
   "scripts": {
     "lint": "eslint .",

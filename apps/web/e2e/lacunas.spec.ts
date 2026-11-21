@@ -1,17 +1,18 @@
 import type { Page } from '@playwright/test';
-import { expect, loginAs, test, waitForApp } from './fixtures';
+import { expect, loginAs, test, waitForApp, isRealApi, mid } from './fixtures';
+import { query } from './real/db';
 
 /**
  * Fluxos que ficaram sem E2E em F2 (issue 155): próxima rodada do suíço, ordem manual da chave,
  * kills por jogador (MVP) e importação de resultados em vários lotes.
- * Cada teste ajusta o banco simulado (localStorage) para criar o cenário, como os demais E2E.
+ * Cada teste ajusta o banco (simulado no localStorage, ou o Postgres com a API real) para criar o cenário.
  */
 
 const DB_KEY = 'nova-mock-db';
-const COPA = 'tn_copa_ff';
-const COPA_S1 = 'tn_copa_ff_s1';
-const EF = 'tn_efootball';
-const EF_S1 = 'tn_efootball_s1';
+const COPA = mid('tn_copa_ff');
+const COPA_S1 = mid('tn_copa_ff_s1');
+const EF = mid('tn_efootball');
+const EF_S1 = mid('tn_efootball_s1');
 
 interface ApiMatch {
   id: string;
@@ -57,6 +58,15 @@ const manage = (page: Page, id: string, tab: string) => page.goto(`/organizador/
 
 /** Muda uma fase direto no banco simulado. Vale a partir da próxima carga de página. */
 async function patchStage(page: Page, stageId: string, patch: { format?: string; config?: Record<string, unknown>; qualification?: unknown }): Promise<void> {
+  if (isRealApi) {
+    // API real: o mesmo ajuste, direto no Postgres do servidor de teste.
+    await query(
+      `UPDATE stages SET format = COALESCE($2::"StageFormat", format), config = config || $3::jsonb, qualification = CASE WHEN $4::boolean THEN $5::jsonb ELSE qualification END, "updatedAt" = now() WHERE id = $1`,
+      [stageId, patch.format ?? null, JSON.stringify(patch.config ?? {}), patch.qualification !== undefined, JSON.stringify(patch.qualification ?? null)],
+    );
+    await page.reload();
+    return;
+  }
   await page.waitForFunction((key) => localStorage.getItem(key) !== null, DB_KEY);
   await page.evaluate(
     ({ key, id, change }) => {
@@ -209,7 +219,8 @@ test.describe('importação de resultados em vários lotes', () => {
     await dialog.getByRole('button', { name: 'Importar 52 quedas' }).click();
 
     const report = dialog.getByTestId('results-report');
-    await expect(report).toContainText('Quedas aplicadas');
+    // Com a API real, cada queda do lote passa pelo motor e grava a tabela: o lote de 50 leva alguns segundos.
+    await expect(report).toContainText('Quedas aplicadas', { timeout: 30_000 });
     await expect(report.locator('dd').first()).toHaveText('52');
     expect(batches).toEqual([50, 2]);
 

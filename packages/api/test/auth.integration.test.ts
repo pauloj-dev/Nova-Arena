@@ -52,6 +52,8 @@ describe.skipIf(!url)('autenticação (Postgres)', () => {
   let db: PrismaClient;
   let app: App;
   const sent: MailMessage[] = [];
+  /** O token do link que o último e-mail levou (a API real só manda o link por e-mail, issue #102). */
+  const tokenFromMail = () => new URL(String(sent.at(-1)?.data.link)).searchParams.get('token') ?? '';
   const stamp = Date.now();
   const account = { email: `Jogadora.${stamp}@Exemplo.com`, nickname: `Jogadora${stamp}`.slice(0, 20), password: 'senha-forte-123', birthDate: '2000-05-10', acceptTerms: true };
 
@@ -70,11 +72,13 @@ describe.skipIf(!url)('autenticação (Postgres)', () => {
     const b = new Browser(app);
     const res = await b.request('/auth/register', { method: 'POST', body: account });
     expect(res.status).toBe(201);
-    const { user, devVerifyToken } = RegisterResponse.parse(res.data);
+    const { user } = RegisterResponse.parse(res.data);
     expect(user).toMatchObject({ email: account.email.toLowerCase(), roles: ['PARTICIPANT'], emailVerified: false, birthDate: '2000-05-10' });
-    expect(devVerifyToken).toBeTruthy();
+    // O link vai só por e-mail: o atalho do protótipo (`devVerifyToken`) não existe na API real.
+    expect(res.data).not.toHaveProperty('devVerifyToken');
     expect(sent.at(-1)).toMatchObject({ template: 'VERIFY_EMAIL', to: account.email.toLowerCase() });
-    expect(sent.at(-1)?.data.link).toContain(`/verificar-email?token=${devVerifyToken}`);
+    expect(sent.at(-1)?.data.link).toContain('/verificar-email?token=');
+    const devVerifyToken = tokenFromMail();
     expect(b.cookie('na_at')).toBeTruthy();
     expect(b.cookie('na_rt')).toBeTruthy();
     expect(Me.parse((await b.request('/me')).data).id).toBe(user.id);
@@ -135,7 +139,8 @@ describe.skipIf(!url)('autenticação (Postgres)', () => {
     const b = new Browser(app);
     await b.request('/auth/login', { method: 'POST', body: { email: account.email, password: account.password }, headers: { 'x-forwarded-for': '10.0.0.4' } });
     const resend = await b.request('/auth/resend-verification', { method: 'POST' });
-    const token = (resend.data as { devVerifyToken: string }).devVerifyToken;
+    expect(resend.data).toEqual({ ok: true });
+    const token = tokenFromMail();
     const verified = await b.request('/auth/verify-email', { method: 'POST', body: { token } });
     expect(Me.parse(verified.data).emailVerified).toBe(true);
     const again = await b.request('/auth/verify-email', { method: 'POST', body: { token } });
@@ -149,9 +154,11 @@ describe.skipIf(!url)('autenticação (Postgres)', () => {
     await logged.request('/auth/login', { method: 'POST', body: { email: account.email, password: account.password }, headers: { 'x-forwarded-for': '10.0.0.5' } });
     const anon = new Browser(app);
     const unknown = await anon.request('/auth/forgot-password', { method: 'POST', body: { email: 'nao.existe@exemplo.com' } });
-    expect(unknown).toMatchObject({ status: 200, data: { ok: true, devResetToken: null } });
+    expect(unknown).toMatchObject({ status: 200, data: { ok: true } });
     const forgot = await anon.request('/auth/forgot-password', { method: 'POST', body: { email: account.email } });
-    const token = (forgot.data as { devResetToken: string }).devResetToken;
+    // Mesma resposta com ou sem conta; o link só vai por e-mail.
+    expect(forgot.data).toEqual(unknown.data);
+    const token = tokenFromMail();
     expect(token).toBeTruthy();
     expect((await anon.request('/auth/reset-password', { method: 'POST', body: { token, password: 'outra-senha-forte-1' } })).status).toBe(200);
     expect((await logged.request('/me')).data).toBeNull();

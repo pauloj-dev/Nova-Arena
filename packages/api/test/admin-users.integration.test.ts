@@ -193,9 +193,10 @@ describe.skipIf(!url)('painel Admin: usuários, sanções, convites e papéis (P
       expect((await h.call('rafael', 'POST', `/admin/users/${id('rafael')}/sanctions`, ban)).status).toBe(403);
     });
 
-    it('redefinir senha: link de uso único por e-mail (e na resposta fora de produção), sem token na auditoria', async () => {
+    it('redefinir senha: link de uso único só por e-mail (o Admin nunca vê), sem token na auditoria', async () => {
       const res = await h.call('ana', 'POST', `/admin/users/${id('p10')}/reset-password`);
-      const { link } = PasswordResetLink.parse(res.data);
+      expect(PasswordResetLink.parse(res.data).link).toBe('');
+      const link = String(h.mails.at(-1)?.data.link);
       expect(link).toContain('/redefinir-senha?token=');
       const token = new URL(link).searchParams.get('token') ?? '';
       expect(h.mails.at(-1)).toMatchObject({ to: h.people.get('p10')?.email, template: 'RESET_PASSWORD', data: { link } });
@@ -206,7 +207,7 @@ describe.skipIf(!url)('painel Admin: usuários, sanções, convites e papéis (P
       expect(JSON.stringify(log, (_k, v) => (typeof v === 'bigint' ? String(v) : v))).not.toContain(token);
       expect(JSON.stringify(log, (_k, v) => (typeof v === 'bigint' ? String(v) : v))).not.toContain('novaSenha');
 
-      // Em produção o link só vai por e-mail.
+      // Em produção também (com o domínio do site no link).
       const prod = createHarness(db, 'aup', { VERCEL_ENV: 'production', NEXT_PUBLIC_SITE_URL: 'https://novaarena.gg', KV_REST_API_URL: 'http://localhost:8079', KV_REST_API_TOKEN: 'x', QSTASH_TOKEN: 'x', RESEND_API_KEY: 'x', EMAIL_FROM: 'Nova <a@b.gg>' });
       prod.people.set('ana', h.people.get('ana') as never);
       const silent = await prod.call('ana', 'POST', `/admin/users/${id('p11')}/reset-password`);

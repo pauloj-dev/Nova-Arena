@@ -21,6 +21,11 @@ export const EnvSchema = z
     DATABASE_URL_UNPOOLED: optionalUrl,
     KV_REST_API_URL: optionalUrl,
     KV_REST_API_TOKEN: optionalSecret,
+    /**
+     * Prefixo das chaves no Redis (cache, idempotência e limites). Para dividir um mesmo Upstash entre ambientes
+     * (ex.: preview e staging) ou entre servidores locais, sem um ler o cache do outro. Vazio: sem prefixo.
+     */
+    KV_PREFIX: z.string().regex(/^[A-Za-z0-9:_-]{1,40}$/, 'Use até 40 letras, números, ":", "_" ou "-".').optional(),
     QSTASH_URL: optionalUrl,
     QSTASH_TOKEN: optionalSecret,
     QSTASH_CURRENT_SIGNING_KEY: optionalSecret,

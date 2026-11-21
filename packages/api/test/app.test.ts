@@ -142,7 +142,7 @@ describe('verificações padrão de Redis e QStash', () => {
     const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ result: 'PONG' })));
     vi.stubGlobal('fetch', fetchSpy);
     expect(await redisCheck(env)).toBe('ok');
-    expect(fetchSpy).toHaveBeenCalledWith(new URL('https://redis.exemplo.io/ping'), { headers: { Authorization: 'Bearer tok' } });
+    expect(fetchSpy).toHaveBeenCalledWith('https://redis.exemplo.io', { method: 'POST', headers: { Authorization: 'Bearer tok', 'Content-Type': 'application/json' }, body: '["PING"]' });
     vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 401 })));
     await expect(redisCheck(env)).rejects.toThrow('HTTP 401');
   });

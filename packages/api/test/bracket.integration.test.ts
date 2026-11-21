@@ -26,7 +26,16 @@ describe.skipIf(!url)('chave (Postgres)', () => {
 
   async function makeUser(key: string, roles: ('ADMIN' | 'ORGANIZER' | 'PARTICIPANT')[]) {
     const nickname = `bk${key}${stamp}`.slice(0, 20);
-    const user = await db.user.create({ data: { email: `bk.${key}.${stamp}@exemplo.com`, nickname, nicknameKey: nickname.toLowerCase(), roles: { create: roles.map((role) => ({ role })) } } });
+    const user = await db.user.create({
+      data: {
+        email: `bk.${key}.${stamp}@exemplo.com`,
+        nickname,
+        nicknameKey: nickname.toLowerCase(),
+        roles: { create: roles.map((role) => ({ role })) },
+        // Admin com o 2FA ativo (destravar a chave exige, como o painel).
+        ...(roles.includes('ADMIN') ? { twoFactor: { create: { secretEnc: 'teste', enabledAt: new Date(), recoveryCodesHash: [] } } } : {}),
+      },
+    });
     const session = await db.session.create({ data: { userId: user.id, familyId: randomUUID(), refreshTokenHash: `bk-${randomUUID()}`, expiresAt: new Date(Date.now() + 3600_000) } });
     cookies.set(key, `na_at=${await signAccessToken(env, { sub: user.id, sid: session.id, sv: 0, tfa: true, roles }, new Date())}`);
     ids.set(key, user.id);

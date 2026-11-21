@@ -5,15 +5,14 @@
  * Diferenças da API simulada (registradas no PR):
  * - `POST /auth/refresh` existe (o mock não tem sessão real).
  * - `POST /auth/dev-login` não existe.
- * - `devVerifyToken`/`devResetToken` só voltam fora de produção (`VERCEL_ENV !== 'production'`), até os
- *   e-mails reais da issue #80; em produção esses campos nunca vão na resposta.
+ * - `devVerifyToken`/`devResetToken` (atalho do protótipo) não existem: os links vão só por e-mail (issue #102).
  * - A flag `publicSignup` passa a valer quando as flags forem para o Edge Config (issue #94).
  * - Login com 2FA (issue #95): para quem tem 2FA ativo, `POST /auth/login` responde 202 `{ twoFactorRequired: true }`
  *   sem abrir sessão; o código (ou um de recuperação) vai em `POST /auth/2fa/verify`, que abre a sessão com `tfa`.
  */
 import { ForgotPasswordInput, ForgotPasswordResponse, LoginInput, Me, Ok, RegisterInput, RegisterResponse, ResendVerificationResponse, ResetPasswordInput, TwoFactorChallenge, TwoFactorVerifyInput, VerifyEmailInput } from '@nova/schemas';
 import { Hono } from 'hono';
-import { body, respond, type AppContext, type AppEnv } from '../../context';
+import { body, respond, type AppEnv } from '../../context';
 import { conflict, HttpProblem } from '../../errors';
 import { assertHuman } from '../../auth/bot';
 import { hashPassword, verifyPassword } from '../../auth/crypto';
@@ -28,7 +27,6 @@ import { loadMe, meInclude, toMe } from '../../views';
 const MeOrNull = Me.nullable();
 
 /** Fora de produção, o token do e-mail volta na resposta (as telas mostram o link enquanto não há e-mail real). */
-const devToken = (c: AppContext, token: string | null) => (c.get('env').VERCEL_ENV === 'production' ? undefined : token);
 
 export const auth = new Hono<AppEnv>();
 
@@ -68,7 +66,7 @@ auth.post('/auth/register', async (c) => {
   const token = await createEmailToken(c, user.id, 'VERIFY');
   await mailer(c.get('env'), c.get('log')).send(email, { template: 'VERIFY_EMAIL', data: { nickname: user.nickname, link: linkFor(c, '/verificar-email', token) } });
   await startSession(c, user);
-  return respond(c, RegisterResponse, { user: toMe(user), devVerifyToken: devToken(c, token) }, 201);
+  return respond(c, RegisterResponse, { user: toMe(user) }, 201);
 });
 
 auth.post('/auth/login', async (c) => {
@@ -139,7 +137,7 @@ auth.post('/auth/resend-verification', async (c) => {
   if (user.emailVerified) throw conflict('Seu e-mail já está verificado.');
   const token = await createEmailToken(c, user.id, 'VERIFY');
   await mailer(c.get('env'), c.get('log')).send(user.email, { template: 'VERIFY_EMAIL', data: { nickname: user.nickname, link: linkFor(c, '/verificar-email', token) } });
-  return respond(c, ResendVerificationResponse, { ok: true, devVerifyToken: devToken(c, token) });
+  return respond(c, ResendVerificationResponse, { ok: true });
 });
 
 /** Sempre 200: a resposta não revela se o e-mail tem conta. */
@@ -149,12 +147,11 @@ auth.post('/auth/forgot-password', async (c) => {
   await assertHuman(c);
   const { email } = await body(c, ForgotPasswordInput);
   const user = await db().user.findUnique({ where: { email: email.toLowerCase() } });
-  let token: string | null = null;
   if (user && user.status !== 'DELETED' && user.status !== 'MERGED') {
-    token = await createEmailToken(c, user.id, 'RESET');
+    const token = await createEmailToken(c, user.id, 'RESET');
     await mailer(c.get('env'), c.get('log')).send(user.email, { template: 'RESET_PASSWORD', data: { nickname: user.nickname, link: linkFor(c, '/redefinir-senha', token) } });
   }
-  return respond(c, ForgotPasswordResponse, { ok: true, devResetToken: devToken(c, token) });
+  return respond(c, ForgotPasswordResponse, { ok: true });
 });
 
 /** Nova senha: derruba todas as sessões abertas (quem tinha a senha antiga sai de todos os aparelhos). */

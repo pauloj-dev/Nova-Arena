@@ -56,6 +56,14 @@ Detalhes em `docs/notificacoes.md` e `docs/jobs.md`.
 4. Teste com `createApp({ env: envFrom({...}), deps })` e `app.request('/api/v1/...')`: cada rota × visitante, participante, organizador e admin (401/403/200), e a resposta validada pelo schema.
 5. Tire o módulo de `NEXT_PUBLIC_API_MOCK` quando as telas funcionarem contra ele.
 
+## Seed de demonstração, matriz RBAC e cenários de referência (issue #102)
+
+- `src/demo/seed.ts` (`@nova/api/demo`): `seedDemo(db, env, data)` grava no Postgres o objeto de `apps/web/mocks/seed.ts` com UUIDs determinísticos (`demoId('u_bianca')`, de `@nova/api/demo-ids`), chaves projetadas por `projectRun`/`persistStandings` e salas cifradas. Rode com `pnpm --filter web seed:demo [--reset]` (ver `apps/web/README.md`, "Modos da API").
+- `test/rbac-full.integration.test.ts`: matriz RBAC completa do PRD §6 — **toda rota registrada** × visitante, participante, moderador, organizador dono, outro organizador, Admin sem 2FA, Admin com 2FA e Super Admin. Rota nova sem linha na tabela quebra o teste.
+- Cenários do plano §9 contra o Postgres: CT-01, CT-05 e CT-08 (`results`), CT-02 (`registrations`), CT-03 e CT-09 (`admin-users`), CT-04 e CT-06 completo com a planilha do motor (`ct`), CT-06 reduzido e CT-08 na chave (`advance`), CT-07 (`check-in`). CT-10 é de tela (`apps/web/e2e/competicao-participante.spec.ts`).
+- `test/contract-parity.unit.test.ts`: toda rota de todo módulo do mock existe aqui, e nenhum atalho do protótipo (`/auth/dev-login`, `/me/2fa/dev-code`, `devVerifyToken`, `devResetToken`) existe.
+- `KV_PREFIX`: prefixo das chaves no Redis (cache, idempotência, limites) quando o mesmo Upstash serve mais de um ambiente. Se o Redis falhar (ou for o Redis local, que não roda os scripts do `@upstash/ratelimit`), o limite de tentativas vale por instância em memória.
+
 ## Comandos
 
 ```bash

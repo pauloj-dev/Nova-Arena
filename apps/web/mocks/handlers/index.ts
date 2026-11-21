@@ -72,17 +72,20 @@ export const modules: MockModule[] = [
 ];
 
 /**
- * Módulos que já têm API real (B1, issue #81): no preview e no staging eles saem do mock.
- * Os demais ainda são do B2 (competição e administração) e continuam simulados até a issue #102.
+ * Módulos que já têm API real. B1 (issue #81): o núcleo de F1. B2 (issue #102): competição, envio e disputas, perfil
+ * competitivo, notificações, denúncias e todo o painel Admin — com isso, **todos** os módulos do mock têm API real.
  */
 export const B1_REAL_MODULES = ['auth', 'users', 'uploads', 'games', 'games-admin', 'tournaments', 'tournaments-manage', 'tournaments-ops', 'registrations', 'registrations-manage', 'teams'] as const;
+export const B2_REAL_MODULES = ['competition', 'submissions', 'profile-stats', 'notifications', 'reports', 'admin-users', 'admin-roles', 'admin-tournaments', 'admin-audit', 'admin-moderation', 'admin-settings'] as const;
+export const REAL_MODULES: readonly string[] = [...B1_REAL_MODULES, ...B2_REAL_MODULES];
 
-/** Valor de `NEXT_PUBLIC_API_MOCK` para o preview e o staging: só os módulos que ainda não têm API real. */
+/**
+ * Valor de `NEXT_PUBLIC_API_MOCK` para o preview e o staging: só os módulos que ainda não têm API real. Desde a #102
+ * é `none` (nada simulado). O protótipo local continua `all` por padrão (sem a variável).
+ */
 export function previewMockSetting(): string {
-  return modules
-    .map((m) => m.moduleName)
-    .filter((name) => !(B1_REAL_MODULES as readonly string[]).includes(name))
-    .join(',');
+  const pending = modules.map((m) => m.moduleName).filter((name) => !REAL_MODULES.includes(name));
+  return pending.length === 0 ? 'none' : pending.join(',');
 }
 
 export function mockSetting(): string {

@@ -50,15 +50,21 @@ export const defaultAblyFactory: AblyFactory = async (fetchToken) => {
   return client as unknown as AblyLike;
 };
 
-function statusOf(state: string, everConnected: boolean): ConnectionStatus {
+/**
+ * `settled`: já conectou ou já caiu alguma vez. Daí em diante, "conectando" de novo é queda (fica no polling): sem
+ * isso, com o Ably fora (token recusado), o estado alternaria conectando ↔ caiu a cada nova tentativa e o polling de
+ * 10 s recomeçaria sem nunca disparar (CT-10).
+ */
+function statusOf(state: string, settled: boolean): ConnectionStatus {
   if (state === 'connected') return 'connected';
-  if ((state === 'initialized' || state === 'connecting') && !everConnected) return 'connecting';
+  if ((state === 'initialized' || state === 'connecting') && !settled) return 'connecting';
   return 'disconnected';
 }
 
 export class AblyRealtimeClient implements RealtimeClient {
   private status: ConnectionStatus = 'connecting';
   private everConnected = false;
+  private everDropped = false;
   private readonly statusListeners = new Set<(status: ConnectionStatus) => void>();
   private readonly handlers = new Map<RealtimeChannel, Set<(event: RealtimeEvent) => void>>();
   private readonly listeners = new Map<RealtimeChannel, (message: AblyMessageLike) => void>();
@@ -70,7 +76,7 @@ export class AblyRealtimeClient implements RealtimeClient {
   constructor(factory: AblyFactory = defaultAblyFactory) {
     this.ready = factory(() => api.post('/realtime/token', { channels: [...this.matchChannels] }, { schema: RealtimeTokenRequest }))
       .then((client) => {
-        client.connection.on((change) => this.setStatus(statusOf(change.current, this.everConnected)));
+        client.connection.on((change) => this.setStatus(statusOf(change.current, this.everConnected || this.everDropped)));
         this.setStatus(statusOf(client.connection.state, false));
         if (this.closed) client.close();
         return client;
@@ -162,6 +168,7 @@ export class AblyRealtimeClient implements RealtimeClient {
 
   private setStatus(status: ConnectionStatus): void {
     if (status === 'connected') this.everConnected = true;
+    if (status === 'disconnected') this.everDropped = true;
     if (this.status === status) return;
     this.status = status;
     this.statusListeners.forEach((l) => l(status));

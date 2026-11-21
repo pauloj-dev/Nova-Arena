@@ -63,19 +63,29 @@ export const RULES = {
   confirmPassword: { name: 'confirm-password', tokens: 5, windowSeconds: 300 },
 } satisfies Record<string, RateRule>;
 
-/** Upstash Redis (vale para todas as instâncias da função). */
-export function upstashLimiter(env: Env): RateLimiter {
+/**
+ * Upstash Redis (vale para todas as instâncias da função). Se o Redis falhar (fora do ar, ou o Redis local do
+ * docker-compose, que não roda os scripts do `@upstash/ratelimit`), o limite continua valendo por instância, em
+ * memória: login e cadastro não viram erro 500 por causa do Redis.
+ */
+export function upstashLimiter(env: Env, onFallback: (error: unknown) => void = () => undefined): RateLimiter {
   const redis = new Redis({ url: env.KV_REST_API_URL as string, token: env.KV_REST_API_TOKEN as string });
   const cache = new Map<string, Ratelimit>();
+  const fallback = memoryLimiter();
   return {
     async limit(key, rule) {
       let limiter = cache.get(rule.name);
       if (!limiter) {
-        limiter = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(rule.tokens, `${rule.windowSeconds} s`), prefix: `rl:${rule.name}` });
+        limiter = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(rule.tokens, `${rule.windowSeconds} s`), prefix: `${env.KV_PREFIX ?? ''}rl:${rule.name}` });
         cache.set(rule.name, limiter);
       }
-      const r = await limiter.limit(key);
-      return { success: r.success, reset: r.reset };
+      try {
+        const r = await limiter.limit(key);
+        return { success: r.success, reset: r.reset };
+      } catch (error) {
+        onFallback(error);
+        return fallback.limit(key, rule);
+      }
     },
   };
 }

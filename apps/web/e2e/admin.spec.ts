@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import type { Locator, Page } from '@playwright/test';
-import { expect, loginAs, test, waitForApp } from './fixtures';
+import { expect, loginAs, test, waitForApp, isRealApi, mid } from './fixtures';
+import { requireServerEnv } from './real/env';
+import { sessionContext, totp } from './real/helpers';
 
 /** Linha de uma lista do painel: linha de tabela no desktop, cartão no celular (o `DataTable` troca em 768 px). */
 function row(page: Page, text: string | RegExp): Locator {
@@ -53,7 +55,7 @@ test.describe('Admin · dashboard', () => {
   test('mostra os indicadores, os gráficos com tabela alternativa e as últimas ações', async ({ page }) => {
     await loginAs(page, 'u_ana');
     // Uma ação qualquer, para "Últimas ações" ter o que mostrar.
-    expect((await api(page, 'PATCH', '/admin/tournaments/tn_efootball', { featured: true })).status).toBe(200);
+    expect((await api(page, 'PATCH', `/admin/tournaments/${mid('tn_efootball')}`, { featured: true })).status).toBe(200);
     await page.goto('/admin');
     await waitForScreen(page, 'Dashboard');
 
@@ -151,11 +153,18 @@ test.describe('Admin · convite de administrador e 2FA', () => {
     await page.getByRole('button', { name: 'Ativar verificação', exact: true }).click();
     await expect(page.getByText('O código tem 6 dígitos')).toBeVisible();
 
-    // No protótipo o código do momento aparece num aviso marcado "Protótipo".
-    const prototype = page.getByTestId('prototype-code');
-    await expect(prototype.getByText('Protótipo', { exact: true })).toBeVisible();
-    await expect(prototype.getByTestId('dev-code')).toHaveText(/^\d{6}$/);
-    await prototype.getByRole('button', { name: 'Usar este código' }).click();
+    if (isRealApi) {
+      // API real: nada de código na tela; o "aplicativo autenticador" é o teste, com a chave manual mostrada acima.
+      await expect(page.getByTestId('prototype-code')).toHaveCount(0);
+      const secret = (await page.getByTestId('two-factor-secret').innerText()).replace(/\s/g, '');
+      await page.getByLabel('Código do aplicativo').fill(totp(secret));
+    } else {
+      // No protótipo o código do momento aparece num aviso marcado "Protótipo".
+      const prototype = page.getByTestId('prototype-code');
+      await expect(prototype.getByText('Protótipo', { exact: true })).toBeVisible();
+      await expect(prototype.getByTestId('dev-code')).toHaveText(/^\d{6}$/);
+      await prototype.getByRole('button', { name: 'Usar este código' }).click();
+    }
     await page.getByRole('button', { name: 'Ativar verificação', exact: true }).click();
 
     // Códigos de recuperação, mostrados uma vez.
@@ -241,7 +250,7 @@ test.describe('Admin · usuários', () => {
     await loginAs(bianca, 'u_bianca');
     await bianca.goto('/minha-conta');
     await expect(bianca.getByRole('button', { name: 'Conta de Bianca' })).toBeVisible();
-    expect((await api<{ id: string }>(bianca, 'GET', '/me')).data.id).toBe('u_bianca');
+    expect((await api<{ id: string }>(bianca, 'GET', '/me')).data.id).toBe(mid('u_bianca'));
 
     // A Ana encontra a Bianca na lista e aplica o banimento, com motivo.
     await loginAs(page, 'u_ana');
@@ -265,13 +274,15 @@ test.describe('Admin · usuários', () => {
     await expect(page.getByTestId('sanction')).toContainText('Em vigor');
     await expect(page.getByRole('button', { name: 'Banir', exact: true })).toBeDisabled();
 
-    // No protótipo o "servidor" é o banco simulado de cada navegador. Para os dois navegadores
-    // enxergarem o mesmo servidor, o estado gravado pela Ana é levado para o navegador da Bianca —
-    // é o que a API real faz sozinha. A sessão dela (guardada à parte) continua intacta.
-    const serverState = await page.evaluate(() => localStorage.getItem('nova-mock-db'));
-    expect(serverState).not.toBeNull();
-    await bianca.evaluate((state) => localStorage.setItem('nova-mock-db', state as string), serverState);
-    expect(await bianca.evaluate(() => localStorage.getItem('nova-mock-session'))).toBe('u_bianca');
+    if (!isRealApi) {
+      // No protótipo o "servidor" é o banco simulado de cada navegador. Para os dois navegadores
+      // enxergarem o mesmo servidor, o estado gravado pela Ana é levado para o navegador da Bianca —
+      // é o que a API real faz sozinha. A sessão dela (guardada à parte) continua intacta.
+      const serverState = await page.evaluate(() => localStorage.getItem('nova-mock-db'));
+      expect(serverState).not.toBeNull();
+      await bianca.evaluate((state) => localStorage.setItem('nova-mock-db', state as string), serverState);
+      expect(await bianca.evaluate(() => localStorage.getItem('nova-mock-session'))).toBe('u_bianca');
+    }
 
     // Na próxima requisição a sessão já não vale: a conta cai para visitante e a área logada pede login.
     await bianca.reload();
@@ -279,11 +290,31 @@ test.describe('Admin · usuários', () => {
     await expect(bianca.getByRole('button', { name: 'Conta de Bianca' })).toHaveCount(0);
     await waitForApp(bianca);
     expect((await api(bianca, 'GET', '/me')).data).toBeNull();
-    expect((await api(bianca, 'POST', '/auth/dev-login', { userId: 'u_bianca' })).status).toBe(403);
+    if (isRealApi) {
+      // E não entra de novo: o login com a senha certa é recusado.
+      const again = await api<{ code: string }>(bianca, 'POST', '/auth/login', { email: 'bianca@novaarena.gg', password: requireServerEnv('SEED_DEMO_PASSWORD') });
+      expect(again).toMatchObject({ status: 403, data: { code: 'ACCOUNT_BANNED' } });
+    } else {
+      expect((await api(bianca, 'POST', '/auth/dev-login', { userId: mid('u_bianca') })).status).toBe(403);
+    }
     await other.close();
   });
 
-  test('suspender publica o evento de sessão revogada, que chega às outras abas', async ({ page, context }) => {
+  test('suspender publica o evento de sessão revogada, que chega às outras abas', async ({ page, context }, testInfo) => {
+    if (isRealApi) {
+      // API real (CT-09): a sessão aberta do Lucas deixa de valer na hora. O evento `session.revoked` vai pelo Ably
+      // (sem `ABLY_API_KEY` no ambiente local, não há canal para escutar); o efeito no servidor é o que vale.
+      const lucasApi = await sessionContext(testInfo.project.use.baseURL ?? '', 'u_lucas');
+      expect(((await (await lucasApi.get('/api/v1/me')).json()) as { id: string }).id).toBe(mid('u_lucas'));
+      await loginAs(page, 'u_ana');
+      expect((await api(page, 'POST', `/admin/users/${mid('u_lucas')}/sanctions`, { type: 'SUSPENSION', days: 3, reason: 'Ofensas repetidas no chat' })).status).toBe(201);
+      expect(await (await lucasApi.get('/api/v1/me')).json()).toBeNull();
+      expect((await lucasApi.post('/api/v1/auth/refresh')).status()).toBe(401);
+      const again = await lucasApi.post('/api/v1/auth/login', { data: { email: 'lucas@novaarena.gg', password: requireServerEnv('SEED_DEMO_PASSWORD') } });
+      expect(((await again.json()) as { code: string }).code).toBe('ACCOUNT_SUSPENDED');
+      await lucasApi.dispose();
+      return;
+    }
     // Mesma máquina, duas abas: a aba do Lucas fica aberta enquanto a Ana (na outra aba) o suspende.
     // O tempo real do protótipo atravessa abas do mesmo navegador (BroadcastChannel).
     const lucas = await context.newPage();
@@ -301,13 +332,13 @@ test.describe('Admin · usuários', () => {
     });
 
     await loginAs(page, 'u_ana');
-    const res = await api(page, 'POST', '/admin/users/u_lucas/sanctions', { type: 'SUSPENSION', days: 3, reason: 'Ofensas repetidas no chat' });
+    const res = await api(page, 'POST', `/admin/users/${mid('u_lucas')}/sanctions`, { type: 'SUSPENSION', days: 3, reason: 'Ofensas repetidas no chat' });
     expect(res.status).toBe(201);
 
     // O evento chega no canal privado do usuário, sem dado sensível: só o tipo e o motivo genérico.
-    await expect.poll(() => lucas.evaluate(() => (window as unknown as { __events: unknown[] }).__events)).toContainEqual({ channel: 'user:u_lucas', event: { type: 'session.revoked', reason: 'SUSPENDED' } });
+    await expect.poll(() => lucas.evaluate(() => (window as unknown as { __events: unknown[] }).__events)).toContainEqual({ channel: `user:${mid('u_lucas')}`, event: { type: 'session.revoked', reason: 'SUSPENDED' } });
     // E a conta não entra mais até o fim do prazo.
-    expect((await api<{ code: string }>(page, 'POST', '/auth/dev-login', { userId: 'u_lucas' })).data.code).toBe('ACCOUNT_SUSPENDED');
+    expect((await api<{ code: string }>(page, 'POST', '/auth/dev-login', { userId: mid('u_lucas') })).data.code).toBe('ACCOUNT_SUSPENDED');
     await lucas.close();
   });
 
@@ -315,13 +346,14 @@ test.describe('Admin · usuários', () => {
   // `qc.clear()` seguido de `qc.setQueryData(keys.me, null)`. Os componentes já montados continuam presos
   // à consulta removida e a tela não muda até recarregar. Quando isso for corrigido, tire o `fixme`.
   test('a tela aberta em outra aba volta para visitante sem recarregar quando a sessão é revogada', async ({ page, context }) => {
+    test.skip(isRealApi, 'Depende do evento session.revoked chegar pelo tempo real (Ably); sem ABLY_API_KEY no ambiente local, a aba só cai na próxima requisição (coberto no teste anterior). Com a API real as abas também dividem os cookies.');
     const lucas = await context.newPage();
     await lucas.goto('/');
     await loginAs(lucas, 'u_lucas');
     await lucas.reload();
     await expect(lucas.getByRole('button', { name: 'Conta de Lucas' })).toBeVisible();
     await loginAs(page, 'u_ana');
-    await api(page, 'POST', '/admin/users/u_lucas/sanctions', { type: 'SUSPENSION', days: 3, reason: 'Ofensas repetidas no chat' });
+    await api(page, 'POST', `/admin/users/${mid('u_lucas')}/sanctions`, { type: 'SUSPENSION', days: 3, reason: 'Ofensas repetidas no chat' });
     await expect(lucas.getByRole('button', { name: 'Conta de Lucas' })).toHaveCount(0);
     await expect(lucas.getByRole('link', { name: 'Criar conta' })).toBeVisible();
   });
@@ -348,7 +380,7 @@ test.describe('Admin · usuários', () => {
     await dialog.getByRole('button', { name: 'Advertir', exact: true }).click();
     await expect(page.getByText('Advertência aplicada para 2 de 2 contas')).toBeVisible();
 
-    const camila = await api<{ sanctions: Array<{ type: string; reason: string }> }>(page, 'GET', '/admin/users/u_camila');
+    const camila = await api<{ sanctions: Array<{ type: string; reason: string }> }>(page, 'GET', `/admin/users/${mid('u_camila')}`);
     expect(camila.data.sanctions).toHaveLength(1);
     expect(camila.data.sanctions[0]).toMatchObject({ type: 'WARNING', reason: 'Divulgação fora das regras nos comunicados' });
   });
@@ -402,8 +434,8 @@ test.describe('Admin · campeonatos e auditoria', () => {
 
   test('exporta a auditoria em CSV com os filtros da tela', async ({ page }) => {
     await loginAs(page, 'u_ana');
-    expect((await api(page, 'PATCH', '/admin/tournaments/tn_efootball', { featured: true })).status).toBe(200);
-    expect((await api(page, 'POST', '/admin/users/u_p20/sanctions', { type: 'WARNING', reason: 'Nick ofensivo' })).status).toBe(201);
+    expect((await api(page, 'PATCH', `/admin/tournaments/${mid('tn_efootball')}`, { featured: true })).status).toBe(200);
+    expect((await api(page, 'POST', `/admin/users/${mid('u_p20')}/sanctions`, { type: 'WARNING', reason: 'Nick ofensivo' })).status).toBe(201);
     await page.goto('/admin/auditoria');
     await waitForScreen(page, 'Auditoria');
     await page.getByLabel('Recurso', { exact: true }).selectOption('Tournament');
@@ -421,7 +453,7 @@ test.describe('Admin · campeonatos e auditoria', () => {
     expect(lines[0]).toBe('Data (UTC);Quem;Ação;Recurso;Tipo;ID do recurso;Campeonato;Motivo;Antes;Depois;IP');
     // Só o registro do filtro (campeonato), não a advertência.
     expect(lines).toHaveLength(2);
-    expect(lines[1]).toContain(';Ana;Destaque na home alterado;Copa eFootball Iniciantes;Campeonato;tn_efootball;');
+    expect(lines[1]).toContain(`;Ana;Destaque na home alterado;Copa eFootball Iniciantes;Campeonato;${mid('tn_efootball')};`);
     await expect(page.getByText('Auditoria exportada')).toBeVisible();
   });
 
@@ -555,11 +587,19 @@ test.describe('Admin · comunicados, configurações e saúde', () => {
     await loginAs(page, 'u_ana');
     await page.goto('/admin/saude');
     await waitForScreen(page, 'Saúde do sistema');
-    await expect(page.getByTestId('health-simulated')).toContainText('Valores simulados no protótipo.');
-    await expect(page.getByText('Todos os serviços funcionando')).toBeVisible();
-    for (const key of ['database', 'cache', 'queues', 'realtime', 'storage', 'email']) await expect(page.getByTestId(`service-${key}`)).toContainText('Funcionando');
-    await expect(page.getByText('Versão publicada')).toBeVisible();
-    await expect(page.getByText('protótipo', { exact: true })).toBeVisible();
+    if (isRealApi) {
+      // API real: valores de verdade, sem o aviso de simulação. Localmente só o banco e o Redis estão no ar (fila, tempo
+      // real, arquivos e e-mail ficam "não configurados").
+      await expect(page.getByTestId('health-simulated')).toHaveCount(0);
+      for (const key of ['database', 'cache']) await expect(page.getByTestId(`service-${key}`)).toContainText('Funcionando');
+      await expect(page.getByText('Versão publicada')).toBeVisible();
+    } else {
+      await expect(page.getByTestId('health-simulated')).toContainText('Valores simulados no protótipo.');
+      await expect(page.getByText('Todos os serviços funcionando')).toBeVisible();
+      for (const key of ['database', 'cache', 'queues', 'realtime', 'storage', 'email']) await expect(page.getByTestId(`service-${key}`)).toContainText('Funcionando');
+      await expect(page.getByText('Versão publicada')).toBeVisible();
+      await expect(page.getByText('protótipo', { exact: true })).toBeVisible();
+    }
     const requested = page.waitForRequest((r) => r.url().endsWith('/api/v1/admin/health'));
     await page.getByRole('button', { name: 'Atualizar' }).click();
     await requested;
@@ -610,7 +650,7 @@ test.describe('Admin · acesso e responsividade', () => {
   const SCREENS: Array<[string, string | RegExp]> = [
     ['/admin', 'Dashboard'],
     ['/admin/usuarios', 'Usuários'],
-    ['/admin/usuarios/u_lucas', 'Perfil de Lucas'],
+    [`/admin/usuarios/${mid('u_lucas')}`, 'Perfil de Lucas'],
     ['/admin/administradores', 'Administradores'],
     ['/admin/organizadores', 'Organizadores'],
     ['/admin/organizadores?aba=pedidos', 'Organizadores'],
@@ -628,10 +668,10 @@ test.describe('Admin · acesso e responsividade', () => {
     test.setTimeout(180_000);
     await loginAs(page, 'u_rafael');
     // Conteúdo de verdade em cada tela: registros de auditoria, comunicado, convite e uma sanção.
-    await api(page, 'POST', '/admin/tournaments/tn_copa_ff/owner', { ownerId: 'u_diego', reason: 'Troca combinada com a organização do campeonato, a pedido da antiga responsável' });
+    await api(page, 'POST', `/admin/tournaments/${mid('tn_copa_ff')}/owner`, { ownerId: mid('u_diego'), reason: 'Troca combinada com a organização do campeonato, a pedido da antiga responsável' });
     await api(page, 'POST', '/admin/announcements', { title: 'Novidade na Arena com um título bem comprido para testar', body: 'Ranking por jogo no ar para todo mundo.', kind: 'BANNER', audience: 'ALL', gameId: null, startsAt: null, endsAt: null });
     await api(page, 'POST', '/admin/invites', { role: 'ADMIN', validity: '7d', maxUses: 10 });
-    await api(page, 'POST', '/admin/users/u_lucas/sanctions', { type: 'WARNING', reason: 'Linguagem ofensiva no chat da partida, registrada em três prints' });
+    await api(page, 'POST', `/admin/users/${mid('u_lucas')}/sanctions`, { type: 'WARNING', reason: 'Linguagem ofensiva no chat da partida, registrada em três prints' });
 
     for (const [path, heading] of SCREENS) {
       await page.goto(path);

@@ -11,7 +11,7 @@
  * Diferenças registradas: próxima partida e colocação em "Meus campeonatos" chegam com as partidas (B2);
  * desistência e desclassificação com o campeonato em andamento, na #100; avisos por notificação, na #98.
  */
-import { audited, withAudit, type Prisma } from '@nova/db';
+import { audited, withAudit, type Prisma, type PrismaClient } from '@nova/db';
 import {
   ACTIVE_REGISTRATION_STATUSES,
   canCancelRegistration,
@@ -42,6 +42,7 @@ import { badRequest, conflict, forbidden, HttpProblem, notFound } from '../../er
 import { assertTournamentAccess } from '../../auth/rbac';
 import { currentSession, requireSession } from '../../auth/session';
 import { clientIp } from '../../security';
+import { listMatches } from '../../competition/bracket';
 import { replaceEntrantInPreview } from '../../competition/maintenance';
 import { revalidateTournaments } from '../../revalidate';
 import { checkInOf, countsOf, toTournamentSummary, tournamentInclude } from '../tournaments/views';
@@ -105,6 +106,46 @@ async function auditCtx(c: AppContext) {
   return { actorId: session.userId, ip: clientIp(c.req.raw.headers), userAgent: c.req.header('user-agent') ?? null };
 }
 
+/** Status de partida que ainda não acabou para quem joga. */
+const OPEN_MATCH_STATUSES = ['SCHEDULED', 'CHECK_IN', 'LIVE', 'AWAITING_VALIDATION', 'DISPUTED'];
+/** Estados do campeonato em que pode existir partida por jogar. */
+const MATCH_TOURNAMENT_STATUSES = ['REGISTRATION_CLOSED', 'CHECK_IN', 'IN_PROGRESS', 'PAUSED'];
+
+/**
+ * Próxima partida e colocação final de uma inscrição (PAR-06), como na API simulada (`competitionInfo`):
+ * - `nextMatch`: a partida ainda por jogar com o horário mais próximo (sem horário fica por último); `checkInOpen`
+ *   enquanto a janela está aberta e o check-in da inscrição ainda não foi concluído;
+ * - `finalPlacement`: o lugar no pódio, quando o campeonato terminou e a inscrição ficou entre os três primeiros.
+ */
+async function competitionInfo(db: PrismaClient, t: { id: string; status: string; podium: { places: unknown } | null }, registration: { id: string; status: string }): Promise<Pick<MyTournamentEntry, 'nextMatch' | 'finalPlacement'>> {
+  const ended = t.status === 'FINISHED' || t.status === 'ARCHIVED';
+  const places = (t.podium?.places ?? []) as { place: number; registrationId: string }[];
+  const finalPlacement = ended ? (places.find((p) => p.registrationId === registration.id)?.place ?? null) : null;
+  if (registration.status !== 'CONFIRMED' || !MATCH_TOURNAMENT_STATUSES.includes(t.status)) return { nextMatch: null, finalPlacement };
+  const mine = (await listMatches(db, t.id))
+    .filter((m) => OPEN_MATCH_STATUSES.includes(m.status) && m.participants.some((p) => p.registrationId === registration.id))
+    .sort((a, b) => {
+      if (a.scheduledAt && b.scheduledAt) return a.scheduledAt.localeCompare(b.scheduledAt);
+      if (a.scheduledAt) return -1;
+      if (b.scheduledAt) return 1;
+      return a.round - b.round || a.position - b.position;
+    });
+  const next = mine[0];
+  if (!next) return { nextMatch: null, finalPlacement };
+  const me = next.participants.find((p) => p.registrationId === registration.id);
+  const opponent = next.kind === 'DUEL' ? next.participants.find((p) => p.registrationId !== registration.id) : undefined;
+  return {
+    nextMatch: {
+      id: next.id,
+      label: [next.stageName, next.groupName, next.roundLabel].filter(Boolean).join(' · '),
+      scheduledAt: next.scheduledAt,
+      opponent: opponent?.registrationId ? opponent.name : null,
+      checkInOpen: next.status === 'CHECK_IN' && !me?.checkedIn,
+    },
+    finalPlacement,
+  };
+}
+
 export const registrations = new Hono<AppEnv>();
 
 // ── Participante ─────────────────────────────────────────────────────
@@ -122,12 +163,13 @@ registrations.get('/me/registrations', async (c) => {
   const ids = [...byTournament.keys()];
   const tournaments = await db.tournament.findMany({ where: { id: { in: ids } }, include: summaryAndRegistration });
   const counts = await countsOf(db, ids);
+  const podiums = new Map((await db.tournamentPodium.findMany({ where: { tournamentId: { in: ids } }, select: { tournamentId: true, places: true } })).map((p) => [p.tournamentId, p]));
   const entries: MyTournamentEntry[] = [];
   for (const t of tournaments) {
     const r = byTournament.get(t.id);
     if (!r) continue;
     const [registration] = await toRegistrations(db, t, [r]);
-    if (registration) entries.push({ tournament: toTournamentSummary(t, counts.get(t.id)), registration, nextMatch: null, finalPlacement: null });
+    if (registration) entries.push({ tournament: toTournamentSummary(t, counts.get(t.id)), registration, ...(await competitionInfo(db, { id: t.id, status: t.status, podium: podiums.get(t.id) ?? null }, registration)) });
   }
   // Os que estão valendo vêm primeiro, pela data mais próxima; o histórico, do mais recente para o mais antigo.
   const startsAt = (e: MyTournamentEntry) => e.tournament.startsAt ?? '9999';

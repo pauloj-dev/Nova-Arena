@@ -8,7 +8,7 @@
  * Campeonato cancelado não conta; inscrição que não entrou em chave confirmada também não.
  */
 import type { MatchResult } from '@nova/engine';
-import { CompetitiveStats } from '@nova/schemas';
+import { CompetitiveStats, GameRanking, type GameRankingEntry } from '@nova/schemas';
 import { Hono } from 'hono';
 import { respond, type AppEnv } from '../../context';
 import { notFound } from '../../errors';
@@ -175,4 +175,117 @@ stats.get('/users/:nickname/stats', async (c) => {
     achievements,
     history,
   });
+});
+
+/** Campeonato "disputado" no ranking: já começou (em andamento, pausado) ou terminou. */
+const RANKING_PLAYED_STATUSES: readonly string[] = ['IN_PROGRESS', 'PAUSED', 'FINISHED'];
+
+/**
+ * Ranking por jogo (issue #102; porta de `GET /games/:slug/ranking` de `apps/web/mocks/handlers/games.ts`), sem ELO
+ * (ADR-0001): títulos, vitórias e kills (Battle Royale) ou placar (duelos), contados dos resultados das partidas com a
+ * mesma conta do perfil competitivo. Ordem: títulos → vitórias → kills ou placar → campeonatos disputados →
+ * finalizados → apelido. Empate em todos os números = mesma posição (1, 1, 3…). Até 100 pessoas.
+ */
+stats.get('/games/:slug/ranking', async (c) => {
+  const db = c.get('deps').db();
+  const slug = c.req.param('slug');
+  const game = await db.game.findFirst({ where: { OR: [{ slug }, ...(/^[0-9a-f-]{36}$/i.test(slug) ? [{ id: slug }] : [])] }, include: { modes: { select: { matchType: true } } } });
+  if (!game || !game.active) throw notFound('Jogo');
+  const highlight: GameRanking['highlight'] = game.modes.some((m) => m.matchType === 'BATTLE_ROYALE') ? 'KILLS' : 'SCORE';
+
+  const tournaments = await db.tournament.findMany({
+    where: { gameId: game.id, status: { not: 'CANCELLED' } },
+    select: {
+      id: true,
+      status: true,
+      podium: { select: { places: true } },
+      stages: { where: { confirmedAt: { not: null } }, select: { id: true, engineSnapshot: true, confirmedAt: true, unlocked: true } },
+      registrations: {
+        where: { status: { in: ['CONFIRMED', 'WITHDRAWN', 'DISQUALIFIED'] } },
+        select: { id: true, status: true, userId: true, members: { where: { confirmedAt: { not: null } }, select: { userId: true } } },
+      },
+    },
+  });
+  const regIds = tournaments.flatMap((t) => t.registrations.map((r) => r.id));
+  // Kills do próprio jogador (RN-03), por pessoa, fase e partida.
+  const own = regIds.length
+    ? await db.playerStat.findMany({ where: { matchParticipant: { registrationId: { in: regIds } } }, select: { userId: true, stats: true, matchParticipant: { select: { match: { select: { stageId: true, nodeId: true } } } } } })
+    : [];
+  const ownKills = new Map<string, Map<string, number>>();
+  for (const ps of own) {
+    const k = (ps.stats as { kills?: unknown } | null)?.kills;
+    if (typeof k !== 'number') continue;
+    const key = `${ps.userId}|${ps.matchParticipant.match.stageId}`;
+    const map = ownKills.get(key) ?? new Map<string, number>();
+    map.set(ps.matchParticipant.match.nodeId, (map.get(ps.matchParticipant.match.nodeId) ?? 0) + k);
+    ownKills.set(key, map);
+  }
+
+  interface Row {
+    userId: string;
+    tournamentsPlayed: number;
+    tournamentsFinished: number;
+    titles: number;
+    wins: number;
+    kills: number;
+    score: number;
+    matches: number;
+  }
+  const rows = new Map<string, Row>();
+  const rowOf = (userId: string): Row => {
+    const row = rows.get(userId) ?? { userId, tournamentsPlayed: 0, tournamentsFinished: 0, titles: 0, wins: 0, kills: 0, score: 0, matches: 0 };
+    rows.set(userId, row);
+    return row;
+  };
+  for (const t of tournaments) {
+    const runs = t.stages.map((s) => ({ stageId: s.id, run: readRun(s) })).filter((x): x is { stageId: string; run: StageRun } => Boolean(x.run?.confirmed));
+    const places = (t.podium?.places ?? []) as { place: number; registrationId: string }[];
+    const played = RANKING_PLAYED_STATUSES.includes(t.status);
+    for (const r of t.registrations) {
+      const userIds = new Set([...(r.userId ? [r.userId] : []), ...r.members.map((m) => m.userId)]);
+      const inBracket = runs.filter(({ run }) => run.structure.entrants.some((e) => e.id === r.id));
+      for (const userId of userIds) {
+        // Disputados: inscrição confirmada em campeonato que já começou ou terminou.
+        if (played && r.status === 'CONFIRMED') {
+          const row = rowOf(userId);
+          row.tournamentsPlayed += 1;
+          if (t.status === 'FINISHED') row.tournamentsFinished += 1;
+        }
+        if (inBracket.length === 0) continue;
+        const row = rowOf(userId);
+        for (const { stageId, run } of inBracket) {
+          const totals = totalsInRun(run, r.id, ownKills.get(`${userId}|${stageId}`) ?? new Map());
+          row.matches += totals.matches;
+          row.wins += totals.wins;
+          row.kills += totals.kills;
+          row.score += totals.score;
+        }
+        if (places.find((p) => p.registrationId === r.id)?.place === 1) row.titles += 1;
+      }
+    }
+  }
+  // Só quem disputou entra no ranking (como na API simulada); conta que não está ativa fica de fora.
+  const candidates = [...rows.values()].filter((r) => r.tournamentsPlayed > 0);
+  const users = await db.user.findMany({ where: { id: { in: candidates.map((r) => r.userId) }, status: 'ACTIVE' }, select: { id: true, nickname: true, avatarUrl: true } });
+  const byId = new Map(users.map((u) => [u.id, u]));
+  type Full = Row & { nickname: string; avatarUrl: string | null };
+  const full: Full[] = candidates.flatMap((r) => {
+    const u = byId.get(r.userId);
+    return u ? [{ ...r, nickname: u.nickname, avatarUrl: u.avatarUrl }] : [];
+  });
+  const key = (r: Full): number[] => [r.titles, r.wins, highlight === 'KILLS' ? r.kills : r.score, r.tournamentsPlayed, r.tournamentsFinished];
+  const compare = (a: Full, b: Full): number => {
+    const ka = key(a);
+    const kb = key(b);
+    for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return (kb[i] ?? 0) - (ka[i] ?? 0);
+    return 0;
+  };
+  const sorted = full.sort((a, b) => compare(a, b) || a.nickname.localeCompare(b.nickname, 'pt-BR')).slice(0, 100);
+  const entries: GameRankingEntry[] = [];
+  sorted.forEach((row, index) => {
+    const previous = sorted[index - 1];
+    const tied = previous !== undefined && compare(previous, row) === 0;
+    entries.push({ ...row, position: tied ? (entries[index - 1]?.position ?? index + 1) : index + 1 });
+  });
+  return respond(c, GameRanking, { gameId: game.id, gameSlug: game.slug, gameName: game.name, resultsAvailable: true, highlight, entries });
 });

@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect, loginAs, test, waitForApp } from './fixtures';
+import { expect, loginAs, test, waitForApp, mid } from './fixtures';
 
 const FF_DEFAULT_MODEL = 'Free Fire · Padrão (kill 1, Booyah 3)';
 
@@ -102,7 +102,7 @@ test.describe('Admin · catálogo de jogos', () => {
     await expectNoHorizontalScroll(page);
 
     await page.getByRole('button', { name: 'Cadastrar jogo' }).click();
-    await expect(page).toHaveURL(/\/admin\/jogos\/g_[a-z0-9]+$/);
+    await expect(page).toHaveURL(/\/admin\/jogos\/(g_[a-z0-9]+|[0-9a-f-]{36})$/);
     await expect(page.getByRole('heading', { level: 1, name: 'BS Brawl Stars' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Nenhum modelo de pontuação' })).toBeVisible();
     await dismissToasts(page);
@@ -160,7 +160,7 @@ test.describe('Admin · catálogo de jogos', () => {
     // Trocando o endereço, o cadastro passa.
     await slug.fill('free-fire-max');
     await page.getByRole('button', { name: 'Cadastrar jogo' }).click();
-    await expect(page).toHaveURL(/\/admin\/jogos\/g_[a-z0-9]+$/);
+    await expect(page).toHaveURL(/\/admin\/jogos\/(g_[a-z0-9]+|[0-9a-f-]{36})$/);
   });
 
   test('desativar um jogo tira ele da lista pública, mas não do catálogo do Admin', async ({ page }) => {
@@ -196,7 +196,7 @@ test.describe('Admin · catálogo de jogos', () => {
 
   test('editar o modelo padrão do Free Fire muda a prévia', async ({ page }) => {
     await loginAs(page, 'u_ana');
-    await page.goto('/admin/jogos/g_freefire');
+    await page.goto(`/admin/jogos/${mid('g_freefire')}`);
     await expect(page.getByRole('heading', { level: 2, name: 'Modelos de pontuação' })).toBeVisible();
 
     const card = modelCard(page, FF_DEFAULT_MODEL);
@@ -233,7 +233,7 @@ test.describe('Admin · catálogo de jogos', () => {
 
   test('modelo com regra inválida não salva e mostra o erro junto da regra', async ({ page }) => {
     await loginAs(page, 'u_ana');
-    await page.goto('/admin/jogos/g_freefire');
+    await page.goto(`/admin/jogos/${mid('g_freefire')}`);
     await page.getByRole('button', { name: 'Novo modelo' }).click();
     const dialog = page.getByRole('dialog', { name: 'Novo modelo de pontuação' });
 
@@ -250,7 +250,7 @@ test.describe('Admin · catálogo de jogos', () => {
 
   test('duplica um modelo e troca o padrão do tipo de partida', async ({ page }) => {
     await loginAs(page, 'u_ana');
-    await page.goto('/admin/jogos/g_freefire');
+    await page.goto(`/admin/jogos/${mid('g_freefire')}`);
     const liga = modelCard(page, 'Free Fire · Liga (tabela de colocação)');
     const padrao = modelCard(page, FF_DEFAULT_MODEL);
     const contraSquad = modelCard(page, 'Contra Squad · Vitória 3');
@@ -280,7 +280,7 @@ test.describe('Admin · catálogo de jogos', () => {
 
   test('excluir um modelo em uso é barrado com mensagem clara', async ({ page }) => {
     await loginAs(page, 'u_ana');
-    await page.goto('/admin/jogos/g_freefire');
+    await page.goto(`/admin/jogos/${mid('g_freefire')}`);
     const card = modelCard(page, FF_DEFAULT_MODEL);
     await card.getByRole('button', { name: `Excluir ${FF_DEFAULT_MODEL}` }).click();
 
@@ -298,7 +298,7 @@ test.describe('Admin · catálogo de jogos', () => {
 
   test('remover um modo usado por campeonato é barrado dizendo qual', async ({ page }) => {
     await loginAs(page, 'u_ana');
-    await page.goto('/admin/jogos/g_freefire');
+    await page.goto(`/admin/jogos/${mid('g_freefire')}`);
     // "Squad" é o modo da Copa de Free Fire do seed.
     const squad = page.getByRole('group', { name: 'Modo 3' });
     await expect(squad.getByRole('textbox', { name: 'Nome do modo' })).toHaveValue('Squad');
@@ -315,7 +315,7 @@ test.describe('Admin · catálogo de jogos', () => {
 
   test('edita os dados do jogo sem perder os modos', async ({ page }) => {
     await loginAs(page, 'u_ana');
-    await page.goto('/admin/jogos/g_efootball');
+    await page.goto(`/admin/jogos/${mid('g_efootball')}`);
     await expect(page.getByRole('group', { name: 'Estatística extra 1' }).getByRole('textbox', { name: 'Rótulo' })).toHaveValue('Pênaltis');
     await page.getByRole('textbox', { name: 'Plataforma' }).fill('Mobile, console e PC');
     await page.getByRole('button', { name: 'Salvar jogo' }).click();
@@ -327,7 +327,7 @@ test.describe('Admin · catálogo de jogos', () => {
     });
     expect(game.platform).toBe('Mobile, console e PC');
     // O modo manteve o `id`: campeonatos que apontam para ele continuam válidos.
-    expect(game.modes.map((m) => m.id)).toEqual(['m_ef_1v1']);
+    expect(game.modes.map((m) => m.id)).toEqual([mid('m_ef_1v1')]);
     expect(game.extraStatFields).toEqual([{ key: 'penalties', label: 'Pênaltis', when: 'tiebreak' }]);
   });
 });
@@ -358,11 +358,11 @@ test.describe('Admin · catálogo de jogos · permissões', () => {
   test('organizadora recebe 403 ao escrever no catálogo, que para ela é só leitura', async ({ page }) => {
     await loginAs(page, 'u_camila');
     expect(await call(page, 'POST', '/admin/games', newGame)).toBe(403);
-    expect(await call(page, 'PATCH', '/admin/games/g_freefire', { active: false })).toBe(403);
-    expect(await call(page, 'POST', '/admin/games/g_freefire/scoring-models', {})).toBe(403);
-    expect(await call(page, 'PATCH', '/admin/games/g_freefire/scoring-models/sm_ff_liga', { isDefault: true })).toBe(403);
-    expect(await call(page, 'POST', '/admin/games/g_freefire/scoring-models/sm_ff_liga/duplicate')).toBe(403);
-    expect(await call(page, 'DELETE', '/admin/games/g_freefire/scoring-models/sm_ff_liga')).toBe(403);
+    expect(await call(page, 'PATCH', `/admin/games/${mid('g_freefire')}`, { active: false })).toBe(403);
+    expect(await call(page, 'POST', `/admin/games/${mid('g_freefire')}/scoring-models`, {})).toBe(403);
+    expect(await call(page, 'PATCH', `/admin/games/${mid('g_freefire')}/scoring-models/${mid('sm_ff_liga')}`, { isDefault: true })).toBe(403);
+    expect(await call(page, 'POST', `/admin/games/${mid('g_freefire')}/scoring-models/${mid('sm_ff_liga')}/duplicate`)).toBe(403);
+    expect(await call(page, 'DELETE', `/admin/games/${mid('g_freefire')}/scoring-models/${mid('sm_ff_liga')}`)).toBe(403);
 
     // Ler continua liberado, e nada mudou.
     expect(await call(page, 'GET', '/games')).toBe(200);
@@ -377,7 +377,7 @@ test.describe('Admin · catálogo de jogos · permissões', () => {
     expect(await call(page, 'POST', '/admin/games', newGame)).toBe(401);
     await loginAs(page, 'u_bianca');
     expect(await call(page, 'POST', '/admin/games', newGame)).toBe(403);
-    expect(await call(page, 'DELETE', '/admin/games/g_freefire/scoring-models/sm_ff_liga')).toBe(403);
+    expect(await call(page, 'DELETE', `/admin/games/${mid('g_freefire')}/scoring-models/${mid('sm_ff_liga')}`)).toBe(403);
   });
 
   test('administradora cria pelo mesmo endpoint (201) e o slug repetido volta 409', async ({ page }) => {
@@ -396,7 +396,7 @@ test.describe('Admin · catálogo de jogos · permissões', () => {
 
   test('organizadora em /admin/jogos também vê a página 403', async ({ page }) => {
     await loginAs(page, 'u_camila');
-    await page.goto('/admin/jogos/g_freefire');
+    await page.goto(`/admin/jogos/${mid('g_freefire')}`);
     await expect(page.getByRole('heading', { name: 'Você não tem acesso a esta área' })).toBeVisible();
   });
 });

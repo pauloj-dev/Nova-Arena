@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect, loginAs, test, waitForApp, type DemoUser } from './fixtures';
+import { expect, loginAs, test, waitForApp, type DemoUser, isRealApi, mid } from './fixtures';
+import { apiAs } from './real/helpers';
 
 /**
  * Chave, tabelas e partidas do participante (F2.2, F2.4 e F2.10; issues #41, #42 e #46), em 1440 px e 360 px.
@@ -11,7 +12,16 @@ test.describe.configure({ timeout: 120_000 });
 
 const LIGA = '/c/liga-semanal-clash-royale';
 const OPEN = '/c/open-8-ball-pool';
-const LIGA_STAGE = 'tn_liga_cr_s1';
+const LIGA_STAGE = mid('tn_liga_cr_s1');
+
+/**
+ * Indicador do tempo real. Protótipo: "AO VIVO" (tempo real simulado). API real sem `ABLY_API_KEY` (local e CI): o
+ * token do Ably é recusado (503) e a página mostra "Reconectando…" e atualiza por polling — é o CT-10.
+ */
+async function expectLive(page: Page): Promise<void> {
+  if (isRealApi && !process.env.E2E_ABLY) await expect(page.getByText(/Reconectando…/)).toBeVisible();
+  else await expect(page.getByText('AO VIVO', { exact: true })).toBeVisible();
+}
 
 function isMobile(page: Page): boolean {
   return (page.viewportSize()?.width ?? 0) < 768;
@@ -48,6 +58,15 @@ function standingsPoints(page: Page, name: string): Locator {
  * API simulada para a Camila, lança o placar e devolve a sessão a quem estava vendo. A tela não é tocada.
  */
 async function launchResult(page: Page, nodeId: string, winnerSlot: 0 | 1, restore: DemoUser | null): Promise<void> {
+  if (isRealApi) {
+    // API real: a Camila lança pelo Node, com a sessão dela (a sessão da tela não muda).
+    const base = test.info().project.use.baseURL ?? '';
+    const bracket = await apiAs<{ matches: { id: string; nodeId: string; participants: { registrationId: string }[] }[] }>(base, 'u_camila', 'GET', `/stages/${LIGA_STAGE}/bracket`);
+    const match = bracket.data.matches.find((m) => m.nodeId === nodeId);
+    const res = await apiAs(base, 'u_camila', 'PUT', `/matches/${match?.id}/result`, { entries: match?.participants.map((p, i) => ({ registrationId: p.registrationId, score: i === winnerSlot ? 2 : 0 })) });
+    expect(res.status, JSON.stringify(res.data)).toBe(200);
+    return;
+  }
   const status = await page.evaluate(
     async ({ stageId, node, winner, back }) => {
       const send = (path: string, method: string, body?: unknown) =>
@@ -69,7 +88,7 @@ test.describe('chave e partida da Bianca na Liga Semanal', () => {
   test('vê a chave com o caminho dela destacado; no celular a chave vira lista por rodada com abas', async ({ page }) => {
     await visit(page, `${LIGA}?aba=chave`, 'u_bianca');
     await expect(page.getByRole('tab', { name: 'Chave/Tabela' })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByText('AO VIVO', { exact: true })).toBeVisible();
+    await expectLive(page);
     const view = page.getByTestId('bracket-view');
     await expect(view).toBeVisible();
 
@@ -294,6 +313,8 @@ test.describe('Open 8 Ball Pool (suíço, finalizado)', () => {
 
 test.describe('ao vivo', () => {
   test('a tabela e a chave mudam sozinhas quando um resultado é lançado em segundo plano', async ({ page }) => {
+    // Sem Ably, quem traz a mudança é o polling de 10 s (CT-10): a espera é maior.
+    test.slow(isRealApi && !process.env.E2E_ABLY);
     await visit(page, `${LIGA}?aba=chave`, 'u_bianca');
     const kaue = standingsPoints(page, 'KauePro1');
     await expect(kaue).toHaveText('5'); // 1 vitória
@@ -302,7 +323,7 @@ test.describe('ao vivo', () => {
     // A organização lança PedroZz4 0 x 2 KauePro1 nas quartas. Ninguém mexe nesta tela.
     await launchResult(page, 'w-r2-m4', 1, 'u_bianca');
 
-    await expect(kaue).toHaveText('10');
+    await expect(kaue).toHaveText('10', { timeout: 25_000 });
     const positionAfter = await page.getByTestId('standings-table').locator('tr[data-registration-id]').evaluateAll((rows) => rows.findIndex((r) => r.textContent?.includes('KauePro1')));
     expect(positionAfter).toBeLessThan(positionBefore);
     await expect(page.getByTestId('standings-announcement')).toContainText(/Classificação atualizada: .*KauePro1 subiu para/);
@@ -315,6 +336,19 @@ test.describe('ao vivo', () => {
   });
 
   test('CT-10: sem tempo real aparece "Reconectando…" e a tabela segue atualizando por polling', async ({ page }) => {
+    if (isRealApi) {
+      // API real: o tempo real fica fora de verdade — o navegador não alcança o Ably (rotas bloqueadas) e a API não
+      // emite token sem `ABLY_API_KEY`. A página avisa e continua atualizando a cada 10 s.
+      await page.route(/ably(-realtime)?\.(io|com)|ably\.net/, (route) => route.abort());
+      await visit(page, `${LIGA}?aba=chave`);
+      const kaue = standingsPoints(page, 'KauePro1');
+      await expect(kaue).toHaveText('5');
+      await expect(page.getByText(/Reconectando…/)).toBeVisible();
+      await expect(page.getByText('AO VIVO', { exact: true })).toHaveCount(0);
+      await launchResult(page, 'w-r2-m4', 1, null);
+      await expect(kaue).toHaveText('10', { timeout: 20_000 });
+      return;
+    }
     await visit(page, `${LIGA}?aba=chave`);
     await expect(page.getByText('AO VIVO', { exact: true })).toBeVisible();
     const kaue = standingsPoints(page, 'KauePro1');

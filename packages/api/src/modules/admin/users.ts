@@ -3,8 +3,8 @@
  *
  * - `GET /admin/users` (busca por apelido ou e-mail, filtro de papel e status, 20 por página) e `GET /admin/users/:id`.
  * - `POST /admin/users/:id/sanctions` e `DELETE /admin/sanctions/:id`: efeito imediato (`sanctions.ts`).
- * - `POST /admin/users/:id/reset-password`: o link vai **por e-mail** para a pessoa. Fora de produção ele também volta
- *   na resposta (atalho do protótipo, como o `devResetToken`); em produção `link` volta vazio.
+ * - `POST /admin/users/:id/reset-password`: o link vai **só por e-mail** para a pessoa; o Admin nunca o vê (`link` volta
+ *   vazio — mostrar o link é atalho do protótipo).
  * - `POST /admin/users/:id/merge`: mescla de contas (RN-13), irreversível. `:id` é a conta que fica.
  *
  * Todas exigem Admin com 2FA (`adminArea`, no app). Só o Super Admin age sobre a conta de outro Admin.
@@ -122,8 +122,8 @@ adminUsers.post('/admin/users/:id/reset-password', async (c) => {
   await new AfterCommit()
     .notify([target.id], { type: 'SANCTION', title: 'Redefinição de senha', body: 'A administração gerou um link para você criar uma senha nova. Se não foi você quem pediu, fale com o suporte.', link: null })
     .flush(c);
-  // Em produção o link só vai por e-mail: o Admin nunca o vê.
-  return respond(c, PasswordResetLink, { link: c.get('env').VERCEL_ENV === 'production' ? '' : link });
+  // O link só vai por e-mail: o Admin nunca o vê.
+  return respond(c, PasswordResetLink, { link: '' });
 });
 
 // ── Mescla de contas (RN-13) ─────────────────────────────────────────
