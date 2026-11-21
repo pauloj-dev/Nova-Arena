@@ -5,12 +5,5 @@
  */
 export const I18N_PENDENTES = [
   'features/admin/**',
-  'features/calendar/**',
-  'features/games/**',
-  'features/leagues/**',
   'features/organizer/**',
-  'features/registrations/**',
-  'features/seasons/**',
-  'features/teams/**',
-  'features/tournaments/**',
 ];
