@@ -96,7 +96,7 @@ export function MatchChat({ match, viewer: viewerProp, headingLevel = 3, classNa
   const { error: toastError, success } = useToast();
   const [text, setText] = useState('');
   const [fieldError, setFieldError] = useState<string | undefined>();
-  const listRef = useRef<HTMLOListElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const headingId = useId();
   const Heading = `h${headingLevel}` as const;
   const count = chat.data?.messages.length ?? 0;
@@ -175,11 +175,13 @@ export function MatchChat({ match, viewer: viewerProp, headingLevel = 3, classNa
               Nenhuma mensagem ainda. {chat.data.canPost ? 'Comece a conversa.' : ''}
             </p>
           ) : (
-            <ol ref={listRef} role="log" aria-live="polite" aria-label="Mensagens do chat" tabIndex={0} className="flex max-h-80 flex-col gap-1.5 overflow-y-auto rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+            <div ref={listRef} role="log" aria-live="polite" aria-label="Mensagens do chat" tabIndex={0} className="max-h-80 overflow-y-auto rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+              <ol className="flex flex-col gap-1.5">
               {chat.data.messages.map((m) => (
                 <MessageItem key={m.id} message={m} mine={m.authorId === viewer.userId} canModerate={chat.data.canModerate} onHide={() => hideMessage(m)} hiding={hide.isPending && hide.variables === m.id} />
               ))}
-            </ol>
+              </ol>
+            </div>
           )}
 
           {chat.data.canPost ? (
