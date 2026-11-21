@@ -358,7 +358,7 @@ describe.skipIf(!url)('notificações, e-mail, push e tempo real (Postgres)', ()
     it('participante: o próprio `user:` e a própria partida; a de outra partida é descartada', async () => {
       const player = playerOf(first);
       const { request, capability } = await capabilityOf(player, [`match:${first.id}`, `match:${second.id}`, 'user:outra-pessoa', 'match:nao-e-uuid']);
-      expect(request.clientId).toBe(ids.get(player));
+      expect(request.clientId).toBeUndefined();
       expect(capability).toEqual({ 'tournament:*': ['subscribe'], [`user:${ids.get(player)}`]: ['subscribe'], [`match:${first.id}`]: ['subscribe'] });
       expect(capability[`match:${second.id}`]).toBeUndefined();
       // Quem não está no campeonato não assina nenhuma partida.

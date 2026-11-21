@@ -72,8 +72,9 @@ realtime.post('/realtime/token', async (c) => {
   const session = await currentSession(c);
   const matches = session && input.channels?.length ? await allowedMatches(c.get('deps').db(), { userId: session.userId, roles: await currentRoles(c) }, input.channels) : [];
   const capability = buildCapability(session?.userId ?? null, matches);
+  // Sem `clientId`: o navegador só assina (não publica nem usa presença), e a mesma conexão continua valendo
+  // quando a pessoa entra ou sai — o Ably não deixa trocar o `clientId` de uma conexão aberta.
   const tokenRequest = await new Rest({ key }).auth.createTokenRequest({
-    ...(session ? { clientId: session.userId } : {}),
     capability: JSON.stringify(capability),
     ttl: TOKEN_TTL_MS,
     timestamp: c.get('deps').now().getTime(),
