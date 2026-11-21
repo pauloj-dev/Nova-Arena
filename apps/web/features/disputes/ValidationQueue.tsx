@@ -10,12 +10,15 @@ import { z } from 'zod';
 import { errorMessage } from '@/shared/api/client';
 import { useTournamentMatches } from '@/shared/api/hooks/competition';
 import { useReviewSubmission, useTournamentSubmissions } from '@/shared/api/hooks/disputes';
+import { getT } from '@/shared/i18n/core';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime } from '@/shared/lib/datetime';
+import { messages } from './messages';
 import { EvidenceGallery } from './evidence/EvidenceGallery';
 import { scoreLine } from './scoreForm';
 import { useLiveResultQueues } from './useLiveResultQueues';
 
-const RejectSchema = z.object({ reason: z.string().trim().min(3, 'Informe o motivo') });
+const RejectSchema = z.object({ reason: z.string().trim().min(3, { error: () => getT(messages, 'ValidationQueue')('informeMotivo') }) });
 type RejectValues = z.infer<typeof RejectSchema>;
 
 export interface ValidationQueueProps {
@@ -28,6 +31,7 @@ export interface ValidationQueueProps {
  * pelo servidor); recusar exige motivo e devolve a partida para um novo envio.
  */
 export function ValidationQueue({ tournamentId }: ValidationQueueProps) {
+  const t = useT(messages, 'ValidationQueue');
   const queue = useTournamentSubmissions(tournamentId);
   const matches = useTournamentMatches(tournamentId);
   const review = useReviewSubmission();
@@ -43,8 +47,8 @@ export function ValidationQueue({ tournamentId }: ValidationQueueProps) {
     review.mutate(
       { submissionId: submission.id, input: { action: 'approve' } },
       {
-        onSuccess: () => success('Resultado aprovado', `${submission.matchLabel}: o placar agora é oficial e a tabela foi atualizada.`),
-        onError: (e) => error('Não foi possível aprovar', errorMessage(e)),
+        onSuccess: () => success(t('aprovadoTitulo'), t('aprovadoDescricao', { partida: submission.matchLabel })),
+        onError: (e) => error(t('erroAprovar'), errorMessage(e)),
         onSettled: () => setBusyId(null),
       },
     );
@@ -54,26 +58,26 @@ export function ValidationQueue({ tournamentId }: ValidationQueueProps) {
     <section aria-labelledby="fila-validacao" className="flex flex-col gap-4">
       <div>
         <h2 id="fila-validacao" className="text-lg">
-          Resultados para validar
+          {t('titulo')}
         </h2>
-        <p className="mt-1 text-sm text-muted">Placares enviados pelos participantes. Confira o print antes de aprovar: o resultado aprovado entra na tabela.</p>
+        <p className="mt-1 text-sm text-muted">{t('descricao')}</p>
       </div>
 
       {queue.isPending ? (
-        <div className="flex flex-col gap-3" role="status" aria-label="Carregando resultados para validar">
+        <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-40 w-full" />
         </div>
       ) : queue.isError ? (
-        <ErrorState title="Não foi possível carregar os resultados enviados" description={errorMessage(queue.error)} onRetry={() => void queue.refetch()} />
+        <ErrorState title={t('erro')} description={errorMessage(queue.error)} onRetry={() => void queue.refetch()} />
       ) : queue.data.length === 0 ? (
         <EmptyState
           icon={<ClipboardCheck className="size-7" />}
-          title="Nenhum resultado para validar"
-          description="Quando um participante enviar o placar e o adversário confirmar (ou o prazo de 30 minutos passar), o envio aparece aqui."
+          title={t('vazioTitulo')}
+          description={t('vazioDescricao')}
         />
       ) : (
-        <ul className="flex flex-col gap-3" aria-label="Resultados para validar">
+        <ul className="flex flex-col gap-3" aria-label={t('titulo')}>
           {queue.data.map((submission) => {
             const busy = busyId === submission.id;
             return (
@@ -82,22 +86,22 @@ export function ValidationQueue({ tournamentId }: ValidationQueueProps) {
                   <article aria-label={submission.matchLabel} className="flex flex-col gap-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <h3 className="min-w-0 text-base [overflow-wrap:anywhere]">{submission.matchLabel}</h3>
-                      {submission.status === 'CONFIRMED' ? <StatusPill status="CONFIRMED" label="Confirmado pelo adversário" /> : <StatusPill status="PENDING" label="Sem resposta do adversário" />}
+                      {submission.status === 'CONFIRMED' ? <StatusPill status="CONFIRMED" label={t('confirmado')} /> : <StatusPill status="PENDING" label={t('semResposta')} />}
                     </div>
                     <p className="tabular text-xl font-bold text-text [overflow-wrap:anywhere]">{scoreLine(submission, matchOf(submission))}</p>
                     <p className="text-sm text-muted">
-                      Enviado por {submission.submittedByNickname} em {formatDateTime(submission.createdAt)}
+                      {t('enviadoPor', { nick: submission.submittedByNickname, data: formatDateTime(submission.createdAt) })}
                     </p>
                     <div className="flex flex-col gap-1.5">
-                      <p className="text-sm font-semibold text-text">Prints enviados</p>
-                      <EvidenceGallery urls={submission.evidenceUrls} label="Print" />
+                      <p className="text-sm font-semibold text-text">{t('prints')}</p>
+                      <EvidenceGallery urls={submission.evidenceUrls} label={t('print')} />
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button size="sm" loading={busy} disabled={review.isPending && !busy} iconLeft={<Check className="size-4" aria-hidden />} onClick={() => approve(submission)}>
-                        Aprovar
+                        {t('aprovar')}
                       </Button>
                       <Button size="sm" variant="secondary" disabled={review.isPending} iconLeft={<X className="size-4" aria-hidden />} onClick={() => setRejecting(submission)}>
-                        Recusar
+                        {t('recusar')}
                       </Button>
                     </div>
                   </article>
@@ -114,6 +118,7 @@ export function ValidationQueue({ tournamentId }: ValidationQueueProps) {
 }
 
 function RejectDialog({ submission, onClose }: { submission: ResultSubmission; onClose: () => void }) {
+  const t = useT(messages, 'RejectDialog');
   const review = useReviewSubmission();
   const { success, error } = useToast();
   const form = useForm<RejectValues>({ resolver: zodResolver(RejectSchema), defaultValues: { reason: '' } });
@@ -123,34 +128,36 @@ function RejectDialog({ submission, onClose }: { submission: ResultSubmission; o
       { submissionId: submission.id, input: { action: 'reject', reason } },
       {
         onSuccess: () => {
-          success('Envio recusado', 'A partida voltou a aguardar resultado e quem enviou foi avisado do motivo.');
+          success(t('recusadoTitulo'), t('recusadoDescricao'));
           onClose();
         },
-        onError: (e) => error('Não foi possível recusar', errorMessage(e)),
+        onError: (e) => error(t('erro'), errorMessage(e)),
       },
     );
   });
+
+  const reasonField = form.register('reason');
 
   return (
     <Modal
       open
       onOpenChange={(o) => !o && onClose()}
-      title="Recusar resultado enviado"
+      title={t('titulo')}
       description={submission.matchLabel}
       size="sm"
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={review.isPending}>
-            Voltar
+            {t('voltar')}
           </Button>
           <Button type="submit" form="reject-submission-form" variant="danger" loading={review.isPending}>
-            Recusar envio
+            {t('recusar')}
           </Button>
         </>
       }
     >
       <form id="reject-submission-form" onSubmit={(e) => void submit(e)} noValidate>
-        <Textarea label="Motivo da recusa" required rows={3} maxLength={500} hint="Quem enviou recebe este texto. Ex.: o print não mostra o placar final." error={form.formState.errors.reason?.message} {...form.register('reason')} />
+        <Textarea label={t('motivo')} required rows={3} maxLength={500} hint={t('motivoDica')} error={form.formState.errors.reason?.message} {...reasonField} />
       </form>
     </Modal>
   );

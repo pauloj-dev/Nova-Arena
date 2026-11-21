@@ -4,9 +4,14 @@
  */
 import type { ExtraStatField, Match, ResultEntryInput, ResultSubmission } from '@nova/schemas';
 import { z } from 'zod';
+import { getT } from '@/shared/i18n/core';
+import { messages } from './messages';
 
-const score = z.number({ error: 'Informe o placar' }).int('Use um número inteiro').min(0, 'O placar não pode ser negativo').max(999, 'Placar alto demais');
-const optionalCount = z.number().int('Use um número inteiro').min(0, 'Não pode ser negativo').max(999).optional();
+/** Mensagem de validação lida na hora do erro (no idioma de então), não ao carregar o módulo. */
+const msg = (key: 'informePlacar' | 'numeroInteiro' | 'placarNegativo' | 'placarAlto' | 'naoPodeNegativo') => () => getT(messages, 'scoreForm')(key);
+
+const score = z.number({ error: msg('informePlacar') }).int({ error: msg('numeroInteiro') }).min(0, { error: msg('placarNegativo') }).max(999, { error: msg('placarAlto') });
+const optionalCount = z.number().int({ error: msg('numeroInteiro') }).min(0, { error: msg('naoPodeNegativo') }).max(999).optional();
 
 /** Campos do formulário, na ordem das vagas da partida (A x B). */
 export const ScoreFormSchema = z.object({
@@ -43,20 +48,21 @@ export function needsTiebreak(match: Pick<Match, 'bracket' | 'bestOf'>, a: numbe
 
 /** Regras do placar que dependem da partida: série melhor de N e desempate. Devolve o erro por campo. */
 export function scoreProblems(match: Pick<Match, 'bracket' | 'bestOf'>, values: ScoreFormValues, tiebreak: ExtraStatField | undefined): Partial<Record<ScoreField, string>> {
+  const t = getT(messages, 'scoreForm');
   const { a, b } = values;
   if (match.bestOf > 1) {
     const needed = Math.ceil(match.bestOf / 2);
-    if (a === b) return { b: `Uma série melhor de ${match.bestOf} não termina empatada.` };
-    if (Math.max(a, b) !== needed || Math.min(a, b) >= needed) return { b: `Na série melhor de ${match.bestOf}, quem vence fica com exatamente ${needed} ${needed === 1 ? 'vitória' : 'vitórias'}.` };
+    if (a === b) return { b: t('serieEmpatada', { bestOf: match.bestOf }) };
+    if (Math.max(a, b) !== needed || Math.min(a, b) >= needed) return { b: t('serieVitorias', { bestOf: match.bestOf, needed }) };
     return {};
   }
   if (!needsTiebreak(match, a, b)) return {};
   if (tiebreak) {
-    if (values.tiebreakA === undefined || values.tiebreakB === undefined) return { tiebreakB: `Informe ${tiebreak.label.toLowerCase()} dos dois lados.` };
-    if (values.tiebreakA === values.tiebreakB) return { tiebreakB: `${tiebreak.label} não pode terminar empatado: alguém venceu o desempate.` };
+    if (values.tiebreakA === undefined || values.tiebreakB === undefined) return { tiebreakB: t('informeDesempate', { campo: tiebreak.label.toLowerCase() }) };
+    if (values.tiebreakA === values.tiebreakB) return { tiebreakB: t('desempateEmpatado', { campo: tiebreak.label }) };
     return {};
   }
-  return values.winner ? {} : { winner: 'Escolha quem venceu o desempate.' };
+  return values.winner ? {} : { winner: t('escolhaVencedor') };
 }
 
 /** Converte o formulário nas estatísticas brutas que a API recebe. */
@@ -83,7 +89,8 @@ export function scoreLine(submission: Pick<ResultSubmission, 'entries' | 'winner
   // Empate com vencedor definido no desempate.
   if ((a.score ?? 0) === (b.score ?? 0) && submission.winnerRegistrationId) {
     const winner = name(submission.winnerRegistrationId);
-    return winner ? `${line} (${winner} venceu o desempate)` : `${line} (decidido no desempate)`;
+    const t = getT(messages, 'scoreForm');
+    return winner ? t('venceuDesempate', { linha: line, vencedor: winner }) : t('decididoDesempate', { linha: line });
   }
   return line;
 }

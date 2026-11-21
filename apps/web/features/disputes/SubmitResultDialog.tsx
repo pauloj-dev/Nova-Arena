@@ -15,6 +15,8 @@ import { useTiebreakField } from './useTiebreakField';
 import { focusOcrConfirm, OcrConfirm, OcrDialog, OcrMark, type OcrValues } from '@/features/ocr/OcrDialog';
 import type { Recognizer } from '@/features/ocr/recognize';
 import { useFlag } from '@/shared/flags/useFlag';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 
 const FORM_ID = 'submit-result-form';
 export const MAX_EVIDENCE = 3;
@@ -30,6 +32,7 @@ interface SubmitResultDialogProps {
 
 /** "Enviar resultado": placar dos dois lados, desempate quando empata em mata-mata e print obrigatório. */
 export function SubmitResultDialog({ match, sides, mineRegistrationId, onClose, recognize }: SubmitResultDialogProps) {
+  const t = useT(messages, 'SubmitResultDialog');
   const { success, error } = useToast();
   const create = useCreateSubmission(match.id);
   const tiebreak = useTiebreakField(match.tournamentId);
@@ -66,19 +69,19 @@ export function SubmitResultDialog({ match, sides, mineRegistrationId, onClose, 
     setEvidenceError(evidenceIssue);
     if (problems.length > 0 || !parsed.success) return;
     if (ocrPending > 0 && !ocrChecked) {
-      setOcrError('Marque que conferiu o placar lido do print antes de enviar.');
+      setOcrError(t('conferirOcr'));
       focusOcrConfirm(ocrConfirmId);
       return;
     }
 
     create.mutate(parsed.data, {
       onSuccess: () => {
-        success('Resultado enviado', 'Agora o adversário confirma ou contesta. Depois a organização valida.');
+        success(t('enviadoTitulo'), t('enviadoDescricao'));
         onClose();
       },
       onError: (e) => {
         if (e instanceof ApiError && e.fieldErrors.evidenceUrls) setEvidenceError(e.fieldErrors.evidenceUrls);
-        error('Não foi possível enviar o resultado', errorMessage(e));
+        error(t('erro'), errorMessage(e));
       },
     });
   });
@@ -87,15 +90,15 @@ export function SubmitResultDialog({ match, sides, mineRegistrationId, onClose, 
     <Modal
       open
       onOpenChange={(o) => !o && onClose()}
-      title="Enviar resultado"
-      description={`${match.roundLabel}: ${sides[0].name} x ${sides[1].name}`}
+      title={t('titulo')}
+      description={t('descricao', { rodada: match.roundLabel, a: sides[0].name, b: sides[1].name })}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={create.isPending}>
-            Cancelar
+            {t('cancelar')}
           </Button>
           <Button type="submit" form={FORM_ID} loading={create.isPending} disabled={uploading || tiebreak.isLoading}>
-            Enviar resultado
+            {t('enviar')}
           </Button>
         </>
       }
@@ -104,7 +107,7 @@ export function SubmitResultDialog({ match, sides, mineRegistrationId, onClose, 
         {ocrEnabled && (
           <div>
             <Button type="button" variant="secondary" size="sm" iconLeft={<ScanText className="size-4" aria-hidden />} onClick={() => setOcrOpen(true)}>
-              Ler o print
+              {t('lerPrint')}
             </Button>
           </div>
         )}
@@ -127,9 +130,9 @@ export function SubmitResultDialog({ match, sides, mineRegistrationId, onClose, 
           />
         )}
         <EvidenceUpload
-          label="Print do resultado"
+          label={t('print')}
           required
-          hint="A tela final da partida, com o placar e os nomes dos dois lados. PNG, JPG ou WebP de até 5 MB."
+          hint={t('printDica')}
           purpose="evidence"
           max={MAX_EVIDENCE}
           value={evidenceUrls}
@@ -141,7 +144,7 @@ export function SubmitResultDialog({ match, sides, mineRegistrationId, onClose, 
           error={evidenceError}
         />
         <p className="rounded-md bg-info-soft px-3 py-2 text-sm text-info-soft-text">
-          O adversário tem 30 minutos para confirmar ou contestar. O resultado só vale depois que a organização validar. Enviar resultado falso pode gerar desclassificação.
+          {t('aviso')}
         </p>
       </form>
       {ocrEnabled && (

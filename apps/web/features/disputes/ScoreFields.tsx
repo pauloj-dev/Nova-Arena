@@ -3,6 +3,8 @@
 import type { ExtraStatField, Match } from '@nova/schemas';
 import { Input, Select } from '@nova/ui';
 import type { FieldErrors, UseFormRegister } from 'react-hook-form';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 import { needsTiebreak, type ScoreFormValues, type Side } from './scoreForm';
 
 export interface ScoreFieldsProps {
@@ -23,35 +25,44 @@ const numeric = { type: 'number', inputMode: 'numeric', min: 0, max: 999, step: 
 
 /** Placar dos dois lados e, quando empata em mata-mata de jogo único, o desempate. */
 export function ScoreFields({ match, sides, mineRegistrationId, register, errors, a, b, tiebreak }: ScoreFieldsProps) {
-  const label = (side: Side) => `Placar de ${side.name}${side.registrationId === mineRegistrationId ? ' (você)' : ''}`;
+  const t = useT(messages, 'ScoreFields');
+  const label = (side: Side) => (side.registrationId === mineRegistrationId ? t('placarDeVoce', { nome: side.name }) : t('placarDe', { nome: side.name }));
   const tied = needsTiebreak(match, a, b);
+  // Funções, e não o resultado do `register`: os campos do desempate só são registrados quando aparecem na tela.
+  const fields = {
+    a: () => register('a', { valueAsNumber: true }),
+    b: () => register('b', { valueAsNumber: true }),
+    tiebreakA: () => register('tiebreakA', { setValueAs: toCount }),
+    tiebreakB: () => register('tiebreakB', { setValueAs: toCount }),
+    winner: () => register('winner'),
+  };
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3">
-        <Input label={label(sides[0])} required {...numeric} error={errors.a?.message} inputClassName="tabular text-center text-lg font-bold" {...register('a', { valueAsNumber: true })} />
-        <Input label={label(sides[1])} required {...numeric} error={errors.b?.message} inputClassName="tabular text-center text-lg font-bold" {...register('b', { valueAsNumber: true })} />
+        <Input label={label(sides[0])} required {...numeric} error={errors.a?.message} inputClassName="tabular text-center text-lg font-bold" {...fields.a()} />
+        <Input label={label(sides[1])} required {...numeric} error={errors.b?.message} inputClassName="tabular text-center text-lg font-bold" {...fields.b()} />
       </div>
-      {match.bestOf > 1 && <p className="text-xs text-muted">Série melhor de {match.bestOf}: informe quantos jogos cada lado venceu.</p>}
+      {match.bestOf > 1 && <p className="text-xs text-muted">{t('serie', { bestOf: match.bestOf })}</p>}
 
       {tied &&
         (tiebreak ? (
           <fieldset className="flex flex-col gap-2 rounded-md border border-border p-3">
-            <legend className="px-1 text-sm font-semibold text-text">Desempate: {tiebreak.label}</legend>
-            <p className="text-xs text-muted">Partida eliminatória não termina empatada. Informe o desempate dos dois lados.</p>
+            <legend className="px-1 text-sm font-semibold text-text">{t('desempate', { campo: tiebreak.label })}</legend>
+            <p className="text-xs text-muted">{t('eliminatoriaInforme')}</p>
             <div className="grid grid-cols-2 gap-3">
-              <Input label={`${tiebreak.label} de ${sides[0].name}`} {...numeric} error={errors.tiebreakA?.message} inputClassName="tabular text-center" {...register('tiebreakA', { setValueAs: toCount })} />
-              <Input label={`${tiebreak.label} de ${sides[1].name}`} {...numeric} error={errors.tiebreakB?.message} inputClassName="tabular text-center" {...register('tiebreakB', { setValueAs: toCount })} />
+              <Input label={t('campoDe', { campo: tiebreak.label, nome: sides[0].name })} {...numeric} error={errors.tiebreakA?.message} inputClassName="tabular text-center" {...fields.tiebreakA()} />
+              <Input label={t('campoDe', { campo: tiebreak.label, nome: sides[1].name })} {...numeric} error={errors.tiebreakB?.message} inputClassName="tabular text-center" {...fields.tiebreakB()} />
             </div>
           </fieldset>
         ) : (
           <Select
-            label="Quem venceu o desempate?"
+            label={t('quemVenceu')}
             required
-            hint="Partida eliminatória não termina empatada."
-            placeholder="Escolha o vencedor"
+            hint={t('eliminatoria')}
+            placeholder={t('escolhaVencedor')}
             options={sides.map((s) => ({ value: s.registrationId, label: s.name }))}
             error={errors.winner?.message}
-            {...register('winner')}
+            {...fields.winner()}
           />
         ))}
     </div>
