@@ -59,7 +59,8 @@ export function Modal({ open, onOpenChange, title, description, children, footer
             modalSizes[size],
           )}
         >
-          <header className="flex items-start justify-between gap-4 border-b border-border px-4 py-3 md:px-6">
+          {/* Tela cheia no celular: o cabeçalho desce para fora do notch (área segura do topo). */}
+          <header className="flex items-start justify-between gap-4 border-b border-border px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 md:px-6 md:pt-3">
             <div>
               <Dialog.Title className="font-display text-lg font-bold">{title}</Dialog.Title>
               {description ? (
@@ -166,7 +167,7 @@ export function Drawer({ open, onOpenChange, title, children, side = 'right', fo
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-overlay animate-fade-in" />
         <Dialog.Content {...returnFocus} className={cn('fixed z-50 flex flex-col border-border bg-surface text-text shadow-lg animate-fade-in', drawerSides[side])}>
-          <header className="flex items-center justify-between gap-4 border-b border-border px-4 py-3">
+          <header className="flex items-center justify-between gap-4 border-b border-border px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3">
             <Dialog.Title className="font-display text-lg font-bold">{title}</Dialog.Title>
             <Dialog.Description className="sr-only">{title}</Dialog.Description>
             <Dialog.Close asChild>
