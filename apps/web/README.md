@@ -94,3 +94,49 @@ Nos testes E2E, importe `test`, `expect`, `loginAs` e `waitForApp` de `./fixture
 - **Áreas seguras:** `pt-safe`, `px-safe` e `pb-safe` (`viewport-fit=cover`).
 - **PWA:** `app/manifest.ts`, ícones em `public/icons` (gerados por `scripts/brand-assets.mts`), service worker em `sw/sw.ts` servido por `app/serwist/[path]/route.ts` (`@serwist/turbopack`). Nunca guarda `/api`. Só é registrado sem API simulada (`NEXT_PUBLIC_API_MOCK=none`) em produção — o MSW usa o mesmo escopo. `NEXT_PUBLIC_PWA=off|on` força. Push: ponto de extensão em `sw/extensions.ts`. Teste do worker de verdade: `e2e/r1-pwa-sw.spec.ts` (instruções no arquivo).
 - **Ajuda e suporte:** `/ajuda` (conteúdo em `features/help/faq.ts`), `/contato` (e-mail de `GET /site/settings`), `/manutencao` e o aviso global `SiteBanner` (manutenção aparece 48 h antes, em todas as áreas).
+
+## Pós-lançamento B (issues 121, 123 e 125)
+
+Bot do Discord e chat por partida: `docs/notificacoes.md`. Módulos simulados novos: `discord`, `chat` e `calendar` (paridade de rotas em `packages/api/test/contract-parity-pos-b.unit.test.ts`).
+
+### Leitura do print com OCR (issue 123, experimental)
+
+- **Flag:** `resultOcr`, desligada por padrão; quem liga é o Super Admin em Configurações. A importação pelas APIs oficiais dos jogos ficou de fora, porque depende de parceria.
+- **Onde aparece:** "Ler o print" fica no lançamento de queda BR (organização) e no envio de resultado (participante).
+- **Como lê:**
+  - `tesseract.js` é carregado sob demanda, só no clique (`features/ocr/recognize.ts`), e roda no navegador.
+  - Na primeira vez, o navegador baixa o motor e o idioma do CDN jsdelivr. Uma CSP futura precisa liberar `cdn.jsdelivr.net` e `blob:` em `worker-src`.
+  - O parser (`features/ocr/parse.ts`) sugere colocação e kills por equipe, ou o placar do duelo, com a confiança de cada valor.
+- **Confirmação humana:** a leitura nunca grava sozinha. A tela destaca o que foi lido e exige marcar "Conferi os valores lidos do print" antes de salvar.
+- **Imagens de exemplo:** são inventadas e ficam em `features/ocr/fixtures`, geradas por `scripts/ocr-fixtures.mts`. O teste com o Tesseract de verdade só roda com `OCR_REAL=1`, porque baixa o idioma da internet.
+
+### Assistente de formato (issue 125)
+
+- **Onde:** "Sugerir formato" no passo Fases do assistente de criação.
+- **O que considera:** o nº de inscritos, o tempo disponível e o jogo/modo.
+- **Como sugere:** a função pura `suggestFormats` (`features/organizer/lib/formatAssistant.ts`) monta as fases com os mesmos padrões do StageBuilder e filtra tudo por `validateStages`.
+- **Premissas da duração estimada:**
+  - partidas da mesma rodada são simultâneas;
+  - 10 min por jogo de duelo, vezes a série;
+  - 25 min por queda BR;
+  - 5 min entre rodadas e 15 min entre fases.
+
+### Calendário .ics (issue 125)
+
+| Rota | Quem usa | O que devolve |
+|---|---|---|
+| `GET /me/calendar` | pessoa logada | os endereços do calendário pessoal |
+| `GET /calendar/u/<userId>.<assinatura>.ics` | aplicativo de calendário, sem cookie | "minhas partidas"; a assinatura é HMAC-SHA256 com `AUTH_JWT_SECRET` |
+| `GET /tournaments/:id/calendar` | qualquer pessoa | os endereços do calendário de um campeonato |
+| `GET /calendar/t/<slug>.ics` | qualquer pessoa | as partidas do campeonato; rascunho não aparece |
+
+- **Formato:** RFC 5545 (`packages/schemas/src/calendar.ts`), com horários em UTC (`…Z`), linhas dobradas em 75 octetos, `REFRESH-INTERVAL` de 1 h e lembrete 15 min antes.
+- **Na tela:** o botão "Adicionar ao calendário" fica em Meus campeonatos e na aba Partidas do campeonato. Ele oferece assinar por `webcal://`, copiar o endereço ou baixar o arquivo.
+- **Limitação:** o endereço pessoal não pode ser revogado. Ele só muda se `AUTH_JWT_SECRET` mudar.
+
+### Resultados offline (issue 125)
+
+- **Quando guarda:** o lançamento de queda BR e de duelo continua sem rede. Sem conexão, ou com erro de rede, o envio vai para o IndexedDB (`nova-arena-offline`), com a mesma `Idempotency-Key` do `useSubmitResult`.
+- **Fila pendente:** aparece em "Resultados pendentes de envio", na aba Partidas e resultados. O envio é sozinho quando a conexão volta, ou pelo botão.
+- **Conflito:** se outra pessoa já lançou o resultado, a API responde `CORRECTION_REASON_REQUIRED`. A tela mostra "Outra pessoa já lançou o resultado desta partida", com "Ver resultado atual" e "Descartar".
+- **Limitação:** a prova em imagem não sobe sem rede. O lançamento offline leva só os números.

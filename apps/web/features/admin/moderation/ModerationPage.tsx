@@ -14,7 +14,7 @@ import { ReasonModal } from '../common/ReasonModal';
 import { UserStatusPill } from '../common/UserBits';
 import { SanctionModal, type SanctionType } from '../users/SanctionModal';
 
-const TARGET_LABEL: Record<AdminReport['targetType'], string> = { USER: 'Usuário', TEAM: 'Squad', MATCH: 'Partida', RESULT: 'Resultado' };
+const TARGET_LABEL: Record<AdminReport['targetType'], string> = { USER: 'Usuário', TEAM: 'Squad', MATCH: 'Partida', RESULT: 'Resultado', CHAT_MESSAGE: 'Mensagem no chat' };
 const STATUS_LABEL: Record<AdminReport['status'], string> = { OPEN: 'Abertas', IN_REVIEW: 'Em análise', ACTIONED: 'Tratadas', DISMISSED: 'Improcedentes' };
 const STATUS_OPTIONS = ReportStatus.options.map((status) => ({ value: status, label: STATUS_LABEL[status] }));
 

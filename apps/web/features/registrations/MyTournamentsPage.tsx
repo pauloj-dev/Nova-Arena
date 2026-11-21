@@ -5,6 +5,7 @@ import { Button, EmptyState, ErrorState, Skeleton, Tabs } from '@nova/ui';
 import { History, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { CalendarExport } from '@/features/calendar/CalendarExport';
 import { errorMessage } from '@/shared/api/client';
 import { useMyRegistrations } from '@/shared/api/hooks/registrations';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
@@ -39,7 +40,7 @@ export function MyTournamentsPage() {
 
   return (
     <PageContainer>
-      <PageHeader title="Meus campeonatos" description="Suas inscrições, o que falta resolver em cada uma e o histórico do que você já jogou." />
+      <PageHeader title="Meus campeonatos" description="Suas inscrições, o que falta resolver em cada uma e o histórico do que você já jogou." actions={user ? <CalendarExport scope={{ kind: 'mine' }} /> : undefined} />
       {entries.isPending ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Carregando seus campeonatos">
           <Skeleton className="h-40 w-full" />

@@ -3,6 +3,7 @@
 import type { Match } from '@nova/schemas';
 import { Modal } from '@nova/ui';
 import type { ReactNode } from 'react';
+import { MatchChat } from './chat/MatchChat';
 import { MatchCard } from './MatchCard';
 import { matchHeading } from './matchText';
 import type { MatchViewer } from './viewer';
@@ -24,6 +25,7 @@ export function MatchDetailModal({ match, onClose, viewer, children }: MatchDeta
         <div className="flex flex-col gap-4">
           <MatchCard match={match} viewer={viewer} variant="full" headingLevel={3} className="border-0 p-0 shadow-none" />
           {children}
+          <MatchChat match={match} viewer={viewer} />
         </div>
       )}
     </Modal>

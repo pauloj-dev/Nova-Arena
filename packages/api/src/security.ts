@@ -23,8 +23,9 @@ function allowedOrigins(requestUrl: string, env: Env): Set<string> {
  * sem os dois, a mutação é recusada.
  */
 export const requireSameOrigin: MiddlewareHandler<AppEnv> = async (c, next) => {
-  // Jobs do QStash não vêm de navegador: a proteção deles é a assinatura (`requireQStash`).
-  if (MUTATIONS.has(c.req.method) && !c.req.path.startsWith('/api/v1/jobs/')) {
+  // Jobs do QStash e interações do Discord não vêm de navegador: a proteção deles é a assinatura
+  // (`requireQStash` e Ed25519 em `modules/discord`).
+  if (MUTATIONS.has(c.req.method) && !c.req.path.startsWith('/api/v1/jobs/') && c.req.path !== '/api/v1/discord/interactions') {
     const origin = c.req.header('origin') ?? (c.req.header('referer') ? new URL(c.req.header('referer') as string).origin : undefined);
     if (!origin || !allowedOrigins(c.req.url, c.get('env')).has(origin)) {
       throw new HttpProblem(403, 'Requisição recusada: ela não veio do site da Nova Arena.', 'INVALID_ORIGIN');

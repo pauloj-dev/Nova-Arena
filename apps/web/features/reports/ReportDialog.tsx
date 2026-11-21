@@ -26,6 +26,7 @@ const WHAT: Record<ReportButtonProps['targetType'], string> = {
   TEAM: 'o squad',
   MATCH: 'a partida',
   RESULT: 'o resultado',
+  CHAT_MESSAGE: 'a mensagem',
 };
 
 interface ReportDialogProps extends Pick<ReportButtonProps, 'targetType' | 'targetId' | 'targetLabel'> {

@@ -13,3 +13,6 @@ export * from './names';
 export * from './organizer';
 export * from './rules';
 export * from './season';
+export * from './discord';
+export * from './chat';
+export * from './calendar';

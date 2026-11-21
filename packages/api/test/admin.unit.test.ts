@@ -47,8 +47,8 @@ describe('indicadores', () => {
 
 describe('configurações e flags', () => {
   it('flag nova nasce com o padrão; valor gravado vale; lixo é ignorado', () => {
-    expect(mergeFlags(null)).toEqual({ ranking: true, publicSignup: true, resultSubmission: true, pushNotifications: false });
-    expect(mergeFlags({ ranking: false, pushNotifications: 'sim', outra: true })).toEqual({ ranking: false, publicSignup: true, resultSubmission: true, pushNotifications: false });
+    expect(mergeFlags(null)).toEqual({ ranking: true, publicSignup: true, resultSubmission: true, pushNotifications: false, resultOcr: false });
+    expect(mergeFlags({ ranking: false, pushNotifications: 'sim', outra: true })).toEqual({ ranking: false, publicSignup: true, resultSubmission: true, pushNotifications: false, resultOcr: false });
   });
 
   it('diff só com o que mudou; textos longos resumidos', () => {

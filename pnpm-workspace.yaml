@@ -10,6 +10,8 @@ allowBuilds:
   prisma: true
   '@prisma/engines': true
   '@swc/core': false
+  # Só um aviso de patrocínio no postinstall (issue 123): não precisa rodar.
+  tesseract.js: false
 minimumReleaseAgeExclude:
   - '@hookform/resolvers@7.0.6'
   - '@turbo/darwin-64@2.11.11'

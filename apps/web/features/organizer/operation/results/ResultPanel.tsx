@@ -3,12 +3,16 @@
 import type { Rule } from '@nova/engine';
 import type { Game, Match, OrganizerTournamentDetail, Stage, SubmitResultResponse } from '@nova/schemas';
 import { Button, Card, ErrorState, Skeleton, useToast } from '@nova/ui';
-import { ArrowLeft, CheckCircle2, History } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, CloudOff, History } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useMatchEvents, useSubmitResult } from '@/shared/api/hooks/competition';
 import { useTournamentRegistrations } from '@/shared/api/hooks/tournaments';
 import { formatDateTime } from '@/shared/lib/datetime';
+import { useFlag } from '@/shared/flags/useFlag';
+import { matchHeading } from '@/features/matches/matchText';
+import { isNetworkError } from './offline/queue';
+import { isOnline, usePendingResults } from './offline/usePendingResults';
 import { Tip } from '../../onboarding/Tip';
 import { BRDropForm } from './BRDropForm';
 import { clearDropDraft, type DropMember } from './brDrop';
@@ -83,6 +87,11 @@ export function ResultPanel({ tournament: t, match, stageMatches, game, onClose,
   const { success, error } = useToast();
   const attempt = useRef<{ key: string; payload: string } | null>(null);
   const [saved, setSaved] = useState<SubmitResultResponse | null>(null);
+  // Sem rede (issue 125): o envio fica guardado neste aparelho e sai sozinho quando a conexão volta.
+  const [savedOffline, setSavedOffline] = useState(false);
+  const offline = usePendingResults({ tournamentId: t.id });
+  const queuedHere = offline.items.find((i) => i.matchId === match.id && i.status !== 'CONFLICT');
+  const ocrEnabled = useFlag('resultOcr');
   // Lançar ou corrigir é decidido ao abrir: a partida muda de status depois de salvar, mas a tela continua a mesma.
   const [correction] = useState(() => match.status === 'VALIDATED' || match.status === 'WALKOVER');
   const stage: Stage | undefined = t.stages.find((s) => s.id === match.stageId);
@@ -101,8 +110,13 @@ export function ResultPanel({ tournament: t, match, stageMatches, game, onClose,
     const payload = JSON.stringify(input);
     // Mesmo formulário reenviado (ex.: a rede caiu): mesma chave, para o servidor não lançar duas vezes.
     if (attempt.current?.payload !== payload) attempt.current = { key: crypto.randomUUID(), payload };
+    const key = attempt.current.key;
+    if (!isOnline()) {
+      void keepOffline(key, input);
+      return;
+    }
     submit.mutate(
-      { matchId: match.id, key: attempt.current.key, ...input },
+      { matchId: match.id, key, ...input },
       {
         onSuccess: (response) => {
           attempt.current = null;
@@ -111,12 +125,29 @@ export function ResultPanel({ tournament: t, match, stageMatches, game, onClose,
           success(correction ? 'Resultado corrigido' : match.kind === 'LOBBY' ? 'Queda validada' : 'Resultado salvo', 'A tabela foi recalculada.');
         },
         onError: (e) => {
+          // A rede caiu no meio do envio: guarda com a mesma chave (se chegou ao servidor, ele não lança duas vezes).
+          if (isNetworkError(e)) {
+            void keepOffline(key, input);
+            return;
+          }
           // Erro de regra (4xx): o formulário mudou de sentido, a próxima tentativa é outro envio.
           if (e instanceof ApiError && e.status < 500) attempt.current = null;
           error('Não foi possível salvar o resultado', errorMessage(e));
         },
       },
     );
+  }
+
+  async function keepOffline(key: string, input: Parameters<typeof send>[0]) {
+    try {
+      await offline.enqueue({ idempotencyKey: key, matchId: match.id, tournamentId: t.id, stageId: match.stageId, label: matchHeading(match), payload: input });
+      attempt.current = null;
+      if (match.kind === 'LOBBY') clearDropDraft(match.id);
+      setSavedOffline(true);
+      success('Resultado guardado neste aparelho', 'Você está sem conexão. Ele será enviado sozinho quando a internet voltar.');
+    } catch {
+      error('Não foi possível guardar o resultado', 'Este navegador não deixou guardar dados. Salve o rascunho ou tente de novo com conexão.');
+    }
   }
 
   const paused = t.status === 'PAUSED';
@@ -138,7 +169,27 @@ export function ResultPanel({ tournament: t, match, stageMatches, game, onClose,
         </p>
       )}
 
-      {saved ? (
+      {queuedHere && !savedOffline && (
+        <p role="status" className="flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-soft-text">
+          <CloudOff className="mt-0.5 size-4 shrink-0" aria-hidden />
+          Há um resultado desta partida guardado neste aparelho, esperando a conexão. Ele aparece em “Resultados pendentes de envio”, na lista de partidas.
+        </p>
+      )}
+
+      {savedOffline ? (
+        <Card className="flex flex-col gap-3" data-testid="saved-offline">
+          <h3 className="flex items-center gap-2 text-lg">
+            <CloudOff className="size-5 text-warning-soft-text" aria-hidden />
+            Guardado neste aparelho
+          </h3>
+          <p className="text-sm text-muted">
+            Sem conexão agora. O resultado vai para o servidor sozinho quando a internet voltar, e os pontos são calculados lá. Não feche o navegador sem conexão em modo anônimo: o que fica guardado some.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={onClose}>Voltar para as partidas</Button>
+          </div>
+        </Card>
+      ) : saved ? (
         <>
           <ServerPoints response={saved} />
           <div className="flex flex-wrap gap-2">
@@ -149,7 +200,7 @@ export function ResultPanel({ tournament: t, match, stageMatches, game, onClose,
         killsPerPlayer && registrations.isPending ? (
           <Skeleton className="h-64 w-full" />
         ) : (
-          <BRDropForm match={match} rules={rules} dropCount={dropCount} killsPerPlayer={killsPerPlayer} members={members} correction={correction} submitting={submit.isPending} disabled={paused} onSubmit={send} onImportCsv={correction ? undefined : onImportCsv} />
+          <BRDropForm match={match} rules={rules} dropCount={dropCount} killsPerPlayer={killsPerPlayer} members={members} correction={correction} submitting={submit.isPending} disabled={paused} onSubmit={send} onImportCsv={correction ? undefined : onImportCsv} ocrEnabled={ocrEnabled} />
         )
       ) : (
         <ScoreInput match={match} gameSlug={game?.slug} extraStatFields={game?.extraStatFields ?? []} correction={correction} submitting={submit.isPending} disabled={paused} onSubmit={send} />

@@ -84,7 +84,7 @@ describe.skipIf(!url)('configurações, flags, saúde e métricas (Postgres)', (
   it('flag alterada no painel muda GET /site/flags e isFlagEnabled() na hora (sem deploy); só o Super Admin altera', async () => {
     expect(FeatureFlags.parse((await h.call(null, 'GET', '/site/flags')).data)).toMatchObject({ ranking: true, publicSignup: true, resultSubmission: true, pushNotifications: false });
     const flags = z.array(FeatureFlag).parse((await h.call('novo', 'GET', '/admin/flags')).data);
-    expect(flags.map((f) => f.key)).toEqual(['ranking', 'publicSignup', 'resultSubmission', 'pushNotifications']);
+    expect(flags.map((f) => f.key)).toEqual(['ranking', 'publicSignup', 'resultSubmission', 'pushNotifications', 'resultOcr']);
     expect((await h.call('novo', 'PUT', '/admin/flags/ranking', { enabled: false })).status).toBe(403);
     expect((await h.call('rafael', 'PUT', '/admin/flags/nao-existe', { enabled: false })).status).toBe(404);
     expect((await h.call('rafael', 'PUT', '/admin/flags/ranking', { enabled: 'não' })).status).toBe(400);

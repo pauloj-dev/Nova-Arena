@@ -2,9 +2,10 @@
 
 import type { Game, Match, OrganizerTournamentDetail } from '@nova/schemas';
 import { Button, EmptyState, ErrorState, Select, Skeleton, useToast } from '@nova/ui';
-import { CalendarClock, CalendarPlus, FileUp, Flag, PencilLine, Play, Swords, Undo2 } from 'lucide-react';
+import { CalendarClock, CalendarPlus, FileUp, Flag, MessagesSquare, PencilLine, Play, Swords, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { MatchCard } from '@/features/matches/MatchCard';
+import { MatchChatDialog } from '@/features/matches/chat/MatchChatDialog';
 import type { MatchViewer } from '@/features/matches/viewer';
 import { errorMessage } from '@/shared/api/client';
 import { useStartMatch, useTournamentMatches } from '@/shared/api/hooks/competition';
@@ -13,6 +14,7 @@ import { useSession } from '@/shared/session/useSession';
 import { ScheduleMatchDialog, ScheduleRoundDialog, WalkoverDialog, type RoundScope } from '../operation/MatchDialogs';
 import { ImportResultsDialog } from '../operation/results/ImportResultsDialog';
 import { ResultPanel } from '../operation/results/ResultPanel';
+import { PendingResultsPanel } from '../operation/results/offline/PendingResultsPanel';
 import { byOrder, currentStage } from '../operation/stageUtils';
 
 type StatusFilter = 'all' | 'pending' | 'scheduled' | 'done';
@@ -64,7 +66,7 @@ function groupByRound(matches: Match[]): RoundSection[] {
     .map((s) => ({ ...s, matches: s.matches.sort((a, b) => (a.groupName ?? '').localeCompare(b.groupName ?? '', 'pt-BR', { numeric: true }) || a.position - b.position) }));
 }
 
-type Dialog = { kind: 'schedule'; match: Match } | { kind: 'walkover'; match: Match } | { kind: 'round'; scope: RoundScope } | { kind: 'import' } | null;
+type Dialog = { kind: 'chat'; match: Match } | { kind: 'schedule'; match: Match } | { kind: 'walkover'; match: Match } | { kind: 'round'; scope: RoundScope } | { kind: 'import' } | null;
 
 /**
  * Aba Partidas e resultados (ORG-06 e ORG-07): partidas por fase e rodada, com filtros; agenda da
@@ -134,8 +136,14 @@ export function MatchesTab({ tournament: t, game, onGoToStages }: { tournament: 
   }
 
   function actions(match: Match) {
-    if (closed) return null;
     const name = matchName(match);
+    // Chat da partida (issue 125): continua aberto para leitura depois do encerramento.
+    const chatButton = (
+      <Button key="chat" size="sm" variant="ghost" iconLeft={<MessagesSquare className="size-4" aria-hidden />} aria-label={`Chat da partida: ${name}`} onClick={() => setDialog({ kind: 'chat', match })}>
+        Chat
+      </Button>
+    );
+    if (closed) return match.waitingPrevious ? null : <div className="flex flex-wrap gap-2">{chatButton}</div>;
     const ready = !match.waitingPrevious;
     const buttons = [];
     if (!isOver(match) && ready) {
@@ -180,6 +188,7 @@ export function MatchesTab({ tournament: t, game, onGoToStages }: { tournament: 
         );
       }
     }
+    if (!match.waitingPrevious) buttons.push(chatButton);
     return buttons.length > 0 ? <div className="flex flex-wrap gap-2">{buttons}</div> : null;
   }
 
@@ -188,6 +197,7 @@ export function MatchesTab({ tournament: t, game, onGoToStages }: { tournament: 
 
   return (
     <div className="flex flex-col gap-5">
+      <PendingResultsPanel tournamentId={t.id} onOpenMatch={setEditingId} />
       {paused && (
         <p role="status" className="rounded-md bg-warning-soft px-3 py-2 text-sm font-medium text-warning-soft-text">
           O campeonato está pausado. Você ainda pode agendar, mas os resultados só voltam a ser lançados depois de retomar.
@@ -241,6 +251,7 @@ export function MatchesTab({ tournament: t, game, onGoToStages }: { tournament: 
         })
       )}
 
+      {dialog?.kind === 'chat' && <MatchChatDialog key={dialog.match.id} match={dialog.match} viewer={viewer} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'schedule' && <ScheduleMatchDialog key={dialog.match.id} match={dialog.match} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'walkover' && <WalkoverDialog key={dialog.match.id} match={dialog.match} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'round' && <ScheduleRoundDialog key={`${dialog.scope.stageId}-${dialog.scope.round}`} scope={dialog.scope} onClose={() => setDialog(null)} />}

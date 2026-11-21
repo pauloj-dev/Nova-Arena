@@ -45,3 +45,59 @@ Todo módulo chama `notify(c, userIds, { type, title, body, link })` depois do c
 - `/admin/*` exige 2FA ativo **e** feito na sessão (`requireAdminTwoFactor` em `packages/api/src/auth/two-factor.ts`); na borda, o Admin sem `tfa` vai para `/minha-conta/seguranca`.
 - Redefinição pelo Super Admin: `POST /admin/users/:id/2fa/reset { reason }`, auditada, avisa a pessoa (`SANCTION`).
 - `GET /me/2fa/dev-code` existe só na API simulada.
+
+## Bot do Discord (issue 121)
+
+Interações por **webhook HTTP** numa Vercel Function. Não há processo contínuo nem gateway WebSocket do Discord.
+
+| Peça | O que faz |
+|---|---|
+| `POST /api/v1/discord/interactions` | Rota que o Discord chama. Confere a assinatura Ed25519 (`X-Signature-Ed25519` + `X-Signature-Timestamp`) com `DISCORD_PUBLIC_KEY` antes de tudo: 401 se for inválida. Fica fora da checagem de `Origin` (não vem de navegador). |
+| `/nova-arena vincular codigo:` | Liga o canal onde foi digitado ao campeonato do código. Exige três coisas: a permissão "Gerenciar servidor" no Discord, a conta do Discord vinculada a uma conta Nova Arena e essa conta ser da organização que gerencia (dono, co-organizador ou Admin). O código tem uso único e vale 15 min. O banco guarda só o SHA-256 dele. |
+| `/nova-arena checkin` | Check-in da próxima partida com a janela aberta. Usa as mesmas regras da tela: no squad, o capitão ou todos os titulares. |
+| `/nova-arena proxima` | Mostra a próxima partida. O horário vai em `<t:…>`, que o Discord exibe no fuso de quem lê. |
+| `GET/DELETE /tournaments/:id/discord`, `POST …/code`, `POST …/test` | Aba **Discord** da operação. Só a organização que gerencia usa essas rotas; o moderador não. |
+| `POST /jobs/discord/announce` | Job do QStash que entrega o aviso no canal. |
+| `POST /jobs/discord/reminder` | Job do QStash que avisa "partida em 15 minutos". Uma mensagem de horário antigo, de partida reagendada, não faz nada. |
+
+- **Vínculo de conta:** quem chama um comando é identificado pela conta do Discord vinculada à conta Nova Arena, pelo login com Discord que já existe (`oauth_accounts`). Essa conta se vincula em Minha conta → Segurança.
+- **Avisos automáticos:** saem pelos mesmos eventos de `notify`/`publish`:
+
+  | Evento | Onde o aviso é disparado |
+  |---|---|
+  | Resultado lançado ou corrigido | `afterResult` |
+  | W.O. | `afterWalkover` |
+  | Chave confirmada | rota de confirmação da chave |
+  | Campeão | encerramento do campeonato |
+  | Partida em 15 min | lembrete agendado junto com as mensagens da partida, ao agendar ou reagendar |
+
+  Ao vincular, os lembretes das partidas que já estão agendadas também entram na fila.
+- **Entrega:** a mensagem vai com `allowed_mentions: { parse: [] }`, então o bot nunca menciona `@everyone`. Os nomes digitados por pessoas são escapados.
+- **Quando a entrega falha:**
+
+  | Resposta do Discord | O que acontece |
+  |---|---|
+  | 403 ou 404 (canal sem permissão ou apagado) | O motivo vai para `lastError`, que a aba mostra, e o job não tenta de novo. |
+  | 429 ou 5xx | Resposta 500, e o QStash tenta de novo. |
+- **Variáveis:** `DISCORD_APP_ID`, `DISCORD_PUBLIC_KEY` e `DISCORD_BOT_TOKEN` (`.env.example`). Sem as três, o bot fica desligado, a aba explica isso e o resto do site segue igual.
+- **Configuração no Discord Developer Portal:**
+  - **Interactions Endpoint URL:** `<SITE_URL>/api/v1/discord/interactions`.
+  - **Registro dos comandos:** `node ops/discord/register-commands.mts`. Com `DISCORD_GUILD_ID`, os comandos aparecem na hora, num servidor de teste. Para ver o que seria enviado sem registrar nada, use `--dry-run`.
+- **Protótipo:** o bot conta como configurado. "Simular o comando no protótipo" manda `/nova-arena vincular` para a API simulada como se a pessoa logada tivesse digitado o comando num servidor de demonstração. O protótipo não confere a assinatura.
+
+## Chat por partida (issue 125)
+
+| Rota | O que faz |
+|---|---|
+| `GET /matches/:id/chat` | as últimas 100 mensagens |
+| `POST /matches/:id/chat` | envia uma mensagem |
+| `DELETE /matches/:id/chat/:messageId` | a organização oculta qualquer mensagem; o autor, só a própria |
+
+- **Quem usa:** quem joga a partida e a organização do campeonato (dono, co-organizador, moderador e Admin). É a mesma regra do canal `match:{id}`.
+- **Moderação básica:**
+  - até 500 caracteres;
+  - 5 mensagens a cada 30 s por pessoa na partida (`RATE_LIMITED`);
+  - só leitura fora do andamento do campeonato (`CHAT_CLOSED`);
+  - denúncia pelo `ReportButton`, com o alvo `CHAT_MESSAGE`; a moderação vê o texto como ele estava.
+- **Tempo real:** o evento `chat.updated` vai no canal `match:{id}`, pelo Ably na API real ou pelo barramento no protótipo. Ele não leva o texto: a tela busca as mensagens na API. Sem tempo real, a tela atualiza a cada 10 s.
+- **Na tela:** o chat aparece no detalhe da partida (participante) e no botão "Chat" da operação (organização).

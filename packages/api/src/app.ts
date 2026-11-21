@@ -52,6 +52,9 @@ import { site } from './modules/site';
 import { seasons } from './modules/seasons';
 import { leagues } from './modules/seasons/leagues';
 import { productEvents, trackAdminMutations } from './modules/site/events';
+import { discord } from './modules/discord';
+import { chat } from './modules/chat';
+import { calendar } from './modules/calendar';
 
 export const API_BASE_PATH = '/api/v1';
 
@@ -61,7 +64,7 @@ export const API_BASE_PATH = '/api/v1';
  * resultados e histórico (#85, #86), fases (#87, #88), desistência e encerramento (#88, #100), envios e disputas (#90),
  * perfil competitivo (#89).
  */
-const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs, teams, registrations, competition, matches, results, stages, closing, submissions, stats, twoFactor, realtime, notifications, notificationJobs, push, pushJobs, ...adminModules, reports, site, productEvents, seasons, leagues];
+const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs, teams, registrations, competition, matches, results, stages, closing, submissions, stats, twoFactor, realtime, notifications, notificationJobs, push, pushJobs, ...adminModules, reports, site, productEvents, seasons, leagues, discord, chat, calendar];
 
 export interface CreateAppOptions {
   /** Variáveis já validadas; padrão: as do processo, validadas na primeira requisição. */

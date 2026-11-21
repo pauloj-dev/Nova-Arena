@@ -5,7 +5,8 @@ import { Role, UserStatus } from './user';
 import { TournamentStatus } from './tournament';
 
 // ── Denúncias e sanções ──────────────────────────────────────────────
-export const ReportTarget = z.enum(['USER', 'TEAM', 'MATCH', 'RESULT']);
+/** `CHAT_MESSAGE`: mensagem do chat de uma partida (issue 125). */
+export const ReportTarget = z.enum(['USER', 'TEAM', 'MATCH', 'RESULT', 'CHAT_MESSAGE']);
 export const ReportStatus = z.enum(['OPEN', 'IN_REVIEW', 'ACTIONED', 'DISMISSED']);
 export const ReportReason = z.enum(['CHEATING', 'FAKE_RESULT', 'HARASSMENT', 'OFFENSIVE_NAME', 'IMPERSONATION', 'OTHER']);
 export const REPORT_REASON_LABELS: Record<z.infer<typeof ReportReason>, string> = {
@@ -416,7 +417,8 @@ export type SiteBannerItem = z.infer<typeof SiteBannerItem>;
 export const PublicSiteSettings = SiteSettings.omit({ requireApprovalForSeniorAdminRemoval: true });
 export type PublicSiteSettings = z.infer<typeof PublicSiteSettings>;
 
-export const FEATURE_FLAG_DEFAULTS = { ranking: true, publicSignup: true, resultSubmission: true, pushNotifications: false } as const;
+/** `resultOcr` (issue 123): leitura experimental do print do resultado, sempre com confirmação humana. */
+export const FEATURE_FLAG_DEFAULTS = { ranking: true, publicSignup: true, resultSubmission: true, pushNotifications: false, resultOcr: false } as const;
 export type FeatureFlagKey = keyof typeof FEATURE_FLAG_DEFAULTS;
 export const FeatureFlagInput = z.object({ enabled: z.boolean() });
 

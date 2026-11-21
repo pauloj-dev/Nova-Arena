@@ -67,6 +67,8 @@ export const RealtimeEvent = z.discriminatedUnion('type', [
   z.object({ type: z.literal('notification.created'), id: Id }),
   z.object({ type: z.literal('lobby.revealed'), matchId: Id }),
   z.object({ type: z.literal('session.revoked'), reason: z.string() }),
+  /** Chat da partida (issue 125) mudou: mensagem nova ou ocultada. Só no canal `match:{id}`; o texto vem da API. */
+  z.object({ type: z.literal('chat.updated'), matchId: Id }),
 ]);
 export type RealtimeEvent = z.infer<typeof RealtimeEvent>;
 

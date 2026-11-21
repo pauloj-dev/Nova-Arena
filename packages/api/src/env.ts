@@ -55,6 +55,11 @@ export const EnvSchema = z
     GOOGLE_CLIENT_SECRET: optionalSecret,
     DISCORD_CLIENT_ID: optionalSecret,
     DISCORD_CLIENT_SECRET: optionalSecret,
+    /** Bot do Discord (issue 121). Sem as três, o módulo fica desligado (`discordConfigured`). */
+    DISCORD_APP_ID: z.string().regex(/^\d{5,25}$/, 'Use o Application ID (só números).').optional(),
+    /** Chave pública da aplicação (hex, 32 bytes): confere a assinatura Ed25519 das interações. */
+    DISCORD_PUBLIC_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, 'Use a Public Key da aplicação (64 caracteres hex).').optional(),
+    DISCORD_BOT_TOKEN: optionalSecret,
   })
   .superRefine((env, ctx) => {
     if (env.VERCEL_ENV !== 'production') return;

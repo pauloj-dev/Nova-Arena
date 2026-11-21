@@ -23,6 +23,7 @@ import { currentSession, requireSession } from '../../auth/session';
 import { buildBracket, namesFor } from '../../competition/bracket';
 import { lockStage, publishStage, recordStateChanges, usersOfRegistrations, writeRun } from '../../competition/results';
 import { followersOf, notify, publish } from '../../notify';
+import { announceBracket } from '../discord/announce';
 import { clearRun, engine, isLocked, projectRun, readRun, snapshotOf, stageWithTournament, toEngineConfig } from '../../competition/run';
 import { revalidateTournaments } from '../../revalidate';
 import { clientIp } from '../../security';
@@ -197,6 +198,7 @@ competition.post('/stages/:id/confirm', async (c) => {
   });
   await publishStage(c, t.id, stage.id);
   await publish(c, `tournament:${t.id}`, { type: 'tournament.updated', tournamentId: t.id });
+  await announceBracket(c, { tournamentId: t.id, tournamentName: t.name, slug: t.slug, stageId: stage.id, stageName: stage.name, first: !previous });
   return respondBracket(c, stage.id);
 });
 

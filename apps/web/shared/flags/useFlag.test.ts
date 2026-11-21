@@ -3,7 +3,7 @@ import { resolveFlags } from './useFlag';
 
 describe('resolveFlags', () => {
   it('sem resposta da API valem os padrões (ranking, cadastro e envio ligados; push desligado)', () => {
-    expect(resolveFlags(undefined)).toEqual({ ranking: true, publicSignup: true, resultSubmission: true, pushNotifications: false });
+    expect(resolveFlags(undefined)).toEqual({ ranking: true, publicSignup: true, resultSubmission: true, pushNotifications: false, resultOcr: false });
   });
 
   it('a resposta da API vence o padrão, flag a flag', () => {

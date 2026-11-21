@@ -3,8 +3,8 @@
 import type { Rule } from '@nova/engine';
 import type { Match, ResultEntryInput } from '@nova/schemas';
 import { Badge, Button, Checkbox, cn, Switch, Textarea } from '@nova/ui';
-import { AlertCircle, CheckCircle2, FileUp, ListOrdered, Save, Trophy, UserX } from 'lucide-react';
-import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { AlertCircle, CheckCircle2, FileUp, ListOrdered, Save, ScanText, Trophy, UserX } from 'lucide-react';
+import { useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import {
   applyDraft,
   fillPlacementsInOrder,
@@ -21,6 +21,8 @@ import {
 } from './brDrop';
 import { EvidenceUpload } from '@/features/evidence/EvidenceUpload';
 import { CELL_INPUT } from './fields';
+import { focusOcrConfirm, OcrConfirm, OcrDialog, OcrMark, type OcrValues } from '@/features/ocr/OcrDialog';
+import type { Recognizer } from '@/features/ocr/recognize';
 
 export interface BRDropSubmit {
   entries: ResultEntryInput[];
@@ -46,7 +48,14 @@ export interface BRDropFormProps {
   onImportCsv?: () => void;
   /** Envio de imagem (troca nos testes). */
   upload?: (file: File) => Promise<string>;
+  /** Mostra "Ler o print" (flag `resultOcr`, issue 123). */
+  ocrEnabled?: boolean;
+  /** Troca o reconhecimento do print (testes). */
+  recognize?: Recognizer;
 }
+
+/** Valores que vieram do print, por equipe (como texto, para comparar com o que está no campo). */
+type OcrApplied = Record<string, Partial<Record<'placement' | 'kills', string>>>;
 
 type Field = 'placement' | 'kills';
 
@@ -55,7 +64,7 @@ type Field = 'placement' | 'kills';
  * com Colocação e Kills; Tab e Enter andam célula a célula, as setas sobem e descem; a coluna
  * "Pontos (prévia)" é calculada pelo motor com o modelo da fase. No celular cada squad vira um cartão.
  */
-export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, members = {}, correction = false, submitting = false, disabled = false, onSubmit, onImportCsv, upload }: BRDropFormProps) {
+export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, members = {}, correction = false, submitting = false, disabled = false, onSubmit, onImportCsv, upload, ocrEnabled = false, recognize }: BRDropFormProps) {
   const [rows, setRows] = useState<DropRow[]>(() => (correction ? rowsFromMatch(match) : applyDraft(rowsFromMatch(match), loadDropDraft(match.id))));
   const [restored] = useState(() => !correction && loadDropDraft(match.id) !== null);
   const [autoSort, setAutoSort] = useState(false);
@@ -65,6 +74,12 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
   const [reason, setReason] = useState('');
   const [draftNote, setDraftNote] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  // Leitura do print (issue 123): o valor fica marcado enquanto a pessoa não o altera, e salvar pede conferência.
+  const [ocrOpen, setOcrOpen] = useState(false);
+  const [ocrApplied, setOcrApplied] = useState<OcrApplied>({});
+  const [ocrChecked, setOcrChecked] = useState(false);
+  const [ocrError, setOcrError] = useState<string | undefined>();
+  const ocrConfirmId = useId();
 
   const dropIndex = match.dropIndex ?? match.round;
   const ctx = useMemo(() => ({ rules, dropIndex, dropCount, multiplier: match.multiplier }), [rules, dropIndex, dropCount, match.multiplier]);
@@ -72,6 +87,23 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
   const absentCount = rows.filter((r) => r.absent).length;
   const errorCount = Object.keys(validation.errors).length;
   const reasonMissing = correction && reason.trim().length < 3;
+  const fromPrint = (row: DropRow, field: 'placement' | 'kills') => !row.absent && ocrApplied[row.registrationId]?.[field] !== undefined && ocrApplied[row.registrationId]?.[field] === row[field];
+  const ocrPending = rows.reduce((n, row) => n + (fromPrint(row, 'placement') ? 1 : 0) + (fromPrint(row, 'kills') ? 1 : 0), 0);
+
+  function applyOcr(values: OcrValues) {
+    const applied: OcrApplied = {};
+    for (const [id, v] of Object.entries(values)) {
+      applied[id] = {
+        ...(v.placement !== undefined ? { placement: String(v.placement) } : {}),
+        ...(v.kills !== undefined ? { kills: String(v.kills) } : {}),
+      };
+    }
+    setRows((list) => list.map((row) => (applied[row.registrationId] ? { ...row, ...applied[row.registrationId], absent: false } : row)));
+    setOcrApplied(applied);
+    setOcrChecked(false);
+    setOcrError(undefined);
+    setDraftNote(null);
+  }
 
   function update(registrationId: string, change: Partial<DropRow>) {
     setRows((list) => list.map((row) => (row.registrationId === registrationId ? { ...row, ...change } : row)));
@@ -142,6 +174,11 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
       firstProblemField()?.focus();
       return;
     }
+    if (ocrPending > 0 && !ocrChecked) {
+      setOcrError('Marque que conferiu os valores lidos do print antes de validar.');
+      focusOcrConfirm(ocrConfirmId);
+      return;
+    }
     onSubmit({ entries: toEntries(rows, { killsPerPlayer, members }), evidenceUrls, ...(correction ? { correctionReason: reason.trim() } : {}) });
   }
 
@@ -173,12 +210,29 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
             {correction && <> · corrigindo um resultado já validado</>}
           </p>
         </div>
-        {onImportCsv && (
-          <Button type="button" variant="secondary" size="sm" iconLeft={<FileUp className="size-4" aria-hidden />} onClick={onImportCsv}>
-            Importar CSV
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {ocrEnabled && !disabled && (
+            <Button type="button" variant="secondary" size="sm" iconLeft={<ScanText className="size-4" aria-hidden />} onClick={() => setOcrOpen(true)}>
+              Ler o print
+            </Button>
+          )}
+          {onImportCsv && (
+            <Button type="button" variant="secondary" size="sm" iconLeft={<FileUp className="size-4" aria-hidden />} onClick={onImportCsv}>
+              Importar CSV
+            </Button>
+          )}
+        </div>
       </div>
+      {ocrEnabled && (
+        <OcrDialog
+          open={ocrOpen}
+          onClose={() => setOcrOpen(false)}
+          kind="drop"
+          candidates={rows.filter((r) => !r.absent).map((r) => ({ registrationId: r.registrationId, name: r.name, tag: r.tag }))}
+          onApply={applyOcr}
+          recognize={recognize}
+        />
+      )}
 
       {restored && (
         <p role="status" className="rounded-md bg-info-soft px-3 py-2 text-sm text-info-soft-text">
@@ -255,7 +309,8 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
                   aria-label={`Colocação de ${row.name}`}
                   // Abre já na primeira célula: dá para lançar a queda inteira sem tirar a mão do teclado.
                   autoFocus={index === 0 && !correction}
-                  className={CELL_INPUT}
+                  className={cn(CELL_INPUT, fromPrint(row, 'placement') && 'border-warning')}
+                  data-ocr={fromPrint(row, 'placement') ? 'true' : undefined}
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -271,6 +326,7 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
                   onFocus={(e) => e.currentTarget.select()}
                   onKeyDown={onCellKeyDown}
                 />
+                {fromPrint(row, 'placement') && <OcrMark />}
               </label>
               <label role="cell" className="flex flex-col gap-1 text-xs font-medium text-muted">
                 <span className="md:sr-only" aria-hidden>
@@ -279,7 +335,8 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
                 <input
                   data-cell="kills"
                   aria-label={`Kills de ${row.name}`}
-                  className={CELL_INPUT}
+                  className={cn(CELL_INPUT, fromPrint(row, 'kills') && 'border-warning')}
+                  data-ocr={fromPrint(row, 'kills') ? 'true' : undefined}
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -294,6 +351,7 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
                   onFocus={(e) => e.currentTarget.select()}
                   onKeyDown={onCellKeyDown}
                 />
+                {fromPrint(row, 'kills') && <OcrMark />}
               </label>
               <div role="cell" className="col-span-2 flex items-baseline justify-between gap-2 text-sm md:col-span-1 md:justify-end" data-testid="drop-points">
                 <span className="text-xs text-muted md:sr-only">Pontos (prévia)</span>
@@ -381,6 +439,18 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
           </>
         )}
       </p>
+      {ocrPending > 0 && (
+        <OcrConfirm
+          id={ocrConfirmId}
+          count={ocrPending}
+          checked={ocrChecked}
+          onCheckedChange={(checked) => {
+            setOcrChecked(checked);
+            if (checked) setOcrError(undefined);
+          }}
+          error={ocrError}
+        />
+      )}
       {draftNote && (
         <p role="status" className="text-sm text-muted">
           {draftNote}

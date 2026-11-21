@@ -94,4 +94,8 @@ export const keys = {
   twoFactor: ['two-factor'] as const,
   loginMethods: ['login-methods'] as const,
   deviceSessions: ['device-sessions'] as const,
+  // Pós-lançamento (issues 121 e 125)
+  discord: { link: (tournamentId: string) => ['discord', 'link', tournamentId] as const },
+  chat: { match: (matchId: string) => ['chat', matchId] as const },
+  calendar: { mine: ['calendar', 'mine'] as const, tournament: (idOrSlug: string) => ['calendar', 'tournament', idOrSlug] as const },
 };

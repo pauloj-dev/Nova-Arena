@@ -15,6 +15,7 @@ import type { ResultEntryInput, SubmitResultInput } from '@nova/schemas';
 import type { AppContext } from '../context';
 import { badRequest, conflict, notFound } from '../errors';
 import { notify, publish } from '../notify';
+import { announceResult } from '../modules/discord/announce';
 import { revalidateTournaments } from '../revalidate';
 import { namesFor } from './bracket';
 import { dropCountOf, entryPoints } from './points';
@@ -300,6 +301,8 @@ export async function afterResult(c: AppContext, applied: AppliedResult, status:
     link: `/c/${applied.tournament.slug}?aba=partidas`,
   });
   await publishStage(c, applied.tournament.id, applied.stageId, { matchId: applied.matchId, status });
+  // Bot do Discord (issue 121): o mesmo aviso no canal vinculado, pela fila.
+  await announceResult(c, { tournamentId: applied.tournament.id, tournamentName: applied.tournament.name, slug: applied.tournament.slug, matchId: applied.matchId, label: applied.label, corrected: applied.corrected });
   revalidateTournaments(c);
 }
 
