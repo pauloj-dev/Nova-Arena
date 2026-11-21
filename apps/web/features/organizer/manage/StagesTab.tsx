@@ -2,10 +2,11 @@
 
 import type { Bracket, Game, OrganizerTournamentDetail, Stage } from '@nova/schemas';
 import { Badge, Button, Card, cn, EmptyState, ErrorState, Modal, Progress, Skeleton, StatusPill, useToast } from '@nova/ui';
-import { ArrowRight, CheckCircle2, ChevronDown, DoorClosed, Dices, ListTree, Lock, LockOpen, PencilLine, RefreshCw, Shuffle, SlidersHorizontal, Swords, Trophy } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, DoorClosed, Dices, ListTree, Lock, LockOpen, MonitorPlay, PencilLine, RefreshCw, Shuffle, SlidersHorizontal, Swords, Trophy } from 'lucide-react';
 import { useState } from 'react';
 import { BracketView } from '@/features/brackets/BracketView';
 import { StageStandings } from '@/features/brackets/StageStandings';
+import { TelaoLinksDialog } from '@/features/telao/TelaoLinksDialog';
 import { errorMessage } from '@/shared/api/client';
 import { useBracket, useConfirmBracket, useGenerateBracket, useNextSwissRound, useStandings, useSwapSeeding, useUnlockBracket } from '@/shared/api/hooks/competition';
 import { useCloseRegistration } from '@/shared/api/hooks/organizer';
@@ -379,6 +380,7 @@ export function StagesTab({ tournament: t, game, onGoToMatches, onFinished }: St
   const [openId, setOpenId] = useState<string | null>(null);
   const [seenCurrent, setSeenCurrent] = useState(current?.id);
   const [editing, setEditing] = useState(false);
+  const [telao, setTelao] = useState(false);
   // Quando o campeonato muda de fase (avanço confirmado), a nova fase atual abre sozinha.
   if (current?.id !== seenCurrent) {
     setSeenCurrent(current?.id);
@@ -398,11 +400,18 @@ export function StagesTab({ tournament: t, game, onGoToMatches, onFinished }: St
         <p className="text-sm text-muted">
           {stages.length} {stages.length === 1 ? 'fase' : 'fases'}. {current && t.status !== 'DRAFT' && !closed ? `Fase atual: ${current.name}.` : ''}
         </p>
-        {canEditStages && (
-          <Button variant="secondary" size="sm" iconLeft={<PencilLine className="size-4" aria-hidden />} onClick={() => setEditing(true)}>
-            Editar fases que não começaram
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {t.status !== 'DRAFT' && (
+            <Button variant="secondary" size="sm" iconLeft={<MonitorPlay className="size-4" aria-hidden />} onClick={() => setTelao(true)}>
+              Abrir no telão
+            </Button>
+          )}
+          {canEditStages && (
+            <Button variant="secondary" size="sm" iconLeft={<PencilLine className="size-4" aria-hidden />} onClick={() => setEditing(true)}>
+              Editar fases que não começaram
+            </Button>
+          )}
+        </div>
       </div>
 
       <ol className="flex flex-col gap-3" aria-label="Fases do campeonato, em ordem">
@@ -449,6 +458,7 @@ export function StagesTab({ tournament: t, game, onGoToMatches, onFinished }: St
         })}
       </ol>
 
+      {telao && <TelaoLinksDialog slug={t.slug} stages={t.stages} open onOpenChange={setTelao} />}
       {editing && <EditStagesDialog tournament={t} game={game} open onOpenChange={(open) => !open && setEditing(false)} />}
     </div>
   );
