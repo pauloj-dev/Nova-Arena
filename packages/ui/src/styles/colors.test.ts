@@ -50,3 +50,11 @@ describe('regra "nenhuma cor fora dos tokens"', () => {
     expect(findColorsInSource(source)).toEqual([{ line: 2, column: 10, match: `${hash}fff`, text: `color: ${hash}fff;` }]);
   });
 });
+
+describe('referências a issues não são cores', () => {
+  it('ignora "issue #109" e "PR #148", mas continua acusando uma cor de verdade', () => {
+    expect(findColorsInSource(`// A coluna do push (issue ${hash}109) e o PR ${hash}148`)).toEqual([]);
+    expect(findColorsInSource(`// issue ${hash}109: cor ${hash}abc`).map((f) => f.match)).toEqual([`${hash}abc`]);
+    expect(findColorsInSource(`const cor = "${hash}123";`).map((f) => f.match)).toEqual([`${hash}123`]);
+  });
+});
