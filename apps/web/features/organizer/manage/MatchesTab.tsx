@@ -13,6 +13,7 @@ import { useSession } from '@/shared/session/useSession';
 import { ScheduleMatchDialog, ScheduleRoundDialog, WalkoverDialog, type RoundScope } from '../operation/MatchDialogs';
 import { ImportResultsDialog } from '../operation/results/ImportResultsDialog';
 import { ResultPanel } from '../operation/results/ResultPanel';
+import { PendingResultsPanel } from '../operation/results/offline/PendingResultsPanel';
 import { byOrder, currentStage } from '../operation/stageUtils';
 
 type StatusFilter = 'all' | 'pending' | 'scheduled' | 'done';
@@ -188,6 +189,7 @@ export function MatchesTab({ tournament: t, game, onGoToStages }: { tournament: 
 
   return (
     <div className="flex flex-col gap-5">
+      <PendingResultsPanel tournamentId={t.id} onOpenMatch={setEditingId} />
       {paused && (
         <p role="status" className="rounded-md bg-warning-soft px-3 py-2 text-sm font-medium text-warning-soft-text">
           O campeonato está pausado. Você ainda pode agendar, mas os resultados só voltam a ser lançados depois de retomar.
