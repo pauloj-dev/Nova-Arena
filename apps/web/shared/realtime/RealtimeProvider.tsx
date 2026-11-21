@@ -4,8 +4,11 @@ import type { RealtimeChannel, RealtimeEvent } from '@nova/schemas';
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { keys } from '../api/keys';
+import { isModuleMocked } from '../api/mode';
 import { useSession } from '../session/useSession';
+import { AblyRealtimeClient } from './ably-client';
 import { POLLING_INTERVAL_MS, type ConnectionStatus, type RealtimeClient } from './client';
+import { MergedRealtimeClient } from './merged-client';
 import { MockRealtimeClient } from './mock-client';
 
 const RealtimeContext = createContext<RealtimeClient | null>(null);
@@ -17,13 +20,29 @@ declare global {
   }
 }
 
-let singleton: MockRealtimeClient | null = null;
+let singleton: RealtimeClient | null = null;
+
+/**
+ * O cliente certo para o ambiente (`NEXT_PUBLIC_API_MOCK`, módulo `realtime`):
+ * - simulado (protótipo): `MockRealtimeClient`, que escuta a API simulada;
+ * - real: `AblyRealtimeClient`; enquanto algum módulo ainda é simulado (preview e staging), soma o barramento
+ *   do protótipo para os eventos desses módulos continuarem chegando.
+ */
+function createClient(): RealtimeClient {
+  if (isModuleMocked('realtime')) {
+    const mock = new MockRealtimeClient();
+    window.__novaRealtime = mock;
+    return mock;
+  }
+  const ably = new AblyRealtimeClient();
+  if ((process.env.NEXT_PUBLIC_API_MOCK ?? 'all') === 'none') return ably;
+  return new MergedRealtimeClient(ably, new MockRealtimeClient());
+}
+
 /** Um cliente só para a vida inteira da página (no servidor não existe conexão). */
 function getClient(): RealtimeClient | null {
   if (typeof window === 'undefined') return null;
-  // Em B2.9: trocar por `new AblyRealtimeClient(...)` quando o tempo real deixar de ser simulado.
-  singleton ??= new MockRealtimeClient();
-  window.__novaRealtime = singleton;
+  singleton ??= createClient();
   return singleton;
 }
 
@@ -116,6 +135,14 @@ export function useTournamentChannel(tournamentId: string | undefined, onEvent?:
 function UserChannel() {
   const { user } = useSession();
   const qc = useQueryClient();
+  const client = useRealtime();
+  const userId = user?.id ?? null;
+  const previous = useRef<string | null | undefined>(undefined);
+  // Entrou, saiu ou trocou de conta: o token do tempo real passa a ter os canais da pessoa certa.
+  useEffect(() => {
+    if (previous.current !== undefined && previous.current !== userId) client?.refreshAuth?.();
+    previous.current = userId;
+  }, [client, userId]);
   useChannel(user ? `user:${user.id}` : null, (event) => {
     if (event.type === 'notification.created') void qc.invalidateQueries({ queryKey: keys.notifications.all });
     if (event.type === 'session.revoked') {

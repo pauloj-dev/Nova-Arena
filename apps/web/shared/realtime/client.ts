@@ -8,13 +8,15 @@ export interface Subscription {
 
 /**
  * Interface de tempo real independente do fornecedor (plano F2.10).
- * No protótipo é implementada por `MockRealtimeClient`; em B2.9 entra a implementação do Ably
+ * No protótipo é implementada por `MockRealtimeClient`; com a API real, por `AblyRealtimeClient` (B2.9),
  * com esta mesma interface, sem mudar nenhuma tela.
  */
 export interface RealtimeClient {
   subscribe(channel: RealtimeChannel, handler: (event: RealtimeEvent) => void): Subscription;
   getStatus(): ConnectionStatus;
   onStatusChange(listener: (status: ConnectionStatus) => void): () => void;
+  /** A sessão mudou (entrou, saiu, trocou de conta): renova a autorização dos canais privados. */
+  refreshAuth?(): void;
   close(): void;
 }
 

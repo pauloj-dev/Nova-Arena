@@ -2,12 +2,15 @@
 
 import type { TwoFactorSetup } from '@nova/schemas';
 import { Badge, Button, Input, Modal, Skeleton, useToast } from '@nova/ui';
-import { Check, Copy, Download, FlaskConical, KeyRound, ShieldCheck, ShieldOff, Smartphone } from 'lucide-react';
+import { Check, Copy, Download, KeyRound, ShieldCheck, ShieldOff, Smartphone } from 'lucide-react';
 import Link from 'next/link';
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import type { z } from 'zod';
 import { ApiError, errorMessage } from '@/shared/api/client';
-import { useDisableTwoFactor, useEnableTwoFactor, useSetupTwoFactor, useTwoFactorDevCode, useTwoFactorStatus } from '@/shared/api/hooks/admin-security';
+import { useDisableTwoFactor, useEnableTwoFactor, useSetupTwoFactor, useTwoFactorStatus } from '@/shared/api/hooks/admin-security';
+import { isModuleMocked } from '@/shared/api/mode';
+import { PrototypeCode } from './PrototypeCode';
+import { qrSvg } from './qr';
 
 type Setup = z.infer<typeof TwoFactorSetup>;
 
@@ -20,40 +23,18 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
+function safeQr(text: string): string {
+  try {
+    return qrSvg(text);
+  } catch {
+    // Sem QR code, a chave para digitar continua na tela.
+    return '';
+  }
+}
+
 /** "JBSWY3DPEHPK3PXP" → "JBSW Y3DP EHPK 3PXP": mais fácil de digitar no aplicativo. */
 export function groupSecret(secret: string): string {
   return secret.replace(/(.{4})/g, '$1 ').trim();
-}
-
-/**
- * Só no protótipo: mostra o código do momento, para a demonstração funcionar sem aplicativo autenticador.
- * Na versão final este aviso não existe (o código só existe no aparelho da pessoa).
- */
-function PrototypeCode({ onUse }: { onUse: (code: string) => void }) {
-  const dev = useTwoFactorDevCode(true);
-  return (
-    <div role="note" className="flex flex-col gap-2 rounded-md border border-border-strong bg-info-soft px-3 py-3 text-sm text-info-soft-text" data-testid="prototype-code">
-      <Badge tone="info" className="self-start border border-info" icon={<FlaskConical className="size-3.5" aria-hidden />}>
-        Protótipo
-      </Badge>
-      <p>Sem aplicativo autenticador à mão? No protótipo, o código do momento aparece aqui. Na versão final ele só existe no seu celular.</p>
-      {dev.data ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="tabular font-mono text-lg font-bold tracking-widest" data-testid="dev-code">
-            {dev.data.code}
-          </span>
-          <span className="text-xs">troca em {dev.data.expiresInSeconds} s</span>
-          <Button size="sm" variant="secondary" onClick={() => onUse(dev.data.code)}>
-            Usar este código
-          </Button>
-        </div>
-      ) : dev.isError ? (
-        <p>Não foi possível buscar o código agora.</p>
-      ) : (
-        <Skeleton className="h-8 w-40" />
-      )}
-    </div>
-  );
 }
 
 function RecoveryCodes({ codes, onDone, adminArea }: { codes: string[]; onDone: () => void; adminArea: boolean }) {
@@ -119,6 +100,8 @@ function SetupSteps({ setup, onCancel, onEnabled }: { setup: Setup; onCancel: ()
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // A API real manda só o `otpauthUrl`: o QR code é desenhado aqui mesmo, no navegador.
+  const qr = useMemo(() => setup.qrSvg || safeQr(setup.otpauthUrl), [setup.qrSvg, setup.otpauthUrl]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -146,9 +129,9 @@ function SetupSteps({ setup, onCancel, onEnabled }: { setup: Setup; onCancel: ()
           </h3>
           <p className="text-sm text-muted">Use Google Authenticator, Microsoft Authenticator, Authy ou outro aplicativo de códigos. No aplicativo, escolha adicionar conta e aponte a câmera.</p>
           <div className="flex flex-col gap-4 md:flex-row md:items-start">
-            {setup.qrSvg ? (
+            {qr ? (
               // eslint-disable-next-line @next/next/no-img-element -- SVG gerado na hora, embutido como data URI (sem requisição nem script)
-              <img src={`data:image/svg+xml;utf8,${encodeURIComponent(setup.qrSvg)}`} alt="QR code para adicionar a Nova Arena ao aplicativo autenticador" width={192} height={192} className="size-48 shrink-0 rounded-md border border-border" data-testid="two-factor-qr" />
+              <img src={`data:image/svg+xml;utf8,${encodeURIComponent(qr)}`} alt="QR code para adicionar a Nova Arena ao aplicativo autenticador" width={192} height={192} className="size-48 shrink-0 rounded-md border border-border" data-testid="two-factor-qr" />
             ) : null}
             <div className="flex min-w-0 flex-col gap-2 md:flex-1">
               <p className="text-sm">Não dá para ler o QR code? Digite esta chave no aplicativo (tipo: baseado em tempo):</p>
@@ -184,7 +167,7 @@ function SetupSteps({ setup, onCancel, onEnabled }: { setup: Setup; onCancel: ()
               className="max-w-xs"
               inputClassName="tabular font-mono tracking-widest"
             />
-            <PrototypeCode onUse={setCode} />
+            {isModuleMocked('admin-settings') && <PrototypeCode onUse={setCode} />}
             <div className="flex flex-wrap gap-2">
               <Button type="submit" loading={enable.isPending}>
                 Ativar verificação
@@ -244,7 +227,7 @@ function DisableModal({ onClose }: { onClose: () => void }) {
     >
       <form id="disable-2fa" onSubmit={submit} className="flex flex-col gap-3" noValidate>
         <Input label="Código do aplicativo ou de recuperação" autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} error={error ?? undefined} inputClassName="font-mono" />
-        <PrototypeCode onUse={setCode} />
+        {isModuleMocked('admin-settings') && <PrototypeCode onUse={setCode} />}
       </form>
     </Modal>
   );
