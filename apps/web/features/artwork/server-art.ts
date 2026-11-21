@@ -3,6 +3,7 @@
  * CSS, então os valores dos tokens "Nova Green" de `packages/ui/src/styles/tokens.css` se repetem aqui.
  */
 import type { Podium, Tournament } from '@nova/schemas';
+import { formatDate } from '@/shared/lib/datetime';
 import type { ArtFormat, ArtTheme } from './theme';
 
 /** Mesmos valores dos tokens de `tokens.css` (primary-900/700/600/100/500, white, gold-400, silver-300, bronze-600, gray-900). */
@@ -21,8 +22,6 @@ export const SERVER_THEME: ArtTheme = {
   fontBody: 'sans-serif',
 };
 
-const dateFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' });
-
 /** Endereço mostrado no rodapé da arte (sem protocolo). */
 export function siteLabelFor(slug: string, siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://novaarena.gg'): string {
   let host = 'novaarena.gg';
@@ -40,7 +39,7 @@ export function championsArtProps(t: Pick<Tournament, 'name' | 'slug' | 'gameNam
     tournamentName: t.name,
     gameName: t.gameName,
     gameIcon: t.gameIcon,
-    dateLabel: dateFmt.format(new Date(podium.finishedAt)),
+    dateLabel: formatDate(podium.finishedAt, { timeZone: 'America/Sao_Paulo' }),
     places: podium.places.map((p) => ({ place: p.place, name: p.name, tag: p.tag })),
     siteLabel: siteLabelFor(t.slug),
     format,

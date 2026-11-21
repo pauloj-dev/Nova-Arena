@@ -4,6 +4,9 @@
  * As fontes do site são embutidas no SVG quando dá (o SVG como imagem não enxerga as fontes da página).
  */
 
+import { getT } from '@/shared/i18n/core';
+import { messages } from './messages';
+
 const MAX_FONTS = 8;
 
 function toDataUrl(blob: Blob): Promise<string> {
@@ -72,6 +75,7 @@ export function svgFor(xhtml: string, width: number, height: number, fontCss = '
 }
 
 export async function nodeToPng(node: HTMLElement, width: number, height: number): Promise<Blob> {
+  const t = getT(messages, 'exportPng');
   const xhtml = new XMLSerializer().serializeToString(node);
   const svg = svgFor(xhtml, width, height, await embeddedFontCss(node));
   const image = new Image();
@@ -79,7 +83,7 @@ export async function nodeToPng(node: HTMLElement, width: number, height: number
   image.height = height;
   const loaded = new Promise<void>((resolve, reject) => {
     image.onload = () => resolve();
-    image.onerror = () => reject(new Error('O navegador não conseguiu montar a imagem.'));
+    image.onerror = () => reject(new Error(t('erroMontar')));
   });
   // Data URL (e não blob URL): assim o canvas não fica "contaminado" e pode ser exportado.
   image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -88,9 +92,9 @@ export async function nodeToPng(node: HTMLElement, width: number, height: number
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Este navegador não consegue gerar a imagem.');
+  if (!ctx) throw new Error(t('erroCanvas'));
   ctx.drawImage(image, 0, 0, width, height);
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-  if (!blob) throw new Error('Não foi possível gerar o PNG.');
+  if (!blob) throw new Error(t('erroPng'));
   return blob;
 }
