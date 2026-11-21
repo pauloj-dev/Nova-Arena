@@ -44,7 +44,7 @@ export function DevSwitcher() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed right-0 top-1/2 z-40 flex min-h-11 -translate-y-1/2 items-center gap-2 rounded-l-full border border-r-0 border-border-strong bg-surface py-2 pl-3 pr-2 text-xs font-semibold text-text shadow-md"
+        className="fixed right-0 top-1/2 z-40 flex min-h-11 min-w-11 -translate-y-1/2 items-center gap-2 rounded-l-full border border-r-0 border-border-strong bg-surface py-2 pl-3 pr-2 text-xs font-semibold text-text shadow-md"
         aria-label="Protótipo: entrar como outro usuário"
         title="Protótipo: entrar como outro usuário"
       >

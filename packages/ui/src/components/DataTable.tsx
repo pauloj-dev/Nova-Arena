@@ -185,7 +185,10 @@ export function DataTable<T>({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 font-semibold text-text">{primary?.cell(row)}</div>
                   {selectable && (
-                    <input type="checkbox" aria-label="Selecionar" checked={sel.includes(id)} onChange={() => toggleRow(id)} className="mt-1 size-5 accent-(--accent)" />
+                    // Área de toque de 44 px em volta da caixa (o rótulo inteiro marca e desmarca).
+                    <label className="-m-3 flex size-11 shrink-0 cursor-pointer items-center justify-center">
+                      <input type="checkbox" aria-label="Selecionar" checked={sel.includes(id)} onChange={() => toggleRow(id)} className="size-5 accent-(--accent)" />
+                    </label>
                   )}
                 </div>
                 <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">

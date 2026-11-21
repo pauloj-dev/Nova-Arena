@@ -144,7 +144,7 @@ export function ProfileForm({ user }: { user: Me }) {
 
       <div className="grid gap-4 xs:grid-cols-2">
         <Input label="País" autoComplete="country-name" maxLength={60} error={errors.country?.message} {...register('country')} />
-        <Input label="Estado" placeholder="Ex.: SP" maxLength={60} error={errors.state?.message} {...register('state')} />
+        <Input label="Estado" placeholder="Ex.: SP" autoComplete="address-level1" maxLength={60} error={errors.state?.message} {...register('state')} />
       </div>
 
       <Textarea

@@ -15,6 +15,11 @@ interface AccountValues {
   fields: Record<string, string>;
 }
 
+/** ID só de números (ex.: `^[0-9]{6,12}$` do Free Fire): abre o teclado numérico no celular. */
+function onlyDigits(pattern: string | null | undefined): boolean {
+  return Boolean(pattern) && /^\^?(\[0-9\]|\\d)(\{\d+(,\d*)?\}|[+*])?\$?$/.test(pattern ?? '');
+}
+
 function GameAccountForm({ game, account }: { game: Game; account: GameAccount | undefined }) {
   const { success, error } = useToast();
   const upsert = useUpsertGameAccount();
@@ -89,7 +94,7 @@ function GameAccountForm({ game, account }: { game: Game; account: GameAccount |
           <>
             <div className="grid gap-3 xs:grid-cols-2">
               {game.requiredAccountFields.map((field) => (
-                <Input key={field.key} label={field.label} placeholder={field.placeholder} autoComplete="off" autoCapitalize="off" spellCheck={false} error={errors.fields?.[field.key]?.message} {...register(`fields.${field.key}`)} />
+                <Input key={field.key} label={field.label} placeholder={field.placeholder} inputMode={onlyDigits(field.pattern) ? 'numeric' : undefined} autoComplete="off" autoCapitalize="off" spellCheck={false} error={errors.fields?.[field.key]?.message} {...register(`fields.${field.key}`)} />
               ))}
             </div>
             <div className="flex flex-wrap gap-2">

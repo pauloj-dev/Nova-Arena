@@ -41,7 +41,7 @@ export function SquadRoster({ team, viewerId, onToggleSub, onTransfer, onRemove,
             <li key={member.userId} className="flex items-center gap-3 py-3">
               <Avatar name={member.nickname} src={member.avatarUrl} size="md" />
               <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <Link href={`/u/${encodeURIComponent(member.nickname)}`} className="truncate font-semibold text-text hover:underline">
+                <Link href={`/u/${encodeURIComponent(member.nickname)}`} className="-my-2.5 block truncate py-2.5 font-semibold text-text hover:underline">
                   {member.nickname}
                   {isMe && <span className="font-normal text-muted"> (você)</span>}
                 </Link>
