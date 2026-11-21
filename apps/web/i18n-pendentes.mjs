@@ -5,5 +5,4 @@
  */
 export const I18N_PENDENTES = [
   'features/admin/**',
-  'features/organizer/**',
 ];
