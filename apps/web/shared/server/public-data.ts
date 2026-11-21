@@ -8,7 +8,7 @@
  */
 import 'server-only';
 import { createApp, TOURNAMENTS_TAG, userTag, type App } from '@nova/api';
-import { page, Podium, PublicUser, Tournament, TournamentSummary, type TournamentSummary as Summary } from '@nova/schemas';
+import { page, Podium, PublicSiteSettings, PublicUser, Tournament, TournamentSummary, type TournamentSummary as Summary } from '@nova/schemas';
 import { unstable_cache } from 'next/cache';
 import type { ZodType } from 'zod';
 import { isModuleMocked } from '@/shared/api/mode';
@@ -42,6 +42,16 @@ export async function getPublicProfile(nickname: string): Promise<PublicUser | n
   if (isModuleMocked('users')) return null;
   const key = nickname.toLowerCase();
   return unstable_cache(() => getJson(`/users/${encodeURIComponent(key)}`, PublicUser), ['public-profile', key], { tags: [userTag(key)], revalidate: FALLBACK_SECONDS })();
+}
+
+/**
+ * Configurações públicas do site (Termos, Privacidade, contato). Vêm prontas no HTML de `/termos` e `/privacidade`
+ * (#111: o texto é o LCP dessas páginas; buscar no navegador custava segundos no celular). A edição pelo Super Admin
+ * aparece em até 5 minutos (e na hora para quem já está no site, que busca de novo pela API).
+ */
+export async function getPublicSiteSettings(): Promise<PublicSiteSettings | null> {
+  if (isModuleMocked('admin-settings')) return null;
+  return unstable_cache(() => getJson('/site/settings', PublicSiteSettings), ['public-site-settings'], { revalidate: FALLBACK_SECONDS })().catch(() => null);
 }
 
 /** Campeonatos públicos para o sitemap (até 1.000, os mais relevantes primeiro). */

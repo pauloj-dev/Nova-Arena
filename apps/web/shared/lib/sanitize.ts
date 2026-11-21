@@ -1,3 +1,4 @@
+import { sanitizeHtmlAllowlist } from '@nova/schemas';
 import DOMPurify from 'dompurify';
 
 /**
@@ -8,7 +9,9 @@ const ALLOWED_TAGS = ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'h2', 'h3',
 const ALLOWED_ATTR = ['href'];
 
 export function sanitizeRichText(html: string): string {
-  if (typeof window === 'undefined') return '';
+  // No servidor não há DOM para o DOMPurify: vale a mesma lista de tags do sanitizador da API (TypeScript puro), e o
+  // texto já vem no HTML da página (#111: ele costuma ser o LCP de Termos, Privacidade e da página do campeonato).
+  if (typeof window === 'undefined') return sanitizeHtmlAllowlist(html);
   const clean = DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR, ALLOWED_URI_REGEXP: /^(?:https?:|mailto:)/i });
   // Links de conteúdo de terceiros sempre abrem em nova aba, sem dar acesso à página de origem.
   const doc = new DOMParser().parseFromString(clean, 'text/html');
