@@ -195,6 +195,9 @@ importers:
       '@vercel/blob':
         specifier: ^2.9.0
         version: 2.9.0
+      '@vercel/edge-config':
+        specifier: ^1.5.1
+        version: 1.5.1(next@16.4.6(@babel/core@7.29.13(supports-color@7.2.0))(@playwright/test@1.65.0)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
       arctic:
         specifier: ^3.7.0
         version: 3.7.0
@@ -3561,6 +3564,22 @@ packages:
   '@vercel/cli-exec@1.0.1':
     resolution: {integrity: sha512-g9XerViJ/paZujufXYcu5XYI2vU2rtB4sgdpjUHde5RnOkdmpu0ngH46LCFGHoPXO/C+qDPSczIHIRN+8Q2YKQ==}
     engines: {node: '>= 18'}
+
+  '@vercel/edge-config@1.5.1':
+    resolution: {integrity: sha512-eawv5LKqEk+KL9lw+lzExpPELE8B1DdvWhpswtSr5nkUujH4nOLq89fY565uWp5z70XzTnfx6E08KIVmgOwSjg==}
+    engines: {node: '>=14.6'}
+    deprecated: This package has been renamed to @vercel/global-config. Install @vercel/global-config instead.
+    peerDependencies:
+      '@opentelemetry/api': ^1.7.0
+      next: '>=1'
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+      next:
+        optional: true
+
+  '@vercel/global-config-fs@0.1.0':
+    resolution: {integrity: sha512-xxMUwf96H/qKTA4Az+uh3xlVWkwnN3z400P5gex0uUsU8pe99njopYVyKVoUTfu8gN9xbHqaigWaIBr1+lufMg==}
 
   '@vercel/oidc@3.8.10':
     resolution: {integrity: sha512-sPw1kIfQEA6/2dB+zlAJHnhhNBRJ8t/t4HfFvKO+g0EPBA7NbCKyGovuhgAV6Mnl865ka7HqCEguIy596czdAw==}
@@ -9249,6 +9268,14 @@ snapshots:
   '@vercel/cli-exec@1.0.1':
     dependencies:
       execa: 5.1.1
+
+  '@vercel/edge-config@1.5.1(next@16.4.6(@babel/core@7.29.13(supports-color@7.2.0))(@playwright/test@1.65.0)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))':
+    dependencies:
+      '@vercel/global-config-fs': 0.1.0
+    optionalDependencies:
+      next: 16.4.6(@babel/core@7.29.13(supports-color@7.2.0))(@playwright/test@1.65.0)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+
+  '@vercel/global-config-fs@0.1.0': {}
 
   '@vercel/oidc@3.8.10':
     dependencies:

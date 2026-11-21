@@ -35,6 +35,11 @@ import { auth } from './modules/auth';
 import { oauth } from './modules/oauth';
 import { databaseCheck, health, qstashCheck, redisCheck } from './modules/health';
 import { memoryLimiter, requireSameOrigin, upstashLimiter, type RateLimiter } from './security';
+import { adminArea } from './auth/admin';
+import { adminModules } from './modules/admin';
+import { reports } from './modules/reports';
+import { site } from './modules/site';
+import { productEvents, trackAdminMutations } from './modules/site/events';
 
 export const API_BASE_PATH = '/api/v1';
 
@@ -42,7 +47,7 @@ export const API_BASE_PATH = '/api/v1';
  * Módulos registrados. Entram, na ordem do B1: auth (#67 ✓, OAuth #68 ✓), users e me (#72), roles e audit (#70: `auth/rbac.ts` ✓; rotas na #72),
  * uploads (#73), games (#74), tournaments (#75, #76), teams (#78), registrations (#79).
  */
-const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs, teams, registrations, competition, matches];
+const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs, teams, registrations, competition, matches, ...adminModules, reports, site, productEvents];
 
 export interface CreateAppOptions {
   /** Variáveis já validadas; padrão: as do processo, validadas na primeira requisição. */
@@ -104,6 +109,10 @@ export function createApp(options: CreateAppOptions = {}) {
 
   // CSRF: toda mutação precisa vir do próprio site (plano B1.2).
   app.use(requireSameOrigin);
+
+  // Área de administração (RNF-08): toda rota `/admin/*`, de qualquer módulo, exige Admin ou Super Admin com 2FA
+  // feito. As alterações bem-sucedidas viram evento de produto (KR de auditoria, #101).
+  app.use('/admin/*', trackAdminMutations, adminArea);
 
   for (const module of [...modules, ...(options.extraModules ?? [])]) app.route('/', module);
 

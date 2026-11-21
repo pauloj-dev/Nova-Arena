@@ -433,3 +433,57 @@ export const TwoFactorDisableInput = z.object({ code: z.string().trim().min(6, '
 /** Só no protótipo: o código atual, para a demonstração funcionar sem aplicativo autenticador. */
 export const TwoFactorDevCode = z.object({ code: z.string(), expiresInSeconds: z.number().int() });
 export const TwoFactorResetInput = z.object({ reason: z.string().trim().min(5, 'Informe o motivo').max(500) });
+
+// ── Métricas de produto (issue #101: OKRs do PRD §3.2, North Star §3.3, HEART §20.1) ──
+/** Um indicador do dashboard: valor medido, meta e se está dentro dela. `value` nulo = ainda sem dados no período. */
+export const ProductMetric = z.object({
+  key: z.string(),
+  group: z.enum(['OKR', 'HEART']),
+  label: z.string(),
+  value: z.number().nullable(),
+  unit: z.enum(['minutes', 'seconds', 'percent', 'score', 'count']),
+  /** Meta do PRD no mesmo formato de `value` (ex.: 10 minutos; 0.9 = 90%). */
+  target: z.number().nullable(),
+  /** `max`: quanto menor melhor (≤ meta) · `min`: quanto maior melhor (≥ meta). */
+  direction: z.enum(['max', 'min']),
+  targetLabel: z.string(),
+  status: z.enum(['ok', 'attention', 'no_data']),
+  /** Quantos casos entraram na conta (campeonatos, partidas, pessoas, respostas). */
+  sample: z.number().int(),
+  detail: z.string(),
+});
+export type ProductMetric = z.infer<typeof ProductMetric>;
+export const ProductMetrics = z.object({
+  from: z.iso.date(),
+  to: z.iso.date(),
+  generatedAt: IsoDateTime,
+  northStar: z.object({
+    thisWeek: z.number().int(),
+    lastWeek: z.number().int(),
+    /** Partidas com resultado validado por semana (segunda a domingo, UTC), da mais antiga para a mais recente. */
+    weekly: z.array(z.object({ weekStart: z.iso.date(), count: z.number().int() })),
+  }),
+  metrics: z.array(ProductMetric),
+});
+export type ProductMetrics = z.infer<typeof ProductMetrics>;
+
+/**
+ * Evento de produto enviado pelo navegador (`POST /events`, sem cookie de análise). Só eventos do catálogo, com
+ * números ou rótulos curtos — nunca texto livre, IP ou identificador de aparelho (LGPD).
+ * - `result_entry_time`: tempo para lançar o resultado de uma partida (`durationMs`; `kind`: `LOBBY` ou `DUEL`).
+ */
+export const PRODUCT_EVENT_NAMES = ['result_entry_time'] as const;
+export const ProductEventInput = z.object({
+  name: z.enum(PRODUCT_EVENT_NAMES),
+  props: z
+    .record(z.string().max(30), z.union([z.number(), z.boolean(), z.string().max(40)]))
+    .refine((v) => Object.keys(v).length <= 8, 'No máximo 8 propriedades')
+    .default({}),
+});
+export type ProductEventInput = z.infer<typeof ProductEventInput>;
+
+/** Pesquisa NPS depois do campeonato (HEART · Happiness), para participantes e organização. */
+export const NpsAnswerInput = z.object({ tournamentId: Id, score: z.number().int().min(0, 'De 0 a 10').max(10, 'De 0 a 10') });
+export type NpsAnswerInput = z.infer<typeof NpsAnswerInput>;
+export const NpsAnswer = z.object({ tournamentId: Id, score: z.number().int(), as: z.enum(['PARTICIPANT', 'ORGANIZER']), createdAt: IsoDateTime });
+export type NpsAnswer = z.infer<typeof NpsAnswer>;

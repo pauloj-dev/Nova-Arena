@@ -3,6 +3,7 @@
   "regions": ["gru1"],
   "crons": [
     { "path": "/api/v1/cron/sweep", "schedule": "* * * * *" },
-    { "path": "/api/v1/cron/daily-cleanup", "schedule": "0 6 * * *" }
+    { "path": "/api/v1/cron/daily-cleanup", "schedule": "0 6 * * *" },
+    { "path": "/api/v1/cron/sanctions", "schedule": "* * * * *" }
   ]
 }
