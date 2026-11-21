@@ -23,6 +23,8 @@ import {
   type StageFormat,
   type StageInput,
 } from '@nova/schemas';
+import { getT } from '@/shared/i18n/core';
+import { messages } from '../messages';
 
 export const DUEL_GAME_MINUTES = 10;
 export const BR_DROP_MINUTES = 25;
@@ -110,10 +112,11 @@ export function estimateStages(stages: StageInput[], entrants: number): { rounds
 
 /** "2 h 30 min", "45 min". */
 export function formatDuration(minutes: number): string {
+  const t = getT(messages, 'formatAssistant');
   const h = Math.floor(minutes / 60);
   const m = Math.round(minutes % 60);
-  if (h === 0) return `${m} min`;
-  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+  if (h === 0) return t('minutos', { m: String(m) });
+  return m === 0 ? t('horas', { h: String(h) }) : t('horasEMinutos', { h: String(h), m: String(m) });
 }
 
 interface Candidate {
@@ -126,6 +129,7 @@ interface Candidate {
 }
 
 function duelCandidates(n: number, ctx: { game: Game; mode: GameMode; userId: string | null }): Candidate[] {
+  const t = getT(messages, 'formatAssistant');
   const list: Candidate[] = [];
   const team = ctx.mode.teamSize > 1;
   const elim: StageFormat = team && formatAvailability('TEAM_VS_TEAM', ctx.game, ctx.mode).available ? 'TEAM_VS_TEAM' : 'SINGLE_ELIM';
@@ -133,35 +137,35 @@ function duelCandidates(n: number, ctx: { game: Game; mode: GameMode; userId: st
   const md1 = defaultStage(elim, ctx, { isLast: true });
   list.push({
     id: 'mata-mata-md1',
-    title: 'Mata-mata em jogo único',
-    summary: 'Perdeu, está fora. Cada confronto é decidido em um jogo.',
+    title: t('mataMataMd1.titulo'),
+    summary: t('mataMataMd1.resumo'),
     stages: [{ ...md1, config: { ...md1.config, bestOf: 1 } }],
-    pros: ['O formato mais rápido', 'Fácil de entender e de acompanhar'],
-    cons: ['Metade dos inscritos joga uma partida só', 'Um jogo ruim elimina'],
+    pros: [t('mataMataMd1.pro1'), t('mataMataMd1.pro2')],
+    cons: [t('mataMataMd1.contra1'), t('mataMataMd1.contra2')],
   });
   list.push({
     id: 'mata-mata-md3',
-    title: 'Mata-mata melhor de 3',
-    summary: 'Mata-mata com séries melhor de 3: quem vence 2 jogos avança.',
-    stages: [{ ...md1, name: 'Mata-mata MD3', config: { ...md1.config, bestOf: 3 } }],
-    pros: ['Resultado mais justo que o jogo único', 'Continua simples'],
-    cons: ['Leva até 3 vezes mais tempo por rodada'],
+    title: t('mataMataMd3.titulo'),
+    summary: t('mataMataMd3.resumo'),
+    stages: [{ ...md1, name: t('mataMataMd3.fase'), config: { ...md1.config, bestOf: 3 } }],
+    pros: [t('mataMataMd3.pro1'), t('mataMataMd3.pro2')],
+    cons: [t('mataMataMd3.contra1')],
   });
 
   if (n >= 8) {
     const groupCount = Math.max(2, largestPowerOfTwo(Math.floor(n / 4)));
     const groups = defaultStage('GROUPS', ctx, { isLast: false });
-    const playoff = defaultStage(elim, ctx, { isLast: true, seeding: 'RANKED', name: 'Mata-mata' });
+    const playoff = defaultStage(elim, ctx, { isLast: true, seeding: 'RANKED', name: t('gruposMataMata.faseFinal') });
     list.push({
       id: 'grupos-mata-mata',
-      title: 'Grupos + mata-mata',
-      summary: `${groupCount} grupos de pontos corridos; os 2 melhores de cada grupo vão para o mata-mata.`,
+      title: t('gruposMataMata.titulo'),
+      summary: t('gruposMataMata.resumo', { grupos: String(groupCount) }),
       stages: [
         { ...groups, config: { ...groups.config, groupCount, groupMode: 'DUEL', bestOf: 1, doubleRound: false }, qualification: { type: 'TOP_N_PER_GROUP', n: 2, repechage: 0 } },
         { ...playoff, config: { ...playoff.config, bestOf: 1 } },
       ],
-      pros: ['Todo mundo joga várias partidas', 'O mata-mata final recebe os melhores'],
-      cons: ['Mais longo que o mata-mata direto', 'Exige acompanhar várias tabelas'],
+      pros: [t('gruposMataMata.pro1'), t('gruposMataMata.pro2')],
+      cons: [t('gruposMataMata.contra1'), t('gruposMataMata.contra2')],
     });
   }
 
@@ -170,11 +174,11 @@ function duelCandidates(n: number, ctx: { game: Game; mode: GameMode; userId: st
     const rounds = Math.min(log2ceil(n), maxSwissRounds(n));
     list.push({
       id: 'suico',
-      title: 'Suíço',
-      summary: `${rounds} rodadas; cada rodada junta quem tem campanha parecida, sem eliminar ninguém.`,
+      title: t('suico.titulo'),
+      summary: t('suico.resumo', { rodadas: String(rounds) }),
       stages: [{ ...swiss, config: { ...swiss.config, rounds, bestOf: 1 } }],
-      pros: ['Ninguém é eliminado: todos jogam todas as rodadas', 'Poucas rodadas mesmo com muitos inscritos'],
-      cons: ['A classificação final depende do desempate', 'Menos emoção de "final"'],
+      pros: [t('suico.pro1'), t('suico.pro2')],
+      cons: [t('suico.contra1'), t('suico.contra2')],
     });
   }
 
@@ -182,11 +186,11 @@ function duelCandidates(n: number, ctx: { game: Game; mode: GameMode; userId: st
     const rr = defaultStage('ROUND_ROBIN', ctx, { isLast: true });
     list.push({
       id: 'pontos-corridos',
-      title: 'Pontos corridos',
-      summary: 'Todos jogam contra todos e a tabela decide o campeão.',
+      title: t('pontosCorridos.titulo'),
+      summary: t('pontosCorridos.resumo'),
       stages: [{ ...rr, config: { ...rr.config, bestOf: 1, doubleRound: false } }],
-      pros: ['O campeão mais justo', 'Todos jogam o mesmo número de partidas'],
-      cons: ['Muitas rodadas: só serve para poucos inscritos'],
+      pros: [t('pontosCorridos.pro1'), t('pontosCorridos.pro2')],
+      cons: [t('pontosCorridos.contra1')],
     });
   }
 
@@ -194,36 +198,37 @@ function duelCandidates(n: number, ctx: { game: Game; mode: GameMode; userId: st
     const de = defaultStage('DOUBLE_ELIM', ctx, { isLast: true });
     list.push({
       id: 'eliminacao-dupla',
-      title: 'Eliminação dupla',
-      summary: 'Quem perde uma vez cai para a chave de perdedores e só sai na segunda derrota.',
+      title: t('eliminacaoDupla.titulo'),
+      summary: t('eliminacaoDupla.resumo'),
       stages: [{ ...de, config: { ...de.config, bestOf: 1 } }],
-      pros: ['Uma derrota não elimina', 'Bom equilíbrio entre justiça e tempo'],
-      cons: ['Cerca do dobro de rodadas do mata-mata simples', 'Chave mais difícil de acompanhar'],
+      pros: [t('eliminacaoDupla.pro1'), t('eliminacaoDupla.pro2')],
+      cons: [t('eliminacaoDupla.contra1'), t('eliminacaoDupla.contra2')],
     });
   }
   return list;
 }
 
 function brCandidates(n: number, ctx: { game: Game; mode: GameMode; userId: string | null }): Candidate[] {
+  const t = getT(messages, 'formatAssistant');
   const list: Candidate[] = [];
   const base = defaultStage('BATTLE_ROYALE', ctx, { isLast: true });
   const lobby = base.config.lobbySize;
   if (n <= lobby) {
     list.push({
       id: 'sala-unica-3',
-      title: 'Sala única, 3 quedas',
-      summary: `Todas as equipes na mesma sala, 3 quedas somando colocação e kills.`,
-      stages: [{ ...base, name: 'Quedas', config: { ...base.config, drops: 3 } }],
-      pros: ['O mais rápido', 'Uma tabela só, fácil de transmitir'],
-      cons: ['Poucas quedas: uma queda ruim pesa muito'],
+      title: t('salaUnica3.titulo'),
+      summary: t('salaUnica3.resumo'),
+      stages: [{ ...base, name: t('salaUnica3.fase'), config: { ...base.config, drops: 3 } }],
+      pros: [t('salaUnica3.pro1'), t('salaUnica3.pro2')],
+      cons: [t('salaUnica3.contra1')],
     });
     list.push({
       id: 'sala-unica-6',
-      title: 'Sala única, 6 quedas',
-      summary: `Todas as equipes na mesma sala, 6 quedas.`,
-      stages: [{ ...base, name: 'Quedas', config: { ...base.config, drops: 6 } }],
-      pros: ['Resultado mais consistente', 'Uma tabela só'],
-      cons: ['O dobro do tempo da versão com 3 quedas'],
+      title: t('salaUnica6.titulo'),
+      summary: t('salaUnica6.resumo'),
+      stages: [{ ...base, name: t('salaUnica6.fase'), config: { ...base.config, drops: 6 } }],
+      pros: [t('salaUnica6.pro1'), t('salaUnica6.pro2')],
+      cons: [t('salaUnica6.contra1')],
     });
     return list;
   }
@@ -232,23 +237,23 @@ function brCandidates(n: number, ctx: { game: Game; mode: GameMode; userId: stri
     const [first, final] = suggested;
     list.push({
       id: 'grupos-final',
-      title: 'Grupos + Grande Final',
-      summary: 'Grupos jogam em salas ao mesmo tempo; os melhores de cada grupo fazem a Grande Final em uma sala só.',
+      title: t('gruposFinal.titulo'),
+      summary: t('gruposFinal.resumo'),
       stages: suggested,
-      pros: ['Todas as equipes jogam várias quedas', 'Final com os melhores, boa para transmitir'],
-      cons: ['Exige uma sala no jogo por grupo ao mesmo tempo'],
+      pros: [t('gruposFinal.pro1'), t('gruposFinal.pro2')],
+      cons: [t('gruposFinal.contra1')],
     });
     if (first && final) {
       list.push({
         id: 'grupos-final-curto',
-        title: 'Grupos + final curta',
-        summary: 'Mesmo caminho, com 2 quedas nos grupos e 3 na final.',
+        title: t('gruposFinalCurto.titulo'),
+        summary: t('gruposFinalCurto.resumo'),
         stages: [
           { ...first, config: { ...first.config, drops: 2 } },
           { ...final, config: { ...final.config, drops: 3 } },
         ],
-        pros: ['Cabe em menos tempo'],
-        cons: ['Menos quedas: mais sorte no resultado'],
+        pros: [t('gruposFinalCurto.pro1')],
+        cons: [t('gruposFinalCurto.contra1')],
       });
     }
   }

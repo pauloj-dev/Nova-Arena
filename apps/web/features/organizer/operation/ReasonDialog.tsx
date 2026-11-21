@@ -2,6 +2,8 @@
 
 import { Button, Modal, Textarea } from '@nova/ui';
 import { useId, useState, type ReactNode } from 'react';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 
 export interface ReasonDialogProps {
   open: boolean;
@@ -21,7 +23,8 @@ export interface ReasonDialogProps {
 }
 
 /** Confirmação com motivo: pausa, W.O., destravar chave. O motivo vai para a auditoria. */
-export function ReasonDialog({ open, onOpenChange, title, description, label = 'Motivo', hint, confirmLabel, danger = false, required = true, loading, onConfirm, children }: ReasonDialogProps) {
+export function ReasonDialog({ open, onOpenChange, title, description, label, hint, confirmLabel, danger = false, required = true, loading, onConfirm, children }: ReasonDialogProps) {
+  const t = useT(messages, 'ReasonDialog');
   const formId = useId();
   const [reason, setReason] = useState('');
   const [attempted, setAttempted] = useState(false);
@@ -40,7 +43,7 @@ export function ReasonDialog({ open, onOpenChange, title, description, label = '
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Voltar
+            {t('voltar')}
           </Button>
           <Button variant={danger ? 'danger' : 'primary'} type="submit" form={formId} loading={loading}>
             {confirmLabel}
@@ -59,7 +62,7 @@ export function ReasonDialog({ open, onOpenChange, title, description, label = '
         }}
       >
         {children}
-        <Textarea label={label} required={required} rows={3} maxLength={500} autoFocus value={reason} onChange={(e) => setReason(e.target.value)} hint={hint} error={attempted && invalid ? 'Informe o motivo (pelo menos 3 letras)' : undefined} />
+        <Textarea label={label ?? t('motivo')} required={required} rows={3} maxLength={500} autoFocus value={reason} onChange={(e) => setReason(e.target.value)} hint={hint} error={attempted && invalid ? t('motivoErro') : undefined} />
       </form>
     </Modal>
   );

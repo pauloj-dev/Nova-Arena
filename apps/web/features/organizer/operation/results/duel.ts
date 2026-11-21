@@ -3,6 +3,8 @@
  * validação da série MD, quando o desempate aparece (RN-14) e o corpo do envio.
  */
 import type { ExtraStatField, Match, ResultEntryInput } from '@nova/schemas';
+import { getT } from '@/shared/i18n/core';
+import { messages } from '../messages';
 
 export interface DuelSide {
   registrationId: string;
@@ -42,16 +44,17 @@ export interface DuelValidation {
 
 /** Rótulo do placar conforme o jogo: coroas, gols, frames; em série MD, jogos vencidos. */
 export function scoreLabel(gameSlug: string | undefined, bestOf: number): string {
-  if (bestOf > 1) return 'Jogos vencidos';
+  const t = getT(messages, 'duel');
+  if (bestOf > 1) return t('jogosVencidos');
   switch (gameSlug) {
     case 'clash-royale':
-      return 'Coroas';
+      return t('coroas');
     case 'efootball':
-      return 'Gols';
+      return t('gols');
     case '8-ball-pool':
-      return 'Frames';
+      return t('frames');
     default:
-      return 'Placar';
+      return t('placar');
   }
 }
 
@@ -76,6 +79,7 @@ export function duelFromMatch(match: Match): DuelState | null {
 }
 
 export function validateDuel(state: DuelState, ctx: DuelContext): DuelValidation {
+  const t = getT(messages, 'duel');
   const [a, b] = state.sides;
   const errors: DuelValidation['errors'] = { scores: {}, stats: {} };
   const sa = count(a.score);
@@ -83,9 +87,9 @@ export function validateDuel(state: DuelState, ctx: DuelContext): DuelValidation
   let missing = false;
   for (const [side, value] of [[a, sa], [b, sb]] as const) {
     if (value === null) missing = true;
-    else if (!Number.isFinite(value)) errors.scores[side.registrationId] = 'Use um número inteiro';
-    else if (value < 0) errors.scores[side.registrationId] = 'O placar não pode ser negativo';
-    else if (value > 999) errors.scores[side.registrationId] = 'O máximo é 999';
+    else if (!Number.isFinite(value)) errors.scores[side.registrationId] = t('numeroInteiro');
+    else if (value < 0) errors.scores[side.registrationId] = t('negativo');
+    else if (value > 999) errors.scores[side.registrationId] = t('maximo');
   }
   const scoresOk = sa !== null && sb !== null && Object.keys(errors.scores).length === 0;
   const series = ctx.bestOf > 1;
@@ -95,8 +99,8 @@ export function validateDuel(state: DuelState, ctx: DuelContext): DuelValidation
   if (scoresOk && series) {
     const max = Math.max(sa, sb);
     const min = Math.min(sa, sb);
-    if (max > needed || min >= needed) errors.form = `Em uma série melhor de ${ctx.bestOf}, quem vence faz exatamente ${needed} ${needed === 1 ? 'vitória' : 'vitórias'} e o outro lado fica abaixo disso.`;
-    else if (max < needed) errors.form = `Ninguém chegou a ${needed} ${needed === 1 ? 'vitória' : 'vitórias'} ainda: a série melhor de ${ctx.bestOf} não terminou.`;
+    if (max > needed || min >= needed) errors.form = t('serieInvalida', { bestOf: ctx.bestOf, needed });
+    else if (max < needed) errors.form = t('serieIncompleta', { bestOf: ctx.bestOf, needed });
   }
 
   // Estatísticas extras: as "always" sempre; as de desempate só no empate de jogo eliminatório (RN-14).
@@ -109,7 +113,7 @@ export function validateDuel(state: DuelState, ctx: DuelContext): DuelValidation
       const key = `${side.registrationId}:${field.key}`;
       if (value === null) {
         if (field.when === 'tiebreak') missing = true;
-      } else if (!Number.isFinite(value) || value < 0) errors.stats[key] = 'Use um número inteiro a partir de 0';
+      } else if (!Number.isFinite(value) || value < 0) errors.stats[key] = t('estatisticaInvalida');
     }
   }
 
@@ -135,7 +139,7 @@ export function validateDuel(state: DuelState, ctx: DuelContext): DuelValidation
         needsWinner = tiebreakFields.length === 0 || filled;
         if (needsWinner) {
           if (state.winnerRegistrationId === a.registrationId || state.winnerRegistrationId === b.registrationId) winnerId = state.winnerRegistrationId;
-          else errors.winner = 'O placar ficou empatado: escolha quem venceu o desempate';
+          else errors.winner = t('escolhaVencedor');
         }
       }
     }

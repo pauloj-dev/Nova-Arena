@@ -1,13 +1,17 @@
 /** Banner do campeonato: validação do arquivo (pura) e conversão para data URL (upload simulado do protótipo). */
+import { getT } from '@/shared/i18n/core';
+import { messages } from '../messages';
+
 export const MAX_BANNER_BYTES = 5 * 1024 * 1024;
 export const BANNER_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const BANNER_MAX_WIDTH = 1600;
 
 /** Mensagem de erro para o arquivo escolhido, ou nulo se ele serve. */
 export function validateBannerFile(file: { type: string; size: number }): string | null {
-  if (!BANNER_TYPES.includes(file.type)) return 'Escolha uma imagem PNG, JPG ou WebP.';
-  if (file.size > MAX_BANNER_BYTES) return `A imagem tem ${(file.size / (1024 * 1024)).toFixed(1).replace('.', ',')} MB. O máximo é 5 MB.`;
-  if (file.size === 0) return 'O arquivo está vazio.';
+  const t = getT(messages, 'banner');
+  if (!BANNER_TYPES.includes(file.type)) return t('tipoInvalido');
+  if (file.size > MAX_BANNER_BYTES) return t('muitoGrande', { tamanho: (file.size / (1024 * 1024)).toFixed(1).replace('.', ',') });
+  if (file.size === 0) return t('vazio');
   return null;
 }
 
@@ -15,7 +19,7 @@ function readAsDataUrl(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error('Não foi possível ler o arquivo.'));
+    reader.onerror = () => reject(new Error(getT(messages, 'banner')('naoLeu')));
     reader.readAsDataURL(file);
   });
 }
@@ -24,7 +28,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('Este arquivo não é uma imagem válida.'));
+    img.onerror = () => reject(new Error(getT(messages, 'banner')('naoImagem')));
     img.src = src;
   });
 }

@@ -6,7 +6,9 @@ import { AlertCircle, CheckCircle2, Download, FileUp } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useImportResults } from '@/shared/api/hooks/competition';
+import { useT } from '@/shared/i18n/react';
 import { downloadFile } from '../../lib/download';
+import { messages } from '../messages';
 import { chunk, importableResults, lobbyMatches, parseResultsCsv, resultsCsvTemplate, type ParsedResults } from './resultsCsv';
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
@@ -41,6 +43,7 @@ export function ImportResultsDialog({ tournamentId, stageName, matches, open, on
   const inputRef = useRef<HTMLInputElement>(null);
   const importer = useImportResults(tournamentId);
   const { error } = useToast();
+  const t = useT(messages, 'ImportResultsDialog');
   const lobbies = lobbyMatches(matches);
 
   function close(next: boolean) {
@@ -56,7 +59,7 @@ export function ImportResultsDialog({ tournamentId, stageName, matches, open, on
     if (!file) return;
     setFileError(null);
     if (file.size > MAX_FILE_BYTES) {
-      setFileError('O arquivo passa de 2 MB. Divida a planilha em arquivos menores.');
+      setFileError(t('arquivoGrande'));
       return;
     }
     try {
@@ -64,7 +67,7 @@ export function ImportResultsDialog({ tournamentId, stageName, matches, open, on
       if (parsed.fatal) setFileError(parsed.fatal);
       else setStep({ kind: 'preview', fileName: file.name, parsed });
     } catch {
-      setFileError('Não foi possível ler o arquivo. Salve a planilha como CSV e tente de novo.');
+      setFileError(t('arquivoIlegivel'));
     } finally {
       if (inputRef.current) inputRef.current.value = '';
     }
@@ -86,7 +89,7 @@ export function ImportResultsDialog({ tournamentId, stageName, matches, open, on
         // O lote inteiro falhou (rede, permissão): as quedas dele entram no relatório como não aplicadas.
         const message = errorMessage(e);
         for (const item of batch) report.errors.push({ label: labels.get(item.matchId) ?? item.matchId, message });
-        error('Um lote não foi enviado', message);
+        error(t('loteFalhou'), message);
       }
       done += batch.length;
       setStep({ kind: 'sending', done, total: ready.length });
@@ -97,27 +100,28 @@ export function ImportResultsDialog({ tournamentId, stageName, matches, open, on
   const preview = step.kind === 'preview' ? step.parsed : null;
   const ready = preview ? importableResults(preview) : [];
   const badLines = preview ? preview.lines.filter((l) => l.errors.length > 0) : [];
+  const previewSummary = preview && step.kind === 'preview' ? t.rich('resumo', { file: step.fileName, ready: ready.length, bad: preview.matches.length - ready.length, lines: badLines.length, strong: (chunks) => <strong>{chunks}</strong> }) : null;
 
   return (
     <Modal
       open={open}
       onOpenChange={close}
       size="lg"
-      title="Importar resultados por CSV"
-      description={`Quedas de "${stageName}". Uma linha por squad e queda: grupo ou sala, queda, squad, colocação e kills.`}
+      title={t('titulo')}
+      description={t('descricao', { stage: stageName })}
       footer={
         step.kind === 'preview' ? (
           <>
             <Button variant="secondary" onClick={() => setStep({ kind: 'pick' })}>
-              Escolher outro arquivo
+              {t('outroArquivo')}
             </Button>
             <Button disabled={ready.length === 0} onClick={() => void send(step.parsed)}>
-              {ready.length === 1 ? 'Importar 1 queda' : `Importar ${ready.length} quedas`}
+              {t('importar', { count: ready.length })}
             </Button>
           </>
         ) : step.kind === 'sending' ? undefined : (
           <Button variant={step.kind === 'result' ? 'primary' : 'secondary'} onClick={() => close(false)}>
-            {step.kind === 'result' ? 'Concluir' : 'Fechar'}
+            {step.kind === 'result' ? t('concluir') : t('fechar')}
           </Button>
         )
       }
@@ -125,20 +129,20 @@ export function ImportResultsDialog({ tournamentId, stageName, matches, open, on
       {step.kind === 'pick' && (
         <div className="flex flex-col gap-4">
           <ol className="list-decimal pl-5 text-sm text-text">
-            <li>Baixe o modelo desta fase: ele já vem com todos os squads de cada queda que ainda não tem resultado.</li>
-            <li>Preencha a colocação e as kills (escreva “ausente” na colocação de quem não jogou). Quedas em branco são ignoradas.</li>
-            <li>Escolha o arquivo: mostramos os erros por linha antes de enviar.</li>
+            <li>{t('passo1')}</li>
+            <li>{t('passo2')}</li>
+            <li>{t('passo3')}</li>
           </ol>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" disabled={lobbies.length === 0} iconLeft={<Download className="size-4" aria-hidden />} onClick={() => downloadFile(resultsCsvTemplate(matches), 'modelo-resultados.csv', 'text/csv;charset=utf-8')}>
-              Baixar modelo de CSV
+              {t('baixarModelo')}
             </Button>
             <Button disabled={lobbies.length === 0} iconLeft={<FileUp className="size-4" aria-hidden />} onClick={() => inputRef.current?.click()}>
-              Escolher arquivo
+              {t('escolherArquivo')}
             </Button>
             <input ref={inputRef} type="file" accept=".csv,text/csv,text/plain" className="hidden" tabIndex={-1} aria-hidden data-testid="results-csv-input" onChange={(e) => void read(e.target.files?.[0])} />
           </div>
-          {lobbies.length === 0 && <p className="text-sm text-muted">Esta fase não tem quedas de Battle Royale: a importação por CSV vale para salas.</p>}
+          {lobbies.length === 0 && <p className="text-sm text-muted">{t('semQuedas')}</p>}
           {fileError && (
             <p role="alert" className="flex items-start gap-1.5 rounded-md bg-danger-soft px-3 py-2 text-sm font-medium text-danger-soft-text">
               <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -151,22 +155,20 @@ export function ImportResultsDialog({ tournamentId, stageName, matches, open, on
       {preview && step.kind === 'preview' && (
         <div className="flex flex-col gap-4" data-testid="results-preview">
           <p className="text-sm text-text" role="status">
-            <strong>{step.fileName}</strong>: {ready.length} {ready.length === 1 ? 'queda pronta' : 'quedas prontas'} para importar
-            {preview.matches.length - ready.length > 0 ? ` e ${preview.matches.length - ready.length} com problema, que ${preview.matches.length - ready.length === 1 ? 'fica' : 'ficam'} de fora.` : '.'}
-            {badLines.length > 0 && ` ${badLines.length === 1 ? '1 linha tem erro' : `${badLines.length} linhas têm erro`}.`}
+            {previewSummary}
           </p>
-          <ul className="flex flex-col gap-2" aria-label="Quedas do arquivo">
+          <ul className="flex flex-col gap-2" aria-label={t('quedasDoArquivo')}>
             {preview.matches.map((m) => (
               <li key={m.matchId} className="flex flex-col gap-1 rounded-md border border-border p-3 text-sm" data-testid="results-match" data-ready={m.ready}>
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold text-text">{m.label}</span>
                   {m.ready ? (
                     <Badge tone="primary" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>
-                      Pronta · {m.entries.length} squads
+                      {t('pronta', { count: m.entries.length })}
                     </Badge>
                   ) : (
                     <Badge tone="danger" icon={<AlertCircle className="size-3.5" aria-hidden />}>
-                      Fica de fora
+                      {t('ficaDeFora')}
                     </Badge>
                   )}
                 </span>
@@ -181,17 +183,17 @@ export function ImportResultsDialog({ tournamentId, stageName, matches, open, on
           {badLines.length > 0 && (
             <div className="overflow-x-auto rounded-lg border border-border">
               <table className="w-full border-collapse text-sm">
-                <caption className="sr-only">Linhas do arquivo com erro</caption>
+                <caption className="sr-only">{t('linhasComErro')}</caption>
                 <thead className="bg-surface-2 text-left text-muted">
                   <tr>
                     <th scope="col" className="px-3 py-2 font-semibold">
-                      Linha
+                      {t('linha')}
                     </th>
                     <th scope="col" className="px-3 py-2 font-semibold">
-                      Conteúdo
+                      {t('conteudo')}
                     </th>
                     <th scope="col" className="px-3 py-2 font-semibold">
-                      Erro
+                      {t('erro')}
                     </th>
                   </tr>
                 </thead>
@@ -199,7 +201,7 @@ export function ImportResultsDialog({ tournamentId, stageName, matches, open, on
                   {badLines.map((line) => (
                     <tr key={line.line} className="border-t border-border align-top" data-testid={`results-line-${line.line}`}>
                       <td className="tabular px-3 py-2 text-muted">{line.line}</td>
-                      <td className="px-3 py-2 text-text">{[line.values.group, line.values.drop && `queda ${line.values.drop}`, line.values.team, line.values.placement && `col. ${line.values.placement}`, line.values.kills && `${line.values.kills} kills`].filter(Boolean).join(' · ')}</td>
+                      <td className="px-3 py-2 text-text">{[line.values.group, line.values.drop && t('queda', { drop: line.values.drop }), line.values.team, line.values.placement && t('colocacao', { placement: line.values.placement }), line.values.kills && t('kills', { kills: line.values.kills })].filter(Boolean).join(' · ')}</td>
                       <td className="px-3 py-2">
                         <ul className="flex flex-col gap-1 font-medium text-danger">
                           {line.errors.map((message) => (
@@ -216,14 +218,14 @@ export function ImportResultsDialog({ tournamentId, stageName, matches, open, on
               </table>
             </div>
           )}
-          {ready.length === 0 && <p className="text-sm text-muted">Nenhuma queda está pronta. Corrija o arquivo e escolha de novo.</p>}
+          {ready.length === 0 && <p className="text-sm text-muted">{t('nenhumaPronta')}</p>}
         </div>
       )}
 
       {step.kind === 'sending' && (
         <div className="flex flex-col gap-3" role="status" aria-live="polite">
-          <p className="text-sm text-text">Enviando os resultados em lotes. Não feche esta janela.</p>
-          <Progress value={step.done} max={step.total} label="Quedas enviadas" />
+          <p className="text-sm text-text">{t('enviando')}</p>
+          <Progress value={step.done} max={step.total} label={t('quedasEnviadas')} />
         </div>
       )}
 
@@ -231,9 +233,9 @@ export function ImportResultsDialog({ tournamentId, stageName, matches, open, on
         <div className="flex flex-col gap-4" data-testid="results-report">
           <dl className="grid gap-3 xs:grid-cols-3">
             {[
-              { label: 'Quedas aplicadas', value: step.report.applied },
-              { label: 'Recusadas pela API', value: step.report.errors.length },
-              { label: 'Fora por erro no arquivo', value: step.report.skipped },
+              { label: t('aplicadas'), value: step.report.applied },
+              { label: t('recusadas'), value: step.report.errors.length },
+              { label: t('foraPorErro'), value: step.report.skipped },
             ].map((item) => (
               <div key={item.label} className="rounded-lg border border-border p-3">
                 <dd className="tabular text-2xl font-bold text-text">{item.value}</dd>
@@ -243,7 +245,7 @@ export function ImportResultsDialog({ tournamentId, stageName, matches, open, on
           </dl>
           {step.report.errors.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-text">Erros por partida</h3>
+              <h3 className="text-sm font-semibold text-text">{t('errosPorPartida')}</h3>
               <ul className="mt-2 flex flex-col gap-1 text-sm text-text">
                 {step.report.errors.map((e, i) => (
                   <li key={`${e.label}-${i}`}>
@@ -253,7 +255,7 @@ export function ImportResultsDialog({ tournamentId, stageName, matches, open, on
               </ul>
             </div>
           )}
-          {step.report.applied > 0 && <p className="text-sm text-muted">As tabelas da fase já foram recalculadas.</p>}
+          {step.report.applied > 0 && <p className="text-sm text-muted">{t('recalculadas')}</p>}
         </div>
       )}
     </Modal>

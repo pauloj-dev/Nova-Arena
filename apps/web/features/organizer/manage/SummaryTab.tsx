@@ -11,6 +11,7 @@ import { Podium } from '@/features/matches/Podium';
 import { usePodium } from '@/shared/api/hooks/competition';
 import { useCloseRegistration, useDuplicateTournament, useOpenRegistration } from '@/shared/api/hooks/organizer';
 import { useArchiveTournament, usePauseTournament, useResumeTournament } from '@/shared/api/hooks/organizer-ops';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { CancelTournamentDialog, DeleteDraftDialog, SaveTemplateDialog } from '../components/TournamentDialogs';
 import { FORMAT_INFO } from '../lib/formats';
@@ -19,6 +20,7 @@ import { isReadOnly, lifecycleActions, statusExplanation } from '../lib/status';
 import { Confetti } from '../operation/Confetti';
 import { FinishDialog } from '../operation/FinishDialog';
 import { ReasonDialog } from '../operation/ReasonDialog';
+import { messages } from './messages';
 
 /** `side`: na coluna estreita ao lado, rótulo e valor dividem a linha sem largura fixa (não vaza do cartão). */
 function Row({ label, children, side = false }: { label: string; children: ReactNode; side?: boolean }) {
@@ -50,7 +52,8 @@ export interface SummaryTabProps {
   celebrate?: boolean;
 }
 
-export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate = false }: SummaryTabProps) {
+export function SummaryTab({ tournament, onGoToStages, onFinished, celebrate = false }: SummaryTabProps) {
+  const t = useT(messages, 'SummaryTab');
   const router = useRouter();
   const { success, error } = useToast();
   const open = useOpenRegistration();
@@ -59,24 +62,27 @@ export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate 
   const pause = usePauseTournament();
   const resume = useResumeTournament();
   const archive = useArchiveTournament();
-  const finished = t.status === 'FINISHED' || t.status === 'ARCHIVED';
-  const podium = usePodium(finished ? t.id : undefined);
+  const finished = tournament.status === 'FINISHED' || tournament.status === 'ARCHIVED';
+  const podium = usePodium(finished ? tournament.id : undefined);
   const [dialog, setDialog] = useState<'cancel' | 'delete' | 'template' | 'pause' | 'resume' | 'finish' | 'archive' | null>(null);
 
-  const isDraft = t.status === 'DRAFT';
-  const isModerator = t.access === 'MODERATOR';
-  const isOwner = t.access === 'OWNER' || t.access === 'ADMIN';
+  const isDraft = tournament.status === 'DRAFT';
+  const isModerator = tournament.access === 'MODERATOR';
+  const isOwner = tournament.access === 'OWNER' || tournament.access === 'ADMIN';
   const canManage = !isModerator;
-  const actions = canManage ? lifecycleActions(t.status) : [];
-  const publicPath = `/c/${t.slug}`;
-  const stages = [...t.stages].sort((a, b) => a.order - b.order);
+  const actions = canManage ? lifecycleActions(tournament.status) : [];
+  const publicPath = `/c/${tournament.slug}`;
+  const stages = [...tournament.stages].sort((a, b) => a.order - b.order);
+  const strong = (chunks: ReactNode) => <strong>{chunks}</strong>;
+  const pauseReason = tournament.pauseReason ? t.rich('motivoPausa', { motivo: tournament.pauseReason, strong }) : null;
+  const cancelReason = tournament.cancelReason ? t.rich('motivoCancelamento', { motivo: tournament.cancelReason, strong }) : null;
 
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}${publicPath}`);
-      success('Link copiado');
+      success(t('linkCopiado'));
     } catch {
-      error('Não foi possível copiar', 'Copie o endereço direto da barra do navegador na página pública.');
+      error(t('erroCopiar'), t('erroCopiarDescricao'));
     }
   }
 
@@ -85,27 +91,27 @@ export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate 
       <div className="flex min-w-0 flex-col gap-6">
         <Card className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg">Situação</h2>
-            <StatusPill status={t.status} />
+            <h2 className="text-lg">{t('situacao')}</h2>
+            <StatusPill status={tournament.status} />
           </div>
-          <p className="text-sm text-text">{statusExplanation(t.status)}</p>
-          {t.status === 'PAUSED' && t.pauseReason && (
+          <p className="text-sm text-text">{statusExplanation(tournament.status)}</p>
+          {tournament.status === 'PAUSED' && tournament.pauseReason && (
             <p className="rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-soft-text" data-testid="pause-reason">
-              <strong>Motivo da pausa:</strong> {t.pauseReason}
+              {pauseReason}
             </p>
           )}
-          {t.cancelReason && (
+          {tournament.cancelReason && (
             <p className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger-soft-text">
-              <strong>Motivo do cancelamento:</strong> {t.cancelReason}
+              {cancelReason}
             </p>
           )}
           {canManage && (
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Ações do campeonato">
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('acoes')}>
               {isDraft && (
                 <Button asChild>
-                  <Link href={`/organizador/campeonatos/${t.id}/editar`}>
+                  <Link href={`/organizador/campeonatos/${tournament.id}/editar`}>
                     <PencilLine className="size-4" aria-hidden />
-                    Continuar rascunho
+                    {t('continuarRascunho')}
                   </Link>
                 </Button>
               )}
@@ -113,9 +119,9 @@ export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate 
                 <Button
                   loading={open.isPending}
                   iconLeft={<DoorOpen className="size-4" aria-hidden />}
-                  onClick={() => open.mutate({ id: t.id }, { onSuccess: () => success('Inscrições abertas'), onError: (e) => error('Não foi possível abrir as inscrições', errorMessage(e)) })}
+                  onClick={() => open.mutate({ id: tournament.id }, { onSuccess: () => success(t('abertas')), onError: (e) => error(t('erroAbrir'), errorMessage(e)) })}
                 >
-                  Abrir inscrições agora
+                  {t('abrirAgora')}
                 </Button>
               )}
               {actions.includes('close-registration') && (
@@ -123,41 +129,41 @@ export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate 
                   variant="secondary"
                   loading={close.isPending}
                   iconLeft={<DoorClosed className="size-4" aria-hidden />}
-                  onClick={() => close.mutate({ id: t.id }, { onSuccess: () => success('Inscrições encerradas'), onError: (e) => error('Não foi possível encerrar as inscrições', errorMessage(e)) })}
+                  onClick={() => close.mutate({ id: tournament.id }, { onSuccess: () => success(t('encerradas')), onError: (e) => error(t('erroEncerrar'), errorMessage(e)) })}
                 >
-                  Encerrar inscrições
+                  {t('encerrarInscricoes')}
                 </Button>
               )}
               {actions.includes('start') && (
                 <Button iconLeft={<ListTree className="size-4" aria-hidden />} onClick={onGoToStages}>
-                  Gerar a chave da primeira fase
+                  {t('gerarChave')}
                 </Button>
               )}
               {actions.includes('resume') && (
                 <Button iconLeft={<PlayCircle className="size-4" aria-hidden />} onClick={() => setDialog('resume')}>
-                  Retomar campeonato
+                  {t('retomar')}
                 </Button>
               )}
               {actions.includes('finish') && (
                 <Button variant="gold" iconLeft={<Trophy className="size-4" aria-hidden />} onClick={() => setDialog('finish')}>
-                  Encerrar campeonato
+                  {t('encerrar')}
                 </Button>
               )}
               {actions.includes('pause') && (
                 <Button variant="secondary" iconLeft={<PauseCircle className="size-4" aria-hidden />} onClick={() => setDialog('pause')}>
-                  Pausar campeonato
+                  {t('pausar')}
                 </Button>
               )}
               {actions.includes('archive') && (
                 <Button variant="secondary" iconLeft={<Archive className="size-4" aria-hidden />} onClick={() => setDialog('archive')}>
-                  Arquivar
+                  {t('arquivar')}
                 </Button>
               )}
-              {!isDraft && !isReadOnly(t.status) && (
+              {!isDraft && !isReadOnly(tournament.status) && (
                 <Button asChild variant="secondary">
-                  <Link href={`/organizador/campeonatos/${t.id}/editar`}>
+                  <Link href={`/organizador/campeonatos/${tournament.id}/editar`}>
                     <PencilLine className="size-4" aria-hidden />
-                    Editar campeonato
+                    {t('editar')}
                   </Link>
                 </Button>
               )}
@@ -167,32 +173,32 @@ export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate 
                 iconLeft={<Copy className="size-4" aria-hidden />}
                 onClick={() =>
                   duplicate.mutate(
-                    { id: t.id },
+                    { id: tournament.id },
                     {
                       onSuccess: (copy) => {
-                        success('Campeonato duplicado', 'A cópia é um rascunho: ajuste o nome e as datas.');
+                        success(t('duplicado'), t('duplicadoDescricao'));
                         router.push(`/organizador/campeonatos/${copy.id}/editar`);
                       },
-                      onError: (e) => error('Não foi possível duplicar', errorMessage(e)),
+                      onError: (e) => error(t('erroDuplicar'), errorMessage(e)),
                     },
                   )
                 }
               >
-                Duplicar
+                {t('duplicar')}
               </Button>
               {stages.length > 0 && (
                 <Button variant="secondary" iconLeft={<FileStack className="size-4" aria-hidden />} onClick={() => setDialog('template')}>
-                  Salvar como modelo
+                  {t('salvarModelo')}
                 </Button>
               )}
               {isDraft && isOwner && (
                 <Button variant="ghost" iconLeft={<Trash2 className="size-4" aria-hidden />} onClick={() => setDialog('delete')}>
-                  Excluir rascunho
+                  {t('excluirRascunho')}
                 </Button>
               )}
               {actions.includes('cancel') && isOwner && (
                 <Button variant="ghost" iconLeft={<XCircle className="size-4" aria-hidden />} onClick={() => setDialog('cancel')}>
-                  Cancelar campeonato
+                  {t('cancelar')}
                 </Button>
               )}
             </div>
@@ -205,9 +211,9 @@ export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate 
             <Podium podium={podium.data} />
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="secondary">
-                <Link href={`/c/${t.slug}/arte`}>
+                <Link href={`/c/${tournament.slug}/arte`}>
                   <ImageDown className="size-4" aria-hidden />
-                  Arte de resultado e certificados
+                  {t('arte')}
                 </Link>
               </Button>
             </div>
@@ -215,20 +221,20 @@ export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate 
         )}
 
         <Card className="flex flex-col gap-3">
-          <h2 className="text-lg">Datas</h2>
+          <h2 className="text-lg">{t('datas')}</h2>
           <dl className="flex flex-col gap-2">
-            <Row label="Abertura das inscrições">{dateOr(t.registrationOpensAt, isDraft ? 'Ao publicar' : 'Não definida')}</Row>
-            <Row label="Fechamento das inscrições">{dateOr(t.registrationClosesAt, 'Não definido')}</Row>
-            <Row label="Início do campeonato">{dateOr(t.startsAt, 'Não definido')}</Row>
-            {t.participantType === 'TEAM' && <Row label="Trava de elenco">{dateOr(t.rosterLockAt, 'Sem trava')}</Row>}
-            <Row label="Check-in">{t.checkIn.enabled ? `De ${t.checkIn.opensMinutesBefore} a ${t.checkIn.closesMinutesBefore} min antes de cada partida` : 'Não exigido'}</Row>
+            <Row label={t('aberturaInscricoes')}>{dateOr(tournament.registrationOpensAt, isDraft ? t('aoPublicar') : t('naoDefinida'))}</Row>
+            <Row label={t('fechamentoInscricoes')}>{dateOr(tournament.registrationClosesAt, t('naoDefinido'))}</Row>
+            <Row label={t('inicio')}>{dateOr(tournament.startsAt, t('naoDefinido'))}</Row>
+            {tournament.participantType === 'TEAM' && <Row label={t('travaElenco')}>{dateOr(tournament.rosterLockAt, t('semTrava'))}</Row>}
+            <Row label={t('checkIn')}>{tournament.checkIn.enabled ? t('checkInJanela', { abre: tournament.checkIn.opensMinutesBefore, fecha: tournament.checkIn.closesMinutesBefore }) : t('naoExigido')}</Row>
           </dl>
         </Card>
 
         <Card className="flex flex-col gap-3">
-          <h2 className="text-lg">Fases</h2>
+          <h2 className="text-lg">{t('fases')}</h2>
           {stages.length === 0 ? (
-            <p className="text-sm text-muted">Nenhuma fase montada ainda.</p>
+            <p className="text-sm text-muted">{t('semFases')}</p>
           ) : (
             <ol className="flex flex-col gap-3">
               {stages.map((stage, index) => (
@@ -238,9 +244,9 @@ export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate 
                   </span>
                   <div className="min-w-0 text-sm">
                     <p className="font-semibold text-text">
-                      {stage.name} <span className="font-normal text-muted">· {FORMAT_INFO[stage.format].name}</span>
+                      {stage.name} <span className="font-normal text-muted">{t('formato', { formato: FORMAT_INFO[stage.format].name })}</span>
                     </p>
-                    {stage.qualification && <p className="text-muted">{describeQualification(stage.qualification, stage.format === 'BATTLE_ROYALE' ? 'sala' : 'grupo')} avançam</p>}
+                    {stage.qualification && <p className="text-muted">{t('avancam', { qualificacao: describeQualification(stage.qualification, stage.format === 'BATTLE_ROYALE' ? 'sala' : 'grupo') })}</p>}
                   </div>
                 </li>
               ))}
@@ -251,19 +257,19 @@ export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate 
 
       <div className="flex min-w-0 flex-col gap-6">
         <Card className="flex flex-col gap-3">
-          <h2 className="text-lg">Vagas</h2>
-          <Progress value={t.takenSlots} max={t.maxParticipants} label="Vagas ocupadas" />
+          <h2 className="text-lg">{t('vagas')}</h2>
+          <Progress value={tournament.takenSlots} max={tournament.maxParticipants} label={t('vagasOcupadas')} />
           <dl className="flex flex-col gap-2">
-            <Row side label="Aprovação">{t.manualApproval ? 'Manual' : 'Automática'}</Row>
-            <Row side label="Aguardando aprovação">{t.pendingApprovals}</Row>
-            <Row side label="Lista de espera">{t.waitlistEnabled ? `${t.waitlistCount} na fila` : 'Desligada'}</Row>
+            <Row side label={t('aprovacao')}>{tournament.manualApproval ? t('manual') : t('automatica')}</Row>
+            <Row side label={t('aguardandoAprovacao')}>{tournament.pendingApprovals}</Row>
+            <Row side label={t('listaEspera')}>{tournament.waitlistEnabled ? t('naFila', { count: tournament.waitlistCount }) : t('desligada')}</Row>
           </dl>
         </Card>
 
         <Card className="flex flex-col gap-3">
-          <h2 className="text-lg">Página pública</h2>
+          <h2 className="text-lg">{t('paginaPublica')}</h2>
           {isDraft ? (
-            <p className="text-sm text-muted">A página pública passa a existir quando o campeonato for publicado.</p>
+            <p className="text-sm text-muted">{t('paginaInexistente')}</p>
           ) : (
             <>
               <p className="break-all text-sm text-text">
@@ -273,7 +279,7 @@ export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate 
               </p>
               <div>
                 <Button variant="secondary" size="sm" iconLeft={<ClipboardCopy className="size-4" aria-hidden />} onClick={() => void copyLink()}>
-                  Copiar link
+                  {t('copiarLink')}
                 </Button>
               </div>
             </>
@@ -284,20 +290,20 @@ export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate 
       <ReasonDialog
         open={dialog === 'pause'}
         onOpenChange={(o) => !o && setDialog(null)}
-        title="Pausar o campeonato?"
-        description="Enquanto estiver pausado ninguém lança resultado. Os inscritos são avisados com o motivo."
-        label="Motivo da pausa"
-        confirmLabel="Pausar campeonato"
+        title={t('pausarTitulo')}
+        description={t('pausarDescricao')}
+        label={t('motivoPausaRotulo')}
+        confirmLabel={t('pausar')}
         loading={pause.isPending}
         onConfirm={(reason) =>
           pause.mutate(
-            { id: t.id, reason },
+            { id: tournament.id, reason },
             {
               onSuccess: () => {
-                success('Campeonato pausado', 'Os inscritos foram avisados.');
+                success(t('pausado'), t('inscritosAvisados'));
                 setDialog(null);
               },
-              onError: (e) => error('Não foi possível pausar', errorMessage(e)),
+              onError: (e) => error(t('erroPausar'), errorMessage(e)),
             },
           )
         }
@@ -305,21 +311,21 @@ export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate 
       <ReasonDialog
         open={dialog === 'resume'}
         onOpenChange={(o) => !o && setDialog(null)}
-        title="Retomar o campeonato?"
-        description="O campeonato volta a ficar em andamento e os resultados podem ser lançados de novo."
-        label="Recado para os inscritos (opcional)"
+        title={t('retomarTitulo')}
+        description={t('retomarDescricao')}
+        label={t('recado')}
         required={false}
-        confirmLabel="Retomar campeonato"
+        confirmLabel={t('retomar')}
         loading={resume.isPending}
         onConfirm={(reason) =>
           resume.mutate(
-            { id: t.id, ...(reason ? { reason } : {}) },
+            { id: tournament.id, ...(reason ? { reason } : {}) },
             {
               onSuccess: () => {
-                success('Campeonato retomado', 'Os inscritos foram avisados.');
+                success(t('retomado'), t('inscritosAvisados'));
                 setDialog(null);
               },
-              onError: (e) => error('Não foi possível retomar', errorMessage(e)),
+              onError: (e) => error(t('erroRetomar'), errorMessage(e)),
             },
           )
         }
@@ -328,37 +334,37 @@ export function SummaryTab({ tournament: t, onGoToStages, onFinished, celebrate 
         open={dialog === 'archive'}
         onOpenChange={(o) => !o && setDialog(null)}
         size="sm"
-        title="Arquivar o campeonato?"
-        description="Ele sai da vitrine e fica só para consulta, com o pódio e os resultados. Não dá para desarquivar."
+        title={t('arquivarTitulo')}
+        description={t('arquivarDescricao')}
         footer={
           <>
             <Button variant="secondary" onClick={() => setDialog(null)}>
-              Voltar
+              {t('voltar')}
             </Button>
             <Button
               loading={archive.isPending}
               onClick={() =>
                 archive.mutate(
-                  { id: t.id },
+                  { id: tournament.id },
                   {
                     onSuccess: () => {
-                      success('Campeonato arquivado');
+                      success(t('arquivado'));
                       setDialog(null);
                     },
-                    onError: (e) => error('Não foi possível arquivar', errorMessage(e)),
+                    onError: (e) => error(t('erroArquivar'), errorMessage(e)),
                   },
                 )
               }
             >
-              Arquivar campeonato
+              {t('arquivarConfirmar')}
             </Button>
           </>
         }
       />
-      <FinishDialog tournament={t} open={dialog === 'finish'} onOpenChange={(o) => !o && setDialog(null)} onFinished={onFinished} />
-      <CancelTournamentDialog tournament={t} open={dialog === 'cancel'} onOpenChange={(o) => !o && setDialog(null)} />
-      <DeleteDraftDialog tournament={t} open={dialog === 'delete'} onOpenChange={(o) => !o && setDialog(null)} onDone={() => router.push('/organizador/campeonatos')} />
-      <SaveTemplateDialog tournament={t} open={dialog === 'template'} onOpenChange={(o) => !o && setDialog(null)} />
+      <FinishDialog tournament={tournament} open={dialog === 'finish'} onOpenChange={(o) => !o && setDialog(null)} onFinished={onFinished} />
+      <CancelTournamentDialog tournament={tournament} open={dialog === 'cancel'} onOpenChange={(o) => !o && setDialog(null)} />
+      <DeleteDraftDialog tournament={tournament} open={dialog === 'delete'} onOpenChange={(o) => !o && setDialog(null)} onDone={() => router.push('/organizador/campeonatos')} />
+      <SaveTemplateDialog tournament={tournament} open={dialog === 'template'} onOpenChange={(o) => !o && setDialog(null)} />
     </div>
   );
 }

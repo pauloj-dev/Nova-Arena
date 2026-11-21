@@ -7,11 +7,14 @@ import { useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useCreateDiscordCode, useDiscordLink, useSimulateDiscordLink, useTestDiscord, useUnlinkDiscord } from '@/shared/api/hooks/discord';
 import { isModuleMocked } from '@/shared/api/mode';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime, formatTime } from '@/shared/lib/datetime';
+import { messages } from './messages';
 
-const ANNOUNCEMENTS = ['Partida em 15 minutos (com o atalho do check-in)', 'Resultado lançado, corrigido ou W.O.', 'Chave confirmada e nova fase', 'Campeão e pódio no encerramento'];
+const ANNOUNCEMENTS = ['partida', 'resultado', 'chave', 'campeao'] as const;
 
 function CodeCard({ code, tournamentId, onUsed }: { code: DiscordLinkCode; tournamentId: string; onUsed: () => void }) {
+  const t = useT(messages, 'DiscordCodeCard');
   const { success, error } = useToast();
   const simulate = useSimulateDiscordLink(tournamentId);
   const prototype = isModuleMocked('discord');
@@ -19,23 +22,24 @@ function CodeCard({ code, tournamentId, onUsed }: { code: DiscordLinkCode; tourn
   async function copy() {
     try {
       await navigator.clipboard.writeText(code.command);
-      success('Comando copiado', 'Cole no canal do Discord que vai receber os avisos.');
+      success(t('copiado'), t('copiadoDescricao'));
     } catch {
-      error('Não foi possível copiar', 'Selecione o comando e copie.');
+      error(t('erroCopiar'), t('erroCopiarDescricao'));
     }
   }
 
+  const instructions = t.rich('instrucao', { hora: formatTime(code.expiresAt), strong: (chunks) => <strong>{chunks}</strong> });
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-accent bg-accent-soft p-3 text-accent-soft-text" data-testid="discord-code">
       <p className="text-sm">
-        No canal do Discord que vai receber os avisos, digite o comando abaixo. O código vale até <strong>{formatTime(code.expiresAt)}</strong> e só pode ser usado uma vez.
+        {instructions}
       </p>
-      <code className="tabular block rounded-md bg-surface px-3 py-2 text-base font-semibold break-all text-text" aria-label="Comando para o Discord">
+      <code className="tabular block rounded-md bg-surface px-3 py-2 text-base font-semibold break-all text-text" aria-label={t('comandoRotulo')}>
         {code.command}
       </code>
       <div className="flex flex-col gap-2 xs:flex-row xs:flex-wrap">
         <Button variant="secondary" size="sm" iconLeft={<Copy className="size-4" aria-hidden />} onClick={() => void copy()}>
-          Copiar comando
+          {t('copiar')}
         </Button>
         {prototype && (
           <Button
@@ -45,62 +49,64 @@ function CodeCard({ code, tournamentId, onUsed }: { code: DiscordLinkCode; tourn
             onClick={() =>
               simulate.mutate(code.code, {
                 onSuccess: (r) => {
-                  success('Comando simulado', r.data?.content.replace(/\*\*/g, '') ?? 'Pronto.');
+                  success(t('simulado'), r.data?.content.replace(/\*\*/g, '') ?? t('pronto'));
                   onUsed();
                 },
-                onError: (e) => error('Não foi possível simular', errorMessage(e)),
+                onError: (e) => error(t('erroSimular'), errorMessage(e)),
               })
             }
           >
-            Simular o comando no protótipo
+            {t('simular')}
           </Button>
         )}
       </div>
-      {prototype && <p className="text-xs">Protótipo: não há Discord aqui. A simulação faz o papel de um servidor de demonstração, com você como quem digitou o comando.</p>}
+      {prototype && <p className="text-xs">{t('prototipo')}</p>}
     </div>
   );
 }
 
 function ActiveLink({ status, tournamentId, onNewCode, generating }: { status: DiscordLinkStatus; tournamentId: string; onNewCode: () => void; generating: boolean }) {
+  const t = useT(messages, 'DiscordActiveLink');
   const { success, error } = useToast();
   const test = useTestDiscord(tournamentId);
   const unlink = useUnlinkDiscord(tournamentId);
   const [confirming, setConfirming] = useState(false);
-  const server = status.guildName ?? 'Servidor do Discord';
+  const server = status.guildName ?? t('servidorPadrao');
+  const lastError = status.lastError ? t.rich('erroAviso', { erro: status.lastError, strong: (chunks) => <strong>{chunks}</strong> }) : null;
 
   return (
     <Card className="flex flex-col gap-4" data-testid="discord-active">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-lg">{server}</h3>
         <Badge tone="primary" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>
-          Vinculado
+          {t('vinculado')}
         </Badge>
       </div>
       <dl className="grid gap-x-6 gap-y-2 text-sm xs:grid-cols-2">
         <div>
-          <dt className="text-muted">Canal dos avisos</dt>
+          <dt className="text-muted">{t('canal')}</dt>
           <dd className="flex items-center gap-1 font-medium text-text">
             <Hash className="size-4 text-muted" aria-hidden />
             <span className="tabular break-all">{status.channelId}</span>
           </dd>
         </div>
         <div>
-          <dt className="text-muted">Vinculado por</dt>
+          <dt className="text-muted">{t('vinculadoPor')}</dt>
           <dd className="font-medium text-text">
             {status.linkedByNickname ?? '—'}
             {status.linkedAt && <span className="font-normal text-muted"> · {formatDateTime(status.linkedAt)}</span>}
           </dd>
         </div>
         <div>
-          <dt className="text-muted">Último aviso entregue</dt>
-          <dd className="font-medium text-text">{status.lastAnnouncementAt ? formatDateTime(status.lastAnnouncementAt) : 'Nenhum ainda'}</dd>
+          <dt className="text-muted">{t('ultimoAviso')}</dt>
+          <dd className="font-medium text-text">{status.lastAnnouncementAt ? formatDateTime(status.lastAnnouncementAt) : t('nenhumAinda')}</dd>
         </div>
       </dl>
       {status.lastError && (
         <p role="alert" className="flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-soft-text">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
-            <strong>O último aviso não chegou.</strong> {status.lastError} Confira as permissões do bot no canal ou gere um novo código para usar outro canal.
+            {lastError}
           </span>
         </p>
       )}
@@ -109,32 +115,32 @@ function ActiveLink({ status, tournamentId, onNewCode, generating }: { status: D
           variant="secondary"
           iconLeft={<Send className="size-4" aria-hidden />}
           loading={test.isPending}
-          onClick={() => test.mutate(undefined, { onSuccess: () => success('Aviso de teste enviado', 'Ele aparece no canal em alguns segundos.'), onError: (e) => error('Não foi possível enviar o aviso', errorMessage(e)) })}
+          onClick={() => test.mutate(undefined, { onSuccess: () => success(t('testeEnviado'), t('testeEnviadoDescricao')), onError: (e) => error(t('erroTeste'), errorMessage(e)) })}
         >
-          Enviar aviso de teste
+          {t('enviarTeste')}
         </Button>
         <Button variant="secondary" iconLeft={<KeyRound className="size-4" aria-hidden />} loading={generating} onClick={onNewCode}>
-          Trocar de canal
+          {t('trocarCanal')}
         </Button>
         <Button variant="danger" iconLeft={<Unplug className="size-4" aria-hidden />} onClick={() => setConfirming(true)}>
-          Desvincular
+          {t('desvincular')}
         </Button>
       </div>
       <ConfirmDestructive
         open={confirming}
         onOpenChange={setConfirming}
-        title="Desvincular o Discord?"
-        description="O canal para de receber os avisos deste campeonato e os comandos deixam de olhar para ele. Dá para vincular de novo depois."
-        confirmText="desvincular"
-        confirmLabel="Desvincular"
+        title={t('desvincularTitulo')}
+        description={t('desvincularDescricao')}
+        confirmText={t('desvincularPalavra')}
+        confirmLabel={t('desvincular')}
         loading={unlink.isPending}
         onConfirm={() =>
           unlink.mutate(undefined, {
             onSuccess: () => {
               setConfirming(false);
-              success('Discord desvinculado');
+              success(t('desvinculado'));
             },
-            onError: (e) => error('Não foi possível desvincular', errorMessage(e)),
+            onError: (e) => error(t('erroDesvincular'), errorMessage(e)),
           })
         }
       />
@@ -148,25 +154,27 @@ function ActiveLink({ status, tournamentId, onNewCode, generating }: { status: D
  * comando. Só a organização que gerencia (dono, co-organizador, Admin) vê esta aba.
  */
 export function DiscordTab({ tournamentId }: { tournamentId: string }) {
+  const t = useT(messages, 'DiscordTab');
   const query = useDiscordLink(tournamentId);
   const create = useCreateDiscordCode(tournamentId);
   const { error } = useToast();
   const [code, setCode] = useState<DiscordLinkCode | null>(null);
 
   function generate() {
-    create.mutate(undefined, { onSuccess: setCode, onError: (e) => error('Não foi possível gerar o código', errorMessage(e)) });
+    create.mutate(undefined, { onSuccess: setCode, onError: (e) => error(t('erroGerar'), errorMessage(e)) });
   }
 
   if (query.isPending) {
     return (
-      <div className="flex flex-col gap-3" role="status" aria-label="Carregando o Discord">
+      <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-40 w-full" />
       </div>
     );
   }
-  if (query.error) return <ErrorState title="Não foi possível carregar o vínculo com o Discord" description={errorMessage(query.error)} onRetry={() => void query.refetch()} />;
+  if (query.error) return <ErrorState title={t('erroCarregar')} description={errorMessage(query.error)} onRetry={() => void query.refetch()} />;
   const status = query.data;
+  const commands = t.rich('comandos', { code: (chunks) => <code className="text-text">{chunks}</code> });
   const visibleCode = code && code.expiresAt > new Date().toISOString() && status.state !== 'NONE' ? code : null;
 
   return (
@@ -174,17 +182,17 @@ export function DiscordTab({ tournamentId }: { tournamentId: string }) {
       <div className="flex flex-col gap-1">
         <h2 className="flex items-center gap-2 text-xl">
           <Bot className="size-5 text-muted" aria-hidden />
-          Bot do Discord
+          {t('titulo')}
         </h2>
-        <p className="text-sm text-muted">Avisos automáticos no servidor da sua comunidade e check-in por comando, sem ninguém precisar abrir o site.</p>
+        <p className="text-sm text-muted">{t('descricao')}</p>
       </div>
 
       {!status.enabled ? (
         <Card className="flex items-start gap-3" data-testid="discord-disabled">
           <Link2Off className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
           <div className="flex flex-col gap-1">
-            <h3 className="text-base">O bot do Discord não está ativo nesta instalação</h3>
-            <p className="text-sm text-muted">Quando a equipe da Nova Arena ligar o bot, você vincula o servidor por aqui. O resto do campeonato funciona normalmente.</p>
+            <h3 className="text-base">{t('inativoTitulo')}</h3>
+            <p className="text-sm text-muted">{t('inativoDescricao')}</p>
           </div>
         </Card>
       ) : status.state === 'ACTIVE' ? (
@@ -194,18 +202,18 @@ export function DiscordTab({ tournamentId }: { tournamentId: string }) {
         </>
       ) : (
         <Card className="flex flex-col gap-4" data-testid="discord-setup">
-          <h3 className="text-lg">Vincular um servidor</h3>
+          <h3 className="text-lg">{t('vincularTitulo')}</h3>
           <ol className="flex flex-col gap-3 text-sm text-text">
             <li className="flex gap-2">
               <span className="tabular flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-bold">1</span>
               <span className="flex flex-col gap-2">
-                Adicione o bot da Nova Arena ao servidor (precisa da permissão “Gerenciar servidor”).
+                {t('passo1')}
                 {status.installUrl && (
                   <Button asChild variant="secondary" size="sm" className="self-start">
                     <a href={status.installUrl} target="_blank" rel="noopener noreferrer">
                       <ExternalLink className="size-4" aria-hidden />
-                      Adicionar o bot ao Discord
-                      <span className="sr-only"> (abre em outra aba)</span>
+                      {t('adicionarBot')}
+                      <span className="sr-only">{t('abreOutraAba')}</span>
                     </a>
                   </Button>
                 )}
@@ -213,20 +221,20 @@ export function DiscordTab({ tournamentId }: { tournamentId: string }) {
             </li>
             <li className="flex gap-2">
               <span className="tabular flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-bold">2</span>
-              <span>Gere o código de vínculo e digite o comando no canal que vai receber os avisos.</span>
+              <span>{t('passo2')}</span>
             </li>
           </ol>
           {status.state === 'PENDING' && !visibleCode && status.codeExpiresAt && (
             <p role="status" className="flex items-center gap-2 text-sm text-muted">
               <Clock className="size-4 shrink-0" aria-hidden />
-              Há um código em aberto até {formatTime(status.codeExpiresAt)}. Se você não o tem mais, gere outro: o anterior deixa de valer.
+              {t('codigoAberto', { hora: formatTime(status.codeExpiresAt) })}
             </p>
           )}
           {visibleCode ? (
             <CodeCard code={visibleCode} tournamentId={tournamentId} onUsed={() => setCode(null)} />
           ) : (
             <Button className="self-start" iconLeft={<KeyRound className="size-4" aria-hidden />} loading={create.isPending} onClick={generate}>
-              Gerar código de vínculo
+              {t('gerarCodigo')}
             </Button>
           )}
         </Card>
@@ -234,15 +242,16 @@ export function DiscordTab({ tournamentId }: { tournamentId: string }) {
 
       <Card className="flex flex-col gap-3">
         <h3 className="flex items-center gap-2 text-base">
-          <BellRing className="size-4 text-muted" aria-hidden />O que o bot faz
+          <BellRing className="size-4 text-muted" aria-hidden />
+          {t('oQueFaz')}
         </h3>
         <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-text">
           {ANNOUNCEMENTS.map((a) => (
-            <li key={a}>{a}</li>
+            <li key={a}>{t(`avisos.${a}`)}</li>
           ))}
         </ul>
         <p className="text-sm text-muted">
-          Jogadores usam <code className="text-text">/nova-arena checkin</code> e <code className="text-text">/nova-arena proxima</code> com a conta do Discord vinculada à Nova Arena (em Minha conta → Segurança). O bot nunca menciona @everyone.
+          {commands}
         </p>
       </Card>
     </div>

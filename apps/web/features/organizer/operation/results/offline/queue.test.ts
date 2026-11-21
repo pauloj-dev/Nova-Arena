@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/shared/api/client';
-import { classifyFailure, CONFLICT_MESSAGE, discard, enqueue, flushQueue, isNetworkError, memoryStore, onQueueChange, retry, type PendingResult } from './queue';
+import { classifyFailure, conflictMessage, discard, enqueue, flushQueue, isNetworkError, memoryStore, onQueueChange, retry, type PendingResult } from './queue';
 
 const base = (n: number) => ({
   idempotencyKey: `chave-${n}`,
@@ -33,7 +33,7 @@ describe('fila de resultados offline', () => {
     });
     expect(report.conflicts).toHaveLength(1);
     const [item] = await store.list();
-    expect(item).toMatchObject({ status: 'CONFLICT', error: CONFLICT_MESSAGE, attempts: 1 });
+    expect(item).toMatchObject({ status: 'CONFLICT', error: conflictMessage(), attempts: 1 });
     // Conflito não é reenviado sozinho.
     const send = vi.fn();
     await flushQueue(store, send);

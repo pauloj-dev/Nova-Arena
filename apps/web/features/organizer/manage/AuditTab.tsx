@@ -6,9 +6,12 @@ import { useState } from 'react';
 import { AuditTimeline } from '@/features/admin/audit/AuditTimeline';
 import { errorMessage } from '@/shared/api/client';
 import { useTournamentAuditLogs } from '@/shared/api/hooks/admin-audit';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 
 /** Aba Auditoria: tudo o que foi feito neste campeonato (chave, resultados, equipe, status), com quem fez e quando. */
 export function AuditTab({ tournamentId }: { tournamentId: string }) {
+  const t = useT(messages, 'AuditTab');
   const [page, setPage] = useState(1);
   const query = useTournamentAuditLogs(tournamentId, { page });
 
@@ -16,23 +19,23 @@ export function AuditTab({ tournamentId }: { tournamentId: string }) {
   const pageCount = query.data?.pageCount ?? 1;
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted">Registro somente de leitura das ações sensíveis deste campeonato{query.data ? ` · ${query.data.total} ${query.data.total === 1 ? 'registro' : 'registros'}` : ''}.</p>
+      <p className="text-sm text-muted">{query.data ? t('descricaoComTotal', { total: query.data.total }) : t('descricao')}</p>
       <AuditTimeline
         logs={query.data?.items}
         loading={query.isPending}
-        label="Auditoria do campeonato"
-        empty={<EmptyState icon={<ScrollText className="size-7" />} title="Nada registrado ainda" description="Gerar chave, lançar resultados, mudar a equipe e pausar o campeonato aparecem aqui." />}
+        label={t('rotulo')}
+        empty={<EmptyState icon={<ScrollText className="size-7" />} title={t('vazioTitulo')} description={t('vazioDescricao')} />}
       />
       {pageCount > 1 && (
-        <nav className="flex items-center justify-between gap-2" aria-label="Páginas da auditoria">
+        <nav className="flex items-center justify-between gap-2" aria-label={t('paginas')}>
           <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-            Mais recentes
+            {t('maisRecentes')}
           </Button>
           <span className="text-sm text-muted" role="status">
-            Página {query.data?.page ?? page} de {pageCount}
+            {t('paginaDe', { pagina: query.data?.page ?? page, total: pageCount })}
           </span>
           <Button variant="secondary" size="sm" disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)}>
-            Mais antigos
+            {t('maisAntigos')}
           </Button>
         </nav>
       )}
