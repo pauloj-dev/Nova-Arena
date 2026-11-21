@@ -2,7 +2,10 @@
  * Datas do produto: guardadas em UTC (ISO 8601), exibidas no fuso da pessoa,
  * sempre com o fuso explícito (PRD §22, risco R8).
  */
-const LOCALE = 'pt-BR';
+import { DEFAULT_LOCALE } from '@/shared/i18n/config';
+
+/** Idioma das datas: o mesmo dos textos (issue 108). */
+const LOCALE = DEFAULT_LOCALE;
 
 export function browserTimeZone(): string {
   try {

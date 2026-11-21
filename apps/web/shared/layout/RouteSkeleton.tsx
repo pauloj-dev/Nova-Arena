@@ -1,4 +1,6 @@
 import { cn, Skeleton } from '@nova/ui';
+import { getT } from '@/shared/i18n/core';
+import { sharedMessages } from '@/shared/i18n/messages';
 
 export type RouteSkeletonVariant = 'inicio' | 'lista' | 'detalhe' | 'tabela' | 'formulario' | 'texto' | 'painel' | 'auth';
 
@@ -8,9 +10,10 @@ export type RouteSkeletonVariant = 'inicio' | 'lista' | 'detalhe' | 'tabela' | '
  * "Pular para o conteúdo" funcionar, e avisa o leitor de tela (`role="status"`) sem roubar o foco.
  */
 export function RouteSkeleton({ variant, label }: { variant: RouteSkeletonVariant; label: string }) {
+  const t = getT(sharedMessages, 'comum');
   if (variant === 'auth') {
     return (
-      <div className="flex flex-col gap-4" role="status" aria-busy="true" aria-label={`Carregando ${label}`}>
+      <div className="flex flex-col gap-4" role="status" aria-busy="true" aria-label={t('carregandoAlgo', { oque: label })}>
         <Skeleton className="h-8 w-2/3" />
         <Skeleton className="h-4 w-full" />
         <Skeleton className="mt-2 h-11 w-full" />
@@ -21,7 +24,7 @@ export function RouteSkeleton({ variant, label }: { variant: RouteSkeletonVarian
   }
   return (
     <main id="conteudo" className={cn('mx-auto flex w-full flex-col gap-6 px-4 py-6 md:px-6 md:py-8', variant === 'texto' || variant === 'formulario' ? 'max-w-3xl' : 'max-w-[1280px]')}>
-      <div className="flex flex-col gap-6" role="status" aria-busy="true" aria-label={`Carregando ${label}`}>
+      <div className="flex flex-col gap-6" role="status" aria-busy="true" aria-label={t('carregandoAlgo', { oque: label })}>
         <Body variant={variant} />
       </div>
     </main>

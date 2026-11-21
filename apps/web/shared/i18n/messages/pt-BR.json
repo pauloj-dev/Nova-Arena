@@ -1,0 +1,17 @@
+{
+  "comum": {
+    "carregando": "Carregando",
+    "carregandoAlgo": "Carregando {oque}",
+    "tentarDeNovo": "Tentar de novo",
+    "voltarParaInicio": "Voltar para o início",
+    "salvar": "Salvar",
+    "cancelar": "Cancelar",
+    "fechar": "Fechar"
+  },
+  "Forbidden": {
+    "titulo": "Você não tem acesso a esta área",
+    "descricaoArea": "A área {area} é restrita. Se você acha que deveria ter acesso, fale com a administração da Nova Arena.",
+    "descricao": "Esta página é restrita. Se você acha que deveria ter acesso, fale com a administração da Nova Arena.",
+    "erro403": "Erro 403"
+  }
+}
