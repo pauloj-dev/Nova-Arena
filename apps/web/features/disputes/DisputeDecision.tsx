@@ -11,41 +11,44 @@ import { useEscalateDispute, useResolveDispute } from '@/shared/api/hooks/disput
 import { ScoreFields } from './ScoreFields';
 import { ScoreFormSchema, scoreLine, scoreProblems, sidesOf, toResultInput, type ScoreField, type ScoreFormValues } from './scoreForm';
 import { useTiebreakField } from './useTiebreakField';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 
 /** Confirmação de "Escalar para a administração". */
 export function EscalateDialog({ dispute, onClose }: { dispute: Dispute; onClose: () => void }) {
+  const t = useT(messages, 'EscalateDialog');
   const escalate = useEscalateDispute(dispute.id);
   const { success, error } = useToast();
   return (
     <Modal
       open
       onOpenChange={(o) => !o && onClose()}
-      title="Escalar para a administração"
+      title={t('titulo')}
       description={dispute.matchLabel}
       size="sm"
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={escalate.isPending}>
-            Voltar
+            {t('voltar')}
           </Button>
           <Button
             loading={escalate.isPending}
             onClick={() =>
               escalate.mutate(undefined, {
                 onSuccess: () => {
-                  success('Disputa escalada', 'A administração da Nova Arena foi avisada e vai decidir.');
+                  success(t('escaladaTitulo'), t('escaladaDescricao'));
                   onClose();
                 },
-                onError: (e) => error('Não foi possível escalar', errorMessage(e)),
+                onError: (e) => error(t('erro'), errorMessage(e)),
               })
             }
           >
-            Escalar disputa
+            {t('escalar')}
           </Button>
         </>
       }
     >
-      <p className="text-sm text-text">A decisão passa para a administração da Nova Arena. Depois de escalar, a organização do campeonato não resolve mais esta disputa — só acompanha e envia mensagens.</p>
+      <p className="text-sm text-text">{t('texto')}</p>
     </Modal>
   );
 }
@@ -64,6 +67,7 @@ interface ResolveDialogProps {
 
 /** "Resolver disputa": a decisão por escrito e o que fazer com o resultado (manter o enviado, lançar o correto ou nenhum). */
 export function ResolveDialog({ dispute, submission, match, onClose }: ResolveDialogProps) {
+  const t = useT(messages, 'ResolveDialog');
   const resolve = useResolveDispute(dispute.id);
   const { success, error } = useToast();
   const sides = match ? sidesOf(match) : null;
@@ -74,9 +78,9 @@ export function ResolveDialog({ dispute, submission, match, onClose }: ResolveDi
   const [a, b] = useWatch({ control: scores.control, name: ['a', 'b'] });
 
   const options: { value: Outcome; label: string; hint: string; disabled?: boolean }[] = [
-    ...(submission ? [{ value: 'keep' as const, label: `Manter o resultado enviado (${scoreLine(submission, match)})`, hint: 'O placar enviado vira o resultado oficial.' }] : []),
-    { value: 'correct', label: 'Lançar o resultado correto', hint: 'Informe o placar que vale. Os pontos são calculados pelo sistema.', disabled: !match || !sides },
-    { value: 'none', label: 'Não lançar resultado agora', hint: 'O envio é anulado e a partida volta a aguardar resultado.' },
+    ...(submission ? [{ value: 'keep' as const, label: t('manter', { resumo: scoreLine(submission, match) }), hint: t('manterDica') }] : []),
+    { value: 'correct', label: t('corrigir'), hint: t('corrigirDica'), disabled: !match || !sides },
+    { value: 'none', label: t('nenhum'), hint: t('nenhumDica') },
   ];
 
   const submit = form.handleSubmit(async ({ resolution }) => {
@@ -96,37 +100,39 @@ export function ResolveDialog({ dispute, submission, match, onClose }: ResolveDi
       { resolution, ...(result ? { result } : {}) },
       {
         onSuccess: () => {
-          success('Disputa resolvida', result ? 'O resultado oficial foi lançado e os envolvidos foram avisados.' : 'O envio foi anulado e os envolvidos foram avisados.');
+          success(t('resolvidaTitulo'), result ? t('resolvidaComResultado') : t('resolvidaSemResultado'));
           onClose();
         },
         onError: (e) => {
           if (e instanceof ApiError && e.fieldErrors.resolution) form.setError('resolution', { message: e.fieldErrors.resolution });
-          error('Não foi possível resolver a disputa', errorMessage(e));
+          error(t('erro'), errorMessage(e));
         },
       },
     );
   });
 
+  const resolutionField = form.register('resolution');
+
   return (
     <Modal
       open
       onOpenChange={(o) => !o && onClose()}
-      title="Resolver disputa"
+      title={t('titulo')}
       description={dispute.matchLabel}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={resolve.isPending}>
-            Voltar
+            {t('voltar')}
           </Button>
           <Button type="submit" form={FORM_ID} loading={resolve.isPending} disabled={tiebreak.isLoading}>
-            Resolver disputa
+            {t('resolver')}
           </Button>
         </>
       }
     >
       <form id={FORM_ID} onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-5">
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-medium text-text">O que fazer com o resultado?</legend>
+          <legend className="mb-1 text-sm font-medium text-text">{t('oQueFazer')}</legend>
           {options.map((o) => (
             <label key={o.value} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border border-border px-3 py-2 has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60">
               <input type="radio" name="outcome" value={o.value} checked={outcome === o.value} disabled={o.disabled} onChange={() => setOutcome(o.value)} className="mt-1 size-4 shrink-0 accent-current" />
@@ -141,13 +147,13 @@ export function ResolveDialog({ dispute, submission, match, onClose }: ResolveDi
         {outcome === 'correct' && match && sides && <ScoreFields match={match} sides={sides} register={scores.register} errors={scores.formState.errors} a={a} b={b} tiebreak={tiebreak.field} />}
 
         <Textarea
-          label="Decisão"
+          label={t('decisao')}
           required
           rows={4}
           maxLength={1000}
-          hint="Explique o que as provas mostram. Os dois lados leem este texto e ele fica registrado na auditoria."
+          hint={t('decisaoDica')}
           error={form.formState.errors.resolution?.message}
-          {...form.register('resolution')}
+          {...resolutionField}
         />
       </form>
     </Modal>

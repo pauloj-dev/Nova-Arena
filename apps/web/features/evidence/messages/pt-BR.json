@@ -1,0 +1,19 @@
+{
+  "EvidenceUpload": {
+    "anexarPrint": "Anexar print",
+    "prova": "Prova {n}",
+    "fase": {
+      "preparing": "Preparando",
+      "uploading": "Enviando"
+    },
+    "naoCabem": "Só cabem {max} {max, plural, =1 {imagem} other {imagens}}. {left, plural, =1 {1 arquivo ficou} other {{left} arquivos ficaram}} de fora.",
+    "limite": "{used} de {max} · PNG, JPG ou WebP de até 5 MB (a imagem é reduzida antes do envio)",
+    "escolher": "{rotulo}: escolher imagens",
+    "anexadas": "Provas anexadas",
+    "anexo": "Anexo {n}",
+    "enviando": "Enviando {nome}",
+    "progresso": "{fase} · {progresso}%",
+    "enviada": "Enviada",
+    "remover": "Remover anexo {n}"
+  }
+}

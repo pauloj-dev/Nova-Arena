@@ -10,12 +10,14 @@ import { useConfirmSubmission, useMatchSubmission, useMyDisputes } from '@/share
 import { useMyRegistration } from '@/shared/api/hooks/registrations';
 import { formatTime } from '@/shared/lib/datetime';
 import { useFlag } from '@/shared/flags/useFlag';
+import { useT } from '@/shared/i18n/react';
 import { useSession } from '@/shared/session/useSession';
 import { ContestDialog } from './ContestDialog';
 import { EvidenceGallery } from './evidence/EvidenceGallery';
 import { scoreLine, sidesOf } from './scoreForm';
 import { SubmitResultDialog } from './SubmitResultDialog';
 import { useNow } from './useNow';
+import { messages } from './messages';
 
 /** Status em que a partida ainda pode receber (ou está recebendo) resultado dos participantes. */
 const OPEN_STATUSES: Match['status'][] = ['SCHEDULED', 'CHECK_IN', 'LIVE', 'AWAITING_VALIDATION', 'DISPUTED'];
@@ -25,6 +27,9 @@ function actsFor(registration: Registration, userId: string): boolean {
   if (registration.userId) return registration.userId === userId;
   return registration.members.some((m) => m.userId === userId && m.isCaptain);
 }
+
+/** Placar em destaque dentro de um aviso (`<strong>` dos textos do catálogo). */
+const strong = (chunks: ReactNode) => <strong className="tabular text-text">{chunks}</strong>;
 
 function Notice({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
@@ -44,6 +49,7 @@ function Notice({ icon, children }: { icon: ReactNode; children: ReactNode }) {
  * que são lançadas pela organização).
  */
 export function MatchResultActions({ match }: { match: Match }) {
+  const t = useT(messages, 'MatchResultActions');
   const { user } = useSession();
   // O envio pelo participante pode ser desligado nas configurações do site (flag `resultSubmission`).
   const enabled = useFlag('resultSubmission');
@@ -68,10 +74,10 @@ export function MatchResultActions({ match }: { match: Match }) {
     const dispute = disputes.data?.find((d) => d.matchId === match.id && d.status !== 'RESOLVED');
     return (
       <div className="flex flex-col gap-2" data-testid="match-result-actions">
-        <Notice icon={<AlertTriangle className="size-4 text-warning-soft-text" />}>Resultado em disputa. A tabela só muda quando a organização decidir.</Notice>
+        <Notice icon={<AlertTriangle className="size-4 text-warning-soft-text" />}>{t('emDisputa')}</Notice>
         {dispute && (
           <Button asChild variant="secondary" size="sm" className="self-start">
-            <Link href={`/disputas/${dispute.id}`}>Acompanhar a disputa</Link>
+            <Link href={`/disputas/${dispute.id}`}>{t('acompanhar')}</Link>
           </Button>
         )}
       </div>
@@ -88,10 +94,10 @@ export function MatchResultActions({ match }: { match: Match }) {
       <div className="flex flex-col gap-2" data-testid="match-result-actions">
         {canAct ? (
           <Button size="sm" className="self-start" iconLeft={<Send className="size-4" aria-hidden />} onClick={() => setDialog('submit')}>
-            Enviar resultado
+            {t('enviar')}
           </Button>
         ) : (
-          <Notice icon={<ShieldQuestion className="size-4" />}>Quem envia o resultado do squad é o capitão.</Notice>
+          <Notice icon={<ShieldQuestion className="size-4" />}>{t('capitaoEnvia')}</Notice>
         )}
         {dialog === 'submit' && <SubmitResultDialog match={match} sides={sides} mineRegistrationId={mine.id} onClose={() => setDialog(null)} />}
       </div>
@@ -104,10 +110,11 @@ export function MatchResultActions({ match }: { match: Match }) {
   const deadline = formatTime(sent.respondBy);
 
   if (sent.status === 'CONFIRMED') {
+    const agreed = t.rich('concordam', { resumo: summary, strong });
     return (
       <div data-testid="match-result-actions">
         <Notice icon={<CheckCircle2 className="size-4 text-primary-text" />}>
-          Os dois lados concordam com <strong className="tabular text-text">{summary}</strong>. Aguardando a validação da organização.
+          {agreed}
         </Notice>
       </div>
     );
@@ -116,17 +123,18 @@ export function MatchResultActions({ match }: { match: Match }) {
   if (sent.status === 'CONTESTED') {
     return (
       <div data-testid="match-result-actions">
-        <Notice icon={<AlertTriangle className="size-4 text-warning-soft-text" />}>Resultado contestado. A organização vai analisar as provas.</Notice>
+        <Notice icon={<AlertTriangle className="size-4 text-warning-soft-text" />}>{t('contestado')}</Notice>
       </div>
     );
   }
 
   if (sentByMe) {
+    const mineSent = t.rich('enviou', { quem: canAct ? 'voce' : 'squad', resumo: summary, strong });
     return (
       <div data-testid="match-result-actions">
         <Notice icon={<Hourglass className="size-4" />}>
-          {canAct ? 'Você enviou' : 'Seu squad enviou'} <strong className="tabular text-text">{summary}</strong>.{' '}
-          {expired ? 'O adversário não respondeu no prazo: a organização vai validar.' : `Aguardando o adversário confirmar (até ${deadline}).`}
+          {mineSent}{' '}
+          {expired ? t('semRespostaNoPrazo') : t('aguardandoAdversario', { prazo: deadline })}
         </Notice>
       </div>
     );
@@ -134,25 +142,27 @@ export function MatchResultActions({ match }: { match: Match }) {
 
   function confirmResult(submissionId: string) {
     confirm.mutate(submissionId, {
-      onSuccess: () => success('Resultado confirmado', 'Agora é só aguardar a validação da organização.'),
-      onError: (e) => error('Não foi possível confirmar', errorMessage(e)),
+      onSuccess: () => success(t('confirmadoTitulo'), t('confirmadoDescricao')),
+      onError: (e) => error(t('erroConfirmar'), errorMessage(e)),
     });
   }
+
+  const theirSent = t.rich('adversarioEnviou', { nick: sent.submittedByNickname, resumo: summary, strong });
 
   return (
     <div className="flex flex-col gap-2" data-testid="match-result-actions">
       <Notice icon={<Hourglass className="size-4" />}>
-        {sent.submittedByNickname} enviou <strong className="tabular text-text">{summary}</strong>.{' '}
-        {expired ? 'O prazo de resposta terminou: a organização vai validar.' : canAct ? `Confirme ou conteste até ${deadline}.` : `O capitão do seu squad confirma ou contesta até ${deadline}.`}
+        {theirSent}{' '}
+        {expired ? t('prazoTerminou') : canAct ? t('confirmeAte', { prazo: deadline }) : t('capitaoConfirmaAte', { prazo: deadline })}
       </Notice>
-      <EvidenceGallery urls={sent.evidenceUrls} label="Print do adversário" />
+      <EvidenceGallery urls={sent.evidenceUrls} label={t('printAdversario')} />
       {canAct && !expired && (
         <div className="flex flex-wrap gap-2">
           <Button size="sm" loading={confirm.isPending} iconLeft={<CheckCircle2 className="size-4" aria-hidden />} onClick={() => confirmResult(sent.id)}>
-            Confirmar
+            {t('confirmar')}
           </Button>
           <Button size="sm" variant="secondary" disabled={confirm.isPending} iconLeft={<AlertTriangle className="size-4" aria-hidden />} onClick={() => setDialog('contest')}>
-            Contestar
+            {t('contestar')}
           </Button>
         </div>
       )}

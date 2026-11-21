@@ -7,6 +7,8 @@
  * ser determinísticos.
  */
 import { isModuleMocked } from '@/shared/api/mode';
+import { getT } from '@/shared/i18n/core';
+import { messages } from './messages';
 import type { OcrLine, OcrResult } from './parse';
 
 export type OcrProgress = (progress: number, status: string) => void;
@@ -32,19 +34,27 @@ export function toOcrResult(page: TesseractPage): OcrResult {
   return { text: page.text, lines, confidence: page.confidence };
 }
 
-const STATUS: Record<string, string> = {
-  'loading tesseract core': 'Baixando o leitor',
-  'initializing tesseract': 'Preparando o leitor',
-  'loading language traineddata': 'Baixando o idioma',
-  'initializing api': 'Preparando o leitor',
-  'recognizing text': 'Lendo o print',
+type StatusKey = 'baixandoLeitor' | 'preparandoLeitor' | 'baixandoIdioma' | 'lendoPrint';
+
+/** Etapa do Tesseract → texto de progresso no arquivo de mensagens. */
+const STATUS: Record<string, StatusKey> = {
+  'loading tesseract core': 'baixandoLeitor',
+  'initializing tesseract': 'preparandoLeitor',
+  'loading language traineddata': 'baixandoIdioma',
+  'initializing api': 'preparandoLeitor',
+  'recognizing text': 'lendoPrint',
 };
+
+/** Texto de progresso de uma etapa do Tesseract (etapa desconhecida: "Lendo o print"). */
+export function ocrStatusText(status: string): string {
+  return getT(messages, 'recognize')(STATUS[status] ?? 'lendoPrint');
+}
 
 /** Reconhecimento real com o Tesseract, carregado sob demanda. */
 export const tesseractRecognizer: Recognizer = async (image, onProgress) => {
   const { createWorker } = await import('tesseract.js');
   const worker = await createWorker('eng', 1, {
-    logger: (m: { status: string; progress: number }) => onProgress?.(m.progress, STATUS[m.status] ?? 'Lendo o print'),
+    logger: (m: { status: string; progress: number }) => onProgress?.(m.progress, ocrStatusText(m.status)),
   });
   try {
     const { data } = await worker.recognize(image, {}, { text: true, blocks: true });

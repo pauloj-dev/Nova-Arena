@@ -3,7 +3,9 @@
 import type { Tiebreaker } from '@nova/schemas';
 import { Switch } from '@nova/ui';
 import { AlertCircle } from 'lucide-react';
+import { useT } from '@/shared/i18n/react';
 import type { DescribeOptions } from './describe';
+import { messages } from './messages';
 import { SortableItem, SortableList } from './Sortable';
 import { ALL_TIEBREAKERS, isFixedTiebreaker, moveTiebreaker, normalizeTiebreakers, tiebreakerHint, tiebreakerLabel, tiebreakersFor, toggleTiebreaker } from './tiebreakers';
 
@@ -20,6 +22,7 @@ interface TiebreakerEditorProps {
  * critérios que fazem sentido no tipo de partida; um critério já ligado nunca some sozinho.
  */
 export function TiebreakerEditor({ value, onChange, describe, errors = [] }: TiebreakerEditorProps) {
+  const t = useT(messages, 'TiebreakerEditor');
   const enabled = normalizeTiebreakers(value);
   const offered = describe.matchType ? tiebreakersFor(describe.matchType) : ALL_TIEBREAKERS;
   const disabled = offered.filter((t) => !enabled.includes(t));
@@ -35,7 +38,7 @@ export function TiebreakerEditor({ value, onChange, describe, errors = [] }: Tie
           const moved = enabled[from];
           if (moved) onChange(moveTiebreaker(enabled, moved, to));
         }}
-        aria-label="Critérios de desempate em uso, na ordem em que valem"
+        aria-label={t('emUso')}
       >
         {enabled.map((tiebreaker, i) => (
           <SortableItem key={tiebreaker} id={tiebreaker} compact>
@@ -43,7 +46,7 @@ export function TiebreakerEditor({ value, onChange, describe, errors = [] }: Tie
               <div className="flex items-center gap-1 px-3">
                 <Switch
                   className="min-w-0 flex-1"
-                  label={`${i + 1}. ${label(tiebreaker)}`}
+                  label={t('itemEmUso', { posicao: i + 1, criterio: label(tiebreaker) })}
                   hint={tiebreakerHint(tiebreaker, describe.matchType) ?? undefined}
                   checked
                   disabled={tiebreaker === 'points'}
@@ -57,7 +60,7 @@ export function TiebreakerEditor({ value, onChange, describe, errors = [] }: Tie
       </SortableList>
 
       {disabled.length > 0 && (
-        <ul className="flex flex-col gap-2" aria-label="Critérios de desempate desligados">
+        <ul className="flex flex-col gap-2" aria-label={t('desligados')}>
           {disabled.map((tiebreaker) => (
             <li key={tiebreaker} className="rounded-lg border border-dashed border-border-strong px-3">
               <Switch

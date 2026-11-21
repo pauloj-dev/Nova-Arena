@@ -1,3 +1,6 @@
+import { getT } from '@/shared/i18n/core';
+import { messages } from './messages';
+
 /**
  * Tema da arte de resultado (issue #50). A arte usa só estilos em linha e flexbox, que é o que o
  * `next/og` (Satori) aceita — em B2 este mesmo componente gera a imagem no servidor. Por isso as
@@ -66,6 +69,18 @@ export function resolveTheme(doc: Document = document): ArtTheme {
 export type ArtFormat = 'landscape' | 'square';
 /** Proporções da arte: 1200×630 (link compartilhado) e 1080×1080 (feed). */
 export const ART_SIZES: Record<ArtFormat, { width: number; height: number; label: string }> = {
-  landscape: { width: 1200, height: 630, label: 'Paisagem · 1200 × 630' },
-  square: { width: 1080, height: 1080, label: 'Quadrada · 1080 × 1080' },
+  landscape: {
+    width: 1200,
+    height: 630,
+    get label() {
+      return getT(messages, 'theme')('landscape');
+    },
+  },
+  square: {
+    width: 1080,
+    height: 1080,
+    get label() {
+      return getT(messages, 'theme')('square');
+    },
+  },
 };

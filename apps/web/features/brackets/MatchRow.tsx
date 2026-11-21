@@ -4,6 +4,8 @@ import type { Match, MatchParticipant } from '@nova/schemas';
 import { Badge, cn, StatusPill } from '@nova/ui';
 import { Star, Trophy } from 'lucide-react';
 import { matchAriaLabel, MATCH_STATUS_PILL_LABEL, isConcluded, participantOf, scheduleText, slotText } from '@/features/matches/matchText';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 import type { SlotExtension } from './types';
 
 export interface MatchRowProps extends SlotExtension {
@@ -15,6 +17,8 @@ export interface MatchRowProps extends SlotExtension {
 }
 
 function Side({ p, match, mine, selected, onSlotClick, getSlotProps, renderSlotAction }: { p: MatchParticipant; match: Match; mine: boolean; selected: boolean } & SlotExtension) {
+  const t = useT(messages, 'MatchRow');
+  const tv = useT(messages, 'vaga');
   const known = p.registrationId !== null;
   const won = p.isWinner === true;
   const content = known ? (
@@ -25,7 +29,7 @@ function Side({ p, match, mine, selected, onSlotClick, getSlotProps, renderSlotA
         {p.name}
         {p.tag && <span className="tabular ml-1 text-xs text-muted">[{p.tag}]</span>}
       </span>
-      {p.isBye && <Badge tone="neutral">Bye</Badge>}
+      {p.isBye && <Badge tone="neutral">{t('bye')}</Badge>}
       {p.status !== 'ACTIVE' && <StatusPill status={p.status} />}
       {won && <Trophy className="size-4 shrink-0 text-gold-soft-text" aria-hidden />}
       <span className={cn('tabular w-5 shrink-0 text-right text-sm', !won && 'text-muted')}>{p.score ?? '–'}</span>
@@ -35,6 +39,7 @@ function Side({ p, match, mine, selected, onSlotClick, getSlotProps, renderSlotA
   );
   const className = cn('flex min-h-9 w-full items-center gap-2 rounded-md px-2 py-1', mine ? 'bg-accent-soft' : 'bg-surface-2', selected && 'ring-2 ring-accent');
   const extra = known ? getSlotProps?.(p, match) : undefined;
+  const slotLabel = tv('aria', { name: p.name, seeded: p.seed !== null ? 'sim' : 'nao', seed: p.seed ?? '', selected: selected ? 'sim' : 'nao' });
 
   if (known && onSlotClick) {
     return (
@@ -44,7 +49,7 @@ function Side({ p, match, mine, selected, onSlotClick, getSlotProps, renderSlotA
           {...extra}
           data-slot-registration={p.registrationId}
           aria-pressed={selected}
-          aria-label={`${p.name}${p.seed !== null ? `, cabeça de chave ${p.seed}` : ''}${selected ? ', selecionado para troca' : ''}`}
+          aria-label={slotLabel}
           onClick={() => onSlotClick(p.registrationId as string, match)}
           className={cn(className, 'min-h-11 hover:bg-neutral-soft')}
         >
@@ -69,6 +74,7 @@ function Side({ p, match, mine, selected, onSlotClick, getSlotProps, renderSlotA
  * detalhe; o nome acessível traz rodada, lados, horário com fuso e status.
  */
 export function MatchRow({ match, highlightRegistrationId, onSelect, showRoundLabel, ...slots }: MatchRowProps) {
+  const t = useT(messages, 'MatchRow');
   const mine = participantOf(match, highlightRegistrationId);
   const lobby = match.kind === 'LOBBY';
   const booyah = lobby && isConcluded(match) ? match.participants.find((p) => p.placement === 1) : undefined;
@@ -97,7 +103,7 @@ export function MatchRow({ match, highlightRegistrationId, onSelect, showRoundLa
           {scheduleText(match)}
         </p>
         <div className="flex flex-wrap items-center gap-1.5">
-          {mine && <Badge tone="accent">{lobby ? 'Sua queda' : 'Seu confronto'}</Badge>}
+          {mine && <Badge tone="accent">{lobby ? t('suaQueda') : t('seuConfronto')}</Badge>}
           <StatusPill status={match.status} label={MATCH_STATUS_PILL_LABEL[match.status]} />
         </div>
       </div>
@@ -105,18 +111,17 @@ export function MatchRow({ match, highlightRegistrationId, onSelect, showRoundLa
       {lobby ? (
         <div className="flex flex-col gap-1 text-sm">
           <p className="text-muted">
-            {match.participants.length} {match.participants.length === 1 ? 'equipe' : 'equipes'} na sala
-            {match.multiplier > 1 ? ` · vale ×${match.multiplier.toLocaleString('pt-BR')}` : ''}
+            {t('naSala', { count: match.participants.length, multiplied: match.multiplier > 1 ? 'sim' : 'nao', multiplier: match.multiplier })}
           </p>
           {booyah && (
             <p className="flex items-center gap-1.5 font-semibold">
               <Trophy className="size-4 shrink-0 text-gold-soft-text" aria-hidden />
-              Booyah: {booyah.name}
+              {t('booyah', { name: booyah.name })}
             </p>
           )}
           {mine && isConcluded(match) && !mine.absent && (
             <p>
-              Seu squad: {mine.placement ?? '–'}º · {mine.kills ?? 0} kills · {mine.points ?? 0} pts
+              {t('seuSquad', { placement: mine.placement ?? '–', kills: mine.kills ?? 0, points: mine.points ?? 0 })}
             </p>
           )}
         </div>

@@ -5,8 +5,10 @@ import { Clock, Swords } from 'lucide-react';
 import Link from 'next/link';
 import { useMatch } from '@/shared/api/hooks/competition';
 import { useTournament } from '@/shared/api/hooks/tournaments';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime';
 import { CheckInPanel } from './CheckInPanel';
+import { messages } from './messages';
 import { useNow } from './useNow';
 import type { MatchViewer } from './viewer';
 
@@ -21,6 +23,7 @@ export function matchHref(tournamentSlug: string, matchId: string): string {
  * e o link para a partida.
  */
 export function NextMatch({ entry, viewerId }: { entry: MyTournamentEntry; viewerId: string | null }) {
+  const t = useT(messages, 'NextMatch');
   const next = entry.nextMatch;
   const match = useMatch(next?.id);
   // Só squads precisam da regra de check-in do campeonato (capitão ou todos os titulares).
@@ -33,19 +36,16 @@ export function NextMatch({ entry, viewerId }: { entry: MyTournamentEntry; viewe
     <div className="relative z-10 flex flex-col gap-2 rounded-md border border-border bg-surface-2 p-3 text-sm" data-testid="next-match">
       <p className="flex items-center gap-1.5 text-xs font-semibold text-muted">
         <Swords className="size-4 shrink-0" aria-hidden />
-        Próxima partida
+        {t('proximaPartida')}
       </p>
-      <p className="font-semibold">
-        {next.label}
-        {next.opponent ? ` · contra ${next.opponent}` : ''}
-      </p>
+      <p className="font-semibold">{next.opponent ? t('contra', { rotulo: next.label, adversario: next.opponent }) : next.label}</p>
       <p>
         {next.scheduledAt ? (
           <>
             {formatDateTime(next.scheduledAt)} <span className="text-muted">({formatRelative(next.scheduledAt, new Date(now))})</span>
           </>
         ) : (
-          'Horário a definir'
+          t('horarioADefinir')
         )}
       </p>
       {match.data ? (
@@ -54,13 +54,13 @@ export function NextMatch({ entry, viewerId }: { entry: MyTournamentEntry; viewe
         next.checkInOpen && (
           <p className="flex items-center gap-1.5 font-semibold text-warning-soft-text">
             <Clock className="size-4 shrink-0" aria-hidden />
-            Check-in aberto
+            {t('checkInAberto')}
           </p>
         )
       )}
       <Link href={matchHref(entry.tournament.slug, next.id)} className="flex min-h-11 items-center self-start font-semibold text-primary-text underline-offset-2 hover:underline">
-        Ver partida
-        <span className="sr-only">: {next.label}</span>
+        {t('verPartida')}
+        <span className="sr-only">{t('verPartidaSr', { rotulo: next.label })}</span>
       </Link>
     </div>
   );

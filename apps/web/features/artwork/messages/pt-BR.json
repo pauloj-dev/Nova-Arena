@@ -1,0 +1,57 @@
+{
+  "theme": {
+    "landscape": "Paisagem · 1200 × 630",
+    "square": "Quadrada · 1080 × 1080"
+  },
+  "ChampionsArt": {
+    "marca": "NOVA ARENA",
+    "tituloColocacao": "{colocacao, plural, =1 {CAMPEÃO} other {#º LUGAR}}",
+    "campeaoComTrofeu": "🏆 CAMPEÃO",
+    "resultadoFinal": "RESULTADO FINAL · {data}",
+    "ordinal": "{colocacao}º",
+    "slogan": "Campeonatos de eSports mobile"
+  },
+  "CertificateArt": {
+    "titulo": "{colocacao, select, 1 {Certificado de campeão} 2 {Certificado de vice-campeão} 3 {Certificado de 3º lugar} other {Certificado de participação}}",
+    "frase": "{colocacao, select, 1 {conquistou o título de} 2 {ficou em 2º lugar em} 3 {ficou em 3º lugar em} other {participou de}}",
+    "organizacao": "Organização: {organizador}"
+  },
+  "exportPng": {
+    "erroMontar": "O navegador não conseguiu montar a imagem.",
+    "erroCanvas": "Este navegador não consegue gerar a imagem.",
+    "erroPng": "Não foi possível gerar o PNG."
+  },
+  "ArtPreview": {
+    "pronta": "Imagem pronta",
+    "baixada": "{arquivo} foi baixada.",
+    "erro": "Não foi possível gerar a imagem",
+    "erroDica": "Tente de novo em outro navegador.",
+    "baixar": "Baixar PNG ({largura} × {altura})"
+  },
+  "ArtworkPage": {
+    "naoEncontrado": "Campeonato não encontrado",
+    "naoEncontradoDescricao": "O endereço pode estar errado.",
+    "verCampeonatos": "Ver campeonatos",
+    "carregando": "Carregando a arte",
+    "voltar": "Voltar para {nome}",
+    "titulo": "Arte de resultado",
+    "aguardando": "A arte fica pronta quando o campeonato termina",
+    "aguardandoDescricao": "Assim que a organização encerrar o campeonato e definir o pódio, a arte de campeões e os certificados aparecem aqui.",
+    "semPodio": "Este campeonato terminou sem pódio definido",
+    "resumo": "{nome} · encerrado em {data}{temCampeao, select, sim { · campeão: {campeao}} other {}}",
+    "compartilharTitulo": "Resultado de {nome}",
+    "compartilharTexto": "{campeao} é campeão de {nome}!",
+    "formato": "Formato da imagem",
+    "tipoDeArte": "Tipo de arte",
+    "abaCampeoes": "Campeões",
+    "abaCertificado": "Certificado",
+    "arteDeCampeoes": "Arte de campeões",
+    "arteDeCampeoesRotulo": "Arte de campeões de {nome}: {podio}",
+    "itemPodio": "{colocacao}º {nome}",
+    "certificadoPorParticipante": "Certificado por participante",
+    "semParticipantes": "Nenhum participante confirmado",
+    "participante": "Participante",
+    "certificadoRotulo": "{titulo} de {nome} em {campeonato}",
+    "aviso": "As imagens são geradas no seu navegador. Nomes de jogos são usados só para identificação; a Nova Arena não é afiliada às desenvolvedoras."
+  }
+}

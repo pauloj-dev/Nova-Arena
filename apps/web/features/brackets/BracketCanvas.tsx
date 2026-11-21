@@ -5,8 +5,10 @@ import { Button, cn, statusLabel } from '@nova/ui';
 import { AlertTriangle, CalendarClock, CheckCircle2, Clock, Hourglass, Maximize2, Radio, Trophy, UserX, XCircle, ZoomIn, ZoomOut, type LucideIcon } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { matchAriaLabel, MATCH_STATUS_PILL_LABEL, shortSchedule, slotText } from '@/features/matches/matchText';
+import { useT } from '@/shared/i18n/react';
 import { timeZoneLabel, userTimeZone } from '@/shared/lib/datetime';
 import { DEFAULT_METRICS, layoutBracket, neighbor, participantPath, type BracketLayout, type Direction, type LayoutNode, type ParticipantPath } from './layout';
+import { messages } from './messages';
 import type { SlotExtension } from './types';
 
 export interface BracketCanvasProps extends SlotExtension {
@@ -99,14 +101,17 @@ interface SlotRowProps {
 }
 
 function SlotRow({ p, match, index, mine, selected, width, interactive, onSlotClick, extra }: SlotRowProps) {
+  const t = useT(messages, 'BracketCanvas');
+  const tv = useT(messages, 'vaga');
   const y = HEADER_HEIGHT + index * ROW_HEIGHT;
   const base = y + ROW_HEIGHT / 2 + 5;
   const known = p.registrationId !== null;
   const won = p.isWinner === true;
   const lost = p.isWinner === false;
-  const suffix = p.status === 'WITHDRAWN' ? ' (desistiu)' : p.status === 'DISQUALIFIED' ? ' (desclassificado)' : p.isBye ? ' · bye' : '';
-  const full = `${p.name}${p.tag ? ` [${p.tag}]` : ''}${suffix}`;
+  const state = p.status === 'WITHDRAWN' || p.status === 'DISQUALIFIED' ? p.status : p.isBye ? 'BYE' : 'ACTIVE';
+  const full = t('nomeVaga', { name: `${p.name}${p.tag ? ` [${p.tag}]` : ''}`, state });
   const budget = (mine ? 20 : 22) - (won ? 2 : 0);
+  const slotLabel = tv('aria', { name: p.name, seeded: p.seed !== null ? 'sim' : 'nao', seed: p.seed ?? '', selected: selected ? 'sim' : 'nao' });
 
   const content = (
     <>
@@ -119,8 +124,7 @@ function SlotRow({ p, match, index, mine, selected, width, interactive, onSlotCl
           </text>
           <text x={32} y={base} className={cn('text-[13px]', won ? 'fill-text font-bold' : lost ? 'fill-muted' : 'fill-text font-medium')}>
             <title>{full}</title>
-            {mine ? '★ ' : ''}
-            {truncate(full, budget)}
+            {mine ? t('destacado', { name: truncate(full, budget) }) : truncate(full, budget)}
           </text>
           {won && <Trophy x={width - 58} y={y + ROW_HEIGHT / 2 - 7} width={14} height={14} className="text-gold-soft-text" aria-hidden />}
           <text x={width - 12} y={base} textAnchor="end" className={cn('tabular text-[14px]', won ? 'fill-text' : 'fill-muted')}>
@@ -150,7 +154,7 @@ function SlotRow({ p, match, index, mine, selected, width, interactive, onSlotCl
       role="button"
       tabIndex={0}
       aria-pressed={selected}
-      aria-label={`${p.name}${p.seed !== null ? `, cabeça de chave ${p.seed}` : ''}${selected ? ', selecionado para troca' : ''}`}
+      aria-label={slotLabel}
       data-slot-registration={p.registrationId}
       className="cursor-pointer outline-none focus-visible:[&>rect.slot-focus]:opacity-100"
       onClick={(e) => {
@@ -186,10 +190,11 @@ interface MatchNodeProps extends SlotExtension {
 }
 
 function MatchNode({ node, inPath, focused, tabbable, highlightRegistrationId, timeZone, onSelect, onKeyDown, onFocus, onBlur, selectedRegistrationId, onSlotClick, getSlotProps }: MatchNodeProps) {
+  const t = useT(messages, 'BracketCanvas');
   const { match, width, height } = node;
   const status = STATUS_ICON[match.status];
   const StatusIcon = status.icon;
-  const when = match.scheduledAt ? shortSchedule(match.scheduledAt, timeZone) : 'Horário a definir';
+  const when = match.scheduledAt ? shortSchedule(match.scheduledAt, timeZone) : t('horarioADefinir');
   const rows = match.participants.slice(0, 2).map((p, i) => (
     <SlotRow
       key={p.registrationId ?? `vaga-${i}`}
@@ -212,8 +217,7 @@ function MatchNode({ node, inPath, focused, tabbable, highlightRegistrationId, t
       <g aria-hidden="true" className="pointer-events-none">
         <rect width={width} height={height} rx={8} className={cn('fill-surface', inPath ? 'stroke-accent' : 'stroke-border-strong')} strokeWidth={inPath ? 2.5 : 1} />
         <text x={12} y={17} className="fill-muted text-[11px]">
-          {match.ifNecessary ? 'Se necessário · ' : ''}
-          {when}
+          {t('cabecalho', { ifNecessary: match.ifNecessary ? 'sim' : 'nao', when })}
         </text>
         <text x={width - 28} y={17} textAnchor="end" className="fill-muted text-[11px] font-semibold">
           {MATCH_STATUS_PILL_LABEL[match.status] ?? statusLabel(match.status)}
@@ -315,6 +319,7 @@ const Scene = memo(function Scene({ layout, path, focusedId, rovingId, highlight
  * (setas entre os confrontos, Enter abre o detalhe).
  */
 export function BracketCanvas({ matches, highlightRegistrationId, onMatchSelect, label, selectedRegistrationId, onSlotClick, getSlotProps }: BracketCanvasProps) {
+  const t = useT(messages, 'BracketCanvas');
   const layout = useMemo(() => layoutBracket(matches), [matches]);
   const path = useMemo(() => participantPath(layout, highlightRegistrationId), [layout, highlightRegistrationId]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -482,21 +487,20 @@ export function BracketCanvas({ matches, highlightRegistrationId, onMatchSelect,
     <div className="flex flex-col gap-2" data-testid="bracket-canvas">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted">
-          Horários em {timeZoneLabel(timeZone)}. Arraste para mover, use Ctrl + roda do mouse para o zoom e as setas do teclado para andar entre os confrontos (Enter abre a partida).
-          {highlightRegistrationId && path.matchIds.size > 0 ? ' Seu caminho na chave está marcado com ★ e borda mais grossa.' : ''}
+          {t('instrucoes', { timeZone: timeZoneLabel(timeZone), path: highlightRegistrationId && path.matchIds.size > 0 ? 'sim' : 'nao' })}
         </p>
-        <div role="group" aria-label="Zoom da chave" className="flex items-center gap-1">
-          <Button variant="secondary" size="sm" aria-label="Diminuir zoom" disabled={view.scale <= MIN_SCALE} onClick={() => zoomBy(1 / 1.25)}>
+        <div role="group" aria-label={t('zoomChave')} className="flex items-center gap-1">
+          <Button variant="secondary" size="sm" aria-label={t('diminuirZoom')} disabled={view.scale <= MIN_SCALE} onClick={() => zoomBy(1 / 1.25)}>
             <ZoomOut className="size-4" aria-hidden />
           </Button>
           <span className="tabular w-12 text-center text-xs" data-testid="bracket-zoom">
             {Math.round(view.scale * 100)}%
           </span>
-          <Button variant="secondary" size="sm" aria-label="Aumentar zoom" disabled={view.scale >= MAX_SCALE} onClick={() => zoomBy(1.25)}>
+          <Button variant="secondary" size="sm" aria-label={t('aumentarZoom')} disabled={view.scale >= MAX_SCALE} onClick={() => zoomBy(1.25)}>
             <ZoomIn className="size-4" aria-hidden />
           </Button>
-          <Button variant="secondary" size="sm" aria-label="Ajustar a chave à tela" iconLeft={<Maximize2 className="size-4" aria-hidden />} onClick={fit}>
-            Ajustar
+          <Button variant="secondary" size="sm" aria-label={t('ajustarAria')} iconLeft={<Maximize2 className="size-4" aria-hidden />} onClick={fit}>
+            {t('ajustar')}
           </Button>
         </div>
       </div>

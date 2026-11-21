@@ -4,8 +4,10 @@ import type { ExtraStatField, MatchType, ScoringRule } from '@nova/schemas';
 import { Button, cn, Input, Select } from '@nova/ui';
 import { AlertCircle, Plus } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
+import { useT } from '@/shared/i18n/react';
 import { describeModel, MATCH_TYPE_LABELS, MATCH_TYPE_OPTIONS, pts, RULE_TYPE_INFO, RULE_TYPES, type DescribeOptions } from './describe';
 import { LivePreview } from './LivePreview';
+import { messages } from './messages';
 import { buildPreview } from './preview';
 import { RuleCard } from './RuleCard';
 import { changeMatchType, moveItem, newRule } from './rules';
@@ -32,8 +34,6 @@ export interface ScoringModelEditorProps {
   className?: string;
 }
 
-const TYPE_OPTIONS = RULE_TYPES.map((value) => ({ value, label: RULE_TYPE_INFO[value].label }));
-
 function ErrorList({ messages }: { messages: string[] }) {
   if (messages.length === 0) return null;
   return (
@@ -53,6 +53,7 @@ function ErrorList({ messages }: { messages: string[] }) {
  * Componente controlado. Toda conta de pontos e toda validação vêm de `@nova/engine`.
  */
 export function ScoringModelEditor({ value, onChange, extraStats, hideName = false, lockMatchType = false, errors, scoreLabel, className }: ScoringModelEditorProps) {
+  const t = useT(messages, 'ScoringModelEditor');
   const baseId = useId();
   const [newType, setNewType] = useState<RuleType>('PER_UNIT');
   const [nameTouched, setNameTouched] = useState(false);
@@ -73,6 +74,7 @@ export function ScoringModelEditor({ value, onChange, extraStats, hideName = fal
     return groupErrors([...validateDraft(draft), ...(errors ?? [])]);
   }, [value, hideName, errors]);
   const showNameError = nameTouched || Boolean(errors?.includes(NAME_ERROR));
+  const lockedMatchType = t.rich('tipoDePartidaTravado', { tipo: MATCH_TYPE_LABELS[value.matchType], strong: (chunks) => <strong className="text-text">{chunks}</strong> });
 
   const setRules = (rules: ScoringRule[]) => onChange({ ...value, rules });
 
@@ -95,10 +97,10 @@ export function ScoringModelEditor({ value, onChange, extraStats, hideName = fal
         <div className="grid gap-3 md:grid-cols-2">
           {!hideName && (
             <Input
-              label="Nome do modelo"
+              label={t('nomeDoModelo')}
               required
               value={value.name}
-              placeholder="Ex.: Padrão (kill 1, Booyah 3)"
+              placeholder={t('nomePlaceholder')}
               error={showNameError ? (grouped.name ?? undefined) : undefined}
               onChange={(event) => onChange({ ...value, name: event.target.value })}
               onBlur={() => setNameTouched(true)}
@@ -106,10 +108,10 @@ export function ScoringModelEditor({ value, onChange, extraStats, hideName = fal
           )}
           {!lockMatchType && (
             <Select
-              label="Tipo de partida"
+              label={t('tipoDePartida')}
               options={MATCH_TYPE_OPTIONS}
               value={value.matchType}
-              hint="Ao trocar, ficam só as regras que valem para o novo tipo."
+              hint={t('tipoDePartidaDica')}
               onChange={(event) => onChange(changeMatchType(value, event.target.value as MatchType, extraStats))}
             />
           )}
@@ -117,24 +119,24 @@ export function ScoringModelEditor({ value, onChange, extraStats, hideName = fal
       )}
       {lockMatchType && !hideName && (
         <p className="text-sm text-muted">
-          Tipo de partida: <strong className="text-text">{MATCH_TYPE_LABELS[value.matchType]}</strong>
+          {lockedMatchType}
         </p>
       )}
 
       <section className="flex flex-col gap-3" aria-labelledby={`${baseId}-rules`}>
         <div>
           <h3 id={`${baseId}-rules`} className="text-base font-semibold text-text">
-            Regras
+            {t('regras')}
           </h3>
-          <p className="text-sm text-muted">Cada regra transforma uma estatística da partida em pontos. Limites e multiplicadores entram por último.</p>
+          <p className="text-sm text-muted">{t('regrasDescricao')}</p>
         </div>
 
         <ErrorList messages={grouped.general} />
 
         {value.rules.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border-strong p-4 text-center text-sm text-muted">Nenhuma regra ainda. Escolha um tipo abaixo e adicione a primeira.</p>
+          <p className="rounded-lg border border-dashed border-border-strong p-4 text-center text-sm text-muted">{t('semRegras')}</p>
         ) : (
-          <SortableList ids={ids} itemName={(id) => `regra ${ids.indexOf(id) + 1}`} onMove={moveRule} aria-label="Regras do modelo">
+          <SortableList ids={ids} itemName={(id) => t('nomeDaRegra', { numero: ids.indexOf(id) + 1 })} onMove={moveRule} aria-label={t('regrasDoModelo')}>
             {value.rules.map((rule, index) => {
               const id = ids[index] ?? `${baseId}r-${index}`;
               return (
@@ -159,9 +161,9 @@ export function ScoringModelEditor({ value, onChange, extraStats, hideName = fal
 
         <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border-strong p-3">
           <div className="flex flex-col gap-2 md:flex-row md:items-end">
-            <Select label="Tipo da nova regra" options={TYPE_OPTIONS} value={newType} onChange={(event) => setNewType(event.target.value as RuleType)} className="md:flex-1" />
+            <Select label={t('tipoDaNovaRegra')} options={RULE_TYPES.map((type) => ({ value: type, label: RULE_TYPE_INFO[type].label }))} value={newType} onChange={(event) => setNewType(event.target.value as RuleType)} className="md:flex-1" />
             <Button variant="secondary" onClick={addRule} iconLeft={<Plus className="size-4" aria-hidden />}>
-              Adicionar regra
+              {t('adicionarRegra')}
             </Button>
           </div>
           <p className="text-xs text-muted">{RULE_TYPE_INFO[newType].hint}</p>
@@ -171,9 +173,9 @@ export function ScoringModelEditor({ value, onChange, extraStats, hideName = fal
       <section className="flex flex-col gap-3" aria-labelledby={`${baseId}-preview`}>
         <div>
           <h3 id={`${baseId}-preview`} className="text-base font-semibold text-text">
-            Prévia
+            {t('previa')}
           </h3>
-          <p className="text-sm text-muted">Mude o exemplo para conferir a conta. O cálculo é o mesmo que vale no campeonato.</p>
+          <p className="text-sm text-muted">{t('previaDescricao')}</p>
         </div>
         <LivePreview rules={value.rules} matchType={value.matchType} describe={describe} />
       </section>
@@ -181,9 +183,9 @@ export function ScoringModelEditor({ value, onChange, extraStats, hideName = fal
       <section className="flex flex-col gap-3" aria-labelledby={`${baseId}-tiebreakers`}>
         <div>
           <h3 id={`${baseId}-tiebreakers`} className="text-base font-semibold text-text">
-            Critérios de desempate
+            {t('desempate')}
           </h3>
-          <p className="text-sm text-muted">Quando duas equipes empatam em pontos, vale o primeiro critério da lista que as separar.</p>
+          <p className="text-sm text-muted">{t('desempateDescricao')}</p>
         </div>
         <TiebreakerEditor value={value.tiebreakers} onChange={(tiebreakers) => onChange({ ...value, tiebreakers })} describe={describe} errors={grouped.tiebreakers} />
       </section>
@@ -202,7 +204,8 @@ export interface ScoringPreviewProps {
 
 /** Prévia somente leitura: resumo das regras e um exemplo calculado pelo motor ("7 kills + 1º lugar = 10 pts"). */
 export function ScoringPreview({ rules, matchType, extraStats, scoreLabel, className }: ScoringPreviewProps) {
-  if (rules.length === 0) return <p className={cn('text-sm text-muted', className)}>Nenhuma regra cadastrada.</p>;
+  const t = useT(messages, 'ScoringPreview');
+  if (rules.length === 0) return <p className={cn('text-sm text-muted', className)}>{t('semRegras')}</p>;
   const describe: DescribeOptions = { matchType, extraStats, scoreLabel };
   const preview = buildPreview(rules, matchType, describe);
   return (
@@ -213,7 +216,7 @@ export function ScoringPreview({ rules, matchType, extraStats, scoreLabel, class
         ))}
       </ul>
       <p className="text-muted">
-        Exemplo:{' '}
+        {t('exemplo')}{' '}
         <span className="text-text" data-testid="scoring-example">
           {preview.example} = <strong className="tabular font-bold">{pts(preview.total)}</strong>
         </span>

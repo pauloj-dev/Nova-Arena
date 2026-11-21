@@ -8,14 +8,14 @@ import { useMemo, type ReactNode } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useBracket, useStandings } from '@/shared/api/hooks/competition';
 import { useTournament } from '@/shared/api/hooks/tournaments';
+import { useT } from '@/shared/i18n/react';
 import { useTournamentChannel } from '@/shared/realtime/RealtimeProvider';
 import { useRotation, useTelaoEnvironment } from './hooks';
+import { messages } from './messages';
 import { bracketPages, parseTelaoOptions, pickStage, standingsPages, type TelaoView } from './telao';
 import { TelaoBracket } from './TelaoBracket';
 import { TelaoShell } from './TelaoShell';
 import { TelaoStandings } from './TelaoStandings';
-
-const VIEW_LABEL: Record<TelaoView, string> = { tabela: 'Classificação', chave: 'Chave' };
 
 function Loading({ label }: { label: string }) {
   return (
@@ -28,63 +28,66 @@ function Loading({ label }: { label: string }) {
 }
 
 function StandingsContent({ standings, transparent, intervalMs, stageName, tournamentName }: { standings: Standings; transparent: boolean; intervalMs: number; stageName: string; tournamentName: string }) {
+  const t = useT(messages, 'TelaoPage');
   const pages = useMemo(() => standingsPages(standings), [standings]);
   const rotation = useRotation(pages.length, intervalMs);
   const page = pages[rotation.index];
   return (
-    <TelaoShell transparent={transparent} title={tournamentName} subtitle={`${stageName} · Classificação`} pageLabel={page?.label} pageCount={pages.length} rotation={rotation}>
+    <TelaoShell transparent={transparent} title={tournamentName} subtitle={t('subtitulo', { stage: stageName, view: 'tabela' })} pageLabel={page?.label} pageCount={pages.length} rotation={rotation}>
       {page ? (
         <div key={page.key} className="motion-safe:animate-fade-in">
           <TelaoStandings page={page} matchType={standings.matchType} transparent={transparent} />
         </div>
       ) : (
-        <EmptyState icon={<ListOrdered className="size-7" />} title="A classificação ainda está vazia" description="Ela aparece aqui assim que a primeira partida desta fase tiver resultado." />
+        <EmptyState icon={<ListOrdered className="size-7" />} title={t('classificacaoVaziaTitulo')} description={t('classificacaoVaziaDescricao')} />
       )}
     </TelaoShell>
   );
 }
 
 function BracketContent({ bracket, transparent, intervalMs, stageName, tournamentName }: { bracket: Bracket; transparent: boolean; intervalMs: number; stageName: string; tournamentName: string }) {
+  const t = useT(messages, 'TelaoPage');
   const pages = useMemo(() => bracketPages(bracket), [bracket]);
   const rotation = useRotation(pages.length, intervalMs);
   const page = pages[rotation.index];
   return (
-    <TelaoShell transparent={transparent} title={tournamentName} subtitle={`${stageName} · Chave`} pageLabel={page?.label} pageCount={pages.length} rotation={rotation}>
+    <TelaoShell transparent={transparent} title={tournamentName} subtitle={t('subtitulo', { stage: stageName, view: 'chave' })} pageLabel={page?.label} pageCount={pages.length} rotation={rotation}>
       {page ? (
         <div key={page.key} className="flex min-h-0 flex-1 flex-col motion-safe:animate-fade-in">
           <TelaoBracket page={page} transparent={transparent} />
         </div>
       ) : (
-        <EmptyState icon={<Network className="size-7" />} title="Nenhum confronto nesta fase" description="Os confrontos aparecem aqui quando a chave for gerada." />
+        <EmptyState icon={<Network className="size-7" />} title={t('chaveVaziaTitulo')} description={t('chaveVaziaDescricao')} />
       )}
     </TelaoShell>
   );
 }
 
 function StageScreen({ view, stage, tournamentName, transparent, intervalMs }: { view: TelaoView; stage: Stage; tournamentName: string; transparent: boolean; intervalMs: number }) {
+  const t = useT(messages, 'TelaoPage');
   const bracket = useBracket(stage.id);
   const confirmed = bracket.data?.state === 'CONFIRMED';
   const standings = useStandings(view === 'tabela' && confirmed ? stage.id : undefined);
   const shell = (children: ReactNode) => (
-    <TelaoShell transparent={transparent} title={tournamentName} subtitle={`${stage.name} · ${VIEW_LABEL[view]}`}>
+    <TelaoShell transparent={transparent} title={tournamentName} subtitle={t('subtitulo', { stage: stage.name, view })}>
       {children}
     </TelaoShell>
   );
 
-  if (bracket.isPending) return shell(<Loading label={`Carregando ${VIEW_LABEL[view].toLowerCase()}`} />);
-  if (bracket.isError) return shell(<ErrorState title="Não foi possível carregar a fase" description={errorMessage(bracket.error)} onRetry={() => void bracket.refetch()} />);
+  if (bracket.isPending) return shell(<Loading label={t('carregando', { view })} />);
+  if (bracket.isError) return shell(<ErrorState title={t('erroFase')} description={errorMessage(bracket.error)} onRetry={() => void bracket.refetch()} />);
   if (!confirmed) {
     return shell(
       <EmptyState
         icon={view === 'tabela' ? <ListOrdered className="size-7" /> : <Network className="size-7" />}
-        title="A chave desta fase ainda não foi divulgada"
-        description="O telão começa a mostrar os dados assim que a organização confirmar a chave. Esta tela se atualiza sozinha."
+        title={t('naoDivulgadaTitulo')}
+        description={t('naoDivulgadaDescricao')}
       />,
     );
   }
   if (view === 'chave') return <BracketContent bracket={bracket.data} transparent={transparent} intervalMs={intervalMs} stageName={stage.name} tournamentName={tournamentName} />;
-  if (standings.isPending) return shell(<Loading label="Carregando classificação" />);
-  if (standings.isError) return shell(<ErrorState title="Não foi possível carregar a classificação" description={errorMessage(standings.error)} onRetry={() => void standings.refetch()} />);
+  if (standings.isPending) return shell(<Loading label={t('carregando', { view: 'tabela' })} />);
+  if (standings.isError) return shell(<ErrorState title={t('erroClassificacao')} description={errorMessage(standings.error)} onRetry={() => void standings.refetch()} />);
   return <StandingsContent standings={standings.data} transparent={transparent} intervalMs={intervalMs} stageName={stage.name} tournamentName={tournamentName} />;
 }
 
@@ -95,6 +98,7 @@ function StageScreen({ view, stage, tournamentName, transparent, intervalMs }: {
  * real; se a conexão cair, as consultas passam a atualizar a cada 10 s.
  */
 export function TelaoPage({ slug, view }: { slug: string; view: TelaoView }) {
+  const t = useT(messages, 'TelaoPage');
   const params = useSearchParams();
   const options = useMemo(() => parseTelaoOptions(params), [params]);
   useTelaoEnvironment(options.transparent, options.theme);
@@ -103,15 +107,15 @@ export function TelaoPage({ slug, view }: { slug: string; view: TelaoView }) {
 
   if (tournament.isPending) {
     return (
-      <TelaoShell transparent={options.transparent} title="Carregando campeonato…">
-        <Loading label="Carregando campeonato" />
+      <TelaoShell transparent={options.transparent} title={t('carregandoCampeonatoTitulo')}>
+        <Loading label={t('carregandoCampeonato')} />
       </TelaoShell>
     );
   }
   if (tournament.isError) {
     return (
-      <TelaoShell transparent={options.transparent} title="Telão">
-        <ErrorState title="Não foi possível carregar o campeonato" description={errorMessage(tournament.error)} onRetry={() => void tournament.refetch()} />
+      <TelaoShell transparent={options.transparent} title={t('telao')}>
+        <ErrorState title={t('erroCampeonato')} description={errorMessage(tournament.error)} onRetry={() => void tournament.refetch()} />
       </TelaoShell>
     );
   }
@@ -119,7 +123,7 @@ export function TelaoPage({ slug, view }: { slug: string; view: TelaoView }) {
   if (!stage) {
     return (
       <TelaoShell transparent={options.transparent} title={tournament.data.name}>
-        <EmptyState icon={<Network className="size-7" />} title="Este campeonato ainda não tem fases" description="O telão mostra a classificação e a chave depois que a organização montar as fases." />
+        <EmptyState icon={<Network className="size-7" />} title={t('semFasesTitulo')} description={t('semFasesDescricao')} />
       </TelaoShell>
     );
   }

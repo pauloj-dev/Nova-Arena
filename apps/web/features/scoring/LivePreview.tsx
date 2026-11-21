@@ -3,9 +3,11 @@
 import type { MatchType, ScoringRule } from '@nova/schemas';
 import { Select } from '@nova/ui';
 import { useState } from 'react';
+import { useT } from '@/shared/i18n/react';
 import { OUTCOME_OPTIONS, pts, signed, type DescribeOptions, type ExampleContext, type ExampleStats } from './describe';
 import { NumberField } from './NumberField';
 import { buildPreview } from './preview';
+import { messages } from './messages';
 
 interface LivePreviewProps {
   rules: ScoringRule[];
@@ -17,8 +19,9 @@ interface LivePreviewProps {
 export function LivePreview({ rules, matchType, describe }: LivePreviewProps) {
   const [stats, setStats] = useState<ExampleStats>({});
   const [context, setContext] = useState<Partial<ExampleContext>>({});
+  const t = useT(messages, 'LivePreview');
   const preview = buildPreview(rules, matchType, describe, { stats, context });
-  const match = matchType === 'BATTLE_ROYALE' ? 'queda' : 'partida';
+  const tipo = matchType === 'BATTLE_ROYALE' ? 'br' : 'outro';
 
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface-2 p-3 md:p-4">
@@ -27,7 +30,7 @@ export function LivePreview({ rules, matchType, describe }: LivePreviewProps) {
           field.kind === 'outcome' ? (
             <Select
               key={field.key}
-              label={`${field.label} do exemplo`}
+              label={t('campoDoExemplo', { campo: field.label })}
               options={OUTCOME_OPTIONS}
               value={String(preview.stats[field.key] ?? 'win')}
               onChange={(event) => setStats((s) => ({ ...s, [field.key]: event.target.value }))}
@@ -35,7 +38,7 @@ export function LivePreview({ rules, matchType, describe }: LivePreviewProps) {
           ) : (
             <NumberField
               key={field.key}
-              label={`${field.label} do exemplo`}
+              label={t('campoDoExemplo', { campo: field.label })}
               min={field.kind === 'placement' ? 1 : 0}
               step={field.kind === 'placement' ? 1 : 'any'}
               value={Number(preview.stats[field.key] ?? 0)}
@@ -46,14 +49,14 @@ export function LivePreview({ rules, matchType, describe }: LivePreviewProps) {
         {preview.context && (
           <>
             <NumberField
-              label={`Número da ${match}`}
+              label={t('numeroDaPartida', { tipo })}
               min={1}
               step={1}
               value={preview.context.matchIndex}
               onChange={(matchIndex) => setContext((c) => ({ ...c, matchIndex: Math.max(1, Math.floor(matchIndex)) }))}
             />
             <NumberField
-              label={`Total de ${match}s`}
+              label={t('totalDePartidas', { tipo })}
               min={1}
               step={1}
               value={preview.context.matchCount}
@@ -68,7 +71,7 @@ export function LivePreview({ rules, matchType, describe }: LivePreviewProps) {
       </p>
 
       {preview.items.length > 0 && (
-        <ul className="flex flex-col gap-1 text-sm" aria-label="Quanto cada regra somou no exemplo">
+        <ul className="flex flex-col gap-1 text-sm" aria-label={t('parcelas')}>
           {preview.items.map((item, i) => (
             <li key={`${item.ruleIndex}-${i}`} className="flex items-baseline justify-between gap-3">
               <span className="min-w-0 text-text">{item.label}</span>

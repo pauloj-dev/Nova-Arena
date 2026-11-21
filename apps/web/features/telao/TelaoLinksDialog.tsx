@@ -3,7 +3,10 @@
 import type { Stage } from '@nova/schemas';
 import { Button, Modal, Select, Switch, useToast } from '@nova/ui';
 import { Copy, ExternalLink, MonitorPlay } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { sharedMessages } from '@/shared/i18n/messages';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 import { pickStage, telaoHref, type TelaoView } from './telao';
 
 export interface TelaoLinksDialogProps {
@@ -12,11 +15,6 @@ export interface TelaoLinksDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const VIEWS: { view: TelaoView; label: string; hint: string }[] = [
-  { view: 'tabela', label: 'Classificação', hint: 'Gira entre os grupos a cada 12 s.' },
-  { view: 'chave', label: 'Chave', hint: 'Gira entre as rodadas, os lados da chave ou os grupos.' },
-];
 
 function absolute(href: string): string {
   return typeof window === 'undefined' ? href : `${window.location.origin}${href}`;
@@ -27,17 +25,32 @@ function absolute(href: string): string {
  * passo para adicionar no OBS como fonte de navegador.
  */
 export function TelaoLinksDialog({ slug, stages, open, onOpenChange }: TelaoLinksDialogProps) {
+  const t = useT(messages, 'TelaoLinksDialog');
+  const common = useT(sharedMessages, 'comum');
+  const views: { view: TelaoView; label: string; hint: string }[] = [
+    { view: 'tabela', label: t('classificacao'), hint: t('classificacaoDica') },
+    { view: 'chave', label: t('chave'), hint: t('chaveDica') },
+  ];
   const ordered = [...stages].sort((a, b) => a.order - b.order);
   const [stageId, setStageId] = useState(() => pickStage(stages, null)?.id ?? '');
   const [transparent, setTransparent] = useState(false);
   const { success, error } = useToast();
+  const strong = (chunks: ReactNode) => <strong>{chunks}</strong>;
+  const code = (chunks: ReactNode) => <code>{chunks}</code>;
+  const steps = {
+    passo2: t.rich('obsPasso2', { b: strong }),
+    passo3: t.rich('obsPasso3', { b: strong }),
+    passo4: t.rich('obsPasso4', { b: strong }),
+    passo5: t.rich('obsPasso5', { b: strong }),
+    dica: t.rich('obsDica', { b: strong, code }),
+  };
 
   async function copy(href: string) {
     try {
       await navigator.clipboard.writeText(absolute(href));
-      success('Link copiado', 'Cole na fonte de navegador do OBS.');
+      success(t('copiado'), t('copiadoDescricao'));
     } catch {
-      error('Não foi possível copiar', 'Selecione o link e copie manualmente.');
+      error(t('erroCopiar'), t('erroCopiarDescricao'));
     }
   }
 
@@ -45,27 +58,27 @@ export function TelaoLinksDialog({ slug, stages, open, onOpenChange }: TelaoLink
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title="Abrir no telão"
-      description="Classificação e chave ao vivo em tela cheia, com letras grandes e atualização automática. Ideal para a transmissão."
+      title={t('titulo')}
+      description={t('descricao')}
       footer={
         <Button variant="secondary" onClick={() => onOpenChange(false)}>
-          Fechar
+          {common('fechar')}
         </Button>
       }
     >
       <div className="flex flex-col gap-4">
         {ordered.length > 1 && (
-          <Select label="Fase" value={stageId} onChange={(e) => setStageId(e.target.value)} options={ordered.map((s) => ({ value: s.id, label: s.name }))} />
+          <Select label={t('fase')} value={stageId} onChange={(e) => setStageId(e.target.value)} options={ordered.map((s) => ({ value: s.id, label: s.name }))} />
         )}
         <Switch
-          label="Fundo transparente"
-          hint="Para sobrepor a tabela ao jogo no OBS. Os cartões continuam com fundo para garantir a leitura."
+          label={t('fundoTransparente')}
+          hint={t('fundoTransparenteDica')}
           checked={transparent}
           onCheckedChange={setTransparent}
         />
 
         <ul className="flex flex-col gap-3" data-testid="telao-links">
-          {VIEWS.map(({ view, label, hint }) => {
+          {views.map(({ view, label, hint }) => {
             const href = telaoHref(slug, view, { stageId: stageId || undefined, transparent });
             return (
               <li key={view} className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3">
@@ -77,13 +90,13 @@ export function TelaoLinksDialog({ slug, stages, open, onOpenChange }: TelaoLink
                   {absolute(href)}
                 </code>
                 <div className="flex flex-col gap-2 xs:flex-row">
-                  <Button size="sm" variant="secondary" iconLeft={<Copy className="size-4" aria-hidden />} onClick={() => void copy(href)} aria-label={`Copiar o link da ${label.toLowerCase()}`}>
-                    Copiar link
+                  <Button size="sm" variant="secondary" iconLeft={<Copy className="size-4" aria-hidden />} onClick={() => void copy(href)} aria-label={t('copiarAria', { view })}>
+                    {t('copiarLink')}
                   </Button>
                   <Button size="sm" asChild>
-                    <a href={href} target="_blank" rel="noopener noreferrer" aria-label={`Abrir a ${label.toLowerCase()} no telão (abre em nova aba)`}>
+                    <a href={href} target="_blank" rel="noopener noreferrer" aria-label={t('abrirAria', { view })}>
                       <ExternalLink className="size-4" aria-hidden />
-                      Abrir
+                      {t('abrir')}
                     </a>
                   </Button>
                 </div>
@@ -95,25 +108,16 @@ export function TelaoLinksDialog({ slug, stages, open, onOpenChange }: TelaoLink
         <section aria-labelledby="telao-obs" className="flex flex-col gap-2 rounded-lg bg-info-soft p-3 text-sm text-info-soft-text">
           <h3 id="telao-obs" className="flex items-center gap-2 text-sm">
             <MonitorPlay className="size-4" aria-hidden />
-            Como adicionar no OBS
+            {t('obsTitulo')}
           </h3>
           <ol className="flex list-decimal flex-col gap-1 pl-5">
-            <li>Copie o link acima.</li>
-            <li>
-              No OBS, em <strong>Fontes</strong>, clique em <strong>+</strong> e escolha <strong>Navegador</strong>.
-            </li>
-            <li>Cole o link em <strong>URL</strong>.</li>
-            <li>
-              Use largura <strong>1920</strong> e altura <strong>1080</strong> (tamanho recomendado).
-            </li>
-            <li>
-              Opcional: marque <strong>Atualizar navegador quando a cena ficar ativa</strong>.
-            </li>
+            <li>{t('obsPasso1')}</li>
+            <li>{steps.passo2}</li>
+            <li>{steps.passo3}</li>
+            <li>{steps.passo4}</li>
+            <li>{steps.passo5}</li>
           </ol>
-          <p>
-            Com <strong>fundo transparente</strong> (<code>?fundo=transparente</code>), a tabela fica por cima do jogo. Para mudar o tempo de cada página, acrescente{' '}
-            <code>&amp;intervalo=20</code> (em segundos); para o tema claro, <code>&amp;tema=claro</code>.
-          </p>
+          <p>{steps.dica}</p>
         </section>
       </div>
     </Modal>

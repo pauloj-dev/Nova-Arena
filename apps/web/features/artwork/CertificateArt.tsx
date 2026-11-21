@@ -1,4 +1,6 @@
+import { getT } from '@/shared/i18n/core';
 import { ArtHeader, artRootStyle } from './ChampionsArt';
+import { messages } from './messages';
 import type { ArtFormat, ArtTheme } from './theme';
 
 export interface CertificateArtProps {
@@ -15,22 +17,22 @@ export interface CertificateArtProps {
   theme: ArtTheme;
 }
 
+/** Pódio (1 a 3) ou "outro" (participação), a chave do `select` das mensagens. */
+function placeKey(place: number | null): string {
+  return place === 1 || place === 2 || place === 3 ? String(place) : 'outro';
+}
+
 export function certificateTitle(place: number | null): string {
-  if (place === 1) return 'Certificado de campeão';
-  if (place === 2) return 'Certificado de vice-campeão';
-  if (place === 3) return 'Certificado de 3º lugar';
-  return 'Certificado de participação';
+  return getT(messages, 'CertificateArt')('titulo', { colocacao: placeKey(place) });
 }
 
 export function certificateSentence(place: number | null): string {
-  if (place === 1) return 'conquistou o título de';
-  if (place === 2) return 'ficou em 2º lugar em';
-  if (place === 3) return 'ficou em 3º lugar em';
-  return 'participou de';
+  return getT(messages, 'CertificateArt')('frase', { colocacao: placeKey(place) });
 }
 
 /** Certificado por participante, com o mesmo cabeçalho e as mesmas restrições da arte de campeões (só flexbox). */
 export function CertificateArt({ participantName, place, tournamentName, gameName, gameIcon, dateLabel, organizerName, siteLabel, format, theme }: CertificateArtProps) {
+  const t = getT(messages, 'CertificateArt');
   const scale = format === 'square' ? 1.25 : 1;
   const accent = place === 1 ? theme.gold : place === 2 ? theme.silver : place === 3 ? theme.bronze : theme.textSoft;
   return (
@@ -47,7 +49,7 @@ export function CertificateArt({ participantName, place, tournamentName, gameNam
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: 20 * scale, color: theme.textSoft }}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex' }}>Organização: {organizerName}</div>
+          <div style={{ display: 'flex' }}>{t('organizacao', { organizador: organizerName })}</div>
           <div style={{ display: 'flex' }}>{dateLabel}</div>
         </div>
         <div style={{ display: 'flex' }}>{siteLabel}</div>
