@@ -24,8 +24,6 @@ const EXPECTED_GAPS: Record<string, string> = {
   'GET /me/follows': 'seguir campeonato ou jogo (RN-15) entra com as notificações (#98)',
   'PUT /me/follows/:param/:param': 'seguir campeonato ou jogo (RN-15) entra com as notificações (#98)',
   'DELETE /me/follows/:param/:param': 'seguir campeonato ou jogo (RN-15) entra com as notificações (#98)',
-  'GET /role-invites/:param': 'convites de Admin e Organizador (#92)',
-  'POST /role-invites/:param/accept': 'convites de Admin e Organizador (#92)',
 };
 
 /** `/teams/:id/members/:userId` → `/teams/:param/members/:param` (o nome do parâmetro não importa). */

@@ -30,6 +30,8 @@ export interface Harness {
   app: App;
   db: PrismaClient;
   realtime: ReturnType<typeof memoryRealtime>;
+  /** Cache do app (o Redis compartilhado, em produção). */
+  cache: ReturnType<typeof memoryCache>;
   jobs: ScheduledJob[];
   mails: { to: string; template: string; data: Record<string, unknown> }[];
   people: Map<string, Person>;
@@ -63,6 +65,8 @@ export function createHarness(db: PrismaClient, prefix: string, envExtra: Record
       queue: () => ({ schedule: async (job) => void jobs.push(job) }),
       mailer: () => ({ send: async (to: string, message: { template: string; data: Record<string, unknown> }) => void mails.push({ to, template: message.template, data: message.data }) }) as never,
       checks: { database: ok, redis: ok, qstash: ok },
+      breached: async () => false,
+      botCheck: async () => true,
     },
   });
   const stamp = String(Date.now()).slice(-7) + Math.floor(Math.random() * 90 + 10);
@@ -70,13 +74,14 @@ export function createHarness(db: PrismaClient, prefix: string, envExtra: Record
 
   async function session(userId: string, roles: AppRole[], tfa: boolean, sv = 0): Promise<string> {
     const s = await db.session.create({ data: { userId, familyId: randomUUID(), refreshTokenHash: `${prefix}-${randomUUID()}`, expiresAt: new Date(Date.now() + 3600_000), sessionVersion: sv } });
-    return `na_at=${await signAccessToken(env, { sub: userId, sid: s.id, sv, tfa, roles }, new Date())}`;
+    return `na_at=${await signAccessToken(env, { sub: userId, sid: s.id, sv, tfa, roles }, now())}`;
   }
 
   const harness: Harness = {
     app,
     db,
     realtime,
+    cache,
     jobs,
     mails,
     people,
@@ -94,6 +99,8 @@ export function createHarness(db: PrismaClient, prefix: string, envExtra: Record
           lastSeenAt: new Date(),
           ...(options.createdAt ? { createdAt: options.createdAt } : {}),
           roles: { create: [...new Set<AppRole>([...roles, 'PARTICIPANT'])].map((role) => ({ role, ...(options.createdAt ? { grantedAt: options.createdAt } : {}) })) },
+          // Admin com 2FA: a configuração ativa existe (a sessão diz se o código foi feito).
+          ...((options.tfa ?? true) && roles.some((r) => r === 'ADMIN' || r === 'SUPER_ADMIN') ? { twoFactor: { create: { secretEnc: 'teste', enabledAt: new Date(), recoveryCodesHash: [] } } } : {}),
         },
       });
       const person = { id: user.id, nickname, email, cookie: await session(user.id, roles, options.tfa ?? true) };
@@ -122,12 +129,14 @@ export function createHarness(db: PrismaClient, prefix: string, envExtra: Record
       });
       const clone = res.clone();
       const text = await res.text();
-      let data: unknown = null;
-      try {
-        data = text ? (JSON.parse(text) as unknown) : null;
-      } catch {
-        data = text;
-      }
+      const parse = (): unknown => {
+        try {
+          return text ? (JSON.parse(text) as unknown) : null;
+        } catch {
+          return text;
+        }
+      };
+      const data = parse();
       const code = data && typeof data === 'object' && 'code' in data ? String((data as { code?: unknown }).code) : undefined;
       return { status: res.status, data, code, res: clone };
     },
