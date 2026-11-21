@@ -3,6 +3,8 @@
 import { Button } from '@nova/ui';
 import { RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { sharedMessages } from '../i18n/messages';
+import { useT } from '../i18n/react';
 import { isPwaEnabled } from './config';
 
 /** URL do service worker servido pela rota `app/serwist/[path]/route.ts`. */
@@ -17,6 +19,7 @@ export interface UpdateNoticeProps {
 
 /** Aviso de versão nova: fica acima da barra inferior no celular e no canto no desktop. Não rouba o foco. */
 export function UpdateNotice({ onUpdate, onLater, updating }: UpdateNoticeProps) {
+  const t = useT(sharedMessages, 'UpdateNotice');
   return (
     <div
       role="status"
@@ -26,15 +29,15 @@ export function UpdateNotice({ onUpdate, onLater, updating }: UpdateNoticeProps)
     >
       <RefreshCw className="hidden size-5 shrink-0 text-primary-text xs:block" aria-hidden />
       <p className="flex-1 text-sm">
-        <strong className="block font-semibold">Nova versão disponível</strong>
-        Atualize para usar a versão mais recente da Nova Arena.
+        <strong className="block font-semibold">{t('titulo')}</strong>
+        {t('texto')}
       </p>
       <div className="flex gap-2">
         <Button size="sm" variant="ghost" onClick={onLater}>
-          Depois
+          {t('depois')}
         </Button>
         <Button size="sm" loading={updating} onClick={onUpdate}>
-          Atualizar
+          {t('atualizar')}
         </Button>
       </div>
     </div>

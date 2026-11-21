@@ -4,8 +4,10 @@
  */
 import { dehydrate, HydrationBoundary, QueryClient } from '@tanstack/react-query';
 import type { Metadata } from 'next';
+import { appMessages } from '@/app/messages';
 import { PublicProfile } from '@/features/profile/PublicProfile';
 import { keys } from '@/shared/api/keys';
+import { getT } from '@/shared/i18n/core';
 import { getPublicProfile } from '@/shared/server/public-data';
 
 type Props = { params: Promise<{ nick: string }> };
@@ -23,13 +25,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const nickname = safeDecode((await params).nick);
   const canonical = `/u/${encodeURIComponent(nickname)}`;
   const user = await getPublicProfile(nickname).catch(() => null);
-  if (!user) return { title: 'Perfil', alternates: { canonical } };
-  const description = user.bio?.trim() || `Perfil de ${user.nickname} na Nova Arena: campeonatos, squads e resultados.`;
+  const t = getT(appMessages, 'paginas.perfil');
+  if (!user) return { title: t('tituloPadrao'), alternates: { canonical } };
+  const description = user.bio?.trim() || t('descricao', { nick: user.nickname });
   return {
     title: user.nickname,
     description,
     alternates: { canonical },
-    openGraph: { type: 'profile', url: canonical, title: `${user.nickname} · Nova Arena`, description, ...(user.avatarUrl?.startsWith('https://') ? { images: [user.avatarUrl] } : {}) },
+    openGraph: { type: 'profile', url: canonical, title: t('tituloCompartilhado', { nick: user.nickname }), description, ...(user.avatarUrl?.startsWith('https://') ? { images: [user.avatarUrl] } : {}) },
   };
 }
 

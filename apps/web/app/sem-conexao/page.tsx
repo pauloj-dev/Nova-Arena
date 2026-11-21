@@ -1,19 +1,22 @@
 import { EmptyIllustration } from '@nova/ui';
 import { WifiOff } from 'lucide-react';
 import type { Metadata } from 'next';
+import { getT } from '@/shared/i18n/core';
 import { Logo } from '@/shared/layout/Logo';
+import { appMessages } from '../messages';
 import { RetryButton } from './RetryButton';
 
-export const metadata: Metadata = {
-  title: 'Sem conexão',
-  robots: { index: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = getT(appMessages, 'SemConexao');
+  return { title: t('tituloPagina'), robots: { index: false } };
+}
 
 /**
  * Página offline do PWA (issue 105). Pré-carregada pelo service worker e mostrada quando uma tela é aberta sem
  * internet. Não depende da API: nada de campeonato, resultado ou conta fica guardado no aparelho.
  */
 export default function OfflinePage() {
+  const t = getT(appMessages, 'SemConexao');
   return (
     <div className="flex min-h-dvh flex-col bg-bg px-safe">
       <header className="border-b border-border bg-surface px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 md:px-6">
@@ -27,15 +30,13 @@ export default function OfflinePage() {
               <WifiOff className="size-7" />
             </div>
           </div>
-          <h1 className="text-xl">Você está sem internet</h1>
-          <p className="max-w-md text-sm text-muted">
-            Assim que a conexão voltar, a Nova Arena carrega de novo. Tabelas, partidas e a sua conta só aparecem com internet, para estarem sempre atualizadas.
-          </p>
+          <h1 className="text-xl">{t('titulo')}</h1>
+          <p className="max-w-md text-sm text-muted">{t('texto')}</p>
           <RetryButton />
         </div>
         <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-muted">
-          <li>Confira o Wi-Fi ou os dados móveis.</li>
-          <li>Em partida marcada, avise a organização pelo grupo do campeonato se a queda for longa.</li>
+          <li>{t('dicaRede')}</li>
+          <li>{t('dicaPartida')}</li>
         </ul>
       </main>
     </div>

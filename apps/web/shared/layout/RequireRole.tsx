@@ -6,6 +6,8 @@ import { KeyRound } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
+import { sharedMessages } from '../i18n/messages';
+import { useT } from '../i18n/react';
 import { useSession } from '../session/useSession';
 import { Forbidden } from './Forbidden';
 
@@ -26,6 +28,7 @@ export function RequireRole({ roles = [], require2FA = false, areaName, children
   const { user, isLoading } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const t = useT(sharedMessages);
 
   useEffect(() => {
     if (!isLoading && !user) router.replace(`/entrar?next=${encodeURIComponent(pathname)}`);
@@ -33,7 +36,7 @@ export function RequireRole({ roles = [], require2FA = false, areaName, children
 
   if (isLoading || !user) {
     return (
-      <div className="mx-auto flex max-w-5xl flex-col gap-4 p-6" role="status" aria-label="Carregando">
+      <div className="mx-auto flex max-w-5xl flex-col gap-4 p-6" role="status" aria-label={t('comum.carregando')}>
         <Skeleton className="h-8 w-1/3" />
         <Skeleton className="h-40 w-full" />
       </div>
@@ -46,11 +49,11 @@ export function RequireRole({ roles = [], require2FA = false, areaName, children
         <EmptyState
           className="w-full"
           icon={<KeyRound className="size-7" />}
-          title="Ative a verificação em duas etapas"
-          description="Para entrar na área de administração é obrigatório proteger sua conta com um aplicativo autenticador."
+          title={t('RequireRole.titulo2fa')}
+          description={t('RequireRole.descricao2fa')}
           action={
             <Button asChild>
-              <Link href="/minha-conta/seguranca">Configurar agora</Link>
+              <Link href="/minha-conta/seguranca">{t('RequireRole.configurarAgora')}</Link>
             </Button>
           }
         />

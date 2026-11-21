@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
+import { appMessages } from '@/app/messages';
+import { getT } from '@/shared/i18n/core';
 import { ContactPage } from '@/features/help/ContactPage';
 
-export const metadata: Metadata = {
-  title: 'Contato',
-  description: 'Fale com o suporte da Nova Arena.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = getT(appMessages, 'paginas.contato');
+  return { title: t('titulo'), description: t('descricao') };
+}
 
 export default function ContactRoute() {
   return <ContactPage />;

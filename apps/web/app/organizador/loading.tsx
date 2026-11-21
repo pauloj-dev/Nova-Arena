@@ -1,5 +1,8 @@
+import { appMessages } from '@/app/messages';
+import { getT } from '@/shared/i18n/core';
 import { RouteSkeleton } from '@/shared/layout/RouteSkeleton';
 
 export default function Loading() {
-  return <RouteSkeleton variant="painel" label="o painel do organizador" />;
+  const t = getT(appMessages, 'carregando.organizador');
+  return <RouteSkeleton variant="painel" label={t('inicio')} />;
 }

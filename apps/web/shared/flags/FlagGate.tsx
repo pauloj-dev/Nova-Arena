@@ -4,6 +4,8 @@ import { Button, EmptyState } from '@nova/ui';
 import { PowerOff } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { sharedMessages } from '../i18n/messages';
+import { useT } from '../i18n/react';
 import { PageContainer } from '../layout/AreaShell';
 import { useFlags } from './useFlag';
 
@@ -17,6 +19,8 @@ interface FlagGateProps {
 /** Mostra o conteúdo só com o recurso ligado nas configurações do site (feature flag). */
 export function FlagGate({ flag, fallback, children }: FlagGateProps) {
   const { flags, isLoading } = useFlags();
+  const t = useT(sharedMessages, 'FlagGate');
+  const common = useT(sharedMessages, 'comum');
   // Enquanto a resposta não chega valem os padrões, para a página não piscar "indisponível".
   if (isLoading || flags[flag]) return <>{children}</>;
   return (
@@ -25,11 +29,11 @@ export function FlagGate({ flag, fallback, children }: FlagGateProps) {
         <PageContainer narrow>
           <EmptyState
             icon={<PowerOff className="size-7" />}
-            title="Página indisponível no momento"
-            description="Este recurso está desligado pela administração da Nova Arena."
+            title={t('titulo')}
+            description={t('descricao')}
             action={
               <Button asChild>
-                <Link href="/">Voltar para o início</Link>
+                <Link href="/">{common('voltarParaInicio')}</Link>
               </Button>
             }
           />

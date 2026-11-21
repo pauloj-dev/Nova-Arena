@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useUnreadCount } from '../api/hooks/notifications';
+import { sharedMessages } from '../i18n/messages';
+import { useT } from '../i18n/react';
 import { useSession } from '../session/useSession';
 
 /**
@@ -11,6 +13,7 @@ import { useSession } from '../session/useSession';
  */
 export function UnreadAnnouncer() {
   const { user } = useSession();
+  const t = useT(sharedMessages, 'UnreadAnnouncer');
   const unread = useUnreadCount(Boolean(user));
   const count = unread.data;
   const previous = useRef<number | undefined>(undefined);
@@ -22,9 +25,9 @@ export function UnreadAnnouncer() {
     previous.current = count;
     if (before === undefined || count <= before) return;
     const novas = count - before;
-    const id = requestAnimationFrame(() => setMessage(`${novas === 1 ? 'Chegou 1 notificação nova' : `Chegaram ${novas} notificações novas`}. Total não lidas: ${count}.`));
+    const id = requestAnimationFrame(() => setMessage(t('aviso', { novas, total: String(count) })));
     return () => cancelAnimationFrame(id);
-  }, [count]);
+  }, [count, t]);
 
   if (!user) return null;
   return (

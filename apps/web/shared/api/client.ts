@@ -1,5 +1,7 @@
 import { Me, Problem } from '@nova/schemas';
 import type { ZodType } from 'zod';
+import { getT } from '../i18n/core';
+import { sharedMessages } from '../i18n/messages';
 import { isModuleMocked } from './mode';
 
 /**
@@ -25,8 +27,9 @@ export class ApiError extends Error {
 /** Mensagem para mostrar à pessoa, qualquer que seja o erro. */
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message;
-  if (error instanceof TypeError) return 'Sem conexão. Confira sua internet e tente de novo.';
-  return 'Algo deu errado. Tente de novo em instantes.';
+  const t = getT(sharedMessages, 'erros');
+  if (error instanceof TypeError) return t('semConexao');
+  return t('generico');
 }
 
 type Query = Record<string, string | number | boolean | null | undefined>;
@@ -84,7 +87,7 @@ async function request<T>(method: string, path: string, opts: RequestOptions<T> 
   if (res.status === 401 && !path.startsWith('/auth/') && (await renewSession())) res = await send(method, path, opts as RequestOptions<unknown>);
 
   if (!res.ok) {
-    let problem: Problem = { type: 'about:blank', title: 'Erro inesperado', status: res.status };
+    let problem: Problem = { type: 'about:blank', title: getT(sharedMessages, 'erros')('inesperado'), status: res.status };
     try {
       const parsed = Problem.safeParse(await res.json());
       if (parsed.success) problem = parsed.data;

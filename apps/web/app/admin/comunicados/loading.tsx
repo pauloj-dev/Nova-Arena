@@ -1,5 +1,8 @@
+import { appMessages } from '@/app/messages';
+import { getT } from '@/shared/i18n/core';
 import { RouteSkeleton } from '@/shared/layout/RouteSkeleton';
 
 export default function Loading() {
-  return <RouteSkeleton variant="tabela" label="os comunicados" />;
+  const t = getT(appMessages, 'carregando.admin');
+  return <RouteSkeleton variant="tabela" label={t('comunicados')} />;
 }

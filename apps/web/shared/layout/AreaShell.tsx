@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { NotificationBell } from '@/features/notifications/LazyNotificationBell';
+import { sharedMessages } from '../i18n/messages';
+import { useT } from '../i18n/react';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { Logo } from './Logo';
 import { SiteBanner } from './SiteBanner';
@@ -62,6 +64,7 @@ function NavList({ nav, pathname, onNavigate, rail = false }: { nav: AreaNavItem
  * Desktop: menu lateral fixo.
  */
 export function AreaShell({ area, title, nav, children }: AreaShellProps) {
+  const t = useT(sharedMessages, 'AreaShell');
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   // Tablet: o menu lateral começa recolhido para sobrar espaço às tabelas; no desktop ele fica sempre aberto.
@@ -74,7 +77,7 @@ export function AreaShell({ area, title, nav, children }: AreaShellProps) {
       <SiteBanner />
       <header className="sticky top-0 z-40 border-b border-border bg-chrome pt-safe text-chrome-text">
         <div className="flex h-14 min-w-0 items-center gap-1 px-2 xs:gap-3 xs:px-3 md:px-6">
-          <button type="button" onClick={() => setOpen(true)} aria-label="Abrir menu" className="flex size-11 items-center justify-center rounded-md hover:bg-neutral-soft/30 md:hidden">
+          <button type="button" onClick={() => setOpen(true)} aria-label={t('abrirMenu')} className="flex size-11 items-center justify-center rounded-md hover:bg-neutral-soft/30 md:hidden">
             <Menu className="size-5" aria-hidden />
           </button>
           <Logo href={area === 'admin' ? '/admin' : '/organizador'} onColor compact />
@@ -99,8 +102,8 @@ export function AreaShell({ area, title, nav, children }: AreaShellProps) {
             onClick={() => setExpanded((v) => !v)}
             aria-expanded={expanded}
             aria-controls="menu-da-area"
-            aria-label={expanded ? 'Recolher o menu' : 'Expandir o menu'}
-            title={expanded ? 'Recolher o menu' : 'Expandir o menu'}
+            aria-label={expanded ? t('recolherMenu') : t('expandirMenu')}
+            title={expanded ? t('recolherMenu') : t('expandirMenu')}
             className="mb-2 flex min-h-11 w-full items-center justify-center rounded-md text-muted hover:bg-neutral-soft hover:text-text lg:hidden"
           >
             {expanded ? <PanelLeftClose className="size-5" aria-hidden /> : <PanelLeftOpen className="size-5" aria-hidden />}

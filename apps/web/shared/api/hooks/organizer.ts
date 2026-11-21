@@ -19,6 +19,8 @@ import {
 } from '@nova/schemas';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
+import { getT } from '../../i18n/core';
+import { sharedMessages } from '../../i18n/messages';
 import { API_BASE, api, ApiError } from '../client';
 import { keys } from '../keys';
 
@@ -213,7 +215,7 @@ export function useImportRegistrations(tournamentId: string) {
 export async function fetchRegistrationsCsv(tournamentId: string): Promise<{ blob: Blob; filename: string }> {
   const res = await fetch(`${API_BASE}/tournaments/${tournamentId}/registrations.csv`, { credentials: 'same-origin', headers: { Accept: 'text/csv' } });
   if (!res.ok) {
-    let problem: Problem = { type: 'about:blank', title: 'Não foi possível exportar os inscritos.', status: res.status };
+    let problem: Problem = { type: 'about:blank', title: getT(sharedMessages, 'erros')('exportarInscritos'), status: res.status };
     try {
       const parsed = Problem.safeParse(await res.json());
       if (parsed.success) problem = parsed.data;
