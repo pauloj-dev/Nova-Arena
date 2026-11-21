@@ -3,18 +3,19 @@
  * a regra que vale (mínimo de 8 caracteres, letra e número) está no schema `Password`.
  */
 import { weakPasswordReason } from '@nova/schemas';
-
-export type PasswordStrengthLabel = 'fraca' | 'razoável' | 'boa' | 'forte';
+import { getT } from '@/shared/i18n/core';
+import { messages } from './messages';
 
 export interface PasswordStrength {
   /** 0 = campo vazio; 1 a 4 = fraca, razoável, boa, forte. */
   score: 0 | 1 | 2 | 3 | 4;
-  label: PasswordStrengthLabel | null;
+  /** "fraca", "razoável", "boa" ou "forte" (no idioma da página). */
+  label: string | null;
   /** O que fazer para melhorar. Nulo quando já está forte ou o campo está vazio. */
   tip: string | null;
 }
 
-const LABELS: Record<1 | 2 | 3 | 4, PasswordStrengthLabel> = { 1: 'fraca', 2: 'razoável', 3: 'boa', 4: 'forte' };
+const LABELS = { 1: 'fraca', 2: 'razoavel', 3: 'boa', 4: 'forte' } as const;
 
 function variety(password: string): number {
   return [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((re) => re.test(password)).length;
@@ -27,6 +28,7 @@ function isRepetitive(password: string): boolean {
 
 export function passwordStrength(password: string): PasswordStrength {
   if (password.length === 0) return { score: 0, label: null, tip: null };
+  const t = getT(messages, 'passwordStrength');
 
   const kinds = variety(password);
   const length = password.length;
@@ -34,21 +36,21 @@ export function passwordStrength(password: string): PasswordStrength {
   let tip: string | null;
 
   if (length < 8) {
-    tip = 'Use pelo menos 8 caracteres.';
+    tip = t('dicaCurta');
   } else if (weakPasswordReason(password) !== null || isRepetitive(password)) {
-    tip = 'Essa senha é fácil de adivinhar. Evite sequências e repetições.';
+    tip = t('dicaFacil');
   } else if (kinds < 2) {
-    tip = 'Misture letras e números.';
+    tip = t('dicaMisture');
   } else if ((kinds >= 4 && length >= 12) || (kinds >= 3 && length >= 14)) {
     score = 4;
     tip = null;
   } else if ((kinds >= 3 && length >= 10) || length >= 12) {
     score = 3;
-    tip = 'Para ficar forte, use 12 caracteres ou mais com maiúsculas, números e símbolos.';
+    tip = t('dicaBoa');
   } else {
     score = 2;
-    tip = 'Deixe a senha mais longa ou acrescente maiúsculas e símbolos.';
+    tip = t('dicaRazoavel');
   }
 
-  return { score, label: LABELS[score], tip };
+  return { score, label: t(`rotulo.${LABELS[score]}`), tip };
 }

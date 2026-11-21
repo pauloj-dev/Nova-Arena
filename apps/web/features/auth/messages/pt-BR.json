@@ -1,0 +1,210 @@
+{
+  "AuthParts": {
+    "prototipo": "Protótipo",
+    "carregando": "Carregando"
+  },
+  "oauthErrors": {
+    "oauth_cancelado": "Você cancelou o login no provedor. Tente de novo quando quiser.",
+    "oauth_estado": "O login demorou demais ou foi aberto em outra janela. Tente de novo.",
+    "oauth_falhou": "Não conseguimos confirmar sua conta com o provedor. Tente de novo em instantes.",
+    "oauth_indisponivel": "Este jeito de entrar ainda não está disponível. Use e-mail e senha.",
+    "oauth_sem_email": "O provedor não compartilhou seu e-mail. Libere o e-mail na conta do provedor ou crie a conta com e-mail e senha.",
+    "oauth_email_existente": "Já existe uma conta com este e-mail. Entre com e-mail e senha e vincule o provedor em Minha conta › Segurança.",
+    "sessao_expirada": "Sua sessão expirou. Entre de novo para vincular o provedor.",
+    "conta_banida": "Esta conta foi banida.",
+    "conta_suspensa": "Esta conta está suspensa.",
+    "generico": "Não foi possível entrar. Tente de novo."
+  },
+  "passwordStrength": {
+    "rotulo": {
+      "fraca": "fraca",
+      "razoavel": "razoável",
+      "boa": "boa",
+      "forte": "forte"
+    },
+    "dicaCurta": "Use pelo menos 8 caracteres.",
+    "dicaFacil": "Essa senha é fácil de adivinhar. Evite sequências e repetições.",
+    "dicaMisture": "Misture letras e números.",
+    "dicaBoa": "Para ficar forte, use 12 caracteres ou mais com maiúsculas, números e símbolos.",
+    "dicaRazoavel": "Deixe a senha mais longa ou acrescente maiúsculas e símbolos."
+  },
+  "PasswordStrengthMeter": {
+    "forcaDaSenha": "Força da senha",
+    "naoDigitada": "ainda não digitada",
+    "forca": "Força da senha: <strong>{rotulo}</strong>",
+    "regra": "Pelo menos 8 caracteres, com letra e número."
+  },
+  "SocialButtons": {
+    "entrarCom": "Entrar com {provedor}",
+    "erroEntrarCom": "Não foi possível entrar com {provedor}",
+    "simulado": "O login com Google e Discord é <strong>simulado</strong>: os dois botões entram como a conta de demonstração <strong>Bianca</strong>. Nenhum dado seu é enviado a essas empresas."
+  },
+  "LoginScreen": {
+    "titulo": "Entrar",
+    "descricao": "Acesse sua conta para se inscrever, montar seu squad e acompanhar suas partidas.",
+    "email": "E-mail",
+    "senha": "Senha",
+    "esqueciSenha": "Esqueci a senha",
+    "entrar": "Entrar",
+    "ou": "ou",
+    "semConta": "Ainda não tem conta?",
+    "criarConta": "Criar conta"
+  },
+  "RegisterScreen": {
+    "fechadoTitulo": "Cadastro fechado no momento",
+    "fechadoDescricao": "A Nova Arena está recebendo novas contas só por convite. Se você já tem conta, é só entrar.",
+    "entrar": "Entrar",
+    "titulo": "Criar conta",
+    "descricao": "É grátis. Em um minuto você já pode se inscrever em um campeonato.",
+    "apelido": "Apelido",
+    "apelidoDica": "É como os outros jogadores vão ver você. De 3 a 20 caracteres: letras, números, ponto, hífen e sublinhado.",
+    "email": "E-mail",
+    "senha": "Senha",
+    "nascimento": "Data de nascimento",
+    "nascimentoDica": "É preciso ter pelo menos {idade} anos. A data não aparece no seu perfil.",
+    "responsavel": "Tenho menos de 18 anos e meu pai, mãe ou responsável autorizou o cadastro",
+    "responsavelDica": "Seu responsável pode pedir a exclusão da conta a qualquer momento pelo e-mail do suporte.",
+    "termos": "Li e aceito os <termos>Termos de Uso</termos> e a <privacidade>Política de Privacidade</privacidade>",
+    "termosDica": "Usamos seus dados só para a sua conta e os campeonatos em que você entrar.",
+    "criarConta": "Criar conta",
+    "jaTemConta": "Já tem conta?"
+  },
+  "ForgotPasswordScreen": {
+    "confiraTitulo": "Confira seu e-mail",
+    "confiraDescricao": "Se existir uma conta com <strong>{email}</strong>, você vai receber um link para criar uma nova senha. O link vale para um uso só.",
+    "semEnvio": "Nenhum e-mail é enviado de verdade. Este é o link que chegaria na sua caixa de entrada:",
+    "abrirLink": "Abrir link de redefinição",
+    "semConta": "Nenhum link foi gerado porque não há conta com esse e-mail. No produto real, esta tela não revela isso.",
+    "outroEmail": "Usar outro e-mail",
+    "voltarEntrar": "Voltar para entrar",
+    "titulo": "Recuperar senha",
+    "descricao": "Informe o e-mail da sua conta. Mandamos um link para você criar uma nova senha.",
+    "email": "E-mail",
+    "enviar": "Enviar link",
+    "lembrou": "Lembrou a senha?",
+    "entrar": "Entrar"
+  },
+  "ResetPasswordScreen": {
+    "repitaSenha": "Repita a nova senha",
+    "senhasDiferentes": "As senhas não são iguais",
+    "incompletoTitulo": "Link de redefinição incompleto",
+    "incompletoDescricao": "Este endereço não tem o código de redefinição. Abra o link completo do e-mail ou peça um novo.",
+    "pedirNovo": "Pedir um novo link",
+    "alteradaTitulo": "Senha alterada",
+    "alteradaDescricao": "Sua nova senha já está valendo. Use-a para entrar na sua conta.",
+    "entrar": "Entrar",
+    "titulo": "Criar nova senha",
+    "descricao": "Escolha uma senha que você não usa em outros sites.",
+    "novaSenha": "Nova senha",
+    "confirmar": "Confirmar nova senha",
+    "salvar": "Salvar nova senha"
+  },
+  "VerifyEmailScreen": {
+    "reenviadoTitulo": "E-mail reenviado",
+    "reenviadoDescricao": "Mandamos um novo link para {email}.",
+    "erroReenviar": "Não foi possível reenviar",
+    "reenviar": "Reenviar e-mail",
+    "semLink": "Nenhum e-mail é enviado de verdade. Toque em “Reenviar e-mail” para gerar o link de verificação aqui na tela.",
+    "semEnvio": "Nenhum e-mail é enviado de verdade. Este é o link que chegaria na sua caixa de entrada:",
+    "abrirLink": "Abrir link de verificação",
+    "confiraTitulo": "Confira seu e-mail",
+    "confiraSemSessao": "Abra o link que mandamos para o e-mail do seu cadastro. Para pedir um link novo, entre na sua conta.",
+    "entrar": "Entrar",
+    "jaConfirmadoTitulo": "Seu e-mail já está confirmado",
+    "jaConfirmadoDescricao": "O e-mail {email} já foi verificado. Não precisa fazer mais nada.",
+    "continuar": "Continuar",
+    "confiraDescricao": "Mandamos um link de verificação para <strong>{email}</strong>. Abra o link para confirmar que o e-mail é seu.",
+    "naoChegou": "Não chegou? Olhe a caixa de spam ou peça um link novo.",
+    "verificarDepois": "Verificar depois",
+    "confirmadoTitulo": "E-mail confirmado",
+    "confirmadoDescricao": "Pronto! O e-mail {email} está verificado e sua conta está liberada para inscrições e convites.",
+    "erroTitulo": "Não foi possível confirmar seu e-mail",
+    "pecaNovo": "Peça um link novo: o anterior deixa de valer.",
+    "verNovoLink": "Ver o novo link",
+    "confirmando": "Confirmando seu e-mail…"
+  },
+  "ConfirmEmailChangeScreen": {
+    "incompletoTitulo": "Link incompleto",
+    "incompletoDescricao": "Abra o link exatamente como chegou no seu e-mail.",
+    "voltarInicio": "Voltar ao início",
+    "trocadoTitulo": "E-mail trocado",
+    "trocadoDescricao": "Pronto! Sua conta agora usa {email}. Avisamos o endereço antigo sobre a troca.",
+    "irSeguranca": "Ir para Segurança",
+    "entrar": "Entrar",
+    "erroTitulo": "Não foi possível trocar o e-mail",
+    "erroDescricao": "Peça a troca de novo em Minha conta › Segurança: o link anterior deixa de valer.",
+    "confirmando": "Confirmando seu novo e-mail…"
+  },
+  "TwoFactorStep": {
+    "expirado": "O tempo para informar o código acabou. Entre de novo com e-mail e senha.",
+    "codigoSeisDigitos": "O código tem 6 dígitos",
+    "codigoRecuperacaoTamanho": "O código de recuperação tem 8 caracteres (ex.: abcd-efgh)",
+    "recuperacaoIncorreto": "Código de recuperação incorreto ou já usado.",
+    "codigoIncorreto": "Código incorreto ou vencido. Confira o aplicativo e tente de novo.",
+    "titulo": "Verificação em duas etapas",
+    "descricaoRecuperacao": "Digite um dos códigos de recuperação que você guardou ao ativar a verificação. Cada código funciona uma única vez.",
+    "descricao": "Abra o aplicativo autenticador no seu celular e digite o código de 6 dígitos da Nova Arena.",
+    "formulario": "Confirmar código",
+    "codigoRecuperacao": "Código de recuperação",
+    "codigoRecuperacaoPlaceholder": "abcd-efgh",
+    "codigoApp": "Código do aplicativo",
+    "confirmar": "Confirmar",
+    "usarApp": "Usar o código do aplicativo",
+    "usarRecuperacao": "Sem o celular? Usar um código de recuperação",
+    "voltar": "Voltar e entrar com outra conta"
+  },
+  "RoleInviteScreen": {
+    "papel": {
+      "ADMIN": {
+        "titulo": "Convite para ser administrador",
+        "nome": "administrador",
+        "area": "área de administração",
+        "pode": "Administradores cuidam de usuários, organizadores, jogos e moderação. A área de administração exige verificação em duas etapas."
+      },
+      "ORGANIZER": {
+        "titulo": "Convite para ser organizador",
+        "nome": "organizador",
+        "area": "área de organização",
+        "pode": "Organizadores criam campeonatos, gerenciam inscrições e lançam resultados."
+      }
+    },
+    "invalido": {
+      "EXPIRED": {
+        "titulo": "Este convite expirou",
+        "descricao": "O prazo para aceitar terminou. Peça um convite novo a quem convidou você."
+      },
+      "REVOKED": {
+        "titulo": "Este convite foi cancelado",
+        "descricao": "Quem criou o convite cancelou antes de ele ser aceito. Se foi engano, peça um convite novo."
+      },
+      "EXHAUSTED": {
+        "titulo": "Este convite já foi usado",
+        "descricao": "O convite atingiu o número máximo de usos. Peça um convite novo a quem convidou você."
+      }
+    },
+    "irInicio": "Ir para o início",
+    "voceAgoraE": "Você agora é {papel}",
+    "levando": "Levando você para a {area}…",
+    "abrirArea": "Abrir a {area}",
+    "carregando": "Carregando convite",
+    "naoEncontradoTitulo": "Convite não encontrado",
+    "naoEncontradoDescricao": "Este link de convite não existe. Confira se o endereço foi copiado inteiro ou peça um novo a quem convidou você.",
+    "erroTitulo": "Não foi possível carregar o convite",
+    "tentarNovamente": "Tentar novamente",
+    "eraConvite": "Era um convite de {quem} para ser {papel}. Nenhuma permissão foi concedida.",
+    "convidouVoce": "{quem} convidou você para ser {papel} da Nova Arena.",
+    "convidadoPor": "Convidado por <strong>{quem}</strong>",
+    "validoAte": "Válido até {data}",
+    "paraAceitar": "Para aceitar, entre na sua conta ou crie uma. Depois você volta direto para este convite.",
+    "entrar": "Entrar",
+    "criarConta": "Criar conta",
+    "jaTemPapel": "Você entrou como <strong>{nick}</strong> e já é {papel}: não precisa aceitar este convite.",
+    "confirmeEmail": "Confirme seu e-mail antes de aceitar o convite. Enviamos um link para <strong>{email}</strong>.",
+    "confirmarEmail": "Confirmar meu e-mail",
+    "aceitoTitulo": "Convite aceito",
+    "aceitoDescricao": "Agora você é {papel}.",
+    "aceitar": "Aceitar convite",
+    "entrouComo": "Você entrou como <strong>{nick}</strong>.",
+    "agoraNao": "Agora não"
+  }
+}

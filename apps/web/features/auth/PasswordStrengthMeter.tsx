@@ -1,20 +1,24 @@
 import { cn } from '@nova/ui';
+import { getT } from '@/shared/i18n/core';
+import { messages } from './messages';
 import { passwordStrength } from './passwordStrength';
 
 const SEGMENT_TONE: Record<1 | 2 | 3 | 4, string> = { 1: 'bg-danger', 2: 'bg-warning', 3: 'bg-info', 4: 'bg-accent' };
 
 /** Indicador de força: barra de 4 passos + texto ("Força da senha: boa"), nunca só cor. */
 export function PasswordStrengthMeter({ password, id }: { password: string; id?: string }) {
+  const t = getT(messages, 'PasswordStrengthMeter');
   const { score, label, tip } = passwordStrength(password);
+  const strength = label && t.rich('forca', { rotulo: label, strong: (chunks) => <strong className="text-text">{chunks}</strong> });
   return (
     <div id={id} className="flex flex-col gap-1.5">
       <div
         role="meter"
-        aria-label="Força da senha"
+        aria-label={t('forcaDaSenha')}
         aria-valuemin={0}
         aria-valuemax={4}
         aria-valuenow={score}
-        aria-valuetext={label ?? 'ainda não digitada'}
+        aria-valuetext={label ?? t('naoDigitada')}
         className="grid grid-cols-4 gap-1"
       >
         {([1, 2, 3, 4] as const).map((step) => (
@@ -24,11 +28,11 @@ export function PasswordStrengthMeter({ password, id }: { password: string; id?:
       <p className="min-h-4 text-xs text-muted" aria-live="polite">
         {label ? (
           <>
-            Força da senha: <strong className="text-text">{label}</strong>
+            {strength}
             {tip && <span> · {tip}</span>}
           </>
         ) : (
-          'Pelo menos 8 caracteres, com letra e número.'
+          t('regra')
         )}
       </p>
     </div>

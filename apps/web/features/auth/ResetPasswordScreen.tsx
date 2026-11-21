@@ -10,18 +10,25 @@ import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { errorMessage } from '@/shared/api/client';
 import { useResetPassword } from '@/shared/api/hooks/users';
+import { getT } from '@/shared/i18n/core';
+import { useT } from '@/shared/i18n/react';
 import { AuthHeader, FormAlert } from './AuthParts';
 import { applyFieldErrors, hasFieldErrors } from './formErrors';
+import { messages } from './messages';
 import { PasswordStrengthMeter } from './PasswordStrengthMeter';
 
 /** A mesma regra de senha da API, mais a confirmação (que não sai do navegador). */
-const ResetForm = ResetPasswordInput.pick({ password: true })
-  .extend({ confirm: z.string().min(1, 'Repita a nova senha') })
-  .refine((v) => v.password === v.confirm, { path: ['confirm'], message: 'As senhas não são iguais' });
-type ResetForm = z.infer<typeof ResetForm>;
+function resetFormSchema() {
+  const t = getT(messages, 'ResetPasswordScreen');
+  return ResetPasswordInput.pick({ password: true })
+    .extend({ confirm: z.string().min(1, t('repitaSenha')) })
+    .refine((v) => v.password === v.confirm, { path: ['confirm'], message: t('senhasDiferentes') });
+}
+type ResetForm = z.infer<ReturnType<typeof resetFormSchema>>;
 
 /** `/redefinir-senha?token=...`: cria a nova senha a partir do link do e-mail. */
 export function ResetPasswordScreen() {
+  const t = useT(messages, 'ResetPasswordScreen');
   const token = useSearchParams().get('token');
   const reset = useResetPassword();
   const {
@@ -30,19 +37,21 @@ export function ResetPasswordScreen() {
     control,
     setError,
     formState: { errors },
-  } = useForm<ResetForm>({ resolver: zodResolver(ResetForm), mode: 'onTouched', defaultValues: { password: '', confirm: '' } });
+  } = useForm<ResetForm>({ resolver: zodResolver(resetFormSchema()), mode: 'onTouched', defaultValues: { password: '', confirm: '' } });
   const password = useWatch({ control, name: 'password' }) ?? '';
+  const passwordField = register('password');
+  const confirmField = register('confirm');
 
   if (!token) {
     return (
       <div className="flex flex-col gap-5">
         <AuthHeader
           icon={<CircleX className="size-6" />}
-          title="Link de redefinição incompleto"
-          description="Este endereço não tem o código de redefinição. Abra o link completo do e-mail ou peça um novo."
+          title={t('incompletoTitulo')}
+          description={t('incompletoDescricao')}
         />
         <Button asChild fullWidth>
-          <Link href="/recuperar-senha">Pedir um novo link</Link>
+          <Link href="/recuperar-senha">{t('pedirNovo')}</Link>
         </Button>
       </div>
     );
@@ -51,9 +60,9 @@ export function ResetPasswordScreen() {
   if (reset.isSuccess) {
     return (
       <div className="flex flex-col gap-5">
-        <AuthHeader icon={<CircleCheck className="size-6" />} title="Senha alterada" description="Sua nova senha já está valendo. Use-a para entrar na sua conta." />
+        <AuthHeader icon={<CircleCheck className="size-6" />} title={t('alteradaTitulo')} description={t('alteradaDescricao')} />
         <Button asChild fullWidth>
-          <Link href="/entrar">Entrar</Link>
+          <Link href="/entrar">{t('entrar')}</Link>
         </Button>
       </div>
     );
@@ -63,7 +72,7 @@ export function ResetPasswordScreen() {
 
   return (
     <div className="flex flex-col gap-5">
-      <AuthHeader title="Criar nova senha" description="Escolha uma senha que você não usa em outros sites." />
+      <AuthHeader title={t('titulo')} description={t('descricao')} />
       <form
         noValidate
         className="flex flex-col gap-4"
@@ -82,17 +91,17 @@ export function ResetPasswordScreen() {
           <FormAlert>
             {generalError}{' '}
             <Link href="/recuperar-senha" className="font-semibold underline underline-offset-2">
-              Pedir um novo link
+              {t('pedirNovo')}
             </Link>
           </FormAlert>
         )}
         <div className="flex flex-col gap-1.5">
-          <Input label="Nova senha" type="password" autoComplete="new-password" error={errors.password?.message} {...register('password')} />
+          <Input label={t('novaSenha')} type="password" autoComplete="new-password" error={errors.password?.message} {...passwordField} />
           <PasswordStrengthMeter password={password} />
         </div>
-        <Input label="Confirmar nova senha" type="password" autoComplete="new-password" error={errors.confirm?.message} {...register('confirm')} />
+        <Input label={t('confirmar')} type="password" autoComplete="new-password" error={errors.confirm?.message} {...confirmField} />
         <Button type="submit" size="lg" fullWidth loading={reset.isPending}>
-          Salvar nova senha
+          {t('salvar')}
         </Button>
       </form>
     </div>

@@ -7,9 +7,11 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useResendVerification, useVerifyEmail } from '@/shared/api/hooks/users';
+import { useT } from '@/shared/i18n/react';
 import { useSession } from '@/shared/session/useSession';
 import { AuthHeader, AuthSkeleton, PrototypeNotice, textLink } from './AuthParts';
 import { useDevMailbox } from './devMailbox';
+import { messages } from './messages';
 import { safeNext, withNext } from './safeNext';
 
 /** `/verificar-email`: sem `token`, a tela "confira seu e-mail"; com `token`, a confirmação do link. */
@@ -22,6 +24,7 @@ export function VerifyEmailScreen() {
 
 /** Botão "Reenviar e-mail": gera um link novo (no protótipo, ele aparece no aviso da tela "confira seu e-mail"). */
 function ResendButton({ email, variant = 'secondary', afterSent }: { email: string; variant?: 'primary' | 'secondary'; afterSent?: ReactNode }) {
+  const t = useT(messages, 'VerifyEmailScreen');
   const resend = useResendVerification();
   const setVerifyToken = useDevMailbox((s) => s.setVerifyToken);
   const { success, error } = useToast();
@@ -35,13 +38,13 @@ function ResendButton({ email, variant = 'secondary', afterSent }: { email: stri
           resend.mutate(undefined, {
             onSuccess: ({ devVerifyToken }) => {
               setVerifyToken(email, devVerifyToken);
-              success('E-mail reenviado', `Mandamos um novo link para ${email}.`);
+              success(t('reenviadoTitulo'), t('reenviadoDescricao', { email }));
             },
-            onError: (e) => error('Não foi possível reenviar', errorMessage(e)),
+            onError: (e) => error(t('erroReenviar'), errorMessage(e)),
           })
         }
       >
-        Reenviar e-mail
+        {t('reenviar')}
       </Button>
       {resend.isSuccess && afterSent}
     </>
@@ -50,25 +53,27 @@ function ResendButton({ email, variant = 'secondary', afterSent }: { email: stri
 
 /** O link de verificação do protótipo, quando há um para a conta logada. */
 function DevVerifyLink({ email, next }: { email: string; next: string }) {
+  const t = useT(messages, 'VerifyEmailScreen');
   const mailbox = useDevMailbox();
   if (!mailbox.verifyToken || mailbox.email !== email.toLowerCase()) {
     return (
       <PrototypeNotice>
-        <p>Nenhum e-mail é enviado de verdade. Toque em “Reenviar e-mail” para gerar o link de verificação aqui na tela.</p>
+        <p>{t('semLink')}</p>
       </PrototypeNotice>
     );
   }
   return (
     <PrototypeNotice>
-      <p>Nenhum e-mail é enviado de verdade. Este é o link que chegaria na sua caixa de entrada:</p>
+      <p>{t('semEnvio')}</p>
       <Link href={withNext(`/verificar-email?token=${encodeURIComponent(mailbox.verifyToken)}`, next)} className={textLink}>
-        Abrir link de verificação
+        {t('abrirLink')}
       </Link>
     </PrototypeNotice>
   );
 }
 
 function CheckInbox({ next }: { next: string }) {
+  const t = useT(messages, 'VerifyEmailScreen');
   const { user, isLoading } = useSession();
 
   if (isLoading) return <AuthSkeleton />;
@@ -78,11 +83,11 @@ function CheckInbox({ next }: { next: string }) {
       <div className="flex flex-col gap-5">
         <AuthHeader
           icon={<MailCheck className="size-6" />}
-          title="Confira seu e-mail"
-          description="Abra o link que mandamos para o e-mail do seu cadastro. Para pedir um link novo, entre na sua conta."
+          title={t('confiraTitulo')}
+          description={t('confiraSemSessao')}
         />
         <Button asChild fullWidth>
-          <Link href={withNext('/entrar', '/verificar-email')}>Entrar</Link>
+          <Link href={withNext('/entrar', '/verificar-email')}>{t('entrar')}</Link>
         </Button>
       </div>
     );
@@ -91,31 +96,32 @@ function CheckInbox({ next }: { next: string }) {
   if (user.emailVerified) {
     return (
       <div className="flex flex-col gap-5">
-        <AuthHeader icon={<CircleCheck className="size-6" />} title="Seu e-mail já está confirmado" description={`O e-mail ${user.email} já foi verificado. Não precisa fazer mais nada.`} />
+        <AuthHeader icon={<CircleCheck className="size-6" />} title={t('jaConfirmadoTitulo')} description={t('jaConfirmadoDescricao', { email: user.email })} />
         <Button asChild fullWidth>
-          <Link href={next}>Continuar</Link>
+          <Link href={next}>{t('continuar')}</Link>
         </Button>
       </div>
     );
   }
 
+  const description = t.rich('confiraDescricao', {
+    email: user.email,
+    strong: (chunks) => <strong className="text-text [overflow-wrap:anywhere]">{chunks}</strong>,
+  });
+
   return (
     <div className="flex flex-col gap-5">
       <AuthHeader
         icon={<MailCheck className="size-6" />}
-        title="Confira seu e-mail"
-        description={
-          <>
-            Mandamos um link de verificação para <strong className="text-text [overflow-wrap:anywhere]">{user.email}</strong>. Abra o link para confirmar que o e-mail é seu.
-          </>
-        }
+        title={t('confiraTitulo')}
+        description={description}
       />
       <DevVerifyLink email={user.email} next={next} />
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-muted">Não chegou? Olhe a caixa de spam ou peça um link novo.</p>
+        <p className="text-sm text-muted">{t('naoChegou')}</p>
         <ResendButton email={user.email} />
         <Button asChild variant="ghost" fullWidth>
-          <Link href={next}>Verificar depois</Link>
+          <Link href={next}>{t('verificarDepois')}</Link>
         </Button>
       </div>
     </div>
@@ -124,6 +130,7 @@ function CheckInbox({ next }: { next: string }) {
 
 function ConfirmToken({ token, next }: { token: string; next: string }) {
   const { user, isLoading: sessionLoading } = useSession();
+  const t = useT(messages, 'VerifyEmailScreen');
   const verify = useVerifyEmail();
   const { mutate } = verify;
 
@@ -140,16 +147,16 @@ function ConfirmToken({ token, next }: { token: string; next: string }) {
       <div className="flex flex-col gap-5">
         <AuthHeader
           icon={<CircleCheck className="size-6" />}
-          title="E-mail confirmado"
-          description={`Pronto! O e-mail ${verify.data.email} está verificado e sua conta está liberada para inscrições e convites.`}
+          title={t('confirmadoTitulo')}
+          description={t('confirmadoDescricao', { email: verify.data.email })}
         />
         {sessionLoading ? null : user ? (
           <Button asChild fullWidth>
-            <Link href={next}>Continuar</Link>
+            <Link href={next}>{t('continuar')}</Link>
           </Button>
         ) : (
           <Button asChild fullWidth>
-            <Link href={withNext('/entrar', next)}>Entrar</Link>
+            <Link href={withNext('/entrar', next)}>{t('entrar')}</Link>
           </Button>
         )}
       </div>
@@ -159,19 +166,19 @@ function ConfirmToken({ token, next }: { token: string; next: string }) {
   if (verify.isError) {
     return (
       <div className="flex flex-col gap-5">
-        <AuthHeader icon={<CircleX className="size-6" />} title="Não foi possível confirmar seu e-mail" />
+        <AuthHeader icon={<CircleX className="size-6" />} title={t('erroTitulo')} />
         <p role="alert" className="rounded-md border border-danger bg-danger-soft px-3 py-2 text-sm font-medium text-danger-soft-text">
           {errorMessage(verify.error)}
         </p>
         {user && !user.emailVerified && (
           <>
-            <p className="text-sm text-muted">Peça um link novo: o anterior deixa de valer.</p>
+            <p className="text-sm text-muted">{t('pecaNovo')}</p>
             <ResendButton
               email={user.email}
               variant="primary"
               afterSent={
                 <Link href={withNext('/verificar-email', next)} className={`${textLink} text-center text-sm`}>
-                  Ver o novo link
+                  {t('verNovoLink')}
                 </Link>
               }
             />
@@ -179,12 +186,12 @@ function ConfirmToken({ token, next }: { token: string; next: string }) {
         )}
         {user?.emailVerified && (
           <Button asChild fullWidth>
-            <Link href={next}>Continuar</Link>
+            <Link href={next}>{t('continuar')}</Link>
           </Button>
         )}
         {!sessionLoading && !user && (
           <Button asChild fullWidth>
-            <Link href={withNext('/entrar', '/verificar-email')}>Entrar</Link>
+            <Link href={withNext('/entrar', '/verificar-email')}>{t('entrar')}</Link>
           </Button>
         )}
       </div>
@@ -193,7 +200,7 @@ function ConfirmToken({ token, next }: { token: string; next: string }) {
 
   return (
     <div className="flex flex-col gap-4" role="status">
-      <h1 className="text-xl">Confirmando seu e-mail…</h1>
+      <h1 className="text-xl">{t('confirmando')}</h1>
       <Skeleton className="h-4 w-full" />
       <Skeleton className="h-11 w-full" />
     </div>
