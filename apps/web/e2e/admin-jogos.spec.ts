@@ -257,7 +257,7 @@ test.describe('Admin · catálogo de jogos', () => {
     await expect(padrao.getByText('Padrão', { exact: true })).toBeVisible();
     await expect(liga.getByText('Padrão', { exact: true })).toHaveCount(0);
 
-    await liga.getByRole('button', { name: /^Tornar .* o padrão$/ }).click();
+    await liga.getByRole('button', { name: /^Tornar padrão: / }).click();
     await expect(liga.getByText('Padrão', { exact: true })).toBeVisible();
     // O padrão anterior do mesmo tipo de partida deixa de ser; o de outro tipo não muda.
     await expect(padrao.getByText('Padrão', { exact: true })).toHaveCount(0);

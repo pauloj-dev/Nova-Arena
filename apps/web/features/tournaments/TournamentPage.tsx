@@ -117,7 +117,7 @@ function Header({ t, canManage }: { t: Tournament; canManage: boolean }) {
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             {game.data ? (
-              <Link href={`/jogos/${game.data.slug}`} className="font-semibold text-primary-text underline-offset-2 hover:underline">
+              <Link href={`/jogos/${game.data.slug}`} className="-my-3 inline-block py-3 font-semibold text-primary-text underline-offset-2 hover:underline">
                 {t.gameName}
               </Link>
             ) : (
@@ -146,25 +146,25 @@ function Header({ t, canManage }: { t: Tournament; canManage: boolean }) {
         </div>
 
         <dl className="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
-          <div className="flex items-start gap-2">
-            <CalendarDays className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
-            <div>
-              <dt className="text-xs text-muted">Início</dt>
-              <dd className="font-medium">{t.startsAt ? formatDateTime(t.startsAt) : 'A definir'}</dd>
-            </div>
+          <div className="relative pl-6">
+            <dt className="text-xs text-muted">
+              <CalendarDays className="absolute left-0 top-0.5 size-4 text-muted" aria-hidden />
+              Início
+            </dt>
+            <dd className="font-medium">{t.startsAt ? formatDateTime(t.startsAt) : 'A definir'}</dd>
           </div>
-          <div className="flex items-start gap-2">
-            <CalendarClock className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
-            <div>
-              <dt className="text-xs text-muted">Inscrições</dt>
-              <dd className="font-medium">
-                {t.registrationOpensAt && t.registrationClosesAt
-                  ? `De ${formatDateTime(t.registrationOpensAt, { withZone: false })} até ${formatDateTime(t.registrationClosesAt)}`
-                  : t.registrationClosesAt
-                    ? `Até ${formatDateTime(t.registrationClosesAt)}`
-                    : 'Período a definir'}
-              </dd>
-            </div>
+          <div className="relative pl-6">
+            <dt className="text-xs text-muted">
+              <CalendarClock className="absolute left-0 top-0.5 size-4 text-muted" aria-hidden />
+              Inscrições
+            </dt>
+            <dd className="font-medium">
+              {t.registrationOpensAt && t.registrationClosesAt
+                ? `De ${formatDateTime(t.registrationOpensAt, { withZone: false })} até ${formatDateTime(t.registrationClosesAt)}`
+                : t.registrationClosesAt
+                  ? `Até ${formatDateTime(t.registrationClosesAt)}`
+                  : 'Período a definir'}
+            </dd>
           </div>
         </dl>
 

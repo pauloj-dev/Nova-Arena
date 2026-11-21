@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { DropdownMenu } from 'radix-ui';
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime';
 
-const menuItem = 'flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 text-sm text-text outline-none data-[highlighted]:bg-neutral-soft';
+const menuItem = 'flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 text-sm text-text outline-none data-[highlighted]:bg-neutral-soft data-[highlighted]:outline-2 data-[highlighted]:-outline-offset-2 data-[highlighted]:outline-accent';
 
 export interface SquadRosterProps {
   team: Team;
@@ -41,7 +41,7 @@ export function SquadRoster({ team, viewerId, onToggleSub, onTransfer, onRemove,
             <li key={member.userId} className="flex items-center gap-3 py-3">
               <Avatar name={member.nickname} src={member.avatarUrl} size="md" />
               <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <Link href={`/u/${encodeURIComponent(member.nickname)}`} className="truncate font-semibold text-text hover:underline">
+                <Link href={`/u/${encodeURIComponent(member.nickname)}`} className="-my-2.5 block truncate py-2.5 font-semibold text-text hover:underline">
                   {member.nickname}
                   {isMe && <span className="font-normal text-muted"> (você)</span>}
                 </Link>

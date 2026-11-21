@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { isAdminUser, isOrganizerUser, useLogout, useSession } from '../session/useSession';
 
-const item = 'flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 text-sm text-text outline-none data-[highlighted]:bg-neutral-soft';
+const item = 'flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 text-sm text-text outline-none data-[highlighted]:bg-neutral-soft data-[highlighted]:outline-2 data-[highlighted]:-outline-offset-2 data-[highlighted]:outline-accent';
 
 /** Menu da conta: atalhos, troca de área (para quem tem mais de um papel) e sair. */
 export function UserMenu() {

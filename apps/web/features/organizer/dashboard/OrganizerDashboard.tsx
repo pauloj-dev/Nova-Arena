@@ -23,7 +23,7 @@ function Stat({ icon: Icon, label, value, href, linkLabel }: { icon: LucideIcon;
         <p className="tabular text-2xl font-bold text-text">{value}</p>
         <p className="text-sm text-muted">{label}</p>
       </div>
-      <Link href={href} className="min-h-11 shrink-0 content-center rounded-md px-2 text-sm font-semibold text-text underline hover:bg-neutral-soft" aria-label={linkLabel}>
+      <Link href={href} className="min-h-11 min-w-11 shrink-0 content-center rounded-md px-2 text-center text-sm font-semibold text-text underline hover:bg-neutral-soft" aria-label={linkLabel}>
         Ver
       </Link>
     </Card>
@@ -164,7 +164,7 @@ export function OrganizerDashboard() {
               <ul className="flex flex-col gap-2">
                 {live.map((t) => (
                   <li key={`live-${t.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3">
-                    <Link href={`/organizador/campeonatos/${t.id}`} className="min-w-0 text-sm font-semibold text-text underline-offset-2 hover:underline">
+                    <Link href={`/organizador/campeonatos/${t.id}`} className="-my-3 min-w-0 py-3 text-sm font-semibold text-text underline-offset-2 hover:underline">
                       {t.name}
                     </Link>
                     <StatusPill status={t.status} />

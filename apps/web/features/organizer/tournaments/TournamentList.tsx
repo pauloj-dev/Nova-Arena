@@ -98,7 +98,7 @@ function TournamentRow({ t, onDialog }: { t: OrganizerTournament; onDialog: (dia
           Duplicar
         </Button>
         {t.stageCount > 0 && (
-          <Button variant="secondary" size="sm" iconLeft={<FileStack className="size-4" aria-hidden />} aria-label={`Salvar ${t.name} como modelo`} onClick={() => onDialog({ kind: 'template', tournament: t })}>
+          <Button variant="secondary" size="sm" iconLeft={<FileStack className="size-4" aria-hidden />} aria-label={`Salvar como modelo: ${t.name}`} onClick={() => onDialog({ kind: 'template', tournament: t })}>
             Salvar como modelo
           </Button>
         )}

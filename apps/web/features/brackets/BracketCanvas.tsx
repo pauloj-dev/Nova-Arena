@@ -180,7 +180,7 @@ interface MatchNodeProps extends SlotExtension {
   highlightRegistrationId?: string | null;
   timeZone: string;
   onSelect: (match: Match) => void;
-  onKeyDown: (event: KeyboardEvent<SVGGElement>, node: LayoutNode) => void;
+  onKeyDown: (event: KeyboardEvent<SVGElement>, node: LayoutNode) => void;
   onFocus: (node: LayoutNode) => void;
   onBlur: () => void;
 }
@@ -205,22 +205,11 @@ function MatchNode({ node, inPath, focused, tabbable, highlightRegistrationId, t
     />
   ));
 
+  // O desenho do confronto fica fora do botão (e do leitor de tela): o botão é uma área transparente por cima,
+  // com o nome acessível completo. Assim o texto visível não "briga" com o nome do botão (WCAG 2.5.3).
   return (
-    <g transform={`translate(${node.x} ${node.y})`}>
-      <g
-        role="button"
-        tabIndex={tabbable ? 0 : -1}
-        aria-label={matchAriaLabel(match, { timeZone, highlightRegistrationId })}
-        data-match-id={match.id}
-        data-testid="bracket-match"
-        data-highlight={inPath ? 'true' : undefined}
-        data-status={match.status}
-        className="cursor-pointer outline-none"
-        onClick={() => onSelect(match)}
-        onKeyDown={(e) => onKeyDown(e, node)}
-        onFocus={() => onFocus(node)}
-        onBlur={onBlur}
-      >
+    <g transform={`translate(${node.x} ${node.y})`} data-match-id={match.id}>
+      <g aria-hidden="true" className="pointer-events-none">
         <rect width={width} height={height} rx={8} className={cn('fill-surface', inPath ? 'stroke-accent' : 'stroke-border-strong')} strokeWidth={inPath ? 2.5 : 1} />
         <text x={12} y={17} className="fill-muted text-[11px]">
           {match.ifNecessary ? 'Se necessário · ' : ''}
@@ -234,6 +223,22 @@ function MatchNode({ node, inPath, focused, tabbable, highlightRegistrationId, t
         <line x1={8} x2={width - 8} y1={HEADER_HEIGHT + ROW_HEIGHT} y2={HEADER_HEIGHT + ROW_HEIGHT} className="stroke-border" />
         {!onSlotClick && rows}
       </g>
+      <rect
+        role="button"
+        tabIndex={tabbable ? 0 : -1}
+        aria-label={matchAriaLabel(match, { timeZone, highlightRegistrationId })}
+        data-testid="bracket-match"
+        data-highlight={inPath ? 'true' : undefined}
+        data-status={match.status}
+        width={width}
+        height={height}
+        rx={8}
+        className="cursor-pointer fill-transparent outline-none"
+        onClick={() => onSelect(match)}
+        onKeyDown={(e) => onKeyDown(e, node)}
+        onFocus={() => onFocus(node)}
+        onBlur={onBlur}
+      />
       {onSlotClick && rows}
       {focused && <rect x={-4} y={-4} width={width + 8} height={height + 8} rx={11} className="pointer-events-none fill-none stroke-accent" strokeWidth={3} data-testid="bracket-focus-ring" />}
     </g>
@@ -248,7 +253,7 @@ interface SceneProps extends SlotExtension {
   highlightRegistrationId?: string | null;
   timeZone: string;
   onSelect: (match: Match) => void;
-  onKeyDown: (event: KeyboardEvent<SVGGElement>, node: LayoutNode) => void;
+  onKeyDown: (event: KeyboardEvent<SVGElement>, node: LayoutNode) => void;
   onFocus: (node: LayoutNode) => void;
   onBlur: () => void;
 }
@@ -412,13 +417,13 @@ export function BracketCanvas({ matches, highlightRegistrationId, onMatchSelect,
   );
 
   const onNodeKeyDown = useCallback(
-    (event: KeyboardEvent<SVGGElement>, node: LayoutNode) => {
+    (event: KeyboardEvent<SVGElement>, node: LayoutNode) => {
       const focusNode = (id: string) => {
         const target = layout.nodes.find((n) => n.id === id);
         if (!target) return;
         setActiveId(id);
         const el = [...(containerRef.current?.querySelectorAll<SVGGElement>('[data-match-id]') ?? [])].find((g) => g.dataset.matchId === id);
-        el?.focus({ preventScroll: true });
+        el?.querySelector<SVGElement>('[data-testid="bracket-match"]')?.focus({ preventScroll: true });
         reveal(target);
       };
       const directions: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };

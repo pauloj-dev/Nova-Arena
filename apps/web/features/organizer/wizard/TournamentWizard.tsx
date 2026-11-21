@@ -354,7 +354,7 @@ export function WizardForm({ games, userId, tournament, template }: WizardFormPr
                 {step === REVIEW_STEP && <ReviewStep publishError={publishError} />}
               </Card>
 
-              <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-border bg-surface px-4 py-3 pb-safe md:static md:border-0 md:bg-transparent md:p-0">
+              <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-border bg-surface px-[max(1rem,env(safe-area-inset-left))] pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:static md:border-0 md:bg-transparent md:p-0">
                 {step > 0 && (
                   <Button variant="secondary" iconLeft={<ArrowLeft className="size-4" aria-hidden />} onClick={() => goToStep(step - 1)}>
                     Voltar

@@ -154,7 +154,7 @@ export function MatchesTab({ tournament: t, game, onGoToStages }: { tournament: 
     }
     if (!isOver(match)) {
       buttons.push(
-        <Button key="schedule" size="sm" variant="secondary" iconLeft={<CalendarClock className="size-4" aria-hidden />} aria-label={`Agendar: ${name}`} onClick={() => setDialog({ kind: 'schedule', match })}>
+        <Button key="schedule" size="sm" variant="secondary" iconLeft={<CalendarClock className="size-4" aria-hidden />} aria-label={`${match.scheduledAt ? 'Reagendar e sala' : 'Agendar e sala'}: ${name}`} onClick={() => setDialog({ kind: 'schedule', match })}>
           {match.scheduledAt ? 'Reagendar e sala' : 'Agendar e sala'}
         </Button>,
       );

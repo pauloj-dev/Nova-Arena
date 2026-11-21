@@ -80,17 +80,22 @@ export function MatchRow({ match, highlightRegistrationId, onSelect, showRoundLa
       data-highlight={mine ? 'true' : undefined}
       data-status={match.status}
     >
+      {/*
+        O cartão inteiro é o botão: uma área por cima de tudo, só com o nome acessível completo. O texto visível
+        fica fora dele, para não divergir do nome (WCAG 2.5.3, rótulo no nome).
+      */}
+      <button
+        type="button"
+        data-bracket-match={match.id}
+        aria-label={matchAriaLabel(match, { highlightRegistrationId })}
+        onClick={() => onSelect(match)}
+        className="absolute inset-0 rounded-lg"
+      />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <button
-          type="button"
-          data-bracket-match={match.id}
-          aria-label={matchAriaLabel(match, { highlightRegistrationId })}
-          onClick={() => onSelect(match)}
-          className="min-w-0 text-left text-xs text-muted after:absolute after:inset-0 after:rounded-lg"
-        >
+        <p className="min-w-0 text-left text-xs text-muted">
           {showRoundLabel && <span className="block text-sm font-semibold text-text">{[match.groupName, match.roundLabel].filter(Boolean).join(' · ')}</span>}
           {scheduleText(match)}
-        </button>
+        </p>
         <div className="flex flex-wrap items-center gap-1.5">
           {mine && <Badge tone="accent">{lobby ? 'Sua queda' : 'Seu confronto'}</Badge>}
           <StatusPill status={match.status} label={MATCH_STATUS_PILL_LABEL[match.status]} />

@@ -21,7 +21,7 @@ export function Logo({ href = '/', className, onColor = false, compact = false }
       href={href}
       aria-label="Nova Arena — página inicial"
       className={cn(
-        'group flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md font-display text-base font-bold tracking-wide focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent xs:text-lg md:gap-2.5 md:text-xl',
+        'group flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-md font-display text-base font-bold tracking-wide focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent xs:text-lg md:gap-2.5 md:text-xl',
         onColor && '[--logo-ink:currentColor]',
         className,
       )}

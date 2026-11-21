@@ -23,7 +23,8 @@ const columns: Column<AdminUser>[] = [
     header: 'Usuário',
     primary: true,
     cell: (user) => (
-      <Link href={`/admin/usuarios/${user.id}`} className="inline-flex min-h-11 items-center rounded-sm hover:underline md:min-h-0" aria-label={`Abrir o perfil de ${user.nickname}`}>
+      <Link href={`/admin/usuarios/${user.id}`} className="inline-flex min-h-11 items-center rounded-sm hover:underline md:min-h-0">
+        <span className="sr-only">Abrir o perfil de </span>
         <UserIdentity user={user} />
       </Link>
     ),

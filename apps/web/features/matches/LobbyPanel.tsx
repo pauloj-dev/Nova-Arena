@@ -76,33 +76,36 @@ export function LobbyPanel({ match, className }: LobbyPanelProps) {
           )}
         </div>
       ) : data ? (
-        <dl className="flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
+        <div className="flex flex-col gap-2">
+          {/* Cada par (rótulo, valor, botão de copiar) é um grupo de <dl> com só <dt>/<dd> dentro. */}
+          <dl className="flex flex-col gap-2">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
               <dt className="text-xs text-muted">Código</dt>
-              <dd className="tabular break-all text-base" data-testid="lobby-code">
+              <dd className="tabular col-start-1 row-start-2 break-all text-base" data-testid="lobby-code">
                 {data.code}
               </dd>
+              <dd className="col-start-2 row-span-2 row-start-1">
+                <Button variant="secondary" size="sm" iconLeft={<Copy className="size-4" aria-hidden />} onClick={() => void copy(data.code, 'Código')} aria-label="Copiar código da sala">
+                  Copiar
+                </Button>
+              </dd>
             </div>
-            <Button variant="secondary" size="sm" iconLeft={<Copy className="size-4" aria-hidden />} onClick={() => void copy(data.code, 'Código')} aria-label="Copiar código da sala">
-              Copiar
-            </Button>
-          </div>
-          {data.password && (
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
+            {data.password && (
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
                 <dt className="text-xs text-muted">Senha</dt>
-                <dd className="tabular break-all text-base" data-testid="lobby-password">
+                <dd className="tabular col-start-1 row-start-2 break-all text-base" data-testid="lobby-password">
                   {data.password}
                 </dd>
+                <dd className="col-start-2 row-span-2 row-start-1">
+                  <Button variant="secondary" size="sm" iconLeft={<Copy className="size-4" aria-hidden />} onClick={() => void copy(data.password ?? '', 'Senha')} aria-label="Copiar senha da sala">
+                    Copiar
+                  </Button>
+                </dd>
               </div>
-              <Button variant="secondary" size="sm" iconLeft={<Copy className="size-4" aria-hidden />} onClick={() => void copy(data.password ?? '', 'Senha')} aria-label="Copiar senha da sala">
-                Copiar
-              </Button>
-            </div>
-          )}
+            )}
+          </dl>
           <p className="text-xs text-muted">Só quem está nesta partida vê a sala. Não compartilhe.</p>
-        </dl>
+        </div>
       ) : null}
     </section>
   );

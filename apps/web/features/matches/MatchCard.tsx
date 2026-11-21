@@ -64,7 +64,7 @@ function DuelSides({ match, viewer }: { match: Match; viewer: MatchViewer }) {
         const mine = known && p.registrationId === viewer.registration?.id;
         const won = p.isWinner === true;
         return (
-          <li key={p.registrationId ?? `vaga-${i}`} className={cn('flex min-h-11 items-center gap-2 rounded-md px-2 py-1.5', mine ? 'bg-accent-soft' : 'bg-surface-2')}>
+          <li key={p.registrationId ?? `vaga-${i}`} className={cn('flex min-h-11 items-center gap-2 rounded-md px-2 py-1.5', mine ? 'bg-accent-soft [&_.text-muted]:text-accent-soft-text' : 'bg-surface-2')}>
             {known ? (
               <>
                 {p.seed !== null && (

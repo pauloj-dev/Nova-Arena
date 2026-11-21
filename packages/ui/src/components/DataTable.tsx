@@ -97,7 +97,8 @@ export function DataTable<T>({
       )}
 
       {/* Tabela: a partir de 768 px */}
-      <div className="hidden overflow-x-auto rounded-lg border border-border bg-surface md:block">
+      {/* `relative`: os textos só para leitor de tela (`sr-only`, absolutos) ficam presos à rolagem da tabela, sem alargar a página. */}
+      <div className="relative hidden overflow-x-auto rounded-lg border border-border bg-surface md:block">
         <table className="w-full border-collapse text-sm">
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-surface-2 text-left">
@@ -184,7 +185,10 @@ export function DataTable<T>({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 font-semibold text-text">{primary?.cell(row)}</div>
                   {selectable && (
-                    <input type="checkbox" aria-label="Selecionar" checked={sel.includes(id)} onChange={() => toggleRow(id)} className="mt-1 size-5 accent-(--accent)" />
+                    // Área de toque de 44 px em volta da caixa (o rótulo inteiro marca e desmarca).
+                    <label className="-m-3 flex size-11 shrink-0 cursor-pointer items-center justify-center">
+                      <input type="checkbox" aria-label="Selecionar" checked={sel.includes(id)} onChange={() => toggleRow(id)} className="size-5 accent-(--accent)" />
+                    </label>
                   )}
                 </div>
                 <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">

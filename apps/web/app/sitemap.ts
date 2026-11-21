@@ -6,7 +6,7 @@ import type { MetadataRoute } from 'next';
 import { listPublicTournaments } from '@/shared/server/public-data';
 import { SITE_URL } from '@/shared/server/seo';
 
-const STATIC_PAGES = ['', '/campeonatos', '/jogos', '/ranking', '/termos', '/privacidade'];
+const STATIC_PAGES = ['', '/campeonatos', '/jogos', '/ranking', '/ajuda', '/contato', '/termos', '/privacidade'];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const tournaments = await listPublicTournaments().catch(() => []);

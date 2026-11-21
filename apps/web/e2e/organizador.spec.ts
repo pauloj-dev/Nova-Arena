@@ -707,7 +707,7 @@ test.describe('organizador — painel, lista e modelos', () => {
   test('salva um campeonato como modelo, usa e exclui o modelo', async ({ page }) => {
     await loginAs(page, 'u_camila');
     await page.goto('/organizador/campeonatos');
-    await page.getByRole('button', { name: 'Salvar Copa Nova FF — Squad como modelo' }).click();
+    await page.getByRole('button', { name: 'Salvar como modelo: Copa Nova FF — Squad' }).click();
     const dialog = page.getByRole('dialog', { name: 'Salvar como modelo' });
     await dialog.getByLabel('Nome do modelo').fill('Meu formato de copa');
     await dialog.getByRole('button', { name: 'Salvar modelo' }).click();

@@ -2,7 +2,7 @@
 
 import type { AdminUserDetail, Sanction } from '@nova/schemas';
 import { REPORT_REASON_LABELS } from '@nova/schemas';
-import { Badge, Button, Card, EmptyState, ErrorState, Skeleton, StatusPill, useToast } from '@nova/ui';
+import { Badge, Button, Card, cn, EmptyState, ErrorState, Skeleton, StatusPill, useToast } from '@nova/ui';
 import { ArrowLeft, Ban, Copy, ExternalLink, Flag, Gamepad2, KeyRound, Merge, MessageSquareWarning, PauseCircle, ShieldCheck, ShieldOff, Target, Undo2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -29,9 +29,9 @@ function sanctionState(s: Sanction): { text: string; tone: 'neutral' | 'warning'
   return s.type === 'BAN' ? { text: 'Em vigor', tone: 'danger' } : { text: `Em vigor até ${formatDate(s.endsAt ?? '')}`, tone: 'warning' };
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className="min-w-0">
+    <div className={cn('min-w-0', className)}>
       <dt className="text-xs text-muted">{label}</dt>
       <dd className="text-sm text-text [overflow-wrap:anywhere]">{children}</dd>
     </div>
@@ -219,9 +219,9 @@ export function UserDetailPage({ userId }: { userId: string }) {
             <Field label="ID da conta">
               <code className="font-mono text-xs">{u.id}</code>
             </Field>
-            <div className="xs:col-span-2">
-              <Field label="Bio">{u.bio ?? '—'}</Field>
-            </div>
+            <Field label="Bio" className="xs:col-span-2">
+              {u.bio ?? '—'}
+            </Field>
           </dl>
           {u.organizerLimits && (
             <p className="rounded-md bg-surface-2 px-3 py-2 text-sm">

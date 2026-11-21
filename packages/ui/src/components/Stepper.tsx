@@ -33,7 +33,8 @@ export function Stepper({ steps, current, reached = current, onStepClick, orient
           <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${((current + 1) / steps.length) * 100}%` }} />
         </div>
       </div>
-      <ol className={cn('hidden md:flex', orientation === 'vertical' ? 'flex-col gap-1' : 'items-start gap-2')}>
+      {/* Horizontal (tablet): cada passo divide a largura, com o nome embaixo do número — nunca passa da tela. */}
+      <ol className={cn('hidden md:flex', orientation === 'vertical' ? 'flex-col gap-1' : 'items-start gap-1')}>
         {steps.map((s, i) => {
           const done = i < current;
           const isCurrent = i === current;
@@ -50,22 +51,27 @@ export function Stepper({ steps, current, reached = current, onStepClick, orient
               {done ? <Check className="size-4" aria-hidden /> : i + 1}
             </span>
           );
+          const horizontal = orientation === 'horizontal';
           const text = (
-            <span className="flex flex-col text-left">
-              <span className={cn('text-sm font-semibold', isCurrent ? 'text-text' : 'text-muted')}>{s.label}</span>
+            <span className={cn('flex min-w-0 flex-col', horizontal ? 'text-center' : 'text-left')}>
+              <span className={cn('font-semibold [overflow-wrap:anywhere]', horizontal ? 'text-xs leading-tight' : 'text-sm', isCurrent ? 'text-text' : 'text-muted')}>{s.label}</span>
               {orientation === 'vertical' && s.description && <span className="text-xs text-muted">{s.description}</span>}
             </span>
           );
           return (
-            <li key={s.id} className={cn('flex', orientation === 'horizontal' && 'flex-1')} aria-current={isCurrent ? 'step' : undefined}>
+            <li key={s.id} className={cn('flex', horizontal && 'min-w-0 flex-1')} aria-current={isCurrent ? 'step' : undefined}>
               {clickable ? (
-                <button type="button" onClick={() => onStepClick?.(i)} className="flex min-h-11 items-center gap-2 rounded-md px-1 hover:bg-neutral-soft">
+                <button
+                  type="button"
+                  onClick={() => onStepClick?.(i)}
+                  className={cn('relative flex min-h-11 items-center gap-2 rounded-md px-1 hover:bg-neutral-soft', horizontal && 'w-full flex-col gap-1 py-1')}
+                >
                   {marker}
                   {text}
                   <span className="sr-only">(concluído, voltar a este passo)</span>
                 </button>
               ) : (
-                <span className="flex min-h-11 items-center gap-2 px-1">
+                <span className={cn('flex min-h-11 items-center gap-2 px-1', horizontal && 'w-full flex-col gap-1 py-1')}>
                   {marker}
                   {text}
                 </span>

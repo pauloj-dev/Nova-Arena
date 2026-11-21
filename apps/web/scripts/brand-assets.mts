@@ -11,6 +11,9 @@
  * - app/icon.svg                                  favicon (navegadores atuais)
  * - app/favicon.ico                               favicon 16, 32 e 48 px (navegadores antigos)
  * - app/apple-icon.png                            ícone de 180 px da tela inicial do iPhone
+ * - public/icons/icon-192.png, icon-512.png        ícones do PWA (manifesto, `purpose: any`)
+ * - public/icons/maskable-512.png                  ícone "maskable" do PWA: fundo até a borda e o símbolo dentro
+ *                                                 da zona segura (círculo de 80%), para o Android recortar
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -58,9 +61,9 @@ const symbol = (nColor: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${LOGO_VIEWBOX}" role="img" aria-label="Nova Arena">${mark(nColor, 'na')}</svg>\n`;
 
 /** Ícone quadrado: placa escura com cantos arredondados e o símbolo em negativo, centralizado. */
-function appIcon(size: number, radius: number): string {
+function appIcon(size: number, radius: number, padRatio = 0.08): string {
   const [vx, vy, vw, vh] = LOGO_VIEWBOX.split(' ').map(Number) as [number, number, number, number];
-  const pad = size * 0.08;
+  const pad = size * padRatio;
   const scale = (size - pad * 2) / vw;
   const tx = pad - vx * scale;
   const ty = (size - vh * scale) / 2 - vy * scale;
@@ -107,4 +110,11 @@ await sharp(Buffer.from(appIcon(180, 0)), { density: 300 }).resize(180, 180).png
 const icoPngs = await Promise.all([16, 32, 48].map(async (size) => ({ size, data: await sharp(Buffer.from(iconSvg), { density: 300 }).resize(size, size).png().toBuffer() })));
 writeFileSync(out('app/favicon.ico'), ico(icoPngs));
 
-console.log('Arquivos da marca gerados em apps/web/public/brand e apps/web/app.');
+// PWA (issue #105): ícones do manifesto (`app/manifest.ts`).
+for (const size of [192, 512]) {
+  await sharp(Buffer.from(appIcon(size, Math.round(size * 0.22))), { density: 300 }).resize(size, size).png().toFile(out(`public/icons/icon-${size}.png`));
+}
+// Maskable: sem cantos (o sistema recorta) e com o símbolo a 20% de cada lado, dentro da zona segura.
+await sharp(Buffer.from(appIcon(512, 0, 0.2)), { density: 300 }).resize(512, 512).png().toFile(out('public/icons/maskable-512.png'));
+
+console.log('Arquivos da marca gerados em apps/web/public/brand, apps/web/public/icons e apps/web/app.');

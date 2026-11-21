@@ -97,10 +97,11 @@ function ReplaceDialog({ action, waitlist, loading, onClose, onSubmit }: { actio
 
 function Counter({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-3">
-      <dd className="tabular text-2xl font-bold text-text">{value}</dd>
-      <dt className="text-sm text-muted">{label}</dt>
-      {hint && <p className="text-xs text-muted">{hint}</p>}
+    // Leitor de tela: rótulo, número e detalhe (dt antes dos dd); na tela o número vem em cima.
+    <div className="flex flex-col rounded-lg border border-border bg-surface p-3">
+      <dt className="order-2 text-sm text-muted">{label}</dt>
+      <dd className="order-1 tabular text-2xl font-bold text-text">{value}</dd>
+      {hint && <dd className="order-3 text-xs text-muted">{hint}</dd>}
     </div>
   );
 }
