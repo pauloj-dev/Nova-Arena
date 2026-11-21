@@ -7,17 +7,21 @@ import { CalendarRange, CheckCircle2, Clock, Trophy, UserRound } from 'lucide-re
 import Link from 'next/link';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useLeague } from '@/shared/api/hooks/seasons';
+import { getT } from '@/shared/i18n/core';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer } from '@/shared/layout/AreaShell';
 import { formatDate } from '@/shared/lib/datetime';
-import { LEAGUE_STATUS, periodText, ruleSummary } from './leagueText';
+import { LEAGUE_STATUS, periodText, placementText, ruleSummary } from './leagueText';
+import { messages } from './messages';
 
 export function leagueTableColumns(detail: LeagueDetail): Column<LeagueStandingRow>[] {
-  const counted = detail.league.tournaments.filter((t) => t.counted).length;
+  const counted = detail.league.tournaments.filter((item) => item.counted).length;
+  const t = getT(messages, 'LeaguePage.colunas');
   return [
-    { id: 'position', header: 'Posição', cell: (r) => <span className="tabular">{r.position}º</span>, className: 'w-20' },
+    { id: 'position', header: t('posicao'), cell: (r) => <span className="tabular">{placementText(r.position)}</span>, className: 'w-20' },
     {
       id: 'name',
-      header: 'Participante',
+      header: t('participante'),
       primary: true,
       cell: (r) => {
         const content = (
@@ -35,17 +39,18 @@ export function leagueTableColumns(detail: LeagueDetail): Column<LeagueStandingR
         );
       },
     },
-    { id: 'points', header: 'Pontos', align: 'right', cell: (r) => <span className="tabular text-base font-bold">{r.points}</span> },
-    { id: 'played', header: 'Campeonatos', align: 'right', cell: (r) => <span className="tabular">{`${r.played} de ${counted}`}</span> },
-    { id: 'wins', header: 'Títulos', align: 'right', cell: (r) => <span className="tabular">{r.wins}</span> },
-    { id: 'best', header: 'Melhor colocação', align: 'right', hideOnMobile: true, cell: (r) => <span className="tabular">{r.bestPlacement}º</span> },
+    { id: 'points', header: t('pontos'), align: 'right', cell: (r) => <span className="tabular text-base font-bold">{r.points}</span> },
+    { id: 'played', header: t('campeonatos'), align: 'right', cell: (r) => <span className="tabular">{t('jogadosDe', { jogados: String(r.played), total: String(counted) })}</span> },
+    { id: 'wins', header: t('titulos'), align: 'right', cell: (r) => <span className="tabular">{r.wins}</span> },
+    { id: 'best', header: t('melhorColocacao'), align: 'right', hideOnMobile: true, cell: (r) => <span className="tabular">{placementText(r.bestPlacement)}</span> },
   ];
 }
 
 function LeagueSkeleton() {
+  const t = useT(messages, 'LeaguePage');
   return (
     <PageContainer>
-      <div role="status" aria-label="Carregando a liga" className="flex flex-col gap-4">
+      <div role="status" aria-label={t('carregando')} className="flex flex-col gap-4">
         <Skeleton className="h-9 w-2/3" />
         <Skeleton className="h-5 w-1/2" />
         <Skeleton className="h-64 w-full" />
@@ -56,20 +61,30 @@ function LeagueSkeleton() {
 
 export function LeaguePage({ slug }: { slug: string }) {
   const q = useLeague(slug);
+  const t = useT(messages, 'LeaguePage');
   if (q.isPending) return <LeagueSkeleton />;
   if (q.isError) {
     return (
       <PageContainer>
         {q.error instanceof ApiError && q.error.status === 404 ? (
-          <EmptyState icon={<Trophy className="size-7" />} title="Liga não encontrada" description="O endereço pode estar errado ou a liga foi encerrada pela organização." />
+          <EmptyState icon={<Trophy className="size-7" />} title={t('naoEncontradaTitulo')} description={t('naoEncontradaDescricao')} />
         ) : (
-          <ErrorState title="Não foi possível carregar a liga" description={errorMessage(q.error)} onRetry={() => void q.refetch()} />
+          <ErrorState title={t('erro')} description={errorMessage(q.error)} onRetry={() => void q.refetch()} />
         )}
       </PageContainer>
     );
   }
   const { league, table } = q.data;
   const status = LEAGUE_STATUS[league.status];
+  const organizer = t.rich('organizacao', {
+    nome: league.owner.nickname,
+    link: (chunks) => (
+      <Link href={`/u/${encodeURIComponent(league.owner.nickname)}`} className="font-semibold text-text underline-offset-2 hover:underline">
+        {chunks}
+      </Link>
+    ),
+  });
+  const scoringText = t.rich('comoFuncionaTexto', { regra: ruleSummary(league.rule, 10), destaque: (chunks) => <span className="font-semibold text-text">{chunks}</span> });
 
   return (
     <PageContainer>
@@ -78,7 +93,7 @@ export function LeaguePage({ slug }: { slug: string }) {
           <span aria-hidden className="text-lg leading-none">
             {league.game.icon}
           </span>
-          Liga semanal de {league.game.name}
+          {t('ligaSemanalDe', { jogo: league.game.name })}
         </p>
         <h1 className="text-2xl [overflow-wrap:anywhere] md:text-3xl">{league.name}</h1>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
@@ -91,53 +106,50 @@ export function LeaguePage({ slug }: { slug: string }) {
           </span>
           <span className="inline-flex items-center gap-1.5">
             <UserRound className="size-4" aria-hidden />
-            Organização:{' '}
-            <Link href={`/u/${encodeURIComponent(league.owner.nickname)}`} className="font-semibold text-text underline-offset-2 hover:underline">
-              {league.owner.nickname}
-            </Link>
+            {organizer}
           </span>
         </div>
         {league.description && <p className="max-w-3xl whitespace-pre-line text-sm text-text">{league.description}</p>}
       </header>
 
       <Card className="flex flex-col gap-1">
-        <h2 className="text-base">Como a pontuação funciona</h2>
+        <h2 className="text-base">{t('comoFunciona')}</h2>
         <p className="text-sm text-muted">
-          Cada campeonato encerrado da liga dá pontos pela colocação final: <span className="font-semibold text-text">{ruleSummary(league.rule, 10)}</span>. Os pontos somam na tabela da temporada da liga.
+          {scoringText}
         </p>
       </Card>
 
       <section aria-labelledby="liga-tabela" className="flex flex-col gap-3">
         <h2 id="liga-tabela" className="text-lg">
-          Tabela da liga
+          {t('tabela')}
         </h2>
         <DataTable
-          caption={`Tabela da ${league.name}`}
+          caption={t('tabelaLegenda', { nome: league.name })}
           columns={leagueTableColumns(q.data)}
           rows={table}
           getRowId={(r) => r.key}
-          empty={<EmptyState icon={<Trophy className="size-7" />} title="A tabela ainda está vazia" description="Os pontos entram quando o primeiro campeonato da liga for encerrado." />}
+          empty={<EmptyState icon={<Trophy className="size-7" />} title={t('tabelaVaziaTitulo')} description={t('tabelaVaziaDescricao')} />}
         />
       </section>
 
       <section aria-labelledby="liga-campeonatos" className="flex flex-col gap-3">
         <h2 id="liga-campeonatos" className="text-lg">
-          Campeonatos da liga
+          {t('campeonatos')}
         </h2>
         {league.tournaments.length === 0 ? (
-          <EmptyState icon={<CalendarRange className="size-7" />} title="Nenhum campeonato na liga ainda" description="A organização inclui aqui os campeonatos de cada semana." />
+          <EmptyState icon={<CalendarRange className="size-7" />} title={t('campeonatosVazioTitulo')} description={t('campeonatosVazioDescricao')} />
         ) : (
           <ul className="grid gap-3 md:grid-cols-2">
-            {league.tournaments.map((t) => (
-              <li key={t.id}>
+            {league.tournaments.map((tournament) => (
+              <li key={tournament.id}>
                 <Card className="flex h-full flex-col gap-2">
-                  <Link href={`/c/${t.slug}`} className="font-semibold text-text underline-offset-2 [overflow-wrap:anywhere] hover:underline">
-                    {t.name}
+                  <Link href={`/c/${tournament.slug}`} className="font-semibold text-text underline-offset-2 [overflow-wrap:anywhere] hover:underline">
+                    {tournament.name}
                   </Link>
                   <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
-                    <StatusPill status={t.status as Status} />
-                    {t.startsAt && <span>{formatDate(t.startsAt)}</span>}
-                    <span>{t.counted ? 'Já conta pontos' : 'Conta pontos quando terminar'}</span>
+                    <StatusPill status={tournament.status as Status} />
+                    {tournament.startsAt && <span>{formatDate(tournament.startsAt)}</span>}
+                    <span>{tournament.counted ? t('jaContaPontos') : t('contaQuandoTerminar')}</span>
                   </div>
                 </Card>
               </li>

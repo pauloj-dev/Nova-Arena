@@ -6,8 +6,12 @@ import { Button, Input, Select, Skeleton, Textarea } from '@nova/ui';
 import { useForm, useWatch } from 'react-hook-form';
 import { ApiError } from '@/shared/api/client';
 import { useGames } from '@/shared/api/hooks/games';
+import { getT } from '@/shared/i18n/core';
+import { sharedMessages } from '@/shared/i18n/messages';
+import { useT } from '@/shared/i18n/react';
 import { isoToLocalInput, localInputToIso } from '@/shared/lib/datetime';
 import { parsePoints, pointsText, ruleSummary } from './leagueText';
+import { messages } from './messages';
 
 export interface LeagueFormValues {
   name: string;
@@ -23,13 +27,14 @@ type Field = keyof LeagueFormValues;
 
 /** Valores do formulário para a API. Devolve os erros por campo quando algo não passa no contrato. */
 export function toLeagueInput(values: LeagueFormValues): { input: LeagueInput } | { errors: Partial<Record<Field, string>> } {
+  const t = getT(messages, 'LeagueForm.erros');
   const errors: Partial<Record<Field, string>> = {};
   const points = parsePoints(values.placementPoints);
-  if (!points) errors.placementPoints = 'Use números inteiros separados por vírgula (ex.: 25, 18, 15)';
+  if (!points) errors.placementPoints = t('pontosColocacao');
   const participation = /^\d+$/.test(values.participationPoints.trim()) ? Number.parseInt(values.participationPoints, 10) : Number.NaN;
-  if (Number.isNaN(participation)) errors.participationPoints = 'Use um número inteiro a partir de 0';
-  if (!values.startsAt) errors.startsAt = 'Informe o início';
-  if (!values.endsAt) errors.endsAt = 'Informe o fim';
+  if (Number.isNaN(participation)) errors.participationPoints = t('pontosParticipacao');
+  if (!values.startsAt) errors.startsAt = t('inicio');
+  if (!values.endsAt) errors.endsAt = t('fim');
   if (Object.keys(errors).length) return { errors };
 
   const input = {
@@ -70,6 +75,8 @@ export function defaultLeagueValues(league?: League): LeagueFormValues {
 
 export function LeagueForm({ league, submitLabel, loading, onSubmit, onCancel }: { league?: League; submitLabel: string; loading?: boolean; onSubmit: (input: LeagueInput) => Promise<unknown>; onCancel?: () => void }) {
   const games = useGames();
+  const t = useT(messages, 'LeagueForm');
+  const common = useT(sharedMessages, 'comum');
   const form = useForm<LeagueFormValues>({ defaultValues: defaultLeagueValues(league) });
   const { register, formState, setError, control } = form;
   const [placementText, participationText] = useWatch({ control, name: ['placementPoints', 'participationPoints'] });
@@ -98,48 +105,60 @@ export function LeagueForm({ league, submitLabel, loading, onSubmit, onCancel }:
     }
   });
 
+  const fields = {
+    name: register('name', { required: t('erros.nome') }),
+    description: register('description'),
+    // Só registra quando o seletor aparece (com os jogos carregados), como antes.
+    gameId: () => register('gameId', { required: t('erros.jogo') }),
+    startsAt: register('startsAt'),
+    endsAt: register('endsAt'),
+    placementPoints: register('placementPoints'),
+    participationPoints: register('participationPoints'),
+  };
+  const cancelLabel = common('cancelar');
+
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-      <Input label="Nome da liga" required maxLength={80} {...register('name', { required: 'Dê um nome para a liga' })} error={formState.errors.name?.message} />
-      <Textarea label="Descrição" hint="Dia e horário dos campeonatos, premiação da temporada… (opcional)" maxLength={1000} {...register('description')} error={formState.errors.description?.message} />
+      <Input label={t('nome')} required maxLength={80} {...fields.name} error={formState.errors.name?.message} />
+      <Textarea label={t('descricao')} hint={t('descricaoDica')} maxLength={1000} {...fields.description} error={formState.errors.description?.message} />
       {games.isPending ? (
         <Skeleton className="h-16 w-full" />
       ) : (
         <Select
-          label="Jogo"
+          label={t('jogo')}
           required
           disabled={Boolean(league)}
-          hint={league ? 'O jogo não muda depois que a liga é criada.' : 'Só campeonatos deste jogo entram na liga.'}
-          placeholder="Escolha o jogo"
+          hint={league ? t('jogoDicaEdicao') : t('jogoDica')}
+          placeholder={t('jogoPlaceholder')}
           options={(games.data ?? []).map((g) => ({ value: g.id, label: g.name }))}
-          {...register('gameId', { required: 'Escolha o jogo' })}
+          {...fields.gameId()}
           error={formState.errors.gameId?.message}
         />
       )}
       <div className="grid gap-4 md:grid-cols-2">
-        <Input label="Início da temporada da liga" type="datetime-local" required {...register('startsAt')} error={formState.errors.startsAt?.message} />
-        <Input label="Fim da temporada da liga" type="datetime-local" required {...register('endsAt')} error={formState.errors.endsAt?.message} />
+        <Input label={t('inicio')} type="datetime-local" required {...fields.startsAt} error={formState.errors.startsAt?.message} />
+        <Input label={t('fim')} type="datetime-local" required {...fields.endsAt} error={formState.errors.endsAt?.message} />
       </div>
       <fieldset className="flex flex-col gap-3 rounded-lg border border-border p-4">
-        <legend className="px-1 text-sm font-semibold">Pontos por colocação</legend>
+        <legend className="px-1 text-sm font-semibold">{t('pontosPorColocacao')}</legend>
         <Input
-          label="Pontos do 1º, 2º, 3º lugar…"
-          hint="Separe por vírgula. Colocações além da lista ganham só os pontos de participação."
+          label={t('pontosColocacao')}
+          hint={t('pontosColocacaoDica')}
           inputMode="numeric"
-          {...register('placementPoints')}
+          {...fields.placementPoints}
           error={formState.errors.placementPoints?.message}
         />
-        <Input label="Pontos por participar" type="number" min={0} max={100} inputMode="numeric" {...register('participationPoints')} error={formState.errors.participationPoints?.message} />
+        <Input label={t('pontosParticipacao')} type="number" min={0} max={100} inputMode="numeric" {...fields.participationPoints} error={formState.errors.participationPoints?.message} />
         {preview && (
           <p className="text-sm text-muted" aria-live="polite">
-            Prévia: {preview}
+            {t('previa', { previa: preview })}
           </p>
         )}
       </fieldset>
       <div className="flex flex-wrap justify-end gap-2">
         {onCancel && (
           <Button type="button" variant="ghost" onClick={onCancel}>
-            Cancelar
+            {cancelLabel}
           </Button>
         )}
         <Button type="submit" loading={loading}>
