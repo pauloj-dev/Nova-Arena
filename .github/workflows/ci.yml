@@ -62,6 +62,24 @@ jobs:
       - name: Build
         run: pnpm build
 
+  seguranca:
+    name: Segurança (dependências e segredos)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Issue #113 e checklist de produção §10: nenhuma vulnerabilidade alta ou crítica e nenhum segredo no código.
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Dependências com vulnerabilidade alta ou crítica (pnpm audit)
+        run: pnpm audit --audit-level=high
+      # Varre os arquivos do commit com as regras padrão do gitleaks + `.gitleaks.toml` (exceções de teste).
+      # O histórico antigo se varre uma vez à mão (`gitleaks git`, docs/seguranca.md); daqui em diante cada commit passa aqui.
+      - name: Segredos no código (gitleaks)
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.28.0 dir /repo --config /repo/.gitleaks.toml --redact --no-banner --exit-code 1
+
   e2e:
     name: E2E (360 px e 1440 px)
     runs-on: ubuntu-latest

@@ -20,3 +20,9 @@ minimumReleaseAgeExclude:
   - lucide-react@1.72.0
   - react-hook-form@7.92.0
   - turbo@2.11.11
+# Varredura de dependências (issue #113): versões corrigidas de dependências indiretas com alerta alto (as
+# moderadas — minimatch e glob, do ESLint — ficam: a correção é versão maior e só roda no desenvolvimento).
+# Revise e remova quando os pacotes de cima (@vercel/blob → @vercel/oidc, prisma → @prisma/config) atualizarem.
+overrides:
+  'zod@<4.6.6': '^4.6.6'
+  'effect@<3.22.1': '^3.22.1'
