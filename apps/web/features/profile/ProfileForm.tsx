@@ -9,11 +9,13 @@ import { useForm, useWatch } from 'react-hook-form';
 import type { z } from 'zod';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useUpdateMe } from '@/shared/api/hooks/users';
+import { useT } from '@/shared/i18n/react';
 import { browserTimeZone } from '@/shared/lib/datetime';
 import { AvatarCropper } from './AvatarCropper';
 import { validateAvatarFile } from './avatarImage';
 import { EmailStatus } from './EmailStatus';
-import { SOCIAL_NETWORKS, timeZoneOptions } from './profileLib';
+import { messages } from './messages';
+import { SOCIAL_NETWORKS, socialPlaceholder, timeZoneOptions } from './profileLib';
 
 type ProfileValues = z.input<typeof UpdateMeInput>;
 const BIO_MAX = 280;
@@ -37,6 +39,7 @@ const isApiField = (key: string): key is ApiField => (API_FIELDS as readonly str
 
 /** Dados do perfil: apelido, avatar com recorte, local, bio, redes e fuso horário. */
 export function ProfileForm({ user }: { user: Me }) {
+  const t = useT(messages, 'ProfileForm');
   const { success, error } = useToast();
   const updateMe = useUpdateMe();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -58,6 +61,12 @@ export function ProfileForm({ user }: { user: Me }) {
   const bio = useWatch({ control, name: 'bio' }) ?? '';
   const avatarChanged = avatarUrl !== user.avatarUrl;
   const zones = timeZoneOptions([browserTimeZone(), user.timezone]);
+  const nicknameField = register('nickname');
+  const countryField = register('country');
+  const stateField = register('state');
+  const bioField = register('bio');
+  const timezoneField = register('timezone');
+  const removePhoto = () => setValue('avatarUrl', null, { shouldDirty: true });
 
   function closeCropper() {
     if (cropImage) URL.revokeObjectURL(cropImage.src);
@@ -80,7 +89,7 @@ export function ProfileForm({ user }: { user: Me }) {
     image.onload = () => setCropImage(image);
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      setFileError('Não foi possível abrir esta imagem. Tente outra foto.');
+      setFileError(t('erroAbrirImagem'));
     };
     image.src = objectUrl;
   }
@@ -91,7 +100,7 @@ export function ProfileForm({ user }: { user: Me }) {
     updateMe.mutate(avatar !== user.avatarUrl ? { ...rest, avatarUrl: avatar ?? null } : rest, {
       onSuccess: (me) => {
         reset(valuesFrom(me));
-        success('Perfil atualizado');
+        success(t('perfilAtualizado'));
       },
       onError: (e) => {
         let onField = false;
@@ -102,7 +111,7 @@ export function ProfileForm({ user }: { user: Me }) {
             onField = true;
           }
         }
-        error('Não foi possível salvar o perfil', onField ? 'Confira os campos destacados.' : errorMessage(e));
+        error(t('erroSalvar'), onField ? t('confiraCampos') : errorMessage(e));
       },
     });
   });
@@ -112,25 +121,25 @@ export function ProfileForm({ user }: { user: Me }) {
       <EmailStatus email={user.email} verified={user.emailVerified} />
 
       <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-text">Foto</span>
+        <span className="text-sm font-medium text-text">{t('foto')}</span>
         <div className="flex flex-wrap items-center gap-4">
           <Avatar name={nickname || user.nickname} src={avatarUrl} size="xl" />
           <div className="flex flex-wrap gap-2">
-            <input ref={fileInput} type="file" accept="image/*" aria-label="Foto do perfil" tabIndex={-1} className="sr-only" onChange={onFileChosen} />
+            <input ref={fileInput} type="file" accept="image/*" aria-label={t('fotoDoPerfil')} tabIndex={-1} className="sr-only" onChange={onFileChosen} />
             <Button variant="secondary" size="sm" iconLeft={<ImageUp className="size-4" aria-hidden />} onClick={() => fileInput.current?.click()}>
-              Trocar foto
+              {t('trocarFoto')}
             </Button>
             {avatarUrl && (
-              <Button variant="ghost" size="sm" iconLeft={<Trash2 className="size-4" aria-hidden />} onClick={() => setValue('avatarUrl', null, { shouldDirty: true })}>
-                Remover foto
+              <Button variant="ghost" size="sm" iconLeft={<Trash2 className="size-4" aria-hidden />} onClick={removePhoto}>
+                {t('removerFoto')}
               </Button>
             )}
           </div>
         </div>
-        <p className="text-xs text-muted">JPG, PNG ou WebP de até 5 MB. Você recorta a foto antes de usar.</p>
+        <p className="text-xs text-muted">{t('fotoDica')}</p>
         {avatarChanged && (
           <p role="status" className="text-xs font-medium text-warning-soft-text">
-            {avatarUrl ? 'A nova foto ainda não foi salva.' : 'A foto será removida.'} Clique em “Salvar perfil” para confirmar.
+            {t('fotoPendente', { estado: avatarUrl ? 'nova' : 'removida' })}
           </p>
         )}
         {(fileError ?? errors.avatarUrl?.message) && (
@@ -140,41 +149,41 @@ export function ProfileForm({ user }: { user: Me }) {
         )}
       </div>
 
-      <Input label="Apelido" autoComplete="nickname" required hint="De 3 a 20 caracteres: letras, números, ponto, hífen e sublinhado. É o endereço do seu perfil público." error={errors.nickname?.message} {...register('nickname')} />
+      <Input label={t('apelido')} autoComplete="nickname" required hint={t('apelidoDica')} error={errors.nickname?.message} {...nicknameField} />
 
       <div className="grid gap-4 xs:grid-cols-2">
-        <Input label="País" autoComplete="country-name" maxLength={60} error={errors.country?.message} {...register('country')} />
-        <Input label="Estado" placeholder="Ex.: SP" autoComplete="address-level1" maxLength={60} error={errors.state?.message} {...register('state')} />
+        <Input label={t('pais')} autoComplete="country-name" maxLength={60} error={errors.country?.message} {...countryField} />
+        <Input label={t('estado')} placeholder={t('estadoPlaceholder')} autoComplete="address-level1" maxLength={60} error={errors.state?.message} {...stateField} />
       </div>
 
       <Textarea
-        label="Bio"
+        label={t('bio')}
         rows={3}
         maxLength={BIO_MAX}
         hint={
           <>
-            Conte em poucas palavras o que você joga. <span className="tabular">{bio.length}/{BIO_MAX}</span>
+            {t('bioDica')} <span className="tabular">{bio.length}/{BIO_MAX}</span>
           </>
         }
         error={errors.bio?.message}
-        {...register('bio')}
+        {...bioField}
       />
 
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-1 text-sm font-semibold text-text">Redes sociais</legend>
+        <legend className="mb-1 text-sm font-semibold text-text">{t('redesSociais')}</legend>
         <div className="grid gap-4 xs:grid-cols-2">
           {SOCIAL_NETWORKS.map((network) => (
-            <Input key={network.key} label={network.label} placeholder={network.placeholder} autoComplete="off" error={errors.socials?.[network.key]?.message} {...register(`socials.${network.key}`)} />
+            <Input key={network.key} label={network.label} placeholder={socialPlaceholder(network.key)} autoComplete="off" error={errors.socials?.[network.key]?.message} {...register(`socials.${network.key}`)} />
           ))}
         </div>
-        <p className="text-xs text-muted">Aparecem no seu perfil público. Só viram link os endereços que começam com https://.</p>
+        <p className="text-xs text-muted">{t('redesDica')}</p>
       </fieldset>
 
-      <Select label="Fuso horário" options={zones} hint="Padrão: o fuso do seu navegador." error={errors.timezone?.message} {...register('timezone')} />
+      <Select label={t('fuso')} options={zones} hint={t('fusoDica')} error={errors.timezone?.message} {...timezoneField} />
 
       <div>
         <Button type="submit" loading={updateMe.isPending}>
-          Salvar perfil
+          {t('salvar')}
         </Button>
       </div>
 

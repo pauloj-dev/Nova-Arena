@@ -8,11 +8,14 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useDataExports, useDeleteAccount, useDeletionCheck, useRequestExport } from '@/shared/api/hooks/privacy';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { reopenConsent, useConsent } from '@/shared/privacy/consent';
+import { messages } from './messages';
 
 function ExportSection() {
+  const t = useT(messages, 'ExportSection');
   const toast = useToast();
   const request = useRequestExport();
   const exports = useDataExports();
@@ -20,11 +23,9 @@ function ExportSection() {
   return (
     <section aria-labelledby="privacidade-exportar" className="flex flex-col gap-3">
       <h2 id="privacidade-exportar" className="text-lg">
-        Baixar meus dados
+        {t('titulo')}
       </h2>
-      <p className="text-sm text-muted">
-        Um arquivo JSON com tudo o que a Nova Arena guarda sobre você: conta, IDs de jogo, inscrições, squads, resultados enviados, disputas, denúncias, notificações e aparelhos conectados. Senhas e códigos de segurança nunca entram.
-      </p>
+      <p className="text-sm text-muted">{t('descricao')}</p>
       <Button
         className="self-start"
         loading={request.isPending}
@@ -32,39 +33,39 @@ function ExportSection() {
         onClick={() =>
           request.mutate(undefined, {
             onSuccess: (result) => {
-              if ('format' in result) toast.success('Arquivo baixado', 'Confira a pasta de downloads do seu aparelho.');
+              if ('format' in result) toast.success(t('baixadoTitulo'), t('baixadoDescricao'));
               else {
                 setQueued(true);
-                toast.success('Estamos preparando o arquivo', 'Você recebe uma notificação quando ele ficar pronto.');
+                toast.success(t('preparandoTitulo'), t('preparandoDescricao'));
               }
             },
-            onError: (error) => toast.error('Não foi possível gerar o arquivo', errorMessage(error)),
+            onError: (error) => toast.error(t('erro'), errorMessage(error)),
           })
         }
       >
-        Baixar meus dados
+        {t('baixar')}
       </Button>
       {queued && (
         <p role="status" className="flex items-center gap-2 text-sm">
           <Loader2 className="size-4 animate-spin" aria-hidden />
-          Sua conta tem bastante histórico: o arquivo fica pronto em alguns minutos e aparece aqui.
+          {t('naFila')}
         </p>
       )}
       {exports.data && exports.data.length > 0 && (
-        <ul className="flex flex-col gap-2" aria-label="Arquivos gerados">
+        <ul className="flex flex-col gap-2" aria-label={t('arquivos')}>
           {exports.data.map((item) => (
             <li key={item.id} className="flex flex-wrap items-center gap-2 text-sm">
-              <span>Pedido em {formatDateTime(item.createdAt)}</span>
+              <span>{t('pedidoEm', { data: formatDateTime(item.createdAt) })}</span>
               {item.status === 'READY' && item.downloadUrl ? (
                 <a href={item.downloadUrl} className="inline-flex min-h-11 items-center gap-1 font-medium text-primary-text underline md:min-h-8" download>
                   <Download className="size-4" aria-hidden />
-                  Baixar (até {formatDateTime(item.expiresAt)})
+                  {t('baixarAte', { data: formatDateTime(item.expiresAt) })}
                 </a>
               ) : item.status === 'PENDING' ? (
-                <Badge tone="info">Em preparação</Badge>
+                <Badge tone="info">{t('emPreparacao')}</Badge>
               ) : (
                 <Badge tone="danger" icon={<AlertTriangle className="size-3.5" aria-hidden />}>
-                  Falhou: peça de novo
+                  {t('falhou')}
                 </Badge>
               )}
             </li>
@@ -106,6 +107,7 @@ function Blockers({ check }: { check: DeletionCheck }) {
 }
 
 function DeleteSection() {
+  const t = useT(messages, 'DeleteSection');
   const toast = useToast();
   const router = useRouter();
   const check = useDeletionCheck();
@@ -127,12 +129,12 @@ function DeleteSection() {
       {
         onSuccess: () => {
           setOpen(false);
-          toast.success('Sua conta foi excluída', 'Seus dados pessoais foram apagados. Os campeonatos antigos mostram você como “jogador removido”.');
+          toast.success(t('excluidaTitulo'), t('excluidaDescricao'));
           router.replace('/');
         },
         onError: (error) => {
           if (error instanceof ApiError && Object.keys(error.fieldErrors).length > 0) setErrors(error.fieldErrors);
-          else toast.error('Não foi possível excluir a conta', errorMessage(error));
+          else toast.error(t('erro'), errorMessage(error));
         },
       },
     );
@@ -141,16 +143,16 @@ function DeleteSection() {
   return (
     <section aria-labelledby="privacidade-excluir" className="flex flex-col gap-3">
       <h2 id="privacidade-excluir" className="text-lg">
-        Excluir minha conta
+        {t('titulo')}
       </h2>
       <div className="text-sm text-muted">
-        <p>O que acontece:</p>
+        <p>{t('oQueAcontece')}</p>
         <ul className="ml-5 list-disc">
-          <li>Seu e-mail, apelido, foto, bio, redes, data de nascimento, IDs de jogo, aparelhos, notificações e preferências são apagados.</li>
-          <li>Seus campeonatos antigos continuam com os resultados, mas você aparece como “jogador removido”.</li>
-          <li>Se você era capitão, o membro mais antigo do squad assume.</li>
-          <li>Provas de disputas já resolvidas e o registro de auditoria ficam guardados pelo prazo legal, sem seus dados de contato.</li>
-          <li>Não dá para desfazer. Se quiser uma cópia, baixe seus dados antes.</li>
+          <li>{t('item1')}</li>
+          <li>{t('item2')}</li>
+          <li>{t('item3')}</li>
+          <li>{t('item4')}</li>
+          <li>{t('item5')}</li>
         </ul>
       </div>
       {check.isPending ? (
@@ -161,7 +163,7 @@ function DeleteSection() {
         <>
           {!check.data.canDelete && <Blockers check={check.data} />}
           <Button variant="danger" className="self-start" disabled={!check.data.canDelete} onClick={() => setOpen(true)} iconLeft={<Trash2 className="size-4" aria-hidden />}>
-            Excluir minha conta
+            {t('excluir')}
           </Button>
         </>
       )}
@@ -171,16 +173,16 @@ function DeleteSection() {
           if (!next && remove.isPending) return;
           setOpen(next);
         }}
-        title="Excluir a conta para sempre?"
-        description="Seus dados pessoais são apagados e não dá para recuperar a conta."
+        title={t('modalTitulo')}
+        description={t('modalDescricao')}
         size="sm"
         footer={
           <>
             <Button variant="secondary" onClick={() => setOpen(false)} disabled={remove.isPending}>
-              Voltar
+              {t('voltar')}
             </Button>
             <Button variant="danger" loading={remove.isPending} disabled={!phraseOk || (check.data?.hasPassword && !password)} onClick={confirm}>
-              Excluir para sempre
+              {t('excluirParaSempre')}
             </Button>
           </>
         }
@@ -192,9 +194,9 @@ function DeleteSection() {
             if (phraseOk) confirm();
           }}
         >
-          {check.data?.hasPassword && <Input label="Sua senha" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={errors.password} required />}
+          {check.data?.hasPassword && <Input label={t('suaSenha')} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={errors.password} required />}
           <Input
-            label={`Digite ${DELETE_ACCOUNT_PHRASE} para confirmar`}
+            label={t('digiteFrase', { frase: DELETE_ACCOUNT_PHRASE })}
             value={phrase}
             onChange={(e) => setPhrase(e.target.value)}
             error={errors.confirmation}
@@ -209,19 +211,20 @@ function DeleteSection() {
 }
 
 function ConsentSection() {
+  const t = useT(messages, 'ConsentSection');
   const consent = useConsent();
   return (
     <section aria-labelledby="privacidade-cookies" className="flex flex-col gap-3">
       <h2 id="privacidade-cookies" className="text-lg">
-        Cookies e medição
+        {t('titulo')}
       </h2>
-      <p className="text-sm text-muted">Usamos só cookies necessários (entrar e manter a conta segura). A medição das páginas visitadas é anônima, sem cookies, e depende da sua escolha.</p>
+      <p className="text-sm text-muted">{t('descricao')}</p>
       <p className="flex items-center gap-2 text-sm" role="status">
         {consent?.analytics ? <CheckCircle2 className="size-4 text-primary-text" aria-hidden /> : <Cookie className="size-4" aria-hidden />}
-        {consent === undefined ? 'Carregando…' : consent === null ? 'Você ainda não escolheu: só o necessário está ligado.' : consent.analytics ? 'Medição anônima: ligada.' : 'Medição anônima: desligada (só o necessário).'}
+        {consent === undefined ? t('carregando') : consent === null ? t('semEscolha') : consent.analytics ? t('ligada') : t('desligada')}
       </p>
       <Button variant="secondary" className="self-start" onClick={() => reopenConsent()}>
-        Mudar minha escolha
+        {t('mudar')}
       </Button>
     </section>
   );
@@ -229,9 +232,17 @@ function ConsentSection() {
 
 /** `/minha-conta/privacidade` (LGPD, issue #115): baixar os dados, excluir a conta e a escolha de cookies. */
 export function PrivacyPage() {
+  const t = useT(messages, 'PrivacyPage');
+  const questions = t.rich('duvidas', {
+    link: (chunks) => (
+      <Link href="/privacidade" className="underline">
+        {chunks}
+      </Link>
+    ),
+  });
   return (
     <PageContainer>
-      <PageHeader title="Privacidade" description="Seus dados pessoais: leve uma cópia, decida sobre a medição ou exclua a conta." />
+      <PageHeader title={t('titulo')} description={t('descricao')} />
       <div className="flex max-w-3xl flex-col gap-6">
         <Card>
           <ExportSection />
@@ -242,13 +253,7 @@ export function PrivacyPage() {
         <Card>
           <DeleteSection />
         </Card>
-        <p className="text-sm text-muted">
-          Dúvidas sobre os seus dados? Leia a{' '}
-          <Link href="/privacidade" className="underline">
-            Política de Privacidade
-          </Link>
-          .
-        </p>
+        <p className="text-sm text-muted">{questions}</p>
       </div>
     </PageContainer>
   );

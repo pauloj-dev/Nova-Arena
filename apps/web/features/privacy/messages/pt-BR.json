@@ -1,0 +1,51 @@
+{
+  "ExportSection": {
+    "titulo": "Baixar meus dados",
+    "descricao": "Um arquivo JSON com tudo o que a Nova Arena guarda sobre você: conta, IDs de jogo, inscrições, squads, resultados enviados, disputas, denúncias, notificações e aparelhos conectados. Senhas e códigos de segurança nunca entram.",
+    "baixadoTitulo": "Arquivo baixado",
+    "baixadoDescricao": "Confira a pasta de downloads do seu aparelho.",
+    "preparandoTitulo": "Estamos preparando o arquivo",
+    "preparandoDescricao": "Você recebe uma notificação quando ele ficar pronto.",
+    "erro": "Não foi possível gerar o arquivo",
+    "baixar": "Baixar meus dados",
+    "naFila": "Sua conta tem bastante histórico: o arquivo fica pronto em alguns minutos e aparece aqui.",
+    "arquivos": "Arquivos gerados",
+    "pedidoEm": "Pedido em {data}",
+    "baixarAte": "Baixar (até {data})",
+    "emPreparacao": "Em preparação",
+    "falhou": "Falhou: peça de novo"
+  },
+  "DeleteSection": {
+    "excluidaTitulo": "Sua conta foi excluída",
+    "excluidaDescricao": "Seus dados pessoais foram apagados. Os campeonatos antigos mostram você como “jogador removido”.",
+    "erro": "Não foi possível excluir a conta",
+    "titulo": "Excluir minha conta",
+    "oQueAcontece": "O que acontece:",
+    "item1": "Seu e-mail, apelido, foto, bio, redes, data de nascimento, IDs de jogo, aparelhos, notificações e preferências são apagados.",
+    "item2": "Seus campeonatos antigos continuam com os resultados, mas você aparece como “jogador removido”.",
+    "item3": "Se você era capitão, o membro mais antigo do squad assume.",
+    "item4": "Provas de disputas já resolvidas e o registro de auditoria ficam guardados pelo prazo legal, sem seus dados de contato.",
+    "item5": "Não dá para desfazer. Se quiser uma cópia, baixe seus dados antes.",
+    "excluir": "Excluir minha conta",
+    "modalTitulo": "Excluir a conta para sempre?",
+    "modalDescricao": "Seus dados pessoais são apagados e não dá para recuperar a conta.",
+    "voltar": "Voltar",
+    "excluirParaSempre": "Excluir para sempre",
+    "suaSenha": "Sua senha",
+    "digiteFrase": "Digite {frase} para confirmar"
+  },
+  "ConsentSection": {
+    "titulo": "Cookies e medição",
+    "descricao": "Usamos só cookies necessários (entrar e manter a conta segura). A medição das páginas visitadas é anônima, sem cookies, e depende da sua escolha.",
+    "carregando": "Carregando…",
+    "semEscolha": "Você ainda não escolheu: só o necessário está ligado.",
+    "ligada": "Medição anônima: ligada.",
+    "desligada": "Medição anônima: desligada (só o necessário).",
+    "mudar": "Mudar minha escolha"
+  },
+  "PrivacyPage": {
+    "titulo": "Privacidade",
+    "descricao": "Seus dados pessoais: leve uma cópia, decida sobre a medição ou exclua a conta.",
+    "duvidas": "Dúvidas sobre os seus dados? Leia a <link>Política de Privacidade</link>."
+  }
+}

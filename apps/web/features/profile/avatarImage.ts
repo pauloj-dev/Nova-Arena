@@ -3,6 +3,8 @@
  * a partir de zoom e deslocamento, e escolha de tamanho/qualidade até a imagem caber no limite.
  * Nada aqui toca em DOM ou canvas, para poder ser testado sozinho.
  */
+import { getT } from '@/shared/i18n/core';
+import { messages } from './messages';
 
 /** Tamanho máximo do arquivo escolhido (antes do recorte). */
 export const MAX_AVATAR_FILE_BYTES = 5 * 1024 * 1024;
@@ -17,8 +19,9 @@ export const MAX_ZOOM = 3;
 
 /** Mensagem de erro para a pessoa, ou `null` se o arquivo serve. */
 export function validateAvatarFile(file: { type: string; size: number }): string | null {
-  if (!file.type.startsWith('image/')) return 'Este arquivo não é uma imagem. Escolha uma foto em JPG, PNG ou WebP.';
-  if (file.size > MAX_AVATAR_FILE_BYTES) return 'A imagem tem mais de 5 MB. Escolha uma foto menor.';
+  const t = getT(messages, 'avatarImage');
+  if (!file.type.startsWith('image/')) return t('naoEImagem');
+  if (file.size > MAX_AVATAR_FILE_BYTES) return t('grandeDemais');
   return null;
 }
 

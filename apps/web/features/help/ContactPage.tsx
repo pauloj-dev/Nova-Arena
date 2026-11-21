@@ -5,13 +5,15 @@ import { Flag, HelpCircle, Mail, Scale } from 'lucide-react';
 import Link from 'next/link';
 import { errorMessage } from '@/shared/api/client';
 import { usePublicSiteSettings } from '@/shared/api/hooks/admin-settings';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
+import { messages } from './messages';
 
 const OUTROS_CAMINHOS = [
-  { href: '/ajuda', icon: HelpCircle, titulo: 'Central de ajuda', texto: 'Inscrição, check-in, W.O., disputas e como organizar.' },
-  { href: '/minha-conta/denuncias', icon: Flag, titulo: 'Denúncias', texto: 'Trapaça, ofensa ou conta falsa: denuncie pelo perfil ou pela partida e acompanhe aqui.' },
-  { href: '/ajuda#contestar', icon: Scale, titulo: 'Resultado errado', texto: 'Conteste pela própria partida: a organização do campeonato analisa primeiro.' },
-];
+  { href: '/ajuda', icon: HelpCircle, chave: 'ajuda' },
+  { href: '/minha-conta/denuncias', icon: Flag, chave: 'denuncias' },
+  { href: '/ajuda#contestar', icon: Scale, chave: 'contestar' },
+] as const;
 
 /**
  * Contato com o suporte (issue 110). O e-mail vem das configurações do site (`GET /site/settings`), que o
@@ -19,23 +21,25 @@ const OUTROS_CAMINHOS = [
  */
 export function ContactPage() {
   const settings = usePublicSiteSettings();
+  const t = useT(messages, 'ContactPage');
+  const subject = encodeURIComponent(t('assuntoEmail'));
 
   return (
     <PageContainer narrow>
-      <PageHeader title="Fale com a gente" description="Problema com a conta, dúvida sobre a plataforma ou sugestão: o suporte responde por e-mail em dias úteis." />
+      <PageHeader title={t('titulo')} description={t('descricao')} />
 
       <Card className="flex flex-col gap-4">
         <h2 className="flex items-center gap-2 text-lg">
           <Mail className="size-5 text-primary-text" aria-hidden />
-          E-mail do suporte
+          {t('emailSuporte')}
         </h2>
         {settings.isPending ? (
-          <div className="flex flex-col gap-2" role="status" aria-label="Carregando o contato do suporte">
+          <div className="flex flex-col gap-2" role="status" aria-label={t('carregando')}>
             <Skeleton className="h-6 w-64 max-w-full" />
             <Skeleton className="h-11 w-48" />
           </div>
         ) : settings.isError ? (
-          <ErrorState title="Não foi possível carregar o contato" description={errorMessage(settings.error)} onRetry={() => void settings.refetch()} />
+          <ErrorState title={t('erro')} description={errorMessage(settings.error)} onRetry={() => void settings.refetch()} />
         ) : (
           <>
             <p className="break-all font-display text-xl font-bold text-text" data-testid="support-email">
@@ -43,28 +47,28 @@ export function ContactPage() {
             </p>
             <div>
               <Button asChild>
-                <a href={`mailto:${settings.data.supportEmail}?subject=${encodeURIComponent('Suporte Nova Arena')}`}>
+                <a href={`mailto:${settings.data.supportEmail}?subject=${subject}`}>
                   <Mail className="size-4" aria-hidden />
-                  Escrever para o suporte
+                  {t('escrever')}
                 </a>
               </Button>
             </div>
           </>
         )}
         <div className="flex flex-col gap-1 text-sm">
-          <h3 className="font-semibold">Para a gente resolver mais rápido, conte:</h3>
+          <h3 className="font-semibold">{t('conte')}</h3>
           <ul className="list-disc pl-5 text-muted">
-            <li>o seu nick na Nova Arena e o e-mail da conta;</li>
-            <li>o link do campeonato ou da partida, se for o caso;</li>
-            <li>o que aconteceu e, se puder, um print da tela.</li>
+            <li>{t('conte1')}</li>
+            <li>{t('conte2')}</li>
+            <li>{t('conte3')}</li>
           </ul>
-          <p className="text-muted">Nunca pedimos a sua senha. Desconfie de quem pedir.</p>
+          <p className="text-muted">{t('senha')}</p>
         </div>
       </Card>
 
       <section aria-labelledby="outros-caminhos" className="flex flex-col gap-3">
         <h2 id="outros-caminhos" className="text-lg">
-          Talvez seja mais rápido por aqui
+          {t('outrosCaminhos')}
         </h2>
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {OUTROS_CAMINHOS.map((c) => (
@@ -72,9 +76,9 @@ export function ContactPage() {
               <Link href={c.href} className="flex h-full min-h-11 flex-col gap-1 rounded-lg border border-border bg-surface p-4 shadow-sm transition-shadow hover:shadow-md">
                 <span className="flex items-center gap-2 font-semibold text-text">
                   <c.icon className="size-5 shrink-0 text-primary-text" aria-hidden />
-                  {c.titulo}
+                  {t(`${c.chave}.titulo`)}
                 </span>
-                <span className="text-sm text-muted">{c.texto}</span>
+                <span className="text-sm text-muted">{t(`${c.chave}.texto`)}</span>
               </Link>
             </li>
           ))}

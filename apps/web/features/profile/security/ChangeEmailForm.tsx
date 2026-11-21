@@ -10,8 +10,10 @@ import { useForm } from 'react-hook-form';
 import { errorMessage } from '@/shared/api/client';
 import { useChangeEmail } from '@/shared/api/hooks/account';
 import { isModuleMocked } from '@/shared/api/mode';
+import { useT } from '@/shared/i18n/react';
 import { FormAlert, PrototypeNotice, textLink } from '@/features/auth/AuthParts';
 import { applyFieldErrors, hasFieldErrors } from '@/features/auth/formErrors';
+import { messages } from '../messages';
 
 const FIELDS = ['newEmail', 'password'] as const;
 
@@ -20,6 +22,8 @@ export function ChangeEmailForm() {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<{ email: string; devToken?: string } | null>(null);
   const change = useChangeEmail();
+  const t = useT(messages, 'ChangeEmailForm');
+  const authMocked = isModuleMocked('auth');
   const toast = useToast();
   const {
     register,
@@ -29,19 +33,23 @@ export function ChangeEmailForm() {
     formState: { errors },
   } = useForm<ChangeEmailInput>({ resolver: zodResolver(ChangeEmailInput), mode: 'onTouched', defaultValues: { newEmail: '', password: '' } });
 
+  const newEmailField = register('newEmail');
+  const passwordField = register('password');
+
   if (pending) {
+    const checkInbox = t.rich('confira', { email: pending.email, destaque: (chunks) => <span className="break-all">{chunks}</span> });
     return (
       <div role="status" className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm">
         <p className="flex items-center gap-2 font-semibold">
           <MailCheck className="size-4 shrink-0" aria-hidden />
-          Confira a caixa de entrada de <span className="break-all">{pending.email}</span>
+          {checkInbox}
         </p>
-        <p className="text-muted">Abra o link que mandamos para concluir a troca. Até lá, seu e-mail atual continua valendo.</p>
-        {pending.devToken && isModuleMocked('auth') && (
+        <p className="text-muted">{t('abraOLink')}</p>
+        {pending.devToken && authMocked && (
           <PrototypeNotice>
-            <p>Nenhum e-mail é enviado de verdade. Este é o link que chegaria no endereço novo:</p>
+            <p>{t('prototipo')}</p>
             <Link href={`/confirmar-email?token=${encodeURIComponent(pending.devToken)}`} className={textLink}>
-              Abrir link de confirmação
+              {t('abrirLink')}
             </Link>
           </PrototypeNotice>
         )}
@@ -52,7 +60,7 @@ export function ChangeEmailForm() {
   if (!open) {
     return (
       <Button variant="secondary" size="sm" className="self-start" onClick={() => setOpen(true)}>
-        Trocar e-mail
+        {t('trocarEmail')}
       </Button>
     );
   }
@@ -66,20 +74,20 @@ export function ChangeEmailForm() {
           onSuccess: (res) => {
             reset();
             setPending({ email: res.pendingEmail, devToken: res.devConfirmToken });
-            toast.success('Link enviado', `Confirme pelo e-mail enviado para ${res.pendingEmail}.`);
+            toast.success(t('linkEnviado'), t('confirmePeloEmail', { email: res.pendingEmail }));
           },
           onError: (e) => {
-            if (!applyFieldErrors(e, setError, FIELDS)) toast.error('Não foi possível trocar o e-mail', errorMessage(e));
+            if (!applyFieldErrors(e, setError, FIELDS)) toast.error(t('erroTrocar'), errorMessage(e));
           },
         }),
       )}
     >
       {change.isError && !hasFieldErrors(change.error, FIELDS) && <FormAlert>{errorMessage(change.error)}</FormAlert>}
-      <Input label="Novo e-mail" type="email" autoComplete="email" inputMode="email" autoCapitalize="none" spellCheck={false} error={errors.newEmail?.message} {...register('newEmail')} />
-      <Input label="Sua senha" type="password" autoComplete="current-password" hint="Para confirmar que é você." error={errors.password?.message} {...register('password')} />
+      <Input label={t('novoEmail')} type="email" autoComplete="email" inputMode="email" autoCapitalize="none" spellCheck={false} error={errors.newEmail?.message} {...newEmailField} />
+      <Input label={t('suaSenha')} type="password" autoComplete="current-password" hint={t('suaSenhaDica')} error={errors.password?.message} {...passwordField} />
       <div className="flex flex-wrap gap-2">
         <Button type="submit" loading={change.isPending}>
-          Enviar link de confirmação
+          {t('enviarLink')}
         </Button>
         <Button
           type="button"
@@ -89,7 +97,7 @@ export function ChangeEmailForm() {
             setOpen(false);
           }}
         >
-          Cancelar
+          {t('cancelar')}
         </Button>
       </div>
     </form>

@@ -8,6 +8,8 @@ import { errorMessage } from '@/shared/api/client';
 import { useMyRegistrations } from '@/shared/api/hooks/registrations';
 import { isModuleMocked } from '@/shared/api/mode';
 import { useFlag } from '@/shared/flags/useFlag';
+import { useT } from '@/shared/i18n/react';
+import { messages } from '../messages';
 import { pushSupported, subscribeToPush } from './client';
 
 const DISMISSED_KEY = 'nova:push-convite-dispensado';
@@ -53,19 +55,20 @@ function PushPromptCard({ onClose }: { onClose: () => void }) {
   const enabled = useFlag('pushNotifications');
   const registrations = useMyRegistrations({ enabled });
   const [busy, setBusy] = useState(false);
+  const t = useT(messages, 'PushPrompt');
   if (!enabled || !registrations.data || registrations.data.length === 0) return null;
 
   async function activate() {
     setBusy(true);
     try {
       const outcome = await subscribeToPush();
-      if (outcome === 'subscribed') toast.success('Avisos no aparelho ativados', 'Você recebe o check-in e os resultados mesmo com o site fechado.');
-      else if (outcome === 'denied') toast.toast({ title: 'Avisos no aparelho desligados', description: 'Você pode ativar depois nas configurações do navegador para este site.', tone: 'info' });
-      else toast.toast({ title: 'Este aparelho não recebe avisos', description: 'No iPhone, instale a Nova Arena na tela de início para receber os avisos.', tone: 'info' });
+      if (outcome === 'subscribed') toast.success(t('ativadosTitulo'), t('ativadosDescricao'));
+      else if (outcome === 'denied') toast.toast({ title: t('negadoTitulo'), description: t('negadoDescricao'), tone: 'info' });
+      else toast.toast({ title: t('semSuporteTitulo'), description: t('semSuporteDescricao'), tone: 'info' });
       dismiss();
       onClose();
     } catch (error) {
-      toast.error('Não foi possível ativar os avisos', errorMessage(error));
+      toast.error(t('erro'), errorMessage(error));
     } finally {
       setBusy(false);
     }
@@ -79,12 +82,12 @@ function PushPromptCard({ onClose }: { onClose: () => void }) {
     >
       <h2 id="push-convite-titulo" className="flex items-center gap-2 text-base font-semibold">
         <BellRing className="size-5 shrink-0 text-primary-text" aria-hidden />
-        Não perca o check-in
+        {t('titulo')}
       </h2>
-      <p className="text-sm text-muted">Quer receber no celular o aviso do check-in e dos resultados, mesmo com o site fechado?</p>
+      <p className="text-sm text-muted">{t('descricao')}</p>
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => void activate()} loading={busy}>
-          Ativar avisos
+          {t('ativar')}
         </Button>
         <Button
           variant="ghost"
@@ -94,7 +97,7 @@ function PushPromptCard({ onClose }: { onClose: () => void }) {
             onClose();
           }}
         >
-          Agora não
+          {t('agoraNao')}
         </Button>
       </div>
     </section>,

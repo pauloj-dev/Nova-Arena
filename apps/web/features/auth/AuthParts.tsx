@@ -1,6 +1,8 @@
 import { Badge, cn, Skeleton } from '@nova/ui';
 import { AlertCircle, FlaskConical } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { getT } from '@/shared/i18n/core';
+import { messages } from './messages';
 
 /** Título e subtítulo das telas de autenticação. O cartão e o `<main>` vêm do layout `(auth)`. */
 export function AuthHeader({ title, description, icon }: { title: string; description?: ReactNode; icon?: ReactNode }) {
@@ -22,10 +24,11 @@ export function AuthHeader({ title, description, icon }: { title: string; descri
  * o login social de mentira. Sempre com o selo "Protótipo" visível, para ninguém confundir com o produto real.
  */
 export function PrototypeNotice({ id, children, className }: { id?: string; children: ReactNode; className?: string }) {
+  const t = getT(messages, 'AuthParts');
   return (
     <div id={id} role="note" className={cn('flex flex-col items-start gap-2 rounded-md border border-dashed border-border-strong bg-warning-soft p-3 text-sm text-warning-soft-text', className)}>
       <Badge tone="warning" className="border border-current" icon={<FlaskConical className="size-3.5" aria-hidden />}>
-        Protótipo
+        {t('prototipo')}
       </Badge>
       <div className="flex min-w-0 flex-col gap-2 [overflow-wrap:anywhere]">{children}</div>
     </div>
@@ -44,8 +47,9 @@ export function FormAlert({ children, className }: { children: ReactNode; classN
 
 /** Carregando no formato de um formulário curto. */
 export function AuthSkeleton() {
+  const t = getT(messages, 'AuthParts');
   return (
-    <div className="flex flex-col gap-4" role="status" aria-label="Carregando">
+    <div className="flex flex-col gap-4" role="status" aria-label={t('carregando')}>
       <Skeleton className="h-8 w-2/3" />
       <Skeleton className="h-4 w-full" />
       <Skeleton className="h-11 w-full" />

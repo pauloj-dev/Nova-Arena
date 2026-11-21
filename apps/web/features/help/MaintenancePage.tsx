@@ -7,20 +7,23 @@ import Link from 'next/link';
 import { errorMessage } from '@/shared/api/client';
 import { useSiteBanner } from '@/shared/api/hooks/admin-tournaments';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime } from '@/shared/lib/datetime';
+import { messages } from './messages';
 
 function Window({ item }: { item: SiteBannerItem }) {
+  const t = useT(messages, 'MaintenancePage');
   return (
     <li className="flex flex-col gap-1 rounded-lg border border-border bg-surface p-4" data-testid="maintenance-window">
       <p className="flex flex-wrap items-center gap-2 font-semibold text-text">
-        {item.ongoing ? <StatusPill status="PAUSED" label="Em andamento" /> : <StatusPill status="SCHEDULED" label="Programada" />}
+        {item.ongoing ? <StatusPill status="PAUSED" label={t('pillEmAndamento')} /> : <StatusPill status="SCHEDULED" label={t('pillProgramada')} />}
         {item.title}
       </p>
       <p className="text-sm text-text">{item.body}</p>
       {item.startsAt && item.endsAt && (
         <p className="flex items-center gap-1.5 text-sm text-muted">
           <CalendarClock className="size-4 shrink-0" aria-hidden />
-          {item.ongoing ? `Previsão de volta: ${formatDateTime(item.endsAt)}` : `De ${formatDateTime(item.startsAt, { withZone: false })} até ${formatDateTime(item.endsAt)}`}
+          {item.ongoing ? t('previsaoDeVolta', { data: formatDateTime(item.endsAt) }) : t('janela', { inicio: formatDateTime(item.startsAt, { withZone: false }), fim: formatDateTime(item.endsAt) })}
         </p>
       )}
     </li>
@@ -34,21 +37,22 @@ function Window({ item }: { item: SiteBannerItem }) {
  */
 export function MaintenancePage() {
   const banners = useSiteBanner();
+  const t = useT(messages, 'MaintenancePage');
   const windows = (banners.data ?? []).filter((b) => b.kind === 'MAINTENANCE');
   const ongoing = windows.filter((w) => w.ongoing);
   const scheduled = windows.filter((w) => !w.ongoing);
 
   return (
     <PageContainer narrow>
-      <PageHeader title="Manutenção e situação do serviço" description="Toda manutenção programada é avisada no topo do site com pelo menos 48 horas de antecedência." />
+      <PageHeader title={t('titulo')} description={t('descricao')} />
 
       {banners.isPending ? (
-        <div className="flex flex-col gap-3" role="status" aria-label="Carregando a situação do serviço">
+        <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
           <Skeleton className="h-28 w-full" />
           <Skeleton className="h-20 w-full" />
         </div>
       ) : banners.isError ? (
-        <ErrorState title="Não foi possível conferir a situação do serviço" description={errorMessage(banners.error)} onRetry={() => void banners.refetch()} />
+        <ErrorState title={t('erro')} description={errorMessage(banners.error)} onRetry={() => void banners.refetch()} />
       ) : (
         <>
           <Card className="flex items-start gap-4" data-testid="service-status">
@@ -58,13 +62,13 @@ export function MaintenancePage() {
               <CheckCircle2 className="mt-1 size-8 shrink-0 text-primary-text" aria-hidden />
             )}
             <div className="flex flex-col gap-1">
-              <h2 className="text-lg">{ongoing.length > 0 ? 'Estamos em manutenção' : 'Tudo funcionando'}</h2>
+              <h2 className="text-lg">{ongoing.length > 0 ? t('emManutencao') : t('tudoFuncionando')}</h2>
               <p className="text-sm text-muted">
                 {ongoing.length > 0
-                  ? 'Algumas telas podem ficar fora do ar por alguns minutos. Seus dados e inscrições estão guardados; partidas marcadas para este período são reagendadas pela organização.'
+                  ? t('emManutencaoDescricao')
                   : scheduled.length > 0
-                    ? 'O serviço está no ar. Veja abaixo a próxima janela de manutenção.'
-                    : 'Nenhuma manutenção em andamento nem programada para os próximos dias.'}
+                    ? t('programadaDescricao')
+                    : t('nenhumaDescricao')}
               </p>
             </div>
           </Card>
@@ -72,7 +76,7 @@ export function MaintenancePage() {
           {ongoing.length > 0 && (
             <section aria-labelledby="em-andamento" className="flex flex-col gap-3">
               <h2 id="em-andamento" className="text-lg">
-                Em andamento
+                {t('emAndamento')}
               </h2>
               <ul className="flex flex-col gap-2">
                 {ongoing.map((w) => (
@@ -85,7 +89,7 @@ export function MaintenancePage() {
           {scheduled.length > 0 && (
             <section aria-labelledby="programadas" className="flex flex-col gap-3">
               <h2 id="programadas" className="text-lg">
-                Programadas
+                {t('programadas')}
               </h2>
               <ul className="flex flex-col gap-2">
                 {scheduled.map((w) => (
@@ -99,10 +103,10 @@ export function MaintenancePage() {
 
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="secondary">
-          <Link href="/">Voltar ao início</Link>
+          <Link href="/">{t('voltarAoInicio')}</Link>
         </Button>
         <Button asChild variant="ghost">
-          <Link href="/contato">Falar com o suporte</Link>
+          <Link href="/contato">{t('falarComSuporte')}</Link>
         </Button>
       </div>
     </PageContainer>

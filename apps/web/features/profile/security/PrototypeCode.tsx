@@ -4,6 +4,8 @@ import { Badge, Button, Skeleton } from '@nova/ui';
 import { FlaskConical } from 'lucide-react';
 import { useTwoFactorDevCode } from '@/shared/api/hooks/admin-security';
 import { isModuleMocked } from '@/shared/api/mode';
+import { useT } from '@/shared/i18n/react';
+import { messages } from '../messages';
 
 /** O atalho do código de demonstração só existe com a API simulada (o login e o 2FA no protótipo). */
 export function prototypeCodeAvailable(): boolean {
@@ -16,24 +18,25 @@ export function prototypeCodeAvailable(): boolean {
  */
 export function PrototypeCode({ onUse }: { onUse: (code: string) => void }) {
   const dev = useTwoFactorDevCode(true);
+  const t = useT(messages, 'PrototypeCode');
   return (
     <div role="note" className="flex flex-col gap-2 rounded-md border border-border-strong bg-info-soft px-3 py-3 text-sm text-info-soft-text" data-testid="prototype-code">
       <Badge tone="info" className="self-start border border-info" icon={<FlaskConical className="size-3.5" aria-hidden />}>
-        Protótipo
+        {t('prototipo')}
       </Badge>
-      <p>Sem aplicativo autenticador à mão? No protótipo, o código do momento aparece aqui. Na versão final ele só existe no seu celular.</p>
+      <p>{t('explicacao')}</p>
       {dev.data ? (
         <div className="flex flex-wrap items-center gap-3">
           <span className="tabular font-mono text-lg font-bold tracking-widest" data-testid="dev-code">
             {dev.data.code}
           </span>
-          <span className="text-xs">troca em {dev.data.expiresInSeconds} s</span>
+          <span className="text-xs">{t('trocaEm', { segundos: dev.data.expiresInSeconds })}</span>
           <Button size="sm" variant="secondary" onClick={() => onUse(dev.data.code)}>
-            Usar este código
+            {t('usar')}
           </Button>
         </div>
       ) : dev.isError ? (
-        <p>Não foi possível buscar o código agora.</p>
+        <p>{t('erro')}</p>
       ) : (
         <Skeleton className="h-8 w-40" />
       )}
