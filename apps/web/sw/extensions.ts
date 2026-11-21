@@ -17,13 +17,12 @@
  * - nada de dados sensíveis no payload do push: só título, corpo curto e o link relativo (`/c/...`, `/notificacoes`);
  * - o clique abre/foca uma aba já aberta antes de criar outra (`clients.matchAll` + `client.focus()`).
  *
- * Quando o módulo existir, troque o comentário abaixo pelo import e pela chamada.
+ * O tratamento do push (issue 109) fica em `features/notifications/push/sw.ts`, sem DOM nem React.
  */
 /// <reference lib="webworker" />
 
-// import { registerPushHandlers } from '../features/notifications/push/sw-handlers';
+import { registerPushHandlers } from '../features/notifications/push/sw';
 
 export function registerExtensions(sw: ServiceWorkerGlobalScope): void {
-  // registerPushHandlers(sw);
-  void sw;
+  registerPushHandlers(sw);
 }
