@@ -2,9 +2,10 @@
  * Retrato do motor por fase (ADR-0002, issue #82): leitura, gravação e projeção nas tabelas de consulta.
  */
 import type { Prisma, PrismaClient } from '@nova/db';
-import { createStageState, EngineError, type StageConfig as EngineConfig, type QualificationRule, type StageState, type StageStructure } from '@nova/engine';
+import { createStageState, EngineError, type StageConfig as EngineConfig, type QualificationRule, type Rule, type StageState, type StageStructure } from '@nova/engine';
 import type { Stage } from '@nova/schemas';
 import { HttpProblem } from '../errors';
+import { pointsOf } from './points';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -102,29 +103,60 @@ export function toEngineQualification(stage: Pick<Stage, 'qualification'>): Qual
   return { type: q.type, n: q.n, ...repechage };
 }
 
+export interface ProjectOptions {
+  /** Retrato anterior: só as partidas que mudaram (vagas ou resultado) são regravadas. Sem ele, regrava tudo. */
+  previous?: Pick<StageRun, 'structure' | 'state'> | null;
+  /** Regras do modelo de pontuação: com elas, os pontos de cada participação vão para a projeção (RN-01). */
+  rules?: Rule[];
+}
+
+const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
 /**
  * Projeta o retrato nas tabelas de consulta. Grupos e partidas são casados pela ordem e pelo `nodeId` (únicos na
  * fase): repetir não duplica nada. Horário, sala, provas e check-in das partidas que continuam ficam intactos.
+ *
+ * Com `previous`, só regrava as partidas que mudaram — um resultado mexe em poucas partidas, e a tabela nova fica
+ * pronta em menos de 2 s mesmo em fase grande (issue #87). As participações são atualizadas no lugar, então as
+ * estatísticas por jogador (`player_stats`) das partidas com resultado continuam lá.
  */
-export async function projectRun(tx: Prisma.TransactionClient, stageId: string, run: Pick<StageRun, 'structure' | 'state'>): Promise<void> {
+export async function projectRun(tx: Prisma.TransactionClient, stageId: string, run: Pick<StageRun, 'structure' | 'state'>, opts: ProjectOptions = {}): Promise<void> {
   const { structure, state } = run;
+  const previous = opts.previous ?? null;
 
   // Grupos (GROUPS) e salas (BATTLE_ROYALE).
+  const groupsChanged = !previous || !same(previous.structure.groups, structure.groups);
   const groupIds = new Map<string, string>();
-  const keepGroups: string[] = [];
-  for (const [index, g] of structure.groups.entries()) {
-    const row = await tx.group.upsert({ where: { stageId_order: { stageId, order: index + 1 } }, create: { stageId, order: index + 1, name: g.name }, update: { name: g.name } });
-    groupIds.set(g.id, row.id);
-    keepGroups.push(row.id);
-    await tx.groupMember.deleteMany({ where: { groupId: row.id } });
-    if (g.entrantIds.length) await tx.groupMember.createMany({ data: g.entrantIds.map((registrationId) => ({ groupId: row.id, registrationId })) });
+  if (groupsChanged) {
+    const keepGroups: string[] = [];
+    for (const [index, g] of structure.groups.entries()) {
+      const row = await tx.group.upsert({ where: { stageId_order: { stageId, order: index + 1 } }, create: { stageId, order: index + 1, name: g.name }, update: { name: g.name } });
+      groupIds.set(g.id, row.id);
+      keepGroups.push(row.id);
+      await tx.groupMember.deleteMany({ where: { groupId: row.id } });
+      if (g.entrantIds.length) await tx.groupMember.createMany({ data: g.entrantIds.map((registrationId) => ({ groupId: row.id, registrationId })) });
+    }
+    await tx.group.deleteMany({ where: { stageId, id: { notIn: keepGroups } } });
+  } else {
+    const rows = await tx.group.findMany({ where: { stageId }, orderBy: { order: 'asc' }, select: { id: true } });
+    structure.groups.forEach((g, i) => {
+      const id = rows[i]?.id;
+      if (id) groupIds.set(g.id, id);
+    });
   }
 
-  // Partidas: cria ou atualiza pelo `nodeId`; as que saíram da estrutura (regeração) somem.
+  // Partidas que saíram da estrutura (regeração) somem — menos as que têm histórico de resultado, que é imutável.
   const nodeIds = structure.matches.map((m) => m.id);
-  await tx.match.deleteMany({ where: { stageId, nodeId: { notIn: nodeIds } } });
-  const matchIds = new Map<string, string>();
-  for (const node of structure.matches) {
+  await tx.match.deleteMany({ where: { stageId, nodeId: { notIn: nodeIds }, resultEvents: { none: {} } } });
+  const existing = await tx.match.findMany({ where: { stageId }, select: { id: true, nodeId: true } });
+  const matchIds = new Map(existing.map((m) => [m.nodeId, m.id]));
+
+  const before = new Map(previous?.structure.matches.map((m) => [m.id, m]) ?? []);
+  const rewrite = structure.matches.filter(
+    (node) => !previous || groupsChanged || !matchIds.has(node.id) || !same(before.get(node.id), node) || !same(previous.state.results[node.id], state.results[node.id]),
+  );
+
+  for (const node of rewrite) {
     const data = {
       groupId: node.groupId ? (groupIds.get(node.groupId) ?? null) : null,
       kind: node.kind,
@@ -140,42 +172,47 @@ export async function projectRun(tx: Prisma.TransactionClient, stageId: string, 
     const row = await tx.match.upsert({ where: { stageId_nodeId: { stageId, nodeId: node.id } }, create: { stageId, nodeId: node.id, ...data }, update: data, select: { id: true } });
     matchIds.set(node.id, row.id);
   }
-  for (const node of structure.matches) {
+  for (const node of rewrite) {
     const id = matchIds.get(node.id) as string;
     await tx.match.update({
       where: { id },
       data: { nextMatchId: node.nextMatchId ? (matchIds.get(node.nextMatchId) ?? null) : null, loserNextMatchId: node.loserNextMatchId ? (matchIds.get(node.loserNextMatchId) ?? null) : null },
     });
     // Participantes conhecidos de cada partida, na ordem das vagas.
-    await tx.matchParticipant.deleteMany({ where: { matchId: id } });
     const result = state.results[node.id];
     const known = node.slots.map((s, slot) => ({ slot, entrantId: s.entrantId })).filter((s): s is { slot: number; entrantId: string } => s.entrantId !== null);
-    if (known.length) {
-      await tx.matchParticipant.createMany({
-        data: known.map(({ slot, entrantId }) => {
-          const entry = result?.entries.find((e) => e.entrantId === entrantId);
-          return {
-            matchId: id,
-            registrationId: entrantId,
-            slot: slot + 1,
-            placement: entry?.placement ?? null,
-            kills: entry?.kills ?? null,
-            score: entry?.score ?? null,
-            isWinner: result ? (node.kind === 'LOBBY' ? entry?.placement === 1 : result.winnerId === entrantId) : null,
-            absent: entry?.absent ?? false,
-            walkover: result?.walkover ?? false,
-            rawStats: (entry?.stats ?? {}) as Prisma.InputJsonValue,
-          };
-        }),
-      });
+    const rowOf = ({ slot, entrantId }: { slot: number; entrantId: string }) => {
+      const entry = result?.entries.find((e) => e.entrantId === entrantId);
+      const points = opts.rules ? pointsOf(structure, node, result, entrantId, opts.rules) : null;
+      return {
+        slot: slot + 1,
+        placement: entry?.placement ?? null,
+        kills: entry?.kills ?? null,
+        score: entry?.score ?? null,
+        isWinner: result ? (node.kind === 'LOBBY' ? entry?.placement === 1 : result.winnerId === entrantId) : null,
+        absent: entry?.absent ?? false,
+        walkover: result?.walkover ?? false,
+        points: points ?? 0,
+        rawStats: (entry?.stats ?? {}) as Prisma.InputJsonValue,
+      };
+    };
+    await tx.matchParticipant.deleteMany({ where: { matchId: id, registrationId: { notIn: known.map((k) => k.entrantId) } } });
+    if (!result) {
+      // Sem resultado não há estatística por jogador a preservar: recria tudo de uma vez.
+      await tx.matchParticipant.deleteMany({ where: { matchId: id } });
+      if (known.length) await tx.matchParticipant.createMany({ data: known.map((k) => ({ matchId: id, registrationId: k.entrantId, ...rowOf(k) })) });
+    } else {
+      for (const k of known) {
+        const data = rowOf(k);
+        await tx.matchParticipant.upsert({ where: { matchId_registrationId: { matchId: id, registrationId: k.entrantId } }, create: { matchId: id, registrationId: k.entrantId, ...data }, update: data });
+      }
     }
   }
-  await tx.group.deleteMany({ where: { stageId, id: { notIn: keepGroups } } });
 }
 
-/** Remove a projeção e o retrato (nova geração antes de confirmar). */
+/** Remove a projeção e o retrato (nova geração antes de confirmar). Partidas com histórico de resultado ficam. */
 export async function clearRun(tx: Prisma.TransactionClient, stageId: string): Promise<void> {
-  await tx.match.deleteMany({ where: { stageId } });
+  await tx.match.deleteMany({ where: { stageId, resultEvents: { none: {} } } });
   await tx.group.deleteMany({ where: { stageId } });
 }
 

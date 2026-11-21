@@ -8,16 +8,21 @@
  * - `GET /stages/:id/bracket`: público para chave confirmada; a prévia só para a organização.
  *
  * A chave fica no retrato do motor da fase, com projeção em `groups`/`matches` (ADR-0002).
+ *
+ * Ao confirmar (#88, #100): quem saiu antes da confirmação (desistiu, foi desclassificado ou removido) já entra como
+ * desistente — o adversário leva W.O. (RN-06); os participantes e quem segue o campeonato são avisados (RN-15).
  */
 import { audited, withAudit } from '@nova/db';
-import { generateStage, swapEntrants, createStageState, type Entrant } from '@nova/engine';
+import { generateStage, swapEntrants, createStageState, withdrawEntrant, type Entrant } from '@nova/engine';
 import { Bracket, GenerateBracketInput, ReasonInput, SwapSeedingInput } from '@nova/schemas';
 import { Hono } from 'hono';
 import { body, respond, type AppContext, type AppEnv } from '../../context';
 import { badRequest, conflict, notFound } from '../../errors';
 import { ADMIN_ROLES, assertRole, assertTournamentAccess, currentRoles, tournamentAccessDecision } from '../../auth/rbac';
 import { currentSession, requireSession } from '../../auth/session';
-import { buildBracket } from '../../competition/bracket';
+import { buildBracket, namesFor } from '../../competition/bracket';
+import { lockStage, publishStage, recordStateChanges, usersOfRegistrations, writeRun } from '../../competition/results';
+import { followersOf, notify, publish } from '../../notify';
 import { clearRun, engine, isLocked, projectRun, readRun, snapshotOf, stageWithTournament, toEngineConfig } from '../../competition/run';
 import { revalidateTournaments } from '../../revalidate';
 import { clientIp } from '../../security';
@@ -131,7 +136,10 @@ competition.patch('/stages/:id/seeding', async (c) => {
     const name = (id: string) => structure.entrants.find((e) => e.id === id)?.name ?? id;
     await audited(tx, { action: 'BRACKET_SEEDING_CHANGED', entityType: 'Stage', entityId: stage.id, entityLabel: `${t.name} · ${stage.name}`, tournamentId: t.id, after: { trocou: [name(input.a), name(input.b)] } });
   });
-  if (run.confirmed) revalidateTournaments(c);
+  if (run.confirmed) {
+    await publishStage(c, t.id, stage.id);
+    revalidateTournaments(c);
+  }
   return respondBracket(c, stage.id);
 });
 
@@ -146,15 +154,43 @@ competition.post('/stages/:id/confirm', async (c) => {
   const previous = await db.stage.findFirst({ where: { tournamentId: t.id, order: stage.order - 1 }, select: { name: true, status: true } });
   if (previous && previous.status !== 'COMPLETED') throw conflict(`A fase "${previous.name}" ainda não terminou.`, 'PREVIOUS_STAGE_PENDING');
   const now = c.get('deps').now();
-  await withAudit(db, await auditCtx(c), async (tx) => {
+  const actor = await auditCtx(c);
+  await withAudit(db, actor, async (tx) => {
     // Corrida entre dois cliques: só confirma se ainda é prévia.
     const { count } = await tx.stage.updateMany({ where: { id: stage.id, confirmedAt: null }, data: { confirmedAt: now, status: 'ACTIVE' } });
     if (count === 0) throw conflict('Esta chave já foi confirmada.', 'ALREADY_CONFIRMED');
     // A 1ª fase confirmada põe o campeonato em andamento.
     if (!previous && t.status !== 'IN_PROGRESS') await tx.tournament.update({ where: { id: t.id }, data: { status: 'IN_PROGRESS' } });
     await audited(tx, { action: 'BRACKET_CONFIRMED', entityType: 'Stage', entityId: stage.id, entityLabel: `${t.name} · ${stage.name}`, tournamentId: t.id, after: { seed: run.structure.seedUsed } });
+
+    // Quem saiu depois da prévia e não foi substituído: desistente na chave (RN-06), com o histórico de cada W.O.
+    const gone = await tx.registration.findMany({ where: { id: { in: run.structure.entrants.map((e) => e.id) }, status: { not: 'CONFIRMED' } }, select: { id: true, status: true } });
+    if (gone.length > 0) {
+      const locked = await lockStage(tx, stage.id);
+      const current = readRun(locked);
+      if (current) {
+        let snapshot = { structure: current.structure, state: current.state };
+        for (const r of gone) snapshot = engine(() => withdrawEntrant(snapshot.structure, snapshot.state, { entrantId: r.id, kind: r.status === 'DISQUALIFIED' ? 'DISQUALIFIED' : 'WITHDRAWN' }));
+        await writeRun(tx, locked, current, snapshot);
+        await recordStateChanges(tx, stage.id, snapshot.structure, current.state, snapshot.state, { actorId: actor.actorId, reason: 'Inscrição fora do campeonato na confirmação da chave', names: await namesFor(tx, t.id), source: 'WITHDRAWAL' });
+        for (const node of snapshot.structure.matches) {
+          const result = snapshot.state.results[node.id];
+          if (result && !current.state.results[node.id]) await tx.match.updateMany({ where: { stageId: stage.id, nodeId: node.id }, data: { status: result.voided ? 'CANCELLED' : result.walkover ? 'WALKOVER' : 'VALIDATED' } });
+        }
+      }
+    }
   });
   revalidateTournaments(c);
+  // Participantes e quem segue o campeonato são avisados do início e de cada nova fase (RN-15).
+  const players = await usersOfRegistrations(db, run.structure.entrants.map((e) => e.id));
+  await notify(c, [...[...players.values()].flat(), ...(await followersOf(db, 'TOURNAMENT', t.id))], {
+    type: 'QUALIFIED',
+    title: previous ? `Você está na fase "${stage.name}"` : 'A chave saiu!',
+    body: `${t.name}: confira seus confrontos.`,
+    link: `/c/${t.slug}?aba=chave`,
+  });
+  await publishStage(c, t.id, stage.id);
+  await publish(c, `tournament:${t.id}`, { type: 'tournament.updated', tournamentId: t.id });
   return respondBracket(c, stage.id);
 });
 

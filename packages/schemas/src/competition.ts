@@ -242,6 +242,9 @@ export const Podium = z.object({
   finishedAt: IsoDateTime,
 });
 export type Podium = z.infer<typeof Podium>;
+/** Sugestão de pódio a partir da classificação da última fase (`GET /tournaments/:id/podium-suggestion`). */
+export const PodiumSuggestion = z.object({ complete: z.boolean(), ranking: z.array(z.object({ registrationId: Id, name: z.string(), position: z.number().int() })) });
+export type PodiumSuggestion = z.infer<typeof PodiumSuggestion>;
 
 export const WithdrawInput = z.object({ kind: z.enum(['WITHDRAWN', 'DISQUALIFIED']), reason: z.string().min(3, 'Informe o motivo') });
 export type WithdrawInput = z.infer<typeof WithdrawInput>;

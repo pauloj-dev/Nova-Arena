@@ -535,6 +535,7 @@ model Tournament {
   stages        Stage[]
   registrations Registration[]
   announcements Announcement[]
+  podium        TournamentPodium?
 
   @@index([status, startsAt])
   @@index([gameId, status])
@@ -933,6 +934,8 @@ model ResultSubmission {
   status        SubmissionStatus @default(PENDING)
   confirmedById String?          @db.Uuid
   reviewedById  String?          @db.Uuid
+  /// Motivo informado pelo staff ao recusar o envio (issue #90).
+  rejectReason  String?
   createdAt     DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime         @updatedAt @db.Timestamptz(3)
 
@@ -953,6 +956,10 @@ model Dispute {
   status       DisputeStatus @default(OPEN)
   resolution   String?
   resolvedById String?       @db.Uuid
+  /// Escalada para a administração da plataforma (issue #90).
+  escalatedAt   DateTime?    @db.Timestamptz(3)
+  escalatedById String?      @db.Uuid
+  resolvedAt    DateTime?    @db.Timestamptz(3)
   createdAt    DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
 
@@ -969,6 +976,8 @@ model DisputeMessage {
   id           String   @id @default(uuid()) @db.Uuid
   disputeId    String   @db.Uuid
   authorId     String   @db.Uuid
+  /// Papel de quem escreveu no momento da mensagem: `PARTICIPANT`, `STAFF` ou `ADMIN` (issue #90).
+  authorRole   String?
   body         String
   evidenceUrls String[]
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
@@ -979,11 +988,13 @@ model DisputeMessage {
   @@map("dispute_messages")
 }
 
-/// Histórico de resultados como eventos: somente inserção.
+/// Histórico de resultados como eventos: somente inserção (um gatilho bloqueia UPDATE, DELETE e TRUNCATE — issue #86).
+/// `after` guarda o resultado do motor depois do evento (base para reconstituir a tabela num instante passado).
 model ResultEvent {
   id        BigInt          @id @default(autoincrement())
   matchId   String          @db.Uuid
-  actorId   String          @db.Uuid
+  /// Nulo = ação do sistema (W.O. automático).
+  actorId   String?         @db.Uuid
   type      ResultEventType
   before    Json?
   after     Json?
@@ -994,6 +1005,18 @@ model ResultEvent {
 
   @@index([matchId, createdAt])
   @@map("result_events")
+}
+
+/// Pódio do campeonato encerrado (issue #88): `[{ place, registrationId }]`, de 1 a 3 lugares.
+model TournamentPodium {
+  tournamentId String   @id @db.Uuid
+  places       Json
+  finishedAt   DateTime @db.Timestamptz(3)
+  finishedById String?  @db.Uuid
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@map("tournament_podiums")
 }
 
 // ── Governança ───────────────────────────────────────────────────────
