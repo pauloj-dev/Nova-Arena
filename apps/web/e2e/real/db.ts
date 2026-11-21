@@ -81,11 +81,28 @@ export async function takeSnapshot(): Promise<void> {
 
 /** Volta o banco ao retrato, com as datas andando o tempo que passou desde ele. Também limpa o cache do servidor. */
 export async function restoreSnapshot(): Promise<void> {
+  // Uma requisição do teste anterior ainda em curso no servidor (polling, carga da página) pode disputar as mesmas
+  // linhas com o TRUNCATE: em impasse ou espera longa, o Postgres desfaz e a restauração tenta de novo.
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await restoreOnce();
+      break;
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (attempt >= 5 || (code !== '40P01' && code !== '55P03' && code !== '40001')) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+    }
+  }
+  await clearServerCache();
+}
+
+async function restoreOnce(): Promise<void> {
   const list = await tables();
   const client = await db().connect();
   try {
     await client.query('BEGIN');
     await client.query('SET LOCAL session_replication_role = replica');
+    await client.query("SET LOCAL lock_timeout = '5s'");
     const shift = (await client.query<{ s: string }>(`SELECT (now() - taken_at)::text AS s FROM ${SNAPSHOT}._meta`)).rows[0]?.s ?? '0';
     await client.query(`TRUNCATE ${list.map((t) => `public."${t.name}"`).join(', ')}`);
     for (const t of list) {
@@ -101,7 +118,6 @@ export async function restoreSnapshot(): Promise<void> {
   } finally {
     client.release();
   }
-  await clearServerCache();
 }
 
 /** Apaga as chaves do servidor no Redis (cache, limites e idempotência), pelo prefixo `KV_PREFIX`. */

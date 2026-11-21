@@ -219,7 +219,8 @@ test.describe('importação de resultados em vários lotes', () => {
     await dialog.getByRole('button', { name: 'Importar 52 quedas' }).click();
 
     const report = dialog.getByTestId('results-report');
-    await expect(report).toContainText('Quedas aplicadas');
+    // Com a API real, cada queda do lote passa pelo motor e grava a tabela: o lote de 50 leva alguns segundos.
+    await expect(report).toContainText('Quedas aplicadas', { timeout: 30_000 });
     await expect(report.locator('dd').first()).toHaveText('52');
     expect(batches).toEqual([50, 2]);
 
