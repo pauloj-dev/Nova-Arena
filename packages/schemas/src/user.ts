@@ -69,7 +69,16 @@ export type Me = z.infer<typeof Me>;
 
 export const MIN_AGE = 16;
 
-function ageOn(birthDate: string, now = new Date()): number {
+/** Data de nascimento válida e abaixo de 18 anos. */
+export function isMinor(birthDate: string | null | undefined, now = new Date()): boolean {
+  if (!birthDate || !/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return false;
+  return ageOn(birthDate, now) < ADULT_AGE;
+}
+
+/** Maioridade civil: abaixo dela o cadastro pede a autorização do responsável (LGPD art. 14, issue #115). */
+export const ADULT_AGE = 18;
+
+export function ageOn(birthDate: string, now = new Date()): number {
   const b = new Date(`${birthDate}T00:00:00Z`);
   let age = now.getUTCFullYear() - b.getUTCFullYear();
   const beforeBirthday = now.getUTCMonth() < b.getUTCMonth() || (now.getUTCMonth() === b.getUTCMonth() && now.getUTCDate() < b.getUTCDate());
@@ -83,7 +92,9 @@ export const RegisterInput = z.object({
   password: Password,
   birthDate: z.iso.date('Informe sua data de nascimento').refine((d) => ageOn(d) >= MIN_AGE, `É preciso ter pelo menos ${MIN_AGE} anos para se cadastrar`),
   acceptTerms: z.literal(true, 'É preciso aceitar os Termos de Uso e a Política de Privacidade'),
-});
+  /** Entre a idade mínima e 18 anos: a pessoa declara que o responsável autorizou o cadastro. */
+  guardianConsent: z.boolean().optional(),
+}).refine((v) => !isMinor(v.birthDate) || v.guardianConsent === true, { path: ['guardianConsent'], message: 'Menores de 18 anos precisam da autorização do responsável' });
 export type RegisterInput = z.infer<typeof RegisterInput>;
 
 export const LoginInput = z.object({

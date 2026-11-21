@@ -9,6 +9,7 @@ import type { PrismaClient, User } from '@nova/db';
 import { randomUUID } from 'node:crypto';
 import type { AppContext, SessionInfo } from '../context';
 import { HttpProblem, unauthorized } from '../errors';
+import { checkSessionSignals, deviceIdOf } from '../fraud';
 import { clientIp } from '../security';
 import { accessCookie, clearSessionCookies, refreshCookie, REFRESH_TTL_SECONDS, setAccessCookie, setSessionCookies } from './cookies';
 import { randomToken, sha256 } from './crypto';
@@ -21,7 +22,7 @@ export function loginGuard(user: Pick<User, 'status'>): void {
   if (user.status === 'MERGED' || user.status === 'DELETED') throw new HttpProblem(401, 'E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
 }
 
-async function issue(c: AppContext, db: PrismaClient, user: Pick<User, 'id' | 'sessionVersion'>, familyId: string, twoFactorVerified: boolean): Promise<string> {
+async function issue(c: AppContext, db: PrismaClient, user: Pick<User, 'id' | 'sessionVersion'>, familyId: string, twoFactorVerified: boolean, deviceId: string | null = null): Promise<string> {
   const { now } = c.get('deps');
   const refreshToken = randomToken();
   const session = await db.session.create({
@@ -33,6 +34,7 @@ async function issue(c: AppContext, db: PrismaClient, user: Pick<User, 'id' | 's
       twoFactorVerified,
       userAgent: c.req.header('user-agent')?.slice(0, 500) ?? null,
       ip: clientIp(c.req.raw.headers),
+      deviceId,
       expiresAt: new Date(now().getTime() + REFRESH_TTL_SECONDS * 1000),
     },
   });
@@ -55,7 +57,11 @@ export async function startSession(c: AppContext, user: Pick<User, 'id' | 'sessi
     const previous = await currentSession(c).catch(() => null);
     verified = previous?.userId === user.id && previous.twoFactorVerified;
   }
-  return issue(c, c.get('deps').db(), user, randomUUID(), verified);
+  // Antifraude (#114): o aparelho entra na sessão e, depois de gravada, conferimos várias contas no mesmo IP/aparelho.
+  const deviceId = deviceIdOf(c);
+  const sessionId = await issue(c, c.get('deps').db(), user, randomUUID(), verified, deviceId);
+  await checkSessionSignals(c, user.id, clientIp(c.req.raw.headers), deviceId);
+  return sessionId;
 }
 
 /** O código do 2FA acabou de ser conferido nesta sessão (ex.: ao ativar): o token de acesso passa a levar `tfa`. */
@@ -97,7 +103,7 @@ export async function rotateSession(c: AppContext): Promise<User> {
     throw unauthorized('Sua sessão terminou. Entre de novo.');
   }
   // O 2FA feito no login vale para a família inteira (a renovação não pede o código de novo).
-  const nextId = await issue(c, db, user, current.familyId, current.twoFactorVerified);
+  const nextId = await issue(c, db, user, current.familyId, current.twoFactorVerified, current.deviceId);
   await db.session.update({ where: { id: current.id }, data: { revokedAt: now, replacedById: nextId, lastUsedAt: now } });
   return user;
 }

@@ -17,6 +17,7 @@ import { body, respond, type AppEnv } from '../../context';
 import { badRequest, conflict, forbidden, HttpProblem, notFound } from '../../errors';
 import { currentRoles } from '../../auth/rbac';
 import { requireSession } from '../../auth/session';
+import { checkDuplicateGameId, normalizeGameKey } from '../../fraud';
 import { canSeeGameAccounts } from '../../auth/visibility';
 import { revalidateUser } from '../../revalidate';
 import { EDGE_CACHE, publicCache } from '../../http-cache';
@@ -124,7 +125,10 @@ users.put('/me/game-accounts/:gameId', async (c) => {
   if (Object.keys(errors).length > 0) throw badRequest('Confira os campos destacados.', 'VALIDATION', errors);
 
   const db = c.get('deps').db();
-  await db.gameAccount.upsert({ where: { userId_gameId: { userId: session.userId, gameId: game.id } }, create: { userId: session.userId, gameId: game.id, fields }, update: { fields } });
+  // Antifraude (#114): o primeiro campo do jogo é o ID do jogador; normalizado, ele acusa o mesmo ID em outra conta.
+  const externalKey = normalizeGameKey(required[0] ? fields[required[0].key] : null);
+  await db.gameAccount.upsert({ where: { userId_gameId: { userId: session.userId, gameId: game.id } }, create: { userId: session.userId, gameId: game.id, fields, externalKey }, update: { fields, externalKey } });
+  await checkDuplicateGameId(c, session.userId, game, externalKey);
   return respond(c, Me, await loadMe(db, session.userId));
 });
 

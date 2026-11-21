@@ -11,7 +11,7 @@
  * - Login com 2FA (issue #95): para quem tem 2FA ativo, `POST /auth/login` responde 202 `{ twoFactorRequired: true }`
  *   sem abrir sessão; o código (ou um de recuperação) vai em `POST /auth/2fa/verify`, que abre a sessão com `tfa`.
  */
-import { ForgotPasswordInput, ForgotPasswordResponse, LoginInput, Me, Ok, RegisterInput, RegisterResponse, ResendVerificationResponse, ResetPasswordInput, TwoFactorChallenge, TwoFactorVerifyInput, VerifyEmailInput } from '@nova/schemas';
+import { ageOn, isMinor, MIN_AGE, ForgotPasswordInput, ForgotPasswordResponse, LoginInput, Me, Ok, RegisterInput, RegisterResponse, ResendVerificationResponse, ResetPasswordInput, TwoFactorChallenge, TwoFactorVerifyInput, VerifyEmailInput } from '@nova/schemas';
 import { Hono } from 'hono';
 import { body, respond, type AppContext, type AppEnv } from '../../context';
 import { conflict, HttpProblem } from '../../errors';
@@ -24,6 +24,7 @@ import { clearTwoFactorChallenge, readTwoFactorChallenge, startTwoFactorChalleng
 import { publish } from '../../notify';
 import { clientIp, enforceLimit, RULES } from '../../security';
 import { loadMe, meInclude, toMe } from '../../views';
+import { siteSettings } from '../site/store';
 
 const MeOrNull = Me.nullable();
 
@@ -52,12 +53,18 @@ auth.post('/auth/register', async (c) => {
   if (await client.user.findUnique({ where: { nicknameKey: input.nickname.toLowerCase() }, select: { id: true } })) {
     throw new HttpProblem(409, 'Este apelido já está em uso.', 'NICKNAME_TAKEN', { nickname: 'Este apelido já está em uso.' });
   }
+  // Idade mínima da configuração do site (ADR-0001 Q5): o contrato já barra abaixo de MIN_AGE; aqui vale o valor atual.
+  // Configuração indisponível: vale o piso do contrato (MIN_AGE), que já foi conferido.
+  const minAge = await siteSettings(c).then((s) => s.minAge).catch(() => MIN_AGE);
+  if (ageOn(input.birthDate, now()) < minAge) {
+    throw new HttpProblem(400, 'Confira os campos destacados.', 'VALIDATION', { birthDate: `É preciso ter pelo menos ${minAge} anos para se cadastrar` });
+  }
   await assertStrongPassword(c, input.password, { nickname: input.nickname, email });
   const passwordHash = await hashPassword(input.password);
   let user;
   try {
     user = await client.user.create({
-      data: { email, nickname: input.nickname, nicknameKey: input.nickname.toLowerCase(), passwordHash, birthDate: new Date(`${input.birthDate}T00:00:00Z`), country: 'Brasil', lastSeenAt: now(), roles: { create: { role: 'PARTICIPANT' } } },
+      data: { email, nickname: input.nickname, nicknameKey: input.nickname.toLowerCase(), passwordHash, birthDate: new Date(`${input.birthDate}T00:00:00Z`), guardianConsentAt: isMinor(input.birthDate, now()) ? now() : null, country: 'Brasil', lastSeenAt: now(), roles: { create: { role: 'PARTICIPANT' } } },
       include: meInclude,
     });
   } catch (error) {

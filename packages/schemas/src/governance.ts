@@ -194,6 +194,8 @@ export const AUDIT_ACTIONS = {
   ADMIN_REMOVAL_REQUESTED: 'Remoção de administrador solicitada',
   ADMIN_REMOVAL_REVIEWED: 'Pedido de remoção de administrador analisado',
   TWO_FACTOR_CHANGED: 'Verificação em duas etapas alterada',
+  FRAUD_ALERT_REVIEWED: 'Alerta antifraude analisado',
+  ACCOUNT_DELETED: 'Conta excluída a pedido (LGPD)',
 } as const satisfies Record<string, string>;
 export type AuditAction = keyof typeof AUDIT_ACTIONS;
 export const AuditActionSchema = z.enum(Object.keys(AUDIT_ACTIONS) as [AuditAction, ...AuditAction[]]);
