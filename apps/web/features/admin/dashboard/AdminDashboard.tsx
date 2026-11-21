@@ -2,6 +2,7 @@
 
 import { Button, Card, cn, ErrorState } from '@nova/ui';
 import { CheckCircle2, Flag, Gavel, Star, Swords, Target, Trophy, UserPlus, Users, UserX } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
@@ -11,9 +12,14 @@ import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { AuditTimeline } from '../audit/AuditTimeline';
 import { formatDayLong, formatNumber, formatPercent, plural } from '../common/format';
 import { ChartCard } from './ChartCard';
-import { DailyAreaChart, DailyBarChart, GameBarChart } from './charts';
 import { KpiCard } from './KpiCard';
 import { ProductMetricsSection } from './ProductMetricsSection';
+
+// Gráficos (recharts) só no navegador e depois do primeiro paint: fora do JS inicial do painel (#111).
+const chartLoading = () => <div className="h-56 w-full animate-pulse rounded-md bg-surface-2" aria-hidden />;
+const DailyAreaChart = dynamic(() => import('./charts').then((m) => m.DailyAreaChart), { ssr: false, loading: chartLoading });
+const DailyBarChart = dynamic(() => import('./charts').then((m) => m.DailyBarChart), { ssr: false, loading: chartLoading });
+const GameBarChart = dynamic(() => import('./charts').then((m) => m.GameBarChart), { ssr: false, loading: chartLoading });
 
 const RANGES = [7, 30, 90] as const;
 type RangeDays = (typeof RANGES)[number];

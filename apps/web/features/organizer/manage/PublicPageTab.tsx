@@ -11,7 +11,7 @@ import { ApiError, errorMessage } from '@/shared/api/client';
 import { useSaveTournament } from '@/shared/api/hooks/organizer';
 import { BannerUpload } from '../components/BannerUpload';
 import { RichTextView } from '../components/RichText';
-import { RichTextEditor } from '../components/RichTextEditor';
+import { RichTextEditor } from '../components/LazyRichTextEditor';
 import { StreamLinksField } from '../components/StreamLinksField';
 import { isReadOnly } from '../lib/status';
 

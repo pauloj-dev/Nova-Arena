@@ -11,3 +11,12 @@ export function isModuleMocked(moduleName: string, setting: string = process.env
     .map((s) => s.trim())
     .includes(moduleName);
 }
+
+/**
+ * Há algum módulo simulado? Mesma regra de `isMockEnabled()` de `mocks/handlers`, mas sem importar os handlers:
+ * quem decide se a API simulada sobe (`MockGate`, `DevSwitcher`) fica leve e o código do mock só é baixado
+ * quando ela é usada (#111: JS inicial ≤ 180 KB por rota).
+ */
+export function isMockApiEnabled(setting: string = process.env.NEXT_PUBLIC_API_MOCK ?? 'all'): boolean {
+  return setting !== 'none';
+}

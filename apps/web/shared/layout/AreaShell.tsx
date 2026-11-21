@@ -5,7 +5,7 @@ import { Menu, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
-import { NotificationBell } from '@/features/notifications/NotificationBell';
+import { NotificationBell } from '@/features/notifications/LazyNotificationBell';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { Logo } from './Logo';
 import { UserMenu } from './UserMenu';
