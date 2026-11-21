@@ -8,8 +8,10 @@
  * aparece na lista → organizadora cancela (o preview não acumula campeonatos ativos).
  */
 import { expect, test, type Page } from '@playwright/test';
+import { isRealApi, serverEnv } from './real/env';
 
-const PASSWORD = process.env.E2E_DEMO_PASSWORD ?? '';
+// Preview: `E2E_DEMO_PASSWORD`. Suíte local com a API real (`E2E_MODE=real`): a `SEED_DEMO_PASSWORD` do servidor.
+const PASSWORD = process.env.E2E_DEMO_PASSWORD ?? (isRealApi ? (serverEnv('SEED_DEMO_PASSWORD') ?? '') : '');
 const stamp = Date.now().toString(36);
 
 test.skip(!PASSWORD, 'Defina E2E_DEMO_PASSWORD (a mesma senha de SEED_DEMO_PASSWORD no preview).');
@@ -101,7 +103,9 @@ test('página pública vem do servidor com título, descrição e imagem de comp
   expect(html).toContain(`<title>${name} · Nova Arena</title>`);
   expect(html).toMatch(/<meta property="og:image" content="[^"]*\/c\/[^"]+\/opengraph-image/);
   expect(html).toContain('"@type":"SportsEvent"');
-  const image = await page.request.get(`/c/${slug}/opengraph-image`);
+  // O endereço da imagem é o do próprio meta (o Next acrescenta um sufixo ao nome da rota).
+  const ogImage = /<meta property="og:image" content="([^"]+)"/.exec(html)?.[1] ?? '';
+  const image = await page.request.get(new URL(ogImage.replace(/&amp;/g, '&')).pathname + new URL(ogImage.replace(/&amp;/g, '&')).search);
   expect(image.headers()['content-type']).toContain('image/png');
   await page.goto(`/c/${slug}`);
   await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();

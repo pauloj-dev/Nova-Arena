@@ -4,7 +4,9 @@
  * Seed: Bianca tem 6 notificações de demonstração (3 não lidas); Lucas tem 3 (2 não lidas).
  */
 import type { Page } from '@playwright/test';
-import { expect as baseExpect, loginAs, test, waitForApp, type DemoUser } from './fixtures';
+import { expect as baseExpect, loginAs, test, waitForApp, type DemoUser, isRealApi, mid } from './fixtures';
+import { query } from './real/db';
+import { apiAs, apiAsId, evidenceOf } from './real/helpers';
 
 // Folga para o servidor de desenvolvimento, que compila cada rota na primeira visita.
 const expect = baseExpect.configure({ timeout: 20_000 });
@@ -88,6 +90,28 @@ test.describe('sino de notificações', () => {
     // "Confirme o resultado da sua partida" para ela. O banco e a sessão simulados são deste navegador,
     // então a troca de usuário acontece aqui mesmo, e a sessão volta para a Bianca antes de o evento
     // do canal dela ser entregue (como chegaria de outra aba, pelo mesmo BroadcastChannel do tempo real).
+    if (isRealApi) {
+      // API real: o adversário envia de verdade, com a sessão dele (pelo Node); a tela da Bianca não é tocada.
+      const base = test.info().project.use.baseURL ?? '';
+      const matches = (await apiAs<{ id: string; status: string; participants: { registrationId: string | null }[] }[]>(base, 'u_bianca', 'GET', `/tournaments/${mid('tn_liga_cr')}/matches?mine=1`)).data;
+      const [mineRow] = await query<{ id: string }>('SELECT id FROM registrations WHERE "tournamentId" = $1 AND "userId" = $2', [mid('tn_liga_cr'), mid('u_bianca')]);
+      const match = matches.find((m) => m.status !== 'VALIDATED' && m.participants.every((p) => p.registrationId));
+      const theirs = match?.participants.find((p) => p.registrationId !== mineRow?.id)?.registrationId;
+      const [opponent] = await query<{ userId: string }>('SELECT "userId" FROM registrations WHERE id = $1', [theirs]);
+      const sent = await apiAsId(base, opponent?.userId ?? '', 'POST', `/matches/${match?.id}/submissions`, {
+        entries: [
+          { registrationId: mineRow?.id, score: 0 },
+          { registrationId: theirs, score: 2 },
+        ],
+        evidenceUrls: [await evidenceOf(opponent?.userId ?? '')],
+      });
+      expect(sent.status, JSON.stringify(sent.data)).toBe(201);
+      // Sem Ably (ambiente local), o sino atualiza na próxima consulta do contador.
+      await expect(bell(page)).toHaveAccessibleName('Notificações, 4 não lidas', { timeout: 40_000 });
+      await bell(page).click();
+      await expect(panel(page).getByRole('listitem').first()).toContainText('Confirme o resultado da sua partida');
+      return;
+    }
     const created = await page.evaluate(
       async ({ dbKey, print }) => {
         const call = async (method: string, path: string, body?: unknown) => {
@@ -112,7 +136,7 @@ test.describe('sino de notificações', () => {
         });
         await call('POST', '/auth/dev-login', { userId: 'u_bianca' });
         const newest = ((await call('GET', '/notifications?limit=1')).data as { items: { id: string; title: string }[] }).items[0];
-        new BroadcastChannel('nova-realtime').postMessage({ channel: 'user:u_bianca', event: { type: 'notification.created', id: newest?.id } });
+        new BroadcastChannel('nova-realtime').postMessage({ channel: `user:u_bianca`, event: { type: 'notification.created', id: newest?.id } });
         return { status: sent.status, id: newest?.id ?? null, title: newest?.title };
       },
       { dbKey: DB_KEY, print: PRINT },
@@ -158,8 +182,13 @@ test.describe('página de notificações', () => {
   test('"carregar mais" traz as páginas seguintes', async ({ page }) => {
     await visitAs(page, 'u_bianca', '/notificacoes');
     await expect(page.getByRole('list', { name: 'Todas as notificações' }).getByRole('listitem')).toHaveCount(6);
-    // 14 notificações a mais, direto no banco simulado (vale a partir da próxima carga completa).
-    await page.evaluate((key) => {
+    // 14 notificações a mais, direto no banco (vale a partir da próxima carga completa).
+    if (isRealApi) {
+      await query(
+        `INSERT INTO notifications (id, "userId", type, title, body, "createdAt") SELECT gen_random_uuid(), $1, 'ANNOUNCEMENT', 'Comunicado ' || i, 'Aviso da organização.', now() - (i || ' seconds')::interval FROM generate_series(1, 14) AS i`,
+        [mid('u_bianca')],
+      );
+    } else await page.evaluate((key) => {
       const db = JSON.parse(localStorage.getItem(key) ?? '{}') as { extra: { notifications: unknown[] } };
       const now = Date.now();
       for (let i = 1; i <= 14; i += 1) {
@@ -201,7 +230,8 @@ test.describe('preferências de notificação', () => {
     await expect(page.getByRole('columnheader', { name: 'No site' })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'E-mail' })).toBeVisible();
     await expect(page.getByRole('rowheader', { name: /Check-in aberto/ })).toContainText('Quando abre a janela de check-in de uma partida sua.');
-    await expect(page.getByRole('switch')).toHaveCount(22);
+    // A API real oferece também o canal "no celular" (push, issue #109): 11 tipos × 3 canais. A simulada, 11 × 2.
+    await expect(page.getByRole('switch')).toHaveCount(isRealApi ? 33 : 22);
     await expectNoHorizontalScroll(page);
 
     const save = page.getByRole('button', { name: 'Salvar preferências' });

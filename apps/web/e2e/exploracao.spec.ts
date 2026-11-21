@@ -3,7 +3,9 @@
  * página do campeonato (abas, seguir, rich-text sanitizado, embed), jogos e ranking.
  */
 import type { Page } from '@playwright/test';
-import { expect as baseExpect, loginAs, test, waitForApp } from './fixtures';
+import { expect as baseExpect, loginAs, test, waitForApp, isRealApi, mid } from './fixtures';
+import { query } from './real/db';
+import { apiAs } from './real/helpers';
 
 // Folga para o servidor de desenvolvimento, que compila cada rota na primeira visita.
 const expect = baseExpect.configure({ timeout: 20_000 });
@@ -23,6 +25,33 @@ interface DbTournamentPatch {
  * Vale a partir da próxima carga completa de página (`page.goto`).
  */
 async function seedDb(page: Page, changes: { patchTournament?: { id: string; patch: DbTournamentPatch }; cloneTournaments?: { fromId: string; count: number }; announcement?: { tournamentId: string; title: string; body: string } }) {
+  if (isRealApi) {
+    // API real: campeonato e comunicado pela API, como a organizadora faria (a página pública em cache é avisada).
+    // Links de transmissão que a própria API recusaria (o teste confere o filtro da tela) vão direto no Postgres.
+    const base = test.info().project.use.baseURL ?? '';
+    const p = changes.patchTournament;
+    if (p && p.patch.streamUrls?.length) {
+      await query(`UPDATE tournaments SET "streamUrls" = $2::text[], "updatedAt" = now() WHERE id = $1`, [mid(p.id), p.patch.streamUrls]);
+    } else if (p) {
+      const res = await apiAs(base, 'u_camila', 'PATCH', `/tournaments/${mid(p.id)}`, p.patch);
+      expect(res.status, JSON.stringify(res.data)).toBe(200);
+    }
+    const c = changes.cloneTournaments;
+    if (c) {
+      await query(
+        `INSERT INTO tournaments (id, slug, "gameId", "gameModeId", "ownerId", name, description, rules, prize, "streamUrls", status, "participantType", "maxParticipants", "registrationOpensAt", "registrationClosesAt", "startsAt", "manualApproval", "waitlistEnabled", "checkInConfig", featured, "createdAt", "updatedAt")
+         SELECT gen_random_uuid(), 'campeonato-extra-' || lpad(n::text, 2, '0'), "gameId", "gameModeId", "ownerId", 'Campeonato Extra ' || lpad(n::text, 2, '0'), description, rules, prize, "streamUrls", status, "participantType", "maxParticipants", "registrationOpensAt", "registrationClosesAt", "startsAt", "manualApproval", "waitlistEnabled", "checkInConfig", false, "createdAt", now()
+           FROM tournaments, generate_series(1, $2::int) AS n WHERE id = $1`,
+        [mid(c.fromId), c.count],
+      );
+    }
+    const a = changes.announcement;
+    if (a) {
+      const res = await apiAs(base, 'u_camila', 'POST', `/tournaments/${mid(a.tournamentId)}/announcements`, { title: a.title, body: a.body, stageId: null, groupId: null });
+      expect(res.status, JSON.stringify(res.data)).toBe(201);
+    }
+    return;
+  }
   if (page.url() === 'about:blank') await page.goto('/');
   await waitForApp(page);
   await page.waitForFunction((key) => localStorage.getItem(key) !== null, DB_KEY);
@@ -363,7 +392,7 @@ test.describe('página do campeonato', () => {
     const following = page.getByRole('button', { name: 'Seguindo' });
     await expect(following).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByText('Você está seguindo Copa Nova FF — Squad')).toBeVisible();
-    expect((await apiCall<{ tournaments: string[]; games: string[] }>(page, 'GET', '/me/follows')).data).toEqual({ tournaments: ['tn_copa_ff'], games: ['g_8ball'] });
+    expect((await apiCall<{ tournaments: string[]; games: string[] }>(page, 'GET', '/me/follows')).data).toEqual({ tournaments: [mid('tn_copa_ff')], games: [mid('g_8ball')] });
 
     await page.reload();
     await expect(page.getByRole('button', { name: 'Seguindo' })).toHaveAttribute('aria-pressed', 'true');
@@ -376,16 +405,16 @@ test.describe('página do campeonato', () => {
     await page.goto('/');
     await waitForApp(page);
     expect((await apiCall(page, 'GET', '/me/follows')).status).toBe(401);
-    expect((await apiCall(page, 'PUT', '/me/follows/tournament/tn_copa_ff')).status).toBe(401);
+    expect((await apiCall(page, 'PUT', `/me/follows/tournament/${mid('tn_copa_ff')}`)).status).toBe(401);
     await loginAs(page, 'u_bianca');
     expect((await apiCall(page, 'PUT', '/me/follows/tournament/nao-existe')).status).toBe(404);
-    expect((await apiCall(page, 'PUT', '/me/follows/squad/t_alfa')).status).toBe(404);
+    expect((await apiCall(page, 'PUT', `/me/follows/squad/${mid('t_alfa')}`)).status).toBe(404);
     // Rascunho de outra pessoa não pode ser seguido (nem revela que existe).
-    expect((await apiCall(page, 'PUT', '/me/follows/tournament/tn_cr_2v2')).status).toBe(404);
+    expect((await apiCall(page, 'PUT', `/me/follows/tournament/${mid('tn_cr_2v2')}`)).status).toBe(404);
     // Seguir duas vezes não duplica.
     await apiCall(page, 'PUT', '/me/follows/game/free-fire');
-    const twice = await apiCall<{ games: string[] }>(page, 'PUT', '/me/follows/game/g_freefire');
-    expect(twice.data.games).toEqual(['g_8ball', 'g_freefire']);
+    const twice = await apiCall<{ games: string[] }>(page, 'PUT', `/me/follows/game/${mid('g_freefire')}`);
+    expect(twice.data.games).toEqual([mid('g_8ball'), mid('g_freefire')]);
   });
 
   test('conteúdo malicioso na descrição, no regulamento e nos comunicados não executa', async ({ page }) => {
@@ -501,11 +530,11 @@ test.describe('página do campeonato', () => {
     ] as const) {
       await loginAs(page, user);
       // Espera a consulta de permissão terminar antes de afirmar que o link não existe.
-      const accessChecked = page.waitForResponse((r) => r.url().includes('/tournaments/tn_copa_ff/access'));
+      const accessChecked = page.waitForResponse((r) => r.url().includes(`/tournaments/${mid('tn_copa_ff')}/access`));
       await page.goto(COPA);
       await expect(page.getByRole('button', { name: 'Compartilhar' })).toBeVisible();
       await accessChecked;
-      if (visible) await expect(manage).toHaveAttribute('href', '/organizador/campeonatos/tn_copa_ff');
+      if (visible) await expect(manage).toHaveAttribute('href', `/organizador/campeonatos/${mid('tn_copa_ff')}`);
       else await expect(manage).toHaveCount(0);
     }
   });
@@ -588,7 +617,7 @@ test.describe('jogos e ranking', () => {
     await page.goto('/jogos/free-fire');
     await page.getByRole('button', { name: 'Seguir jogo' }).click();
     await expect(page.getByRole('button', { name: 'Seguindo' })).toHaveAttribute('aria-pressed', 'true');
-    expect((await apiCall<{ games: string[] }>(page, 'GET', '/me/follows')).data.games).toEqual(['g_8ball', 'g_freefire']);
+    expect((await apiCall<{ games: string[] }>(page, 'GET', '/me/follows')).data.games).toEqual([mid('g_8ball'), mid('g_freefire')]);
 
     // A Bianca já segue 8 Ball Pool no seed.
     await page.goto('/jogos/8-ball-pool');

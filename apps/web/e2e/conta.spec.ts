@@ -3,7 +3,9 @@
  * convites de papel (CT-03), minha conta, IDs de jogo, pedido de organizador e perfil público.
  */
 import type { Page } from '@playwright/test';
-import { expect as baseExpect, loginAs, test, waitForApp } from './fixtures';
+import { expect as baseExpect, loginAs, test, waitForApp, isRealApi, mid } from './fixtures';
+import { query } from './real/db';
+import { demoTotpSecret, emailLink, totp } from './real/helpers';
 
 // Folga para o servidor de desenvolvimento, que compila cada rota na primeira visita.
 const expect = baseExpect.configure({ timeout: 20_000 });
@@ -39,8 +41,20 @@ async function readDb<T>(page: Page, collection: string): Promise<T[]> {
   return page.evaluate(({ key, collection }) => (JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, unknown[]>)[collection] ?? [], { key: DB_KEY, collection }) as Promise<T[]>;
 }
 
+/** Usos de um convite de papel: no banco simulado (localStorage) ou no Postgres da API real (pelo hash do token). */
+async function inviteUses(page: Page, token: string): Promise<number | undefined> {
+  if (isRealApi) return (await query<{ uses: number }>(`SELECT uses FROM role_invites WHERE "tokenHash" = encode(sha256($1::bytea), 'hex')`, [token]))[0]?.uses;
+  return (await readDb<{ token: string; uses: number }>(page, 'roleInvites')).find((i) => i.token === token)?.uses;
+}
+
 /** Altera o banco simulado direto no localStorage. Vale a partir da próxima carga completa de página. */
 async function patchDb(page: Page, patch: { roleInvites?: Record<string, Record<string, unknown>> }): Promise<void> {
+  if (isRealApi) {
+    for (const [token, fields] of Object.entries(patch.roleInvites ?? {})) {
+      if (typeof fields.uses === 'number') await query(`UPDATE role_invites SET uses = $2 WHERE "tokenHash" = encode(sha256($1::bytea), 'hex')`, [token, fields.uses]);
+    }
+    return;
+  }
   if (page.url() === 'about:blank') await page.goto('/');
   await waitForApp(page);
   await page.waitForFunction((key) => localStorage.getItem(key) !== null, DB_KEY);
@@ -88,11 +102,17 @@ test.describe('cadastro, verificação e login', () => {
     await expect(page.getByText('nova@exemplo.com')).toBeVisible();
     expect((await me(page))?.emailVerified).toBe(false);
 
-    // Protótipo: o "e-mail" aparece na tela, marcado como tal.
-    await expect(page.getByText('Protótipo', { exact: false }).first()).toBeVisible();
-    const link = page.getByRole('link', { name: 'Abrir link de verificação' });
-    await expect(link).toHaveAttribute('href', /^\/verificar-email\?token=.+/);
-    await link.click();
+    if (isRealApi) {
+      // API real: o link vai só por e-mail (nada na tela); o teste abre o mesmo link que o e-mail levaria.
+      await expect(page.getByRole('link', { name: 'Abrir link de verificação' })).toHaveCount(0);
+      await page.goto(await emailLink('nova@exemplo.com', 'VERIFY'));
+    } else {
+      // Protótipo: o "e-mail" aparece na tela, marcado como tal.
+      await expect(page.getByText('Protótipo', { exact: false }).first()).toBeVisible();
+      const link = page.getByRole('link', { name: 'Abrir link de verificação' });
+      await expect(link).toHaveAttribute('href', /^\/verificar-email\?token=.+/);
+      await link.click();
+    }
     await expect(page.getByRole('heading', { level: 1, name: 'E-mail confirmado' })).toBeVisible();
     expect((await me(page))?.emailVerified).toBe(true);
 
@@ -115,13 +135,13 @@ test.describe('cadastro, verificação e login', () => {
 
   test('o link de verificação só vale uma vez, e dá para reenviar', async ({ page }) => {
     await registerNewAccount(page);
-    const href = await page.getByRole('link', { name: 'Abrir link de verificação' }).getAttribute('href');
+    const href = isRealApi ? await emailLink('nova@exemplo.com', 'VERIFY') : await page.getByRole('link', { name: 'Abrir link de verificação' }).getAttribute('href');
     expect(href).toBeTruthy();
 
-    // Reenviar gera um link novo (o protótipo mostra o novo).
+    // Reenviar gera um link novo (o protótipo mostra o novo; a API real manda outro e-mail).
     await page.getByRole('button', { name: 'Reenviar e-mail' }).click();
     await expect(page.getByText('E-mail reenviado')).toBeVisible();
-    const newHref = await page.getByRole('link', { name: 'Abrir link de verificação' }).getAttribute('href');
+    const newHref = isRealApi ? await emailLink('nova@exemplo.com', 'VERIFY') : await page.getByRole('link', { name: 'Abrir link de verificação' }).getAttribute('href');
     expect(newHref).not.toBe(href);
 
     await page.goto(newHref as string);
@@ -190,6 +210,7 @@ test.describe('cadastro, verificação e login', () => {
   });
 
   test('botões Google e Discord entram como a conta de demonstração e avisam que é simulado', async ({ page }) => {
+    test.skip(isRealApi, 'Login social de verdade: precisa das credenciais OAuth do Google e do Discord (sem elas, os botões não aparecem).');
     await page.goto('/entrar');
     await waitForApp(page);
     await expect(page.getByRole('button', { name: 'Entrar com Discord' })).toBeVisible();
@@ -213,8 +234,13 @@ test.describe('cadastro, verificação e login', () => {
     await page.getByRole('button', { name: 'Confirmar' }).click();
     await expect(page.getByText('Código incorreto ou vencido. Confira o aplicativo e tente de novo.')).toBeVisible();
 
-    // No protótipo, o código do momento aparece na tela (na versão final, só no celular).
-    await page.getByTestId('prototype-code').getByRole('button', { name: 'Usar este código' }).click();
+    if (isRealApi) {
+      // API real: o código do aplicativo autenticador (o segredo da Ana na seed de demonstração).
+      await page.getByLabel('Código do aplicativo').fill(totp(demoTotpSecret()));
+    } else {
+      // No protótipo, o código do momento aparece na tela (na versão final, só no celular).
+      await page.getByTestId('prototype-code').getByRole('button', { name: 'Usar este código' }).click();
+    }
     await page.getByRole('button', { name: 'Confirmar' }).click();
     await expect(page).toHaveURL(/\/minha-conta\/seguranca$/);
     expect((await me(page))?.nickname).toBe('Ana');
@@ -231,9 +257,13 @@ test.describe('recuperar senha', () => {
     await page.getByLabel('E-mail').fill('bianca@novaarena.gg');
     await page.getByRole('button', { name: 'Enviar link' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Confira seu e-mail' })).toBeVisible();
-    await expect(page.getByText('Protótipo', { exact: false }).first()).toBeVisible();
-
-    await page.getByRole('link', { name: 'Abrir link de redefinição' }).click();
+    if (isRealApi) {
+      await expect(page.getByRole('link', { name: 'Abrir link de redefinição' })).toHaveCount(0);
+      await page.goto(await emailLink('bianca@novaarena.gg', 'RESET'));
+    } else {
+      await expect(page.getByText('Protótipo', { exact: false }).first()).toBeVisible();
+      await page.getByRole('link', { name: 'Abrir link de redefinição' }).click();
+    }
     await expect(page.getByRole('heading', { level: 1, name: 'Criar nova senha' })).toBeVisible();
     const resetUrl = page.url();
 
@@ -280,8 +310,7 @@ test.describe('convites de papel (CT-03)', () => {
     await page.getByRole('button', { name: 'Aceitar convite' }).click();
     await expect(page).toHaveURL(/\/organizador$/);
     expect((await me(page))?.roles).toContain('ORGANIZER');
-    const invites = await readDb<{ token: string; uses: number }>(page, 'roleInvites');
-    expect(invites.find((i) => i.token === 'convite-organizador-valido')?.uses).toBe(2);
+    expect(await inviteUses(page, 'convite-organizador-valido')).toBe(2);
   });
 
   test('convite válido de administrador concede o papel e leva para /admin', async ({ page }) => {
@@ -310,8 +339,7 @@ test.describe('convites de papel (CT-03)', () => {
       expect(accept.status).toBe(410);
       const roles = (await me(page))?.roles ?? [];
       expect(roles).toEqual(['PARTICIPANT']);
-      const invites = await readDb<{ token: string; uses: number }>(page, 'roleInvites');
-      expect(invites.find((i) => i.token === invite.token)?.uses).toBe(0);
+      expect(await inviteUses(page, invite.token)).toBe(0);
     });
   }
 
@@ -405,7 +433,7 @@ test.describe('minha conta', () => {
     await loginAs(page, 'u_bianca');
     await page.goto('/minha-conta');
     await expect(page.getByRole('heading', { level: 3, name: /Free Fire/ })).toBeVisible();
-    expect((await me(page))?.gameAccounts.some((a) => a.gameId === 'g_freefire')).toBe(false);
+    expect((await me(page))?.gameAccounts.some((a) => a.gameId === mid('g_freefire'))).toBe(false);
 
     const playerId = page.getByLabel('ID Free Fire');
     await playerId.fill('abc');
@@ -413,21 +441,21 @@ test.describe('minha conta', () => {
     await page.getByRole('button', { name: 'Salvar ID de Free Fire' }).click();
     await expect(playerId).toHaveAttribute('aria-invalid', 'true');
     await expect(page.getByText('Confira o formato de "ID Free Fire"')).toBeVisible();
-    expect((await me(page))?.gameAccounts.some((a) => a.gameId === 'g_freefire')).toBe(false);
+    expect((await me(page))?.gameAccounts.some((a) => a.gameId === mid('g_freefire'))).toBe(false);
 
     await playerId.fill('1234567890');
     await page.getByRole('button', { name: 'Salvar ID de Free Fire' }).click();
     await expect(page.getByText('ID de Free Fire salvo')).toBeVisible();
-    expect((await me(page))?.gameAccounts.find((a) => a.gameId === 'g_freefire')?.fields).toEqual({ playerId: '1234567890', nick: 'BiaFF' });
+    expect((await me(page))?.gameAccounts.find((a) => a.gameId === mid('g_freefire'))?.fields).toEqual({ playerId: '1234567890', nick: 'BiaFF' });
 
     await page.reload();
     await expect(page.getByLabel('ID Free Fire')).toHaveValue('1234567890');
     await page.getByRole('button', { name: 'Remover ID de Free Fire' }).click();
     await expect(page.getByText('ID de Free Fire removido')).toBeVisible();
-    expect((await me(page))?.gameAccounts.some((a) => a.gameId === 'g_freefire')).toBe(false);
+    expect((await me(page))?.gameAccounts.some((a) => a.gameId === mid('g_freefire'))).toBe(false);
 
     // A API também recusa formato errado e jogo que não existe.
-    expect((await apiCall(page, 'PUT', '/me/game-accounts/g_freefire', { fields: { playerId: 'x', nick: 'y' } })).status).toBe(400);
+    expect((await apiCall(page, 'PUT', `/me/game-accounts/${mid('g_freefire')}`, { fields: { playerId: 'x', nick: 'y' } })).status).toBe(400);
     expect((await apiCall(page, 'PUT', '/me/game-accounts/g_nao_existe', { fields: { a: 'b' } })).status).toBe(404);
   });
 

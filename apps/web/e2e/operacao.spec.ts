@@ -1,6 +1,7 @@
 import { stat } from 'node:fs/promises';
 import type { Locator, Page } from '@playwright/test';
-import { expect, loginAs, test, waitForApp, type DemoUser } from './fixtures';
+import { expect, loginAs, test, waitForApp, type DemoUser, isRealApi, mid } from './fixtures';
+import { query } from './real/db';
 
 /**
  * Operação do campeonato pelo organizador (F2.3, F2.4 e F2.6): chave com prévia e ajuste, agenda,
@@ -8,14 +9,14 @@ import { expect, loginAs, test, waitForApp, type DemoUser } from './fixtures';
  * desclassificação, encerramento com pódio, arte de resultado e onboarding.
  */
 
-const COPA = 'tn_copa_ff';
+const COPA = mid('tn_copa_ff');
 const COPA_SLUG = 'copa-nova-ff-squad';
-const S1 = 'tn_copa_ff_s1';
-const S2 = 'tn_copa_ff_s2';
-const S3 = 'tn_copa_ff_s3';
-const LIGA = 'tn_liga_cr';
+const S1 = mid('tn_copa_ff_s1');
+const S2 = mid('tn_copa_ff_s2');
+const S3 = mid('tn_copa_ff_s3');
+const LIGA = mid('tn_liga_cr');
 const LIGA_SLUG = 'liga-semanal-clash-royale';
-const LIGA_S1 = 'tn_liga_cr_s1';
+const LIGA_S1 = mid('tn_liga_cr_s1');
 
 interface ApiMatch {
   id: string;
@@ -78,6 +79,7 @@ async function expectNoHorizontalScroll(page: Page): Promise<void> {
 
 /** Apelido de um usuário de demonstração, lido do banco simulado. */
 async function nicknameOf(page: Page, userId: DemoUser): Promise<string> {
+  if (isRealApi) return (await query<{ nickname: string }>('SELECT nickname FROM users WHERE id = $1', [mid(userId)]))[0]?.nickname ?? '';
   const nickname = await page.evaluate((id) => {
     const db = JSON.parse(localStorage.getItem('nova-mock-db') ?? '{}') as { users?: { id: string; nickname: string }[] };
     return db.users?.find((u) => u.id === id)?.nickname ?? '';
@@ -239,7 +241,7 @@ test.describe('configuração das fases', () => {
     await expect(editor.getByRole('list', { name: 'Fases do campeonato, em ordem' }).getByRole('listitem').first()).toBeVisible();
     await expectNoHorizontalScroll(page);
     const t = await ok<{ stages: Record<string, unknown>[] }>(page, `/organizer/tournaments/${COPA}`);
-    expect(t.stages[0]?.scoringModelId).toBe('sm_ff_liga');
+    expect(t.stages[0]?.scoringModelId).toBe(mid('sm_ff_liga'));
     await editor.getByRole('button', { name: 'Voltar' }).click();
     await expect(editor).toHaveCount(0);
 
@@ -785,7 +787,7 @@ test.describe('arte de resultado', () => {
     await page.goto('/c/open-8-ball-pool/arte');
     await waitForApp(page);
     await expect(page.getByRole('heading', { level: 1, name: 'Arte de resultado' })).toBeVisible();
-    const podium = await ok<{ places: { place: number; name: string }[] }>(page, '/tournaments/tn_open_8ball/podium');
+    const podium = await ok<{ places: { place: number; name: string }[] }>(page, `/tournaments/${mid('tn_open_8ball')}/podium`);
     const champion = podium.places.find((p) => p.place === 1)?.name as string;
 
     const preview = page.getByTestId('art-preview');

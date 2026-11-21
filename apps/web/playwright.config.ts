@@ -8,24 +8,29 @@ import { defineConfig, devices } from '@playwright/test';
 const externalURL = process.env.PLAYWRIGHT_BASE_URL?.trim() || undefined;
 const baseURL = externalURL ?? 'http://localhost:3100';
 /**
- * `E2E_API_REAL=1`: roda só `api-real.spec.ts`, contra um preview com a API real (issue #81). Os demais specs
- * usam a API simulada (MSW) e ficam de fora nesse modo — e vice-versa.
+ * Três modos:
+ * - padrão: a suíte inteira com a API simulada (MSW); `api-real.spec.ts` fica de fora;
+ * - `E2E_API_REAL=1`: só `api-real.spec.ts`, contra um preview com a API real (issue #81), sem acesso ao banco;
+ * - `E2E_MODE=real` (issue #102): a suíte inteira contra a API real local (`NEXT_PUBLIC_API_MOCK=none`), com o banco
+ *   do servidor semeado e restaurado antes de cada teste (`e2e/real/`). Um teste por vez: todos dividem o banco.
  */
 const apiReal = process.env.E2E_API_REAL === '1';
+const realLocal = process.env.E2E_MODE === 'real';
 /** Preview protegido da Vercel: o segredo de automação libera o acesso do teste (e grava o cookie de liberação). */
 const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
 
 export default defineConfig({
   testDir: './e2e',
-  ...(apiReal ? { testMatch: 'api-real.spec.ts' } : { testIgnore: 'api-real.spec.ts' }),
+  ...(apiReal ? { testMatch: 'api-real.spec.ts' } : realLocal ? {} : { testIgnore: 'api-real.spec.ts' }),
+  ...(realLocal ? { globalSetup: './e2e/real/global-setup.ts' } : {}),
   // Execuções em paralelo (ex.: duas pessoas, ou CI + local) usam pastas de saída diferentes.
   outputDir: process.env.PW_OUTPUT_DIR ?? 'test-results',
   timeout: 60_000,
   expect: { timeout: 10_000 },
-  fullyParallel: true,
+  fullyParallel: !realLocal,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  workers: realLocal ? 1 : process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : [['list']],
   use: {
     baseURL,

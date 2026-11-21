@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, loginAs, test, waitForApp, type DemoUser } from './fixtures';
+import { expect, loginAs, test, waitForApp, type DemoUser, mid } from './fixtures';
 
 /**
  * Squads e inscrições (F1.9, issues #28 e #29), em 1440 px e 360 px.
@@ -46,7 +46,7 @@ test.describe('squads', () => {
     await page.getByLabel('Nome do squad').fill('Squad Ômega');
     await page.getByRole('textbox', { name: 'Tag', exact: true }).fill('omg');
     await page.getByRole('dialog').getByRole('button', { name: 'Criar squad' }).click();
-    await expect(page).toHaveURL(/\/minha-conta\/squads\/t_/);
+    await expect(page).toHaveURL(/\/minha-conta\/squads\/(t_|[0-9a-f]{8}-)/);
     await expect(page.getByRole('heading', { level: 1, name: 'Squad Ômega' })).toBeVisible();
     const squadUrl = new URL(page.url()).pathname;
     const roster = page.getByRole('list', { name: 'Membros do Squad Ômega' });
@@ -205,7 +205,7 @@ test.describe('squads', () => {
   });
 
   test('capitão transfere a capitania', async ({ page }) => {
-    await visitAs(page, 'u_lucas', '/minha-conta/squads/t_alfa');
+    await visitAs(page, 'u_lucas', `/minha-conta/squads/${mid('t_alfa')}`);
     await expect(page.getByRole('heading', { name: 'Convidar jogadores' })).toBeVisible();
     await page.getByRole('button', { name: 'Ações de KauePro1' }).click();
     await page.getByRole('menuitem', { name: 'Passar a capitania' }).click();
@@ -222,12 +222,12 @@ test.describe('squads', () => {
     await expect(page.getByRole('button', { name: 'Ações de KauePro1' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Sair', exact: true })).toBeVisible();
 
-    await visitAs(page, 'u_p01', '/minha-conta/squads/t_alfa');
+    await visitAs(page, 'u_p01', `/minha-conta/squads/${mid('t_alfa')}`);
     await expect(page.getByRole('heading', { name: 'Convidar jogadores' })).toBeVisible();
   });
 
   test('capitão não exclui squad com inscrição ativa', async ({ page }) => {
-    await visitAs(page, 'u_lucas', '/minha-conta/squads/t_alfa');
+    await visitAs(page, 'u_lucas', `/minha-conta/squads/${mid('t_alfa')}`);
     await page.getByRole('button', { name: 'Excluir squad' }).click();
     const dialog = page.getByRole('dialog', { name: 'Excluir squad' });
     await dialog.getByRole('textbox').fill('Squad Alfa');
@@ -244,7 +244,7 @@ test.describe('inscrições', () => {
     await expect(page).toHaveURL(/\/minha-conta\/squads\/t_alfa$/);
 
     await visitAs(page, 'u_lucas', COPA_FF);
-    await expect(panel(page).getByLabel('Squad que vai jogar')).toHaveValue('t_alfa');
+    await expect(panel(page).getByLabel('Squad que vai jogar')).toHaveValue(mid('t_alfa'));
     await panel(page).getByRole('checkbox', { name: /Li e aceito o regulamento/ }).check();
     await panel(page).getByRole('button', { name: 'Inscrever squad' }).click();
     await expect(panel(page).getByTestId('registration-error')).toContainText('PedroZz4 já está inscrito neste campeonato pelo squad Squad Bravo');
