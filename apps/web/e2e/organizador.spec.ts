@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import type { Page } from '@playwright/test';
-import { expect, loginAs, test, mid } from './fixtures';
+import { expect, loginAs, test, isRealApi, mid } from './fixtures';
 
 /** Chama a API simulada de dentro da página (a sessão é a de quem está logado). */
 async function api<T = unknown>(page: Page, path: string, init?: { method?: string; body?: unknown }): Promise<{ status: number; data: T }> {
@@ -583,7 +583,13 @@ test.describe('organizador — regras da API', () => {
     expect(noRules.status).toBe(400);
     expect(noRules.data.errors.rules).toContain('regulamento');
     // Um rascunho novo desse jogo não publica
-    const draft = await api<{ id: string }>(page, '/tournaments', { method: 'POST', body: { templateId: mid('tpl_ef_grupos'), name: 'Copa Fora do Catálogo', registrationClosesAt: future(5), startsAt: future(6) } });
+    const draft = await api<{ id: string; errors?: Record<string, string> }>(page, '/tournaments', { method: 'POST', body: { templateId: mid('tpl_ef_grupos'), name: 'Copa Fora do Catálogo', registrationClosesAt: future(5), startsAt: future(6) } });
+    if (isRealApi) {
+      // A API real já recusa o rascunho (decisão da #74: jogo desativado não entra em campeonato novo).
+      expect(draft.status).toBe(400);
+      expect(draft.data.errors?.gameId).toContain('desativado');
+      return;
+    }
     const publish = await api<{ code: string; errors: Record<string, string> }>(page, `/tournaments/${draft.data.id}/publish`, { method: 'POST' });
     expect(publish.status).toBe(400);
     expect(publish.data.errors.gameId).toContain('não está mais disponível');

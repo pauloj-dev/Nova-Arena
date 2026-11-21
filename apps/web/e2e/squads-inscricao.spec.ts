@@ -200,7 +200,7 @@ test.describe('squads', () => {
     await page.getByRole('button', { name: 'Entrar', exact: true }).click();
     await expect(page).toHaveURL(/\/squads\/convite\/ALFA42$/);
     await page.getByRole('button', { name: 'Aceitar convite' }).click();
-    await expect(page).toHaveURL(/\/minha-conta\/squads\/t_alfa$/);
+    await expect(page).toHaveURL(new RegExp(`/minha-conta/squads/${mid('t_alfa')}$`));
     await expect(page.getByRole('list', { name: 'Membros do Squad Alfa' }).getByRole('listitem')).toHaveCount(5);
   });
 
@@ -241,7 +241,7 @@ test.describe('inscrições', () => {
     // PedroZz4 é capitão do Squad Bravo, já inscrito na Copa Nova FF, e entra também no Squad Alfa.
     await visitAs(page, 'u_p04', '/squads/convite/ALFA42');
     await page.getByRole('button', { name: 'Aceitar convite' }).click();
-    await expect(page).toHaveURL(/\/minha-conta\/squads\/t_alfa$/);
+    await expect(page).toHaveURL(new RegExp(`/minha-conta/squads/${mid('t_alfa')}$`));
 
     await visitAs(page, 'u_lucas', COPA_FF);
     await expect(panel(page).getByLabel('Squad que vai jogar')).toHaveValue(mid('t_alfa'));

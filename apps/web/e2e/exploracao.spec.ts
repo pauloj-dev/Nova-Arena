@@ -32,6 +32,9 @@ async function seedDb(page: Page, changes: { patchTournament?: { id: string; pat
     const p = changes.patchTournament;
     if (p && p.patch.streamUrls?.length) {
       await query(`UPDATE tournaments SET "streamUrls" = $2::text[], "updatedAt" = now() WHERE id = $1`, [mid(p.id), p.patch.streamUrls]);
+      // Uma edição qualquer pela API avisa a página pública em cache (o UPDATE direto não avisa).
+      const current = await apiAs<{ prize: string }>(base, 'u_camila', 'GET', `/tournaments/${mid(p.id)}`);
+      expect((await apiAs(base, 'u_camila', 'PATCH', `/tournaments/${mid(p.id)}`, { prize: current.data.prize })).status).toBe(200);
     } else if (p) {
       const res = await apiAs(base, 'u_camila', 'PATCH', `/tournaments/${mid(p.id)}`, p.patch);
       expect(res.status, JSON.stringify(res.data)).toBe(200);
@@ -635,8 +638,11 @@ test.describe('jogos e ranking', () => {
     await waitForApp(page);
     await expect(page.getByRole('heading', { level: 1, name: 'Ranking' })).toBeVisible();
 
-    // O primeiro jogo (Free Fire) ainda não teve campeonato disputado: estado vazio com ação.
+    // Sem `?jogo=`, o primeiro jogo do catálogo vem escolhido (a ordem do catálogo é da API). O Free Fire ainda não teve
+    // campeonato disputado: estado vazio com ação.
     const selector = page.getByRole('navigation', { name: 'Escolher o jogo do ranking' });
+    await expect(selector.getByRole('link').first()).toHaveAttribute('aria-current', 'page');
+    await selector.getByRole('link', { name: 'Free Fire' }).click();
     await expect(selector.getByRole('link', { name: 'Free Fire' })).toHaveAttribute('aria-current', 'page');
     await expect(page.getByRole('heading', { name: 'Ninguém no ranking de Free Fire ainda' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Ver campeonatos de Free Fire' })).toHaveAttribute('href', '/campeonatos?game=free-fire');

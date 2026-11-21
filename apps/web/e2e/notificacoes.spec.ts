@@ -254,10 +254,11 @@ test.describe('preferências de notificação', () => {
     await expect(page.getByRole('switch', { name: 'Comunicados: por e-mail' })).toBeChecked();
     await expect(page.getByRole('switch', { name: 'Check-in aberto: por e-mail' })).not.toBeChecked();
     await expect(page.getByRole('switch', { name: 'Check-in aberto: no site' })).toBeChecked();
+    // A API real também devolve o canal "no celular" (push); aqui só interessam o site e o e-mail.
     const prefs = (await apiCall<{ type: string; inApp: boolean; email: boolean }[]>(page, 'GET', '/me/notification-preferences')).data;
-    expect(prefs.find((p) => p.type === 'ANNOUNCEMENT')).toEqual({ type: 'ANNOUNCEMENT', inApp: false, email: true });
-    expect(prefs.find((p) => p.type === 'CHECKIN_OPEN')).toEqual({ type: 'CHECKIN_OPEN', inApp: true, email: false });
-    expect(prefs.find((p) => p.type === 'SANCTION')).toEqual({ type: 'SANCTION', inApp: true, email: true });
+    expect(prefs.find((p) => p.type === 'ANNOUNCEMENT')).toMatchObject({ type: 'ANNOUNCEMENT', inApp: false, email: true });
+    expect(prefs.find((p) => p.type === 'CHECKIN_OPEN')).toMatchObject({ type: 'CHECKIN_OPEN', inApp: true, email: false });
+    expect(prefs.find((p) => p.type === 'SANCTION')).toMatchObject({ type: 'SANCTION', inApp: true, email: true });
 
     // "Desfazer alterações" volta ao que está salvo.
     await page.getByRole('switch', { name: 'Disputas: no site' }).click();
