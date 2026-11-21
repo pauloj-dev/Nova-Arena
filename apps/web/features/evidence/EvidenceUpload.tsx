@@ -4,6 +4,8 @@ import { Button, cn, Progress } from '@nova/ui';
 import { AlertCircle, CheckCircle2, Paperclip, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { uploadErrorMessage, uploadImage, validateImage, type UploadProgress } from '@/shared/api/upload';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 
 export const MAX_EVIDENCE = 6;
 
@@ -45,11 +47,6 @@ export interface EvidenceUploadProps {
 let counter = 0;
 const nextId = () => `prova-${(counter += 1)}`;
 
-const PHASE_LABEL: Record<UploadProgress['phase'], string> = {
-  preparing: 'Preparando',
-  uploading: 'Enviando',
-};
-
 /**
  * Anexo de provas: imagens com tipo e 5 MB conferidos antes de qualquer envio, compressão no navegador
  * e envio direto para o armazenamento, com miniatura, progresso real e erro por arquivo. Um arquivo com
@@ -60,7 +57,7 @@ export function EvidenceUpload({
   value,
   onChange,
   purpose = 'evidence',
-  label = 'Anexar print',
+  label: labelProp,
   hint,
   max = MAX_EVIDENCE,
   required,
@@ -70,10 +67,12 @@ export function EvidenceUpload({
   className,
   upload,
 }: EvidenceUploadProps) {
+  const t = useT(messages, 'EvidenceUpload');
+  const label = labelProp ?? t('anexarPrint');
   const inputId = useId();
   const messageId = `${inputId}-mensagem`;
   const inputRef = useRef<HTMLInputElement>(null);
-  const [items, setItems] = useState<Item[]>(() => value.map((url, i) => ({ id: nextId(), name: `Prova ${i + 1}`, status: 'done', progress: 100, phase: 'uploading', preview: url, url, error: null })));
+  const [items, setItems] = useState<Item[]>(() => value.map((url, i) => ({ id: nextId(), name: t('prova', { n: i + 1 }), status: 'done', progress: 100, phase: 'uploading', preview: url, url, error: null })));
   const [notice, setNotice] = useState<string | null>(null);
   const valueRef = useRef(value);
   useEffect(() => {
@@ -93,7 +92,7 @@ export function EvidenceUpload({
       const done: Item[] = value.map((url, i) => {
         const at = available.findIndex((x) => x.url === url);
         if (at >= 0) return available.splice(at, 1)[0] as Item;
-        return { id: nextId(), name: `Prova ${i + 1}`, status: 'done', progress: 100, phase: 'uploading', preview: url, url, error: null };
+        return { id: nextId(), name: t('prova', { n: i + 1 }), status: 'done', progress: 100, phase: 'uploading', preview: url, url, error: null };
       });
       setItems([...done, ...items.filter((i) => i.status !== 'done')]);
     }
@@ -136,7 +135,7 @@ export function EvidenceUpload({
     const picked = [...files];
     const accepted = picked.slice(0, free);
     const left = picked.length - accepted.length;
-    setNotice(left > 0 ? `Só cabem ${max} ${max === 1 ? 'imagem' : 'imagens'}. ${left === 1 ? '1 arquivo ficou' : `${left} arquivos ficaram`} de fora.` : null);
+    setNotice(left > 0 ? t('naoCabem', { max, left }) : null);
     const created: { item: Item; file: File | null }[] = accepted.map((file) => {
       const invalid = validateImage(file);
       if (invalid) return { item: { id: nextId(), name: file.name, status: 'error', progress: 0, phase: 'preparing', preview: null, url: null, error: invalid }, file: null };
@@ -180,10 +179,10 @@ export function EvidenceUpload({
           )}
         </Button>
         <span className="text-xs text-muted">
-          {used} de {max} · PNG, JPG ou WebP de até 5 MB (a imagem é reduzida antes do envio)
+          {t('limite', { used, max })}
         </span>
         <label htmlFor={inputId} className="sr-only">
-          {label}: escolher imagens
+          {t('escolher', { rotulo: label })}
         </label>
         <input
           id={inputId}
@@ -218,13 +217,13 @@ export function EvidenceUpload({
         </p>
       )}
       {items.length > 0 && (
-        <ul className="grid grid-cols-1 gap-2 xs:grid-cols-2 md:grid-cols-3" aria-label="Provas anexadas">
+        <ul className="grid grid-cols-1 gap-2 xs:grid-cols-2 md:grid-cols-3" aria-label={t('anexadas')}>
           {items.map((item, index) => (
             <li key={item.id} className="flex items-center gap-2 rounded-md border border-border bg-surface p-2" data-status={item.status}>
               <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-surface-2">
                 {item.preview ? (
                   // eslint-disable-next-line @next/next/no-img-element -- miniatura de arquivo local ou data URL: não passa pelo otimizador
-                  <img src={item.preview} alt={item.status === 'done' ? `Anexo ${index + 1}` : ''} className="size-full object-cover" />
+                  <img src={item.preview} alt={item.status === 'done' ? t('anexo', { n: index + 1 }) : ''} className="size-full object-cover" />
                 ) : (
                   <AlertCircle className="size-5 text-danger" aria-hidden />
                 )}
@@ -233,16 +232,16 @@ export function EvidenceUpload({
                 <span className="truncate text-xs font-medium text-text">{item.name}</span>
                 {item.status === 'uploading' && (
                   <>
-                    <Progress value={item.progress} max={100} label={`Enviando ${item.name}`} />
+                    <Progress value={item.progress} max={100} label={t('enviando', { nome: item.name })} />
                     <span className="tabular text-xs text-muted">
-                      {PHASE_LABEL[item.phase]} · {item.progress}%
+                      {t('progresso', { fase: t(`fase.${item.phase}`), progresso: item.progress })}
                     </span>
                   </>
                 )}
                 {item.status === 'done' && (
                   <span className="flex items-center gap-1 text-xs text-primary-soft-text">
                     <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />
-                    Enviada
+                    {t('enviada')}
                   </span>
                 )}
                 {item.status === 'error' && (
@@ -255,7 +254,7 @@ export function EvidenceUpload({
               <button
                 type="button"
                 className="flex size-11 shrink-0 items-center justify-center rounded-md text-muted hover:bg-neutral-soft hover:text-text focus-visible:outline-2 focus-visible:outline-accent md:size-8"
-                aria-label={`Remover anexo ${index + 1}`}
+                aria-label={t('remover', { n: index + 1 })}
                 onClick={() => remove(item)}
               >
                 <X className="size-4" aria-hidden />
