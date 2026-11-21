@@ -147,6 +147,8 @@ enum ReportTarget {
   TEAM
   MATCH
   RESULT
+  /// Mensagem do chat de uma partida (issue 125).
+  CHAT_MESSAGE
 }
 
 enum ReportStatus {
@@ -540,6 +542,7 @@ model Tournament {
   registrations Registration[]
   announcements Announcement[]
   podium        TournamentPodium?
+  discordLink   DiscordLink?
 
   @@index([status, startsAt])
   @@index([gameId, status])
@@ -848,6 +851,7 @@ model Match {
   submissions  ResultSubmission[]
   disputes     Dispute[]
   resultEvents ResultEvent[]
+  chatMessages MatchChatMessage[]
 
   @@unique([stageId, nodeId])
   @@index([stageId, round, position])
@@ -1259,4 +1263,51 @@ model ProductEvent {
   @@index([name, createdAt])
   @@index([userId, createdAt])
   @@map("product_events")
+}
+
+// ── Pós-lançamento (issues 121 e 125) ────────────────────────────────
+
+/// Vínculo de um campeonato com um servidor do Discord (issue 121). Nasce pendente, com o hash de um código de uso
+/// único que a organização cola em `/nova-arena vincular`; vira ativo com o servidor e o canal dos avisos.
+model DiscordLink {
+  id                 String    @id @default(uuid()) @db.Uuid
+  tournamentId       String    @unique @db.Uuid
+  /// SHA-256 do código de vínculo (o código em si nunca é guardado). Nulo depois de usado.
+  codeHash           String?   @unique
+  codeExpiresAt      DateTime? @db.Timestamptz(3)
+  guildId            String?
+  guildName          String?
+  /// Canal onde o comando foi usado: é para lá que vão os avisos.
+  channelId          String?
+  linkedById         String?   @db.Uuid
+  linkedAt           DateTime? @db.Timestamptz(3)
+  createdById        String    @db.Uuid
+  lastAnnouncementAt DateTime? @db.Timestamptz(3)
+  lastError          String?
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(3)
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+  @@map("discord_links")
+}
+
+/// Mensagem do chat de uma partida (issue 125): jogadores da partida e organização. Ocultar não apaga (moderação).
+model MatchChatMessage {
+  id          String    @id @default(uuid()) @db.Uuid
+  matchId     String    @db.Uuid
+  authorId    String    @db.Uuid
+  /// `PLAYER` ou `STAFF` no momento da mensagem.
+  authorRole  String
+  body        String
+  hiddenAt    DateTime? @db.Timestamptz(3)
+  hiddenById  String?   @db.Uuid
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, createdAt])
+  @@index([authorId, createdAt])
+  @@map("match_chat_messages")
 }

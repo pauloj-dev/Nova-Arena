@@ -91,6 +91,7 @@ const FLAG_TEXT: Record<FeatureFlagKey, { label: string; description: string }> 
   publicSignup: { label: 'Cadastro aberto', description: 'Qualquer pessoa pode criar conta. Desligado, só entra quem já tem conta.' },
   resultSubmission: { label: 'Envio de resultado pelo participante', description: 'Capitães e jogadores enviam o placar com print. Desligado, só a organização lança resultados.' },
   pushNotifications: { label: 'Notificações push', description: 'Avisos no celular mesmo com o site fechado. Ainda em preparação.' },
+  resultOcr: { label: 'Leitura do print (experimental)', description: 'Botão "Ler o print" no lançamento de queda e no envio de resultado: sugere colocação, kills e placar a partir da imagem, sempre com conferência antes de salvar.' },
 };
 
 const flagStore = () =>

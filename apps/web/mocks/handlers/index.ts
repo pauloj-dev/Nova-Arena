@@ -15,6 +15,9 @@ import * as adminSettings from './admin-settings';
 import * as adminTournaments from './admin-tournaments';
 import * as adminUsers from './admin-users';
 import * as auth from './auth';
+import * as calendar from './calendar';
+import * as chat from './chat';
+import * as discord from './discord';
 import * as competition from './competition';
 import * as games from './games';
 import * as gamesAdmin from './games-admin';
@@ -47,6 +50,10 @@ export const modules: MockModule[] = [
   adminModeration,
   adminSettings,
   notificationsModule,
+  // Pós-lançamento (issues 121 e 125): rotas específicas, antes de `/tournaments/:slug`.
+  discord,
+  chat,
+  calendar,
   reports,
   profileStats,
   users,
