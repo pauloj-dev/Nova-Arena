@@ -8,7 +8,7 @@
  */
 import 'server-only';
 import { createApp, TOURNAMENTS_TAG, userTag, type App } from '@nova/api';
-import { page, PublicUser, Tournament, TournamentSummary, type TournamentSummary as Summary } from '@nova/schemas';
+import { page, Podium, PublicUser, Tournament, TournamentSummary, type TournamentSummary as Summary } from '@nova/schemas';
 import { unstable_cache } from 'next/cache';
 import type { ZodType } from 'zod';
 import { isModuleMocked } from '@/shared/api/mode';
@@ -30,6 +30,12 @@ async function getJson<T>(path: string, schema: ZodType<T>): Promise<T | null> {
 export async function getPublicTournament(slug: string): Promise<Tournament | null> {
   if (isModuleMocked('tournaments')) return null;
   return unstable_cache(() => getJson(`/tournaments/${encodeURIComponent(slug)}`, Tournament), ['public-tournament', slug], { tags: [TOURNAMENTS_TAG], revalidate: FALLBACK_SECONDS })();
+}
+
+/** Pódio do campeonato encerrado (issue #89: arte de resultado e imagem de compartilhamento). */
+export async function getPublicPodium(tournamentId: string): Promise<Podium | null> {
+  if (isModuleMocked('competition')) return null;
+  return unstable_cache(() => getJson(`/tournaments/${encodeURIComponent(tournamentId)}/podium`, Podium.nullable()), ['public-podium', tournamentId], { tags: [TOURNAMENTS_TAG], revalidate: FALLBACK_SECONDS })();
 }
 
 export async function getPublicProfile(nickname: string): Promise<PublicUser | null> {

@@ -1,9 +1,11 @@
 /**
  * Imagem do link compartilhado do campeonato (issue #77): nome, jogo, data e vagas, com a identidade Nova Green.
+ * Campeonato encerrado (com pódio) usa a arte de campeões (issue #89), a mesma de `/c/[slug]/arte`.
  * O gerador de imagem não lê variáveis CSS, então as cores dos tokens se repetem aqui.
  */
 import { ImageResponse } from 'next/og';
-import { getPublicTournament } from '@/shared/server/public-data';
+import { championsImage } from '@/features/artwork/og';
+import { getPublicPodium, getPublicTournament } from '@/shared/server/public-data';
 
 export const alt = 'Campeonato na Nova Arena';
 export const size = { width: 1200, height: 630 };
@@ -23,6 +25,10 @@ const dateFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo'
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const t = await getPublicTournament(slug).catch(() => null);
+  if (t && (t.status === 'FINISHED' || t.status === 'ARCHIVED')) {
+    const podium = await getPublicPodium(t.id).catch(() => null);
+    if (podium && podium.places.length > 0) return championsImage(t, podium, 'landscape');
+  }
   const title = t?.name ?? 'Campeonato de eSports mobile';
   const subtitle = t ? `${t.gameIcon} ${t.gameName} · ${t.modeName}` : 'Free Fire · Clash Royale · 8 Ball Pool · eFootball';
   const details = t ? [t.startsAt ? `Começa ${dateFmt.format(new Date(t.startsAt))}` : null, `${t.takenSlots}/${t.maxParticipants} vagas`].filter(Boolean).join('  ·  ') : 'Inscreva-se, monte seu squad e acompanhe as partidas';
