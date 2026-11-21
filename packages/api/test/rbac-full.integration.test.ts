@@ -69,6 +69,7 @@ const MATRIX: Row[] = [
   r('GET /me', PUBLIC, undefined, 'visitante recebe null'),
   r('GET /games', PUBLIC),
   r('GET /games/:slug', PUBLIC, ({ ids }) => `/games/${ids.gameSlug}`),
+  r('GET /games/:slug/ranking', PUBLIC, ({ ids }) => `/games/${ids.gameSlug}/ranking`),
   r('GET /tournaments', PUBLIC),
   r('GET /tournaments/:slug', PUBLIC, ({ ids }) => `/tournaments/${ids.tournament}`),
   r('GET /tournaments/:id/announcements', PUBLIC, ({ ids }) => `/tournaments/${ids.tournament}/announcements`),

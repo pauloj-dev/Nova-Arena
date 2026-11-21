@@ -20,7 +20,6 @@ const EXPECTED_GAPS: Record<string, string> = {
   'POST /auth/dev-login': 'atalho do protótipo (entrar como outra conta); nunca vai para produção',
   'POST /uploads/token': 'o envio real usa o `@vercel/blob/client` em `/uploads/blob` (#73)',
   'PUT /uploads/:param': 'o arquivo vai direto para o Blob; a confirmação é `/uploads/complete` (#73)',
-  'GET /games/:param/ranking': 'ranking por jogo sai dos resultados das partidas (B2)',
 };
 
 /** `/teams/:id/members/:userId` → `/teams/:param/members/:param` (o nome do parâmetro não importa). */
@@ -116,5 +115,21 @@ describe('atalhos do protótipo não existem na API real', () => {
       return /devVerifyToken|devResetToken|dev-login|dev-code|TwoFactorDevCode/.test(code);
     });
     expect(offenders.map((f) => f.slice(SRC.length))).toEqual([]);
+  });
+});
+
+/** #102 (Marco M2): **todo** módulo da API simulada tem a API real — preview e staging rodam com `NEXT_PUBLIC_API_MOCK=none`. */
+describe('paridade de contrato: todos os módulos', () => {
+  const real = realRoutes();
+  const all = readdirSync(HANDLERS)
+    .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && f !== 'index.ts')
+    .map((f) => f.replace(/\.ts$/, ''));
+
+  it('toda rota de todo módulo do mock existe na API real (exceto as lacunas registradas e o atalho do 2FA)', () => {
+    expect(all.length).toBeGreaterThanOrEqual(20);
+    const mock = mockRoutes(all);
+    expect(mock.size).toBeGreaterThan(180);
+    const missing = [...mock].filter((route) => !real.has(route) && !(route in EXPECTED_GAPS) && route !== 'GET /me/2fa/dev-code').sort();
+    expect(missing).toEqual([]);
   });
 });

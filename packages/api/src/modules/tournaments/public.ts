@@ -8,8 +8,8 @@
  * - Comunicados: para todos, uma fase ou um grupo; enviar e apagar é da organização (não do moderador);
  *   auditados. A entrega por notificação chega com a issue #98.
  */
-import { audited, withAudit, type Prisma } from '@nova/db';
-import { Announcement, AnnouncementInput, page, Tournament, TournamentAccess, TournamentListQuery, TournamentSummary, type TournamentStatus } from '@nova/schemas';
+import { audited, withAudit, type Prisma, type PrismaClient } from '@nova/db';
+import { ACTIVE_REGISTRATION_STATUSES, Announcement, AnnouncementInput, page, Tournament, TournamentAccess, TournamentListQuery, TournamentSummary, type TournamentStatus } from '@nova/schemas';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { body, respond, type AppContext, type AppEnv } from '../../context';
@@ -17,6 +17,8 @@ import { badRequest, conflict, notFound } from '../../errors';
 import { assertTournamentAccess, currentRoles, tournamentAccessDecision } from '../../auth/rbac';
 import { currentSession, requireSession } from '../../auth/session';
 import { clientIp } from '../../security';
+import { readRun } from '../../competition/run';
+import { followersOf, notify, publish } from '../../notify';
 import { revalidateTournaments } from '../../revalidate';
 import { accessRole, countsOf, toTournament, toTournamentSummary, tournamentInclude } from './views';
 
@@ -122,6 +124,28 @@ publicTournaments.get('/tournaments/:id/announcements', async (c) => {
   return respond(c, z.array(Announcement), await toAnnouncements(c, rows));
 });
 
+/**
+ * Quem recebe o comunicado (mesma regra da API simulada): o campeonato todo = inscrições ativas (pessoa ou elenco do
+ * squad) + quem segue o campeonato (RN-15); uma fase = quem está na chave dela (sem chave ainda: os confirmados); um
+ * grupo = os inscritos do grupo.
+ */
+async function announcementAudience(db: PrismaClient, tournamentId: string, stageId: string | null, groupId: string | null): Promise<string[]> {
+  const usersOf = (regs: { userId: string | null; members: { userId: string }[] }[]) => regs.flatMap((r) => [...(r.userId ? [r.userId] : []), ...r.members.map((m) => m.userId)]);
+  const select = { userId: true, members: { select: { userId: true } } } as const;
+  if (stageId === null) {
+    const regs = await db.registration.findMany({ where: { tournamentId, status: { in: ACTIVE_REGISTRATION_STATUSES } }, select });
+    return [...usersOf(regs), ...(await followersOf(db, 'TOURNAMENT', tournamentId))];
+  }
+  if (groupId !== null) {
+    const regs = await db.registration.findMany({ where: { groups: { some: { groupId } } }, select });
+    return usersOf(regs);
+  }
+  const stage = await db.stage.findUnique({ where: { id: stageId }, select: { engineSnapshot: true, confirmedAt: true, unlocked: true } });
+  const run = stage ? readRun(stage) : null;
+  const regs = await db.registration.findMany({ where: run ? { id: { in: run.structure.entrants.map((e) => e.id) } } : { tournamentId, status: 'CONFIRMED' }, select });
+  return usersOf(regs);
+}
+
 publicTournaments.post('/tournaments/:id/announcements', async (c) => {
   const db = c.get('deps').db();
   const t = await findVisible(c, c.req.param('id'));
@@ -153,6 +177,11 @@ publicTournaments.post('/tournaments/:id/announcements', async (c) => {
     return a;
   });
   revalidateTournaments(c);
+  // Depois do commit (como na API simulada): quem está no público recebe a notificação e a página ao vivo é avisada.
+  const recipients = new Set(await announcementAudience(db, t.id, input.stageId, input.groupId));
+  recipients.delete(session.userId);
+  await notify(c, recipients, { type: 'ANNOUNCEMENT', title: `${t.name}: ${created.title}`, body: created.body.length > 200 ? `${created.body.slice(0, 197)}…` : created.body, link: `/c/${t.slug}` });
+  await publish(c, `tournament:${t.id}`, { type: 'announcement.created', tournamentId: t.id, title: created.title });
   const [view] = await toAnnouncements(c, [created]);
   return respond(c, Announcement, view as Announcement, 201);
 });

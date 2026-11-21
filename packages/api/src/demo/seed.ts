@@ -318,7 +318,7 @@ export async function seedDemo(db: PrismaClient, env: Env, data: DemoData, opts:
     });
   }
   await db.registration.createMany({
-    data: data.registrations.map((r) => ({
+    data: data.registrations.map((r, i) => ({
       id: id(r.id),
       tournamentId: id(r.tournamentId),
       userId: opt(r.userId),
@@ -330,7 +330,8 @@ export async function seedDemo(db: PrismaClient, env: Env, data: DemoData, opts:
       statusReason: r.statusReason,
       reservedUntil: date(r.reservedUntil),
       rulesAcceptedAt: new Date(r.createdAt),
-      createdAt: new Date(r.createdAt),
+      // O protótipo arredonda as datas para a hora: a ordem do seed (lista de espera, chaves) vai nos milissegundos.
+      createdAt: new Date(new Date(r.createdAt).getTime() + i),
     })),
   });
   const captainOf = new Map(data.teams.map((t) => [t.id, t.captainId]));
