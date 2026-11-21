@@ -83,7 +83,8 @@ test.describe('Admin · dashboard', () => {
     await expect(page.getByRole('button', { name: '30 dias' })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByText(/\d+ cadastros nos últimos 30 dias/)).toBeVisible();
     await page.getByRole('button', { name: '7 dias' }).click();
-    await expect(page.getByText('10 partidas validadas nos últimos 7 dias')).toBeVisible();
+    // `exact`: o card de metas do produto (#101) também cita a North Star ("North Star: 10 partidas validadas…").
+    await expect(page.getByText('10 partidas validadas nos últimos 7 dias', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: '90 dias' }).click();
     await expect(page.getByText('66 cadastros nos últimos 90 dias')).toBeVisible();
     await expect(page.getByRole('img', { name: /Gráfico de área: novos cadastros por dia nos últimos 90 dias\. Total: 66/ })).toBeVisible();
