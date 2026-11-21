@@ -55,6 +55,9 @@ import { fraud, watchAdminActions } from './modules/fraud';
 import { privacy } from './modules/privacy';
 
 export const API_BASE_PATH = '/api/v1';
+/** Metas de latência do RNF-02 (p95), usadas no aviso de requisição lenta. */
+export const SLOW_READ_MS = 300;
+export const SLOW_WRITE_MS = 600;
 
 /**
  * Módulos registrados. Entram, na ordem do B1: auth (#67 ✓, OAuth #68 ✓), users e me (#72), roles e audit (#70: `auth/rbac.ts` ✓; rotas na #72),
@@ -106,7 +109,8 @@ export function createApp(options: CreateAppOptions = {}) {
         return cache;
       }),
   };
-  const baseLog = createLogger(options.logSink);
+  // Campos fixos em toda linha de log (filtros do log drain): o serviço, a região e a versão publicada.
+  const baseLog = createLogger(options.logSink, { service: 'api', ...(process.env.VERCEL_REGION ? { region: process.env.VERCEL_REGION } : {}), ...(process.env.VERCEL_GIT_COMMIT_SHA ? { release: process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7) } : {}) });
 
   const app = new Hono<AppEnv>().basePath(API_BASE_PATH);
 
@@ -121,7 +125,12 @@ export function createApp(options: CreateAppOptions = {}) {
     const started = performance.now();
     await next();
     c.header('X-Request-Id', requestId);
-    log.info('requisição', { method: c.req.method, path: c.req.path, status: c.res.status, durationMs: Math.round(performance.now() - started) });
+    const durationMs = Math.round(performance.now() - started);
+    log.info('requisição', { method: c.req.method, path: c.req.path, status: c.res.status, durationMs });
+    // Meta do RNF-02 (p95: 300 ms leitura, 600 ms escrita): a requisição acima dela vira aviso, base do alerta de
+    // latência no log drain (docs/operacao.md). Jobs e Cron têm tempo próprio e ficam fora.
+    const budget = c.req.method === 'GET' ? SLOW_READ_MS : SLOW_WRITE_MS;
+    if (durationMs > budget && !/^\/api\/v1\/(jobs|cron)\//.test(c.req.path)) log.warn('requisição acima da meta', { method: c.req.method, route: c.req.routePath, status: c.res.status, durationMs, budgetMs: budget });
   });
 
   // Cache (#111): o que não escolheu um cache público (`http-cache.ts`) sai com `private, no-store`.

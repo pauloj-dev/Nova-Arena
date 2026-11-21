@@ -281,7 +281,10 @@ export function ModerationPage({ initialTab }: { initialTab?: string }) {
             value: 'alertas',
             label: (
               <span className="inline-flex items-center gap-2">
-                Alertas antifraude
+                {/* Rótulo curto: as três abas cabem em 360 px. */}
+                <span>
+                  Alertas<span className="sr-only"> antifraude</span>
+                </span>
                 {openAlerts > 0 && (
                   <Badge tone="danger">
                     {openAlerts}

@@ -19,9 +19,28 @@ export async function recordJobFailure(c: AppContext, failure: { job: string; so
   }
 }
 
+/** Chave do último Cron que terminou bem (alerta "Cron sem rodar", issue #116). */
+export const cronHeartbeatKey = (job: string) => `cron:last:${job}`;
+
+/**
+ * Marca que o Cron rodou: uma linha `cron ok` no log (alerta por ausência no *log drain*) e a hora no cache (Saúde do
+ * Sistema). Nunca derruba o job.
+ */
+async function heartbeat(c: AppContext, job: string): Promise<void> {
+  const at = c.get('deps').now().toISOString();
+  c.get('log').info('cron ok', { job, at });
+  try {
+    await c.get('deps').cache(c.get('env')).set(cronHeartbeatKey(job), at, 7 * 24 * 3600);
+  } catch (error) {
+    c.get('log').warn('não foi possível registrar a execução do cron', { job, error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 export async function runJob<T>(c: AppContext, job: string, source: 'qstash' | 'cron', fn: () => Promise<T>): Promise<T> {
   try {
-    return await fn();
+    const result = await fn();
+    if (source === 'cron') await heartbeat(c, job);
+    return result;
   } catch (error) {
     // Erro esperado (corpo inválido, 4xx) não é falha de infraestrutura.
     if (error instanceof HttpProblem && error.status < 500) throw error;

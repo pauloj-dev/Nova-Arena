@@ -18,6 +18,7 @@ import { body, respond, type AppEnv, type DependencyCheck } from '../../context'
 import type { Env } from '../../env';
 import { notFound } from '../../errors';
 import { sentryErrorStats, SENTRY_ATTENTION_PER_HOUR, type ErrorTrackingStatus } from '../../observability';
+import { cronHeartbeatKey } from '../../jobs/runner';
 import { markUnchanged } from './events';
 import { FLAG_KEYS, FLAG_TEXT, FLAGS_KEY, isFlagKey, loadFlags, loadSettings, publishSiteChange, SETTINGS_KEY, siteFlags, siteSettings, toFeatureFlag, toPublicSettings } from './store';
 
@@ -156,6 +157,15 @@ export const emailCheck: DependencyCheck = async (env) => {
 
 const detailOf = (r: { status: ServiceStatus; error: string | null; configured: boolean }, ok: string) => (r.status === 'down' ? `Fora do ar: ${r.error ?? 'erro desconhecido'}.` : r.configured ? ok : 'Ainda não configurado neste ambiente.');
 
+/** Card do Cron: a varredura roda a cada minuto; mais de 5 min sem rodar é alerta (issue #116). */
+export const CRON_STALE_MS = 5 * 60_000;
+function cronCard(lastIso: string | null, now: Date, configured: boolean): { status: ServiceStatus; detail: string } {
+  if (!lastIso) return { status: 'degraded', detail: configured ? 'A varredura do Cron ainda não rodou (ou o cache foi limpo). Confira Vercel → Cron Jobs.' : 'Cron ainda não configurado neste ambiente (CRON_SECRET).' };
+  const minutes = Math.floor((now.getTime() - new Date(lastIso).getTime()) / 60_000);
+  if (now.getTime() - new Date(lastIso).getTime() > CRON_STALE_MS) return { status: 'down', detail: `A varredura do Cron não roda há ${minutes} min (esperado: a cada minuto).` };
+  return { status: 'ok', detail: minutes < 1 ? 'Varredura do Cron rodou há menos de 1 min.' : `Varredura do Cron rodou há ${minutes} min.` };
+}
+
 /** Card do Sentry na Saúde do Sistema. */
 function errorsCard(e: ErrorTrackingStatus): { status: ServiceStatus; detail: string } {
   if (!e.configured) return { status: 'degraded', detail: 'Sentry ainda não configurado neste ambiente (SENTRY_DSN).' };
@@ -172,7 +182,7 @@ site.get('/admin/health', async (c) => {
   const { checks, db: getDb, now } = c.get('deps');
   const db = getDb();
   const dayAgo = new Date(now().getTime() - 24 * 3600_000);
-  const [database, cache, queues, realtime, storage, email, failedJobs, recentFailures, storageBytes, errors] = await Promise.all([
+  const [database, cache, queues, realtime, storage, email, failedJobs, recentFailures, storageBytes, errors, lastSweep] = await Promise.all([
     probe(() => checks.database(env)),
     probe(() => checks.redis(env)),
     probe(() => checks.qstash(env)),
@@ -183,6 +193,11 @@ site.get('/admin/health', async (c) => {
     db.jobFailure.count({ where: { resolvedAt: null, createdAt: { gte: dayAgo } } }),
     db.upload.aggregate({ _sum: { size: true } }),
     sentryErrorStats(env, now()),
+    c
+      .get('deps')
+      .cache(env)
+      .get<string>(cronHeartbeatKey('cron:sweep'))
+      .catch(() => null),
   ]);
   const storageUsedMb = Math.round(((storageBytes._sum.size ?? 0) / (1024 * 1024)) * 100) / 100;
   // Falha de job em aberto deixa a fila "com atenção" mesmo com o QStash no ar.
@@ -196,6 +211,7 @@ site.get('/admin/health', async (c) => {
     { key: 'storage', name: 'Armazenamento de arquivos', status: storage.status, detail: storage.status === 'down' ? detailOf(storage, '') : `${storageUsedMb} MB em uso (provas, logos e banners).${storage.configured ? '' : ' Envio ainda não configurado neste ambiente.'}`, latencyMs: storage.latencyMs },
     { key: 'email', name: 'E-mail', status: email.status, detail: detailOf(email, 'Resend configurado e respondendo.'), latencyMs: email.latencyMs },
     { key: 'errors', name: 'Monitoramento de erros', ...errorsCard(errors), latencyMs: null },
+    { key: 'cron', name: 'Tarefas de minuto em minuto (Cron)', ...cronCard(lastSweep, now(), Boolean(env.CRON_SECRET)), latencyMs: null },
   ];
   c.header('Cache-Control', 'no-store');
   return respond(c, SystemHealth, {

@@ -107,10 +107,14 @@ describe.skipIf(!url)('configurações, flags, saúde e métricas (Postgres)', (
     expect(FeatureFlags.parse((await h.call(null, 'GET', '/site/flags')).data).ranking).toBe(true);
   });
 
-  it('saúde do sistema: seis serviços com o estado real, versão publicada e falhas de jobs em aberto', async () => {
+  it('saúde do sistema: oito serviços com o estado real, versão publicada e falhas de jobs em aberto', async () => {
     const failure = await db.jobFailure.create({ data: { job: `cron:teste-${h.stamp}`, source: 'cron', error: 'quebrou' } });
     const health = SystemHealth.parse((await h.call('novo', 'GET', '/admin/health')).data);
-    expect(health.services.map((s) => s.key)).toEqual(['database', 'cache', 'queues', 'realtime', 'storage', 'email']);
+    expect(health.services.map((s) => s.key)).toEqual(['database', 'cache', 'queues', 'realtime', 'storage', 'email', 'errors', 'cron']);
+    // Sem Sentry e sem Cron configurados neste teste (#116): os dois aparecem como "com atenção", nunca quebram.
+    expect(health.services.find((s) => s.key === 'errors')).toMatchObject({ status: 'degraded' });
+    expect(health.services.find((s) => s.key === 'cron')).toMatchObject({ status: 'degraded' });
+    expect(health.errorRate).toBeNull();
     expect(health.version).toBe('abcdef1');
     expect(health.environment).toBe('preview');
     expect(health.failedJobs).toBeGreaterThanOrEqual(1);
