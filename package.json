@@ -15,7 +15,8 @@
     "e2e": "pnpm --filter web e2e",
     "storybook": "pnpm --filter @nova/ui storybook",
     "prepare": "lefthook install || true",
-    "check:colors": "node packages/ui/scripts/check-colors.mjs packages/ui/src apps/web/app apps/web/features apps/web/shared"
+    "check:colors": "node packages/ui/scripts/check-colors.mjs packages/ui/src apps/web/app apps/web/features apps/web/shared",
+    "smoke": "node ops/smoke/smoke.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.0",
