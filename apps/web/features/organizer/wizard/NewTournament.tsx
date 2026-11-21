@@ -68,7 +68,7 @@ function StartScreen({ games, templates, templatesError, onRetry, onStart }: Sta
                   games={games}
                   actions={
                     <Button variant="secondary" onClick={() => onStart({ kind: 'template', id: template.id })} aria-label={`Usar o modelo ${template.name}`}>
-                      Usar este modelo
+                      Usar o modelo
                     </Button>
                   }
                 />

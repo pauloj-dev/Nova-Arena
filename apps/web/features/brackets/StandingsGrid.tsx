@@ -59,7 +59,7 @@ function PositionCell({ row, drawSeed }: { row: StandingRow; drawSeed?: string |
           aria-label={`${row.position}º lugar. Ver como o desempate foi decidido`}
           className="tabular flex min-h-11 w-full items-center justify-center gap-0.5 rounded-md px-1 underline decoration-dotted underline-offset-4 hover:bg-neutral-soft md:min-h-9"
         >
-          {row.position}
+          {row.position}º
           <Info className="size-3.5 shrink-0 text-muted" aria-hidden />
         </button>
       </Popover.Trigger>

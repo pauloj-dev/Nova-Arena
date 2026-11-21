@@ -516,7 +516,7 @@ test.describe('Liga Semanal Clash Royale: duelos, agenda e W.O.', () => {
     const winner = other.participants[0]?.name as string;
     await manage(page, LIGA, 'partidas');
 
-    await card(page, other.id).getByRole('button', { name: /^Agendar: / }).click();
+    await card(page, other.id).getByRole('button', { name: /^(Agendar|Reagendar) e sala: / }).click();
     const dialog = page.getByRole('dialog', { name: /^Agendar: / });
     const when = `${new Date(Date.now() + 2 * 24 * 3600_000).toISOString().slice(0, 10)}T20:00`;
     await expect(dialog.getByText('(horário de Brasília)')).toBeVisible();

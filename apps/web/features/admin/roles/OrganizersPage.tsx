@@ -93,7 +93,8 @@ function OrganizersList() {
       header: 'Organizador',
       primary: true,
       cell: (o) => (
-        <Link href={`/admin/usuarios/${o.id}`} className="inline-flex min-h-11 items-center rounded-sm hover:underline md:min-h-0" aria-label={`Abrir o perfil de ${o.nickname}`}>
+        <Link href={`/admin/usuarios/${o.id}`} className="inline-flex min-h-11 items-center rounded-sm hover:underline md:min-h-0">
+          <span className="sr-only">Abrir o perfil de </span>
           <UserIdentity user={o} />
         </Link>
       ),

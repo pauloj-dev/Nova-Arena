@@ -35,7 +35,7 @@ export function TemplatesPage() {
               <>
                 <Button asChild>
                   <Link href={`/organizador/novo?modelo=${template.id}`} aria-label={`Usar o modelo ${template.name}`}>
-                    Usar modelo
+                    Usar o modelo
                   </Link>
                 </Button>
                 {template.ownerId !== null && (

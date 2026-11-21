@@ -161,7 +161,7 @@ export function ScoringModelsSection({ game }: { game: Game }) {
                     Duplicar
                   </Button>
                   {!model.isDefault && (
-                    <Button variant="secondary" size="sm" onClick={() => makeDefault(model)} disabled={update.isPending} iconLeft={<Star className="size-4" aria-hidden />} aria-label={`Tornar ${model.name} o padrão`}>
+                    <Button variant="secondary" size="sm" onClick={() => makeDefault(model)} disabled={update.isPending} iconLeft={<Star className="size-4" aria-hidden />} aria-label={`Tornar padrão: ${model.name}`}>
                       Tornar padrão
                     </Button>
                   )}
