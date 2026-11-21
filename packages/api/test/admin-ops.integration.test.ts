@@ -47,7 +47,8 @@ describe.skipIf(!url)('painel Admin: campeonatos, comunicados, auditoria e moder
   }
 
   beforeAll(async () => {
-    db = createDb({ connectionString: url, max: 6 });
+    // Folga no pool: o lote da notificação grava 200 avisos em sequência enquanto os outros arquivos rodam.
+    db = createDb({ connectionString: url, max: 10 });
     h = createHarness(db, 'op', QSTASH);
     await h.makeUser('rafael', ['SUPER_ADMIN', 'ADMIN']);
     await h.makeUser('ana', ['ADMIN']);
