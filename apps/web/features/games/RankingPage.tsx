@@ -2,9 +2,10 @@
 
 import type { GameRanking, GameRankingEntry } from '@nova/schemas';
 import { Avatar, Button, cn, DataTable, EmptyState, ErrorState, Skeleton, type Column } from '@nova/ui';
-import { Info, Medal } from 'lucide-react';
+import { Info, Medal, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { SeasonRankingSection } from '@/features/seasons/SeasonRankingSection';
 import { listHref } from '@/features/tournaments/filters';
 import { errorMessage } from '@/shared/api/client';
 import { useGameRanking, useGames } from '@/shared/api/hooks/games';
@@ -95,6 +96,16 @@ export function RankingPage() {
               })}
             </ul>
           </nav>
+
+          <SeasonRankingSection key={selected.slug} game={selected} />
+
+          <p className="flex items-center gap-2 text-sm">
+            <Trophy className="size-4 text-accent" aria-hidden />
+            <Link href="/ligas" className="font-semibold text-accent underline-offset-2 hover:underline">
+              Ver as ligas semanais
+            </Link>
+            <span className="text-muted">— campeonatos que somam pontos ao longo da temporada.</span>
+          </p>
 
           <p className="flex items-start gap-2 rounded-md bg-info-soft px-3 py-2 text-sm text-info-soft-text">
             <Info className="mt-0.5 size-4 shrink-0" aria-hidden />

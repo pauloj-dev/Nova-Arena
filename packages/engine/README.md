@@ -665,6 +665,22 @@ Esse roteiro, com dados fixos e o campeão conferido por soma direta, é o teste
 
 ---
 
+## 7. Rating da temporada e ligas (#120, ADR-0003)
+
+```ts
+import { ratingDeltas, replayRatings, rankRatings, ratingMatchesFromStage, finalPlacements, computeLeagueTable } from '@nova/engine';
+```
+
+- `ratingDeltas(participantes, config?)`: variação de cada um numa partida (`{ id, rating, placement }`). Duelo = ELO
+  clássico (`K = 32`, escala 400); com N participantes, cada par vale `K / (N − 1)`. A soma é sempre zero.
+- `replayRatings(partidas, config?)`: replay cronológico (pelo `at`, depois pelo id) → `{ players, teams }`, cada um com
+  `records` (rating, pico, V/E/D, última variação) e `history`. Lado vale a média dos jogadores; sem jogador, 1000.
+- `rankRatings(pool)`: tabela com posição (rating arredondado igual = mesma posição) e `provisional` (< 5 partidas).
+- `ratingMatchesFromStage(structure, state, { resolve, timeOf, idPrefix })`: partidas do retrato que contam (sem W.O.,
+  anulado, bye ou ausente).
+- `finalPlacements(ordensDasFases, podio?)` e `computeLeagueTable(resultados, regra)`: colocação final de um campeonato
+  e a tabela da liga (`leaguePointsFor`, `validateLeagueRule`).
+
 ## Desenvolvimento
 
 ```bash

@@ -1,6 +1,6 @@
 'use client';
 
-import { FileStack, Home, LayoutDashboard, PlusCircle, Trophy } from 'lucide-react';
+import { FileStack, Home, LayoutDashboard, ListOrdered, PlusCircle, Trophy } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { AreaShell, type AreaNavItem } from '@/shared/layout/AreaShell';
 import { RequireRole } from '@/shared/layout/RequireRole';
@@ -11,6 +11,7 @@ const nav: AreaNavItem[] = [
   { href: '/organizador/campeonatos', label: 'Meus campeonatos', icon: Trophy },
   { href: '/organizador/novo', label: 'Criar campeonato', icon: PlusCircle },
   { href: '/organizador/modelos', label: 'Modelos', icon: FileStack },
+  { href: '/organizador/ligas', label: 'Ligas', icon: ListOrdered },
 ];
 /** Quem é só da equipe de um evento (co-organizador ou moderador sem o papel de organizador) não tem painel próprio. */
 const staffNav: AreaNavItem[] = [{ href: '/', label: 'Voltar ao site', icon: Home, exact: true }];

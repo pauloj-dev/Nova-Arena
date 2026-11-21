@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, Flag, Gamepad2, LayoutDashboard, Megaphone, ScrollText, Settings, Shield, Target, Trophy, Users } from 'lucide-react';
+import { Activity, CalendarRange, Flag, Gamepad2, LayoutDashboard, Megaphone, ScrollText, Settings, Shield, Target, Trophy, Users } from 'lucide-react';
 import { AreaShell, type AreaNavItem } from '@/shared/layout/AreaShell';
 import { RequireRole } from '@/shared/layout/RequireRole';
 
@@ -11,6 +11,7 @@ const nav: AreaNavItem[] = [
   { href: '/admin/organizadores', label: 'Organizadores', icon: Target },
   { href: '/admin/campeonatos', label: 'Campeonatos', icon: Trophy },
   { href: '/admin/jogos', label: 'Jogos e regras', icon: Gamepad2 },
+  { href: '/admin/temporadas', label: 'Temporadas', icon: CalendarRange },
   { href: '/admin/moderacao', label: 'Moderação', icon: Flag },
   { href: '/admin/auditoria', label: 'Auditoria', icon: ScrollText },
   { href: '/admin/comunicados', label: 'Comunicados', icon: Megaphone },

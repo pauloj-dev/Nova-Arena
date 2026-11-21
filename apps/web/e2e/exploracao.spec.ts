@@ -617,7 +617,7 @@ test.describe('jogos e ranking', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'Ranking de Clash Royale' })).toBeVisible();
     await expect(page.getByRole('heading', { name: /Ninguém no ranking/ })).toHaveCount(0);
     // Tabela no desktop, cartões no celular: nos dois o jogador é um link para o perfil.
-    const bianca = page.getByRole('main').getByRole('link', { name: 'Bianca' }).locator('visible=true');
+    const bianca = page.getByRole('region', { name: 'Ranking de Clash Royale' }).getByRole('link', { name: 'Bianca' }).locator('visible=true');
     await expect(bianca).toHaveAttribute('href', '/u/Bianca');
     if (!isMobile(page)) {
       const table = page.getByRole('table', { name: 'Ranking de Clash Royale' });

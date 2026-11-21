@@ -47,17 +47,17 @@ export interface DbLeague {
 
 export const RATING_SETTINGS: RatingSettings = { initial: DEFAULT_RATING_CONFIG.initial, k: DEFAULT_RATING_CONFIG.k, provisionalMatches: DEFAULT_RATING_CONFIG.provisionalMatches };
 
-/** Temporada do ano corrente para cada jogo (como o seed do banco faz com a do ano). */
+/** Temporada do ano corrente para cada jogo (como o seed do banco): de 1º de janeiro, 0h de Brasília (03:00 UTC). */
 function seedSeasons(): DbSeason[] {
   const year = new Date().getUTCFullYear();
   return db().games.map((g) => ({
     id: `season_${g.id}_${year}`,
     gameId: g.id,
     name: `Temporada ${year}`,
-    startsAt: `${year}-01-01T00:00:00.000Z`,
-    endsAt: `${year + 1}-01-01T00:00:00.000Z`,
+    startsAt: `${year}-01-01T03:00:00.000Z`,
+    endsAt: `${year + 1}-01-01T03:00:00.000Z`,
     createdById: 'u_rafael',
-    createdAt: `${year}-01-01T00:00:00.000Z`,
+    createdAt: `${year}-01-01T03:00:00.000Z`,
   }));
 }
 
@@ -74,11 +74,11 @@ function seedLeagues(): DbLeague[] {
       description: 'Um Open por semana. Os pontos de cada colocação somam na tabela da temporada.',
       gameId: t.gameId,
       ownerId: t.ownerId,
-      startsAt: `${year}-01-01T00:00:00.000Z`,
-      endsAt: `${year + 1}-01-01T00:00:00.000Z`,
+      startsAt: `${year}-01-01T03:00:00.000Z`,
+      endsAt: `${year + 1}-01-01T03:00:00.000Z`,
       rule: DEFAULT_LEAGUE_RULE,
       tournamentIds: [t.id],
-      createdAt: `${year}-01-01T00:00:00.000Z`,
+      createdAt: `${year}-01-01T03:00:00.000Z`,
     },
   ];
 }

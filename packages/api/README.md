@@ -29,6 +29,14 @@ A API simulada (`apps/web/mocks/handlers/*.ts`) é a especificação executável
 
 Efeitos depois do commit (notificação, tempo real) passam por `AfterCommit` (`modules/admin/shared.ts`), que usa `notify()` e `publish()` de `src/notify.ts`.
 
+## Ranking de temporada e ligas (#120, ADR-0003)
+
+| Arquivo | O que faz |
+|---|---|
+| `src/modules/seasons/ratings.ts` | Replay do rating da temporada pelo motor a partir dos retratos das fases, em cache pela versão do histórico (`result_events`); `entrantRatings` para o seeding `RANKED`. |
+| `src/modules/seasons/index.ts` | `GET /seasons`, `GET /games/:slug/season-ranking`, `GET /users/:nickname/rating`, `GET /teams/:id/rating` (flag `ranking`) e `POST\|PATCH\|DELETE /admin/seasons`. |
+| `src/modules/seasons/leagues.ts` | `GET /leagues`, `GET /leagues/:slug` e a gestão em `/organizer/leagues` (dona ou Admin; campeonato só de quem organiza, do mesmo jogo, uma liga por campeonato). |
+
 ## Novo módulo
 
 1. `src/modules/<nome>/index.ts` exporta `new Hono<AppEnv>()` com as rotas.

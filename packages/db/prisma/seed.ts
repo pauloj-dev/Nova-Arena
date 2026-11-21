@@ -49,7 +49,8 @@ export async function seedCatalog(db: PrismaClient): Promise<void> {
 
 /** Autor das linhas criadas pelo seed (não é um usuário). */
 const SYSTEM_ID = '00000000-0000-0000-0000-000000000000';
-export const SEED_SEASON = { name: 'Temporada 2026', startsAt: '2026-01-01T00:00:00.000Z', endsAt: '2027-01-01T00:00:00.000Z' } as const;
+/** 1º de janeiro, 0h de Brasília (03:00 UTC), até o próximo 1º de janeiro. */
+export const SEED_SEASON = { name: 'Temporada 2026', startsAt: '2026-01-01T03:00:00.000Z', endsAt: '2027-01-01T03:00:00.000Z' } as const;
 
 export async function seedUser(db: PrismaClient, u: SeedUser, passwordHash?: string): Promise<string> {
   const email = u.email.toLowerCase();
