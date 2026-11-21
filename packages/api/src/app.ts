@@ -96,6 +96,7 @@ export function createApp(options: CreateAppOptions = {}) {
     blob: options.deps?.blob ?? vercelBlobStore,
     queue: options.deps?.queue ?? qstashQueue,
     revalidate: options.deps?.revalidate ?? (() => undefined),
+    reportError: options.deps?.reportError ?? (() => undefined),
     realtime: options.deps?.realtime ?? ablyRealtime,
     push: options.deps?.push ?? webPushSender,
     cache:
@@ -147,6 +148,11 @@ export function createApp(options: CreateAppOptions = {}) {
       return problemResponse(new HttpProblem(500, 'O servidor está com a configuração incompleta. Avise o suporte.', 'CONFIG_INVALID'), requestId);
     }
     (c.get('log') ?? baseLog).error('erro inesperado', { error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : String(error) });
+    try {
+      deps.reportError(error, { requestId, method: c.req.method, path: c.req.routePath ?? c.req.path });
+    } catch {
+      // O monitoramento nunca derruba a resposta.
+    }
     return problemResponse(new HttpProblem(500, 'Algo deu errado do nosso lado. Tente de novo em instantes.', 'INTERNAL'), requestId);
   });
 

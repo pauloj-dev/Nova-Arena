@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import { Inter, JetBrains_Mono, Rajdhani } from 'next/font/google';
+import { CookieBanner } from '@/shared/privacy/CookieBanner';
+import { Measurement } from '@/shared/privacy/Measurement';
 import { themeInitScript } from '@/shared/theme/theme';
 import { Providers } from './providers';
 import './globals.css';
@@ -29,17 +32,22 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+export default async function RootLayout({ children }: LayoutProps<'/'>) {
+  // Nonce da CSP desta resposta (gerado no `proxy.ts`, issue #113). Ler o header deixa as páginas sempre dinâmicas:
+  // é o preço do nonce (os dados públicos continuam em cache na API e no `unstable_cache`).
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
   return (
     <html lang="pt-BR" className={`${rajdhani.variable} ${inter.variable} ${jetbrains.variable}`} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-dvh antialiased">
         <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-accent focus:px-4 focus:py-2 focus:text-on-accent">
           Pular para o conteúdo
         </a>
         <Providers>{children}</Providers>
+        <CookieBanner />
+        <Measurement />
       </body>
     </html>
   );

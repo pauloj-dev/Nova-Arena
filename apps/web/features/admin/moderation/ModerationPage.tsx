@@ -13,6 +13,7 @@ import { Pager } from '../common/Pager';
 import { ReasonModal } from '../common/ReasonModal';
 import { UserStatusPill } from '../common/UserBits';
 import { SanctionModal, type SanctionType } from '../users/SanctionModal';
+import { FraudAlertsQueue, useOpenFraudAlerts } from '../fraud/FraudAlertsQueue';
 
 const TARGET_LABEL: Record<AdminReport['targetType'], string> = { USER: 'Usuário', TEAM: 'Squad', MATCH: 'Partida', RESULT: 'Resultado' };
 const STATUS_LABEL: Record<AdminReport['status'], string> = { OPEN: 'Abertas', IN_REVIEW: 'Em análise', ACTIONED: 'Tratadas', DISMISSED: 'Improcedentes' };
@@ -252,12 +253,13 @@ function DisputesQueue() {
 export function ModerationPage({ initialTab }: { initialTab?: string }) {
   const disputes = useEscalatedDisputes();
   const count = disputes.data?.length ?? 0;
+  const openAlerts = useOpenFraudAlerts();
   return (
     <PageContainer>
-      <PageHeader title="Moderação" description="Denúncias da comunidade e disputas que os organizadores escalaram. Toda decisão fica na auditoria e quem denunciou é avisado." />
+      <PageHeader title="Moderação" description="Denúncias da comunidade, disputas que os organizadores escalaram e alertas antifraude. Toda decisão fica na auditoria e quem denunciou é avisado." />
       <Tabs
         label="Filas da moderação"
-        defaultValue={initialTab === 'disputas' ? 'disputas' : 'denuncias'}
+        defaultValue={initialTab === 'disputas' || initialTab === 'alertas' ? initialTab : 'denuncias'}
         items={[
           { value: 'denuncias', label: 'Denúncias', content: <ReportsQueue /> },
           {
@@ -274,6 +276,21 @@ export function ModerationPage({ initialTab }: { initialTab?: string }) {
               </span>
             ),
             content: <DisputesQueue />,
+          },
+          {
+            value: 'alertas',
+            label: (
+              <span className="inline-flex items-center gap-2">
+                Alertas antifraude
+                {openAlerts > 0 && (
+                  <Badge tone="danger">
+                    {openAlerts}
+                    <span className="sr-only"> abertos</span>
+                  </Badge>
+                )}
+              </span>
+            ),
+            content: <FraudAlertsQueue />,
           },
         ]}
       />

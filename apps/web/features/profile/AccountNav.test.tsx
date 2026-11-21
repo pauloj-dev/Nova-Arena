@@ -23,6 +23,7 @@ describe('AccountNav', () => {
       ['Notificações', '/minha-conta/notificacoes'],
       ['Denúncias', '/minha-conta/denuncias'],
       ['Segurança', '/minha-conta/seguranca'],
+      ['Privacidade', '/minha-conta/privacidade'],
     ]);
   });
 

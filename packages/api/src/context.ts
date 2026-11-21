@@ -51,6 +51,11 @@ export interface Dependencies {
   push: (env: Env, log: Logger) => PushSender;
   /** Avisa as páginas públicas em cache (ISR) que os dados mudaram. Padrão: nada (fora do Next). */
   revalidate: (tags: string[]) => void;
+  /**
+   * Erro inesperado (500) de rota ou job para o monitoramento de erros (issue #116). Padrão: nada; a rota do Next
+   * liga o Sentry quando há `SENTRY_DSN`. Nunca lança.
+   */
+  reportError: (error: unknown, context: Record<string, string | number | null>) => void;
 }
 
 /** Sessão da requisição, carregada sob demanda por `currentUser(c)`. */

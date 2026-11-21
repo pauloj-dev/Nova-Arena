@@ -41,6 +41,12 @@ export const EnvSchema = z
     /** Fora de produção, todos os e-mails vão para esta caixa (com o destinatário original no assunto). */
     EMAIL_TEST_INBOX: z.email().optional(),
     SENTRY_DSN: optionalUrl,
+    /** Leitura das estatísticas do Sentry para a Saúde do Sistema (issue #116): token com `project:read`. */
+    SENTRY_AUTH_TOKEN: optionalSecret,
+    SENTRY_ORG: z.string().min(1).optional(),
+    SENTRY_PROJECT: z.string().min(1).optional(),
+    /** Sentry auto-hospedado ou região própria; padrão `https://sentry.io`. */
+    SENTRY_API_URL: optionalUrl,
     ABLY_API_KEY: optionalSecret,
     AUTH_JWT_SECRET: z.string().min(32, 'Use pelo menos 32 caracteres aleatórios.').optional(),
     LOBBY_ENCRYPTION_KEY: optionalSecret,

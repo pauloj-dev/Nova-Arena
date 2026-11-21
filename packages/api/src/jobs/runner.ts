@@ -27,6 +27,11 @@ export async function runJob<T>(c: AppContext, job: string, source: 'qstash' | '
     if (error instanceof HttpProblem && error.status < 500) throw error;
     const message = error instanceof Error ? error.message : String(error);
     c.get('log').error('job falhou', { job, source, error: message });
+    try {
+      c.get('deps').reportError(error, { job, source });
+    } catch {
+      // O monitoramento nunca derruba o job.
+    }
     // No QStash a falha só é definitiva depois das tentativas (aviso em `/jobs/failures`); no Cron, toda rodada conta.
     if (source === 'cron') await recordJobFailure(c, { job, source, error: message });
     throw new HttpProblem(500, 'O job falhou e será tentado de novo.', 'JOB_FAILED');

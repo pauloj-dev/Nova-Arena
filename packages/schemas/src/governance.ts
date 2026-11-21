@@ -279,8 +279,11 @@ export const SystemHealth = z.object({
   version: z.string(),
   environment: z.string(),
   checkedAt: IsoDateTime,
-  errorRate: z.number(),
+  /** Percentual de requisições com erro na última hora. Nulo quando o ambiente não mede (veja `errorTracking`). */
+  errorRate: z.number().nullable(),
   services: z.array(z.object({ key: z.string(), name: z.string(), status: z.enum(['ok', 'degraded', 'down']), detail: z.string(), latencyMs: z.number().nullable() })),
+  /** Monitoramento de erros (Sentry, issue #116): erros recebidos na última hora, quando o ambiente tem leitura. */
+  errorTracking: z.object({ configured: z.boolean(), eventsLastHour: z.number().int().nullable() }).optional(),
   failedJobs: z.number().int(),
   storageUsedMb: z.number(),
 });

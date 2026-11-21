@@ -9,6 +9,7 @@
  */
 import type { HttpHandler } from 'msw';
 import * as adminAudit from './admin-audit';
+import * as adminFraud from './admin-fraud';
 import * as adminModeration from './admin-moderation';
 import * as adminRoles from './admin-roles';
 import * as adminSettings from './admin-settings';
@@ -19,6 +20,7 @@ import * as competition from './competition';
 import * as games from './games';
 import * as gamesAdmin from './games-admin';
 import * as notificationsModule from './notifications';
+import * as privacy from './privacy';
 import * as profileStats from './profile-stats';
 import * as registrations from './registrations';
 import * as registrationsManage from './registrations-manage';
@@ -45,8 +47,10 @@ export const modules: MockModule[] = [
   adminTournaments,
   adminAudit,
   adminModeration,
+  adminFraud,
   adminSettings,
   notificationsModule,
+  privacy,
   reports,
   profileStats,
   users,

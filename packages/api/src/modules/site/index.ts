@@ -17,6 +17,7 @@ import { auditContext, requireAdmin, requireSuperAdmin } from '../../auth/admin'
 import { body, respond, type AppEnv, type DependencyCheck } from '../../context';
 import type { Env } from '../../env';
 import { notFound } from '../../errors';
+import { sentryErrorStats, SENTRY_ATTENTION_PER_HOUR, type ErrorTrackingStatus } from '../../observability';
 import { markUnchanged } from './events';
 import { FLAG_KEYS, FLAG_TEXT, FLAGS_KEY, isFlagKey, loadFlags, loadSettings, publishSiteChange, SETTINGS_KEY, siteFlags, siteSettings, toFeatureFlag, toPublicSettings } from './store';
 
@@ -155,13 +156,23 @@ export const emailCheck: DependencyCheck = async (env) => {
 
 const detailOf = (r: { status: ServiceStatus; error: string | null; configured: boolean }, ok: string) => (r.status === 'down' ? `Fora do ar: ${r.error ?? 'erro desconhecido'}.` : r.configured ? ok : 'Ainda não configurado neste ambiente.');
 
+/** Card do Sentry na Saúde do Sistema. */
+function errorsCard(e: ErrorTrackingStatus): { status: ServiceStatus; detail: string } {
+  if (!e.configured) return { status: 'degraded', detail: 'Sentry ainda não configurado neste ambiente (SENTRY_DSN).' };
+  if (e.eventsLastHour === null) {
+    return { status: 'ok', detail: e.reason === 'no-read-token' ? 'Sentry recebendo erros. Para ver a contagem aqui, configure SENTRY_AUTH_TOKEN, SENTRY_ORG e SENTRY_PROJECT.' : 'Sentry recebendo erros; a contagem não respondeu agora.' };
+  }
+  const n = e.eventsLastHour;
+  return { status: n >= SENTRY_ATTENTION_PER_HOUR ? 'degraded' : 'ok', detail: `${n} erro(s) recebido(s) pelo Sentry na última hora.` };
+}
+
 site.get('/admin/health', async (c) => {
   await requireAdmin(c);
   const env: Env = c.get('env');
   const { checks, db: getDb, now } = c.get('deps');
   const db = getDb();
   const dayAgo = new Date(now().getTime() - 24 * 3600_000);
-  const [database, cache, queues, realtime, storage, email, failedJobs, recentFailures, storageBytes] = await Promise.all([
+  const [database, cache, queues, realtime, storage, email, failedJobs, recentFailures, storageBytes, errors] = await Promise.all([
     probe(() => checks.database(env)),
     probe(() => checks.redis(env)),
     probe(() => checks.qstash(env)),
@@ -171,6 +182,7 @@ site.get('/admin/health', async (c) => {
     db.jobFailure.count({ where: { resolvedAt: null } }),
     db.jobFailure.count({ where: { resolvedAt: null, createdAt: { gte: dayAgo } } }),
     db.upload.aggregate({ _sum: { size: true } }),
+    sentryErrorStats(env, now()),
   ]);
   const storageUsedMb = Math.round(((storageBytes._sum.size ?? 0) / (1024 * 1024)) * 100) / 100;
   // Falha de job em aberto deixa a fila "com atenção" mesmo com o QStash no ar.
@@ -183,14 +195,16 @@ site.get('/admin/health', async (c) => {
     { key: 'realtime', name: 'Tempo real', status: realtime.status, detail: detailOf(realtime, 'Ably respondendo.'), latencyMs: realtime.latencyMs },
     { key: 'storage', name: 'Armazenamento de arquivos', status: storage.status, detail: storage.status === 'down' ? detailOf(storage, '') : `${storageUsedMb} MB em uso (provas, logos e banners).${storage.configured ? '' : ' Envio ainda não configurado neste ambiente.'}`, latencyMs: storage.latencyMs },
     { key: 'email', name: 'E-mail', status: email.status, detail: detailOf(email, 'Resend configurado e respondendo.'), latencyMs: email.latencyMs },
+    { key: 'errors', name: 'Monitoramento de erros', ...errorsCard(errors), latencyMs: null },
   ];
   c.header('Cache-Control', 'no-store');
   return respond(c, SystemHealth, {
     version: env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'local',
     environment: env.VERCEL_ENV ?? env.NODE_ENV,
     checkedAt: now().toISOString(),
-    // Taxa de erro do Sentry ainda não integrada: 0 até a issue de observabilidade (R2) trazer a API do Sentry.
-    errorRate: 0,
+    // Percentual de requisições com erro: medido na Vercel (Observability) e nos alertas do Sentry (docs/operacao.md).
+    errorRate: null,
+    errorTracking: { configured: errors.configured, eventsLastHour: errors.eventsLastHour },
     services,
     failedJobs,
     storageUsedMb,

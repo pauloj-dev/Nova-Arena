@@ -76,9 +76,11 @@ export const keys = {
     flags: ['admin', 'flags'] as const,
     health: ['admin', 'health'] as const,
     announcements: ['admin', 'announcements'] as const,
+    fraudAlerts: (params?: Params) => ['admin', 'fraud-alerts', params ?? {}] as const,
   },
   site: { settings: ['site', 'settings'] as const, banner: ['site', 'banner'] as const, flags: ['site', 'flags'] as const },
   twoFactor: ['two-factor'] as const,
   loginMethods: ['login-methods'] as const,
   deviceSessions: ['device-sessions'] as const,
+  privacy: { deletion: ['privacy', 'deletion'] as const, exports: ['privacy', 'exports'] as const },
 };
