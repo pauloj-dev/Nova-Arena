@@ -9,7 +9,8 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "seed:demo": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -52,13 +53,16 @@
     "@testing-library/user-event": "^14.6.9",
     "@types/node": "^24.19.2",
     "@types/papaparse": "^5.5.2",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.3.0",
     "eslint": "^10",
     "eslint-config-next": "16.4.6",
     "jsdom": "^31.0.0",
+    "pg": "^8.23.1",
     "tailwindcss": "4.3.5",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.0",
     "vitest": "^5.1.0"
   },
