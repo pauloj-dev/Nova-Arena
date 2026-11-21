@@ -70,7 +70,7 @@ export function upstashLimiter(env: Env): RateLimiter {
     async limit(key, rule) {
       let limiter = cache.get(rule.name);
       if (!limiter) {
-        limiter = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(rule.tokens, `${rule.windowSeconds} s`), prefix: `rl:${rule.name}` });
+        limiter = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(rule.tokens, `${rule.windowSeconds} s`), prefix: `${env.KV_PREFIX ?? ''}rl:${rule.name}` });
         cache.set(rule.name, limiter);
       }
       const r = await limiter.limit(key);

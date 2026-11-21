@@ -18,7 +18,8 @@ import { Bracket, GenerateBracketInput, ReasonInput, SwapSeedingInput } from '@n
 import { Hono } from 'hono';
 import { body, respond, type AppContext, type AppEnv } from '../../context';
 import { badRequest, conflict, notFound } from '../../errors';
-import { ADMIN_ROLES, assertRole, assertTournamentAccess, currentRoles, tournamentAccessDecision } from '../../auth/rbac';
+import { requireAdminTwoFactor } from '../../auth/admin';
+import { assertTournamentAccess, currentRoles, tournamentAccessDecision } from '../../auth/rbac';
 import { currentSession, requireSession } from '../../auth/session';
 import { buildBracket, namesFor } from '../../competition/bracket';
 import { lockStage, publishStage, recordStateChanges, usersOfRegistrations, writeRun } from '../../competition/results';
@@ -196,7 +197,8 @@ competition.post('/stages/:id/confirm', async (c) => {
 
 /** Só o Admin destrava uma chave que já tem partida concluída (RN-07). */
 competition.post('/stages/:id/unlock', async (c) => {
-  await assertRole(c, ADMIN_ROLES);
+  // Ação de Admin (RN-07): mesma exigência do painel — Admin ou Super Admin com o 2FA feito na sessão (RNF-08).
+  await requireAdminTwoFactor(c);
   const { reason } = await body(c, ReasonInput);
   const stage = await loadStage(c, c.req.param('id'));
   const run = readRun(stage);

@@ -60,7 +60,8 @@ export const health = new Hono<AppEnv>().get('/health', async (c) => {
 /** Upstash Redis pela API REST: `GET /ping` responde `{ "result": "PONG" }`. */
 export const redisCheck: DependencyCheck = async (env) => {
   if (!env.KV_REST_API_URL || !env.KV_REST_API_TOKEN) return 'not_configured';
-  const res = await fetch(new URL('/ping', env.KV_REST_API_URL), { headers: { Authorization: `Bearer ${env.KV_REST_API_TOKEN}` } });
+  // Comando no corpo (`["PING"]`), não no caminho: funciona no Upstash e no tradutor REST local (docker-compose).
+  const res = await fetch(env.KV_REST_API_URL, { method: 'POST', headers: { Authorization: `Bearer ${env.KV_REST_API_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify(['PING']) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = (await res.json()) as { result?: string };
   if (data.result !== 'PONG') throw new Error('resposta inesperada');
