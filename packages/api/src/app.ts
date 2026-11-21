@@ -83,7 +83,13 @@ export function createApp(options: CreateAppOptions = {}) {
     limiter:
       options.deps?.limiter ??
       ((env) => {
-        limiter ??= env.KV_REST_API_URL && env.KV_REST_API_TOKEN ? upstashLimiter(env) : memoryLimiter(now);
+        let warned = false;
+        const onFallback = (error: unknown) => {
+          if (warned) return;
+          warned = true;
+          createLogger(options.logSink).warn('limite de tentativas sem o Redis: valendo por instância, em memória', { error: error instanceof Error ? error.message : String(error) });
+        };
+        limiter ??= env.KV_REST_API_URL && env.KV_REST_API_TOKEN ? upstashLimiter(env, onFallback) : memoryLimiter(now);
         return limiter;
       }),
     mailer: options.deps?.mailer ?? defaultMailer,
