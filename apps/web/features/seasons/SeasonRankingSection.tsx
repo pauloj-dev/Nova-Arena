@@ -101,7 +101,10 @@ export function SeasonRankingSection({ game }: { game: { slug: string; name: str
             <TrendingUp className="size-5 text-accent" aria-hidden />
             {t('temporadaDe', { jogo: game.name })}
           </h2>
-          {data?.season ? (
+          {ranking.isPending ? (
+            // Mesma altura da linha da temporada: ela chega com os dados e não pode empurrar os filtros (#111, CLS).
+            <Skeleton className="mt-1 h-5 w-64 max-w-full" />
+          ) : data?.season ? (
             <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
               <CalendarRange className="size-4" aria-hidden />
               {t('resumoTemporada', {
