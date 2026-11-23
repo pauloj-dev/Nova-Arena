@@ -24,6 +24,6 @@
     "@lhci/cli": "^0.16.1",
     "lefthook": "^2.0.0",
     "turbo": "^2.11.11",
-    "typescript": "^5.9.0"
+    "typescript": "^6.0.3"
   }
 }
