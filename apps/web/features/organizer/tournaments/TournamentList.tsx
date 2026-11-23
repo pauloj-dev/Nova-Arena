@@ -8,71 +8,76 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useDuplicateTournament, useOrganizerTournaments } from '@/shared/api/hooks/organizer';
+import { getT } from '@/shared/i18n/core';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { CancelTournamentDialog, DeleteDraftDialog, SaveTemplateDialog } from '../components/TournamentDialogs';
 import { inGroup, lifecycleActions, STATUS_GROUPS, type StatusGroup } from '../lib/status';
+import { messages } from '../messages';
 
 type Dialog = { kind: 'cancel' | 'delete' | 'template'; tournament: OrganizerTournament } | null;
 
-function nextDate(t: OrganizerTournament): string {
-  if (t.status === 'DRAFT') return `Editado em ${formatDateTime(t.updatedAt, { withZone: false })}`;
-  if (t.status === 'PUBLISHED' && t.registrationOpensAt) return `Inscrições abrem ${formatDateTime(t.registrationOpensAt)}`;
-  if (t.status === 'REGISTRATION_OPEN' && t.registrationClosesAt) return `Inscrições até ${formatDateTime(t.registrationClosesAt)}`;
-  return t.startsAt ? `Início: ${formatDateTime(t.startsAt)}` : 'Sem data de início';
+function nextDate(tournament: OrganizerTournament): string {
+  const t = getT(messages, 'TournamentList');
+  if (tournament.status === 'DRAFT') return t('editadoEm', { data: formatDateTime(tournament.updatedAt, { withZone: false }) });
+  if (tournament.status === 'PUBLISHED' && tournament.registrationOpensAt) return t('inscricoesAbrem', { data: formatDateTime(tournament.registrationOpensAt) });
+  if (tournament.status === 'REGISTRATION_OPEN' && tournament.registrationClosesAt) return t('inscricoesAte', { data: formatDateTime(tournament.registrationClosesAt) });
+  return tournament.startsAt ? t('inicio', { data: formatDateTime(tournament.startsAt) }) : t('semInicio');
 }
 
-function TournamentRow({ t, onDialog }: { t: OrganizerTournament; onDialog: (dialog: Dialog) => void }) {
+function TournamentRow({ tournament, onDialog }: { tournament: OrganizerTournament; onDialog: (dialog: Dialog) => void }) {
+  const t = useT(messages, 'TournamentList');
   const router = useRouter();
   const duplicate = useDuplicateTournament();
   const { success, error } = useToast();
-  const isDraft = t.status === 'DRAFT';
-  const isOwner = t.access !== 'CO_ORGANIZER';
-  const canCancel = isOwner && lifecycleActions(t.status).includes('cancel');
+  const isDraft = tournament.status === 'DRAFT';
+  const isOwner = tournament.access !== 'CO_ORGANIZER';
+  const canCancel = isOwner && lifecycleActions(tournament.status).includes('cancel');
 
   return (
-    <Card className="flex flex-col gap-3" data-testid={`tournament-${t.id}`}>
+    <Card className="flex flex-col gap-3" data-testid={`tournament-${tournament.id}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="text-base font-semibold text-text">{t.name}</h3>
+          <h3 className="text-base font-semibold text-text">{tournament.name}</h3>
           <p className="text-sm text-muted">
-            <span aria-hidden>{t.gameIcon} </span>
-            {t.gameName} · {t.modeName}
-            {t.access === 'CO_ORGANIZER' ? ' · você é co-organizador' : ''}
+            <span aria-hidden>{tournament.gameIcon} </span>
+            {tournament.gameName} · {tournament.modeName}
+            {tournament.access === 'CO_ORGANIZER' ? t('coOrganizador') : ''}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {t.pendingApprovals > 0 && (
+          {tournament.pendingApprovals > 0 && (
             <Badge tone="warning" icon={<Hourglass className="size-3.5" aria-hidden />}>
-              {t.pendingApprovals} aguardando aprovação
+              {t('aguardandoAprovacao', { count: String(tournament.pendingApprovals) })}
             </Badge>
           )}
-          <StatusPill status={t.status} />
+          <StatusPill status={tournament.status} />
         </div>
       </div>
 
       <div className="flex flex-col gap-2 text-sm text-muted md:flex-row md:items-center md:gap-6">
         <span className="flex items-center gap-1.5">
           <CalendarClock className="size-4 shrink-0" aria-hidden />
-          {nextDate(t)}
+          {nextDate(tournament)}
         </span>
-        {!isDraft && <Progress className="md:w-56" value={t.takenSlots} max={t.maxParticipants} label={`Vagas ocupadas em ${t.name}`} />}
-        {isDraft && <span>Parou no passo {t.draftStep + 1} de 7</span>}
+        {!isDraft && <Progress className="md:w-56" value={tournament.takenSlots} max={tournament.maxParticipants} label={t('vagasOcupadas', { nome: tournament.name })} />}
+        {isDraft && <span>{t('parouNoPasso', { passo: String(tournament.draftStep + 1) })}</span>}
       </div>
 
       <div className="flex flex-wrap gap-2">
         {isDraft ? (
           <Button asChild size="sm">
-            <Link href={`/organizador/campeonatos/${t.id}/editar`} aria-label={`Continuar rascunho de ${t.name}`}>
+            <Link href={`/organizador/campeonatos/${tournament.id}/editar`} aria-label={t('continuarDe', { nome: tournament.name })}>
               <PencilLine className="size-4" aria-hidden />
-              Continuar rascunho
+              {t('continuarRascunho')}
             </Link>
           </Button>
         ) : (
           <Button asChild size="sm">
-            <Link href={`/organizador/campeonatos/${t.id}`} aria-label={`Gerenciar ${t.name}`}>
+            <Link href={`/organizador/campeonatos/${tournament.id}`} aria-label={t('gerenciarDe', { nome: tournament.name })}>
               <Settings2 className="size-4" aria-hidden />
-              Gerenciar
+              {t('gerenciar')}
             </Link>
           </Button>
         )}
@@ -81,35 +86,35 @@ function TournamentRow({ t, onDialog }: { t: OrganizerTournament; onDialog: (dia
           size="sm"
           loading={duplicate.isPending}
           iconLeft={<Copy className="size-4" aria-hidden />}
-          aria-label={`Duplicar ${t.name}`}
+          aria-label={t('duplicarDe', { nome: tournament.name })}
           onClick={() =>
             duplicate.mutate(
-              { id: t.id },
+              { id: tournament.id },
               {
                 onSuccess: (copy) => {
-                  success('Campeonato duplicado', 'A cópia é um rascunho: ajuste o nome e as datas.');
+                  success(t('duplicado'), t('duplicadoDetalhe'));
                   router.push(`/organizador/campeonatos/${copy.id}/editar`);
                 },
-                onError: (e) => error('Não foi possível duplicar', errorMessage(e)),
+                onError: (e) => error(t('erroDuplicar'), errorMessage(e)),
               },
             )
           }
         >
-          Duplicar
+          {t('duplicar')}
         </Button>
-        {t.stageCount > 0 && (
-          <Button variant="secondary" size="sm" iconLeft={<FileStack className="size-4" aria-hidden />} aria-label={`Salvar ${t.name} como modelo`} onClick={() => onDialog({ kind: 'template', tournament: t })}>
-            Salvar como modelo
+        {tournament.stageCount > 0 && (
+          <Button variant="secondary" size="sm" iconLeft={<FileStack className="size-4" aria-hidden />} aria-label={t('salvarModeloDe', { nome: tournament.name })} onClick={() => onDialog({ kind: 'template', tournament })}>
+            {t('salvarModelo')}
           </Button>
         )}
         {isDraft && isOwner && (
-          <Button variant="ghost" size="sm" iconLeft={<Trash2 className="size-4" aria-hidden />} aria-label={`Excluir rascunho ${t.name}`} onClick={() => onDialog({ kind: 'delete', tournament: t })}>
-            Excluir rascunho
+          <Button variant="ghost" size="sm" iconLeft={<Trash2 className="size-4" aria-hidden />} aria-label={t('excluirRascunhoDe', { nome: tournament.name })} onClick={() => onDialog({ kind: 'delete', tournament })}>
+            {t('excluirRascunho')}
           </Button>
         )}
         {canCancel && (
-          <Button variant="ghost" size="sm" iconLeft={<XCircle className="size-4" aria-hidden />} aria-label={`Cancelar ${t.name}`} onClick={() => onDialog({ kind: 'cancel', tournament: t })}>
-            Cancelar
+          <Button variant="ghost" size="sm" iconLeft={<XCircle className="size-4" aria-hidden />} aria-label={t('cancelarDe', { nome: tournament.name })} onClick={() => onDialog({ kind: 'cancel', tournament })}>
+            {t('cancelar')}
           </Button>
         )}
       </div>
@@ -117,16 +122,10 @@ function TournamentRow({ t, onDialog }: { t: OrganizerTournament; onDialog: (dia
   );
 }
 
-const EMPTY_BY_GROUP: Record<StatusGroup, { title: string; description: string }> = {
-  all: { title: 'Você ainda não tem campeonatos', description: 'Crie o primeiro em poucos minutos: o assistente sugere tudo, das vagas ao regulamento.' },
-  draft: { title: 'Nenhum rascunho', description: 'Tudo o que você começou já foi publicado ou excluído.' },
-  active: { title: 'Nenhum campeonato ativo', description: 'Publique um rascunho para ele aparecer na vitrine e receber inscrições.' },
-  finished: { title: 'Nenhum campeonato encerrado', description: 'Os campeonatos finalizados e arquivados aparecem aqui.' },
-  cancelled: { title: 'Nenhum campeonato cancelado', description: 'Que continue assim.' },
-};
 
 /** `/organizador/campeonatos` — Meus campeonatos, por status, com ações rápidas (issue #24). */
 export function TournamentList() {
+  const t = useT(messages, 'TournamentList');
   const query = useOrganizerTournaments();
   const [group, setGroup] = useState<StatusGroup>('all');
   const [dialog, setDialog] = useState<Dialog>(null);
@@ -136,44 +135,44 @@ export function TournamentList() {
     <Button asChild>
       <Link href="/organizador/novo">
         <PlusCircle className="size-4" aria-hidden />
-        Criar campeonato
+        {t('criarCampeonato')}
       </Link>
     </Button>
   );
 
   return (
     <PageContainer>
-      <PageHeader title="Meus campeonatos" description="Os campeonatos em que você é responsável ou co-organizador." actions={createButton} />
+      <PageHeader title={t('titulo')} description={t('descricao')} actions={createButton} />
 
       {!query.data && query.error ? (
         <ErrorState description={errorMessage(query.error)} onRetry={() => void query.refetch()} />
       ) : !query.data ? (
-        <div className="flex flex-col gap-3" role="status" aria-label="Carregando campeonatos">
+        <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
           <Skeleton className="h-11 w-full max-w-lg" />
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-36 w-full" />
           ))}
         </div>
       ) : list.length === 0 ? (
-        <EmptyState icon={<Trophy className="size-7" />} title={EMPTY_BY_GROUP.all.title} description={EMPTY_BY_GROUP.all.description} action={createButton} />
+        <EmptyState icon={<Trophy className="size-7" />} title={t('vazio.all.titulo')} description={t('vazio.all.descricao')} action={createButton} />
       ) : (
         <Tabs
-          label="Filtrar por status"
+          label={t('filtrar')}
           value={group}
           onValueChange={(value) => setGroup(value as StatusGroup)}
           items={STATUS_GROUPS.map((g) => {
-            const rows = list.filter((t) => inGroup(t.status, g.id));
+            const rows = list.filter((tournament) => inGroup(tournament.status, g.id));
             return {
               value: g.id,
-              label: `${g.label} (${rows.length})`,
+              label: t('aba', { grupo: g.label, count: String(rows.length) }),
               content:
                 rows.length === 0 ? (
-                  <EmptyState title={EMPTY_BY_GROUP[g.id].title} description={EMPTY_BY_GROUP[g.id].description} />
+                  <EmptyState title={t(`vazio.${g.id}.titulo`)} description={t(`vazio.${g.id}.descricao`)} />
                 ) : (
                   <ul className="flex flex-col gap-3">
-                    {rows.map((t) => (
-                      <li key={t.id}>
-                        <TournamentRow t={t} onDialog={setDialog} />
+                    {rows.map((tournament) => (
+                      <li key={tournament.id}>
+                        <TournamentRow tournament={tournament} onDialog={setDialog} />
                       </li>
                     ))}
                   </ul>

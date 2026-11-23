@@ -9,8 +9,9 @@ import type { PrismaClient, User } from '@nova/db';
 import { randomUUID } from 'node:crypto';
 import type { AppContext, SessionInfo } from '../context';
 import { HttpProblem, unauthorized } from '../errors';
+import { checkSessionSignals, deviceIdOf } from '../fraud';
 import { clientIp } from '../security';
-import { accessCookie, clearSessionCookies, refreshCookie, REFRESH_TTL_SECONDS, setSessionCookies } from './cookies';
+import { accessCookie, clearSessionCookies, refreshCookie, REFRESH_TTL_SECONDS, setAccessCookie, setSessionCookies } from './cookies';
 import { randomToken, sha256 } from './crypto';
 import { signAccessToken, verifyAccessToken } from './jwt';
 
@@ -21,7 +22,7 @@ export function loginGuard(user: Pick<User, 'status'>): void {
   if (user.status === 'MERGED' || user.status === 'DELETED') throw new HttpProblem(401, 'E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
 }
 
-async function issue(c: AppContext, db: PrismaClient, user: Pick<User, 'id' | 'sessionVersion'>, familyId: string): Promise<string> {
+async function issue(c: AppContext, db: PrismaClient, user: Pick<User, 'id' | 'sessionVersion'>, familyId: string, twoFactorVerified: boolean, deviceId: string | null = null): Promise<string> {
   const { now } = c.get('deps');
   const refreshToken = randomToken();
   const session = await db.session.create({
@@ -30,22 +31,48 @@ async function issue(c: AppContext, db: PrismaClient, user: Pick<User, 'id' | 's
       familyId,
       refreshTokenHash: sha256(refreshToken),
       sessionVersion: user.sessionVersion,
+      twoFactorVerified,
       userAgent: c.req.header('user-agent')?.slice(0, 500) ?? null,
       ip: clientIp(c.req.raw.headers),
+      deviceId,
       expiresAt: new Date(now().getTime() + REFRESH_TTL_SECONDS * 1000),
     },
   });
   // Papéis no token só para a borda (`proxy.ts`); a API sempre confere no banco.
   const roles = (await db.userRole.findMany({ where: { userId: user.id }, select: { role: true } })).map((r) => r.role);
-  const access = await signAccessToken(c.get('env'), { sub: user.id, sid: session.id, sv: user.sessionVersion, tfa: false, roles }, now());
+  const access = await signAccessToken(c.get('env'), { sub: user.id, sid: session.id, sv: user.sessionVersion, tfa: twoFactorVerified, roles }, now());
   setSessionCookies(c, access, refreshToken);
-  c.set('session', { userId: user.id, sessionId: session.id, twoFactorVerified: false });
+  c.set('session', { userId: user.id, sessionId: session.id, twoFactorVerified });
   return session.id;
 }
 
-/** Abre uma sessão nova (login, cadastro): nova família de refresh tokens. */
-export function startSession(c: AppContext, user: Pick<User, 'id' | 'sessionVersion'>): Promise<string> {
-  return issue(c, c.get('deps').db(), user, randomUUID());
+/**
+ * Abre uma sessão nova (login, cadastro, troca de senha): nova família de refresh tokens.
+ * `twoFactorVerified`: o código do 2FA foi conferido agora (`POST /auth/2fa/verify`). Sem ele, a sessão nova
+ * herda o 2FA da sessão atual da mesma pessoa (ex.: a troca de senha não derruba o 2FA do Admin).
+ */
+export async function startSession(c: AppContext, user: Pick<User, 'id' | 'sessionVersion'>, opts: { twoFactorVerified?: boolean } = {}): Promise<string> {
+  let verified = opts.twoFactorVerified;
+  if (verified === undefined) {
+    const previous = await currentSession(c).catch(() => null);
+    verified = previous?.userId === user.id && previous.twoFactorVerified;
+  }
+  // Antifraude (#114): o aparelho entra na sessão e, depois de gravada, conferimos várias contas no mesmo IP/aparelho.
+  const deviceId = deviceIdOf(c);
+  const sessionId = await issue(c, c.get('deps').db(), user, randomUUID(), verified, deviceId);
+  await checkSessionSignals(c, user.id, clientIp(c.req.raw.headers), deviceId);
+  return sessionId;
+}
+
+/** O código do 2FA acabou de ser conferido nesta sessão (ex.: ao ativar): o token de acesso passa a levar `tfa`. */
+export async function markTwoFactorVerified(c: AppContext): Promise<void> {
+  const session = await requireSession(c);
+  if (session.twoFactorVerified) return;
+  const { db, now } = c.get('deps');
+  const row = await db().session.update({ where: { id: session.sessionId }, data: { twoFactorVerified: true }, select: { sessionVersion: true } });
+  const roles = (await db().userRole.findMany({ where: { userId: session.userId }, select: { role: true } })).map((r) => r.role);
+  setAccessCookie(c, await signAccessToken(c.get('env'), { sub: session.userId, sid: session.sessionId, sv: row.sessionVersion, tfa: true, roles }, now()));
+  c.set('session', { ...session, twoFactorVerified: true });
 }
 
 /**
@@ -75,7 +102,8 @@ export async function rotateSession(c: AppContext): Promise<User> {
     clearSessionCookies(c);
     throw unauthorized('Sua sessão terminou. Entre de novo.');
   }
-  const nextId = await issue(c, db, user, current.familyId);
+  // O 2FA feito no login vale para a família inteira (a renovação não pede o código de novo).
+  const nextId = await issue(c, db, user, current.familyId, current.twoFactorVerified, current.deviceId);
   await db.session.update({ where: { id: current.id }, data: { revokedAt: now, replacedById: nextId, lastUsedAt: now } });
   return user;
 }

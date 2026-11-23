@@ -1,10 +1,11 @@
 'use client';
+/* eslint-disable i18next/no-literal-string -- só no protótipo: o seletor de usuários simulados não vai para produção */
 
 import { Modal, Button, useToast } from '@nova/ui';
 import { FlaskConical, RotateCcw } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { isMockEnabled } from '@/mocks/handlers';
+import { isMockEnabled } from '@/shared/api/mode';
 import { errorMessage } from '../api/client';
 import { useDevLogin, useLogout, useSession } from '../session/useSession';
 
@@ -19,7 +20,7 @@ const DEMO = [
 
 /**
  * Só existe no protótipo (API simulada): troca rápida entre os papéis e reinício dos dados.
- * Some sozinho quando `NEXT_PUBLIC_API_MOCK=none`.
+ * Some sozinho quando `NEXT_PUBLIC_API_MOCK=none` e no modo telão (a tela vai para a transmissão).
  */
 export function DevSwitcher() {
   const [open, setOpen] = useState(false);
@@ -28,8 +29,9 @@ export function DevSwitcher() {
   const logout = useLogout();
   const router = useRouter();
   const { error, success } = useToast();
+  const pathname = usePathname();
 
-  if (!isMockEnabled()) return null;
+  if (!isMockEnabled() || pathname?.includes('/telao/')) return null;
 
   async function reset() {
     const { resetDb } = await import('@/mocks/db');

@@ -1,0 +1,48 @@
+{
+  "recognize": {
+    "baixandoLeitor": "Baixando o leitor",
+    "preparandoLeitor": "Preparando o leitor",
+    "baixandoIdioma": "Baixando o idioma",
+    "lendoPrint": "Lendo o print"
+  },
+  "RowStatus": {
+    "naoEncontrado": "Não encontrado no print",
+    "conferir": "Conferir com atenção",
+    "lido": "Lido do print",
+    "confianca": "({porcentagem}% de confiança)"
+  },
+  "OcrDialog": {
+    "campo": {
+      "placement": "Colocação",
+      "kills": "Kills",
+      "score": "Placar"
+    },
+    "erroLeitura": "Não foi possível ler esta imagem. Confira sua conexão (o leitor é baixado na primeira vez) ou digite os valores.",
+    "titulo": "Ler o print (experimental)",
+    "descricao": "A leitura acontece no seu aparelho e só sugere valores. Confira cada um antes de salvar.",
+    "cancelar": "Cancelar",
+    "usarValores": "Usar estes valores",
+    "lerPrint": "Ler o print",
+    "trocarImagem": "Trocar imagem",
+    "escolherImagem": "Escolher imagem do print",
+    "dicaImagem": "Use a tela final da partida, sem cortes, com os nomes e os números legíveis. PNG, JPG ou WebP.",
+    "imagem": "Imagem: <nome>{arquivo}</nome>",
+    "previa": "Prévia do print escolhido",
+    "andamento": "Andamento da leitura do print",
+    "nadaReconhecido": "Não reconhecemos valores neste print. Tente outra imagem ou digite no formulário.",
+    "encontrados": "Encontramos valores para {encontrados} de {total}. Corrija o que estiver errado e desmarque o que não quiser usar.",
+    "valoresLidos": "Valores lidos do print",
+    "campoLido": "{campo} lida de {nome}",
+    "usar": "Usar",
+    "linhaLida": "Linha lida: “{linha}”",
+    "colocacaoInferida": "A colocação veio da ordem das linhas: o print não mostrava o número.",
+    "naoReconhecidas": "Linhas que não reconhecemos ({total})"
+  },
+  "OcrMark": {
+    "lido": "lido do print"
+  },
+  "OcrConfirm": {
+    "rotulo": "Conferi os valores lidos do print",
+    "dica": "{count, plural, =1 {1 valor veio} other {# valores vieram}} da leitura automática. Compare com a imagem antes de salvar."
+  }
+}

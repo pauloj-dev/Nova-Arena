@@ -14,10 +14,12 @@ export interface Cache {
 
 export function upstashCache(env: Env): Cache {
   const redis = new Redis({ url: env.KV_REST_API_URL as string, token: env.KV_REST_API_TOKEN as string });
+  // `KV_PREFIX`: ambientes que dividem o mesmo Redis não leem o cache um do outro.
+  const k = (key: string) => `${env.KV_PREFIX ?? ''}${key}`;
   return {
-    get: async <T>(key: string) => (await redis.get<T>(key)) ?? null,
-    set: async (key, value, ttlSeconds) => void (await redis.set(key, value, { ex: ttlSeconds })),
-    del: async (key) => void (await redis.del(key)),
+    get: async <T>(key: string) => (await redis.get<T>(k(key))) ?? null,
+    set: async (key, value, ttlSeconds) => void (await redis.set(k(key), value, { ex: ttlSeconds })),
+    del: async (key) => void (await redis.del(k(key))),
   };
 }
 

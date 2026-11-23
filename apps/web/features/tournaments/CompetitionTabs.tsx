@@ -10,6 +10,7 @@ import { isEliminationFormat } from '@/features/brackets/rounds';
 import { RoundsView } from '@/features/brackets/RoundsView';
 import { StageStandings } from '@/features/brackets/StageStandings';
 import { MatchDetailModal } from '@/features/matches/MatchDetailModal';
+import { CalendarExport } from '@/features/calendar/CalendarExport';
 import { MatchesList } from '@/features/matches/MatchesList';
 import { MatchCard } from '@/features/matches/MatchCard';
 import { isConcluded } from '@/features/matches/matchText';
@@ -17,7 +18,9 @@ import { Podium } from '@/features/matches/Podium';
 import { useMatchViewer } from '@/features/matches/viewer';
 import { errorMessage } from '@/shared/api/client';
 import { useBracket, usePodium, useStandings } from '@/shared/api/hooks/competition';
-import { STAGE_FORMAT_LABELS } from './stageText';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
+import { stageFormatLabel } from './stageText';
 
 /** O que as abas de competição recebem da página: a consulta de partidas é uma só para as três. */
 export interface MatchesQuery {
@@ -73,56 +76,57 @@ export function defaultStage(stages: readonly Stage[]): Stage | undefined {
 
 // ── Chave / Tabela ───────────────────────────────────────────────────
 
-function StageContent({ tournament: t, stage }: { tournament: Tournament; stage: Stage }) {
+function StageContent({ tournament, stage }: { tournament: Tournament; stage: Stage }) {
+  const t = useT(messages, 'CompetitionTabs');
   const viewer = useMatchViewer();
   const bracket = useBracket(stage.id);
   const standings = useStandings(stage.id);
   const me = viewer.registration?.id ?? null;
   const elimination = isEliminationFormat(stage.format);
-  const participantHeader = t.participantType === 'SOLO' ? 'Jogador' : elimination || stage.format === 'ROUND_ROBIN' || stage.format === 'SWISS' ? 'Equipe' : 'Squad';
+  const participantHeader = tournament.participantType === 'SOLO' ? t('jogador') : elimination || stage.format === 'ROUND_ROBIN' || stage.format === 'SWISS' ? t('equipe') : t('squad');
 
-  if (bracket.isPending) return <BlockSkeleton label="Carregando a chave" />;
-  if (bracket.isError) return <ErrorState title="Não foi possível carregar a chave" description={errorMessage(bracket.error)} onRetry={() => void bracket.refetch()} />;
+  if (bracket.isPending) return <BlockSkeleton label={t('carregandoChave')} />;
+  if (bracket.isError) return <ErrorState title={t('erroChave')} description={errorMessage(bracket.error)} onRetry={() => void bracket.refetch()} />;
 
   if (bracket.data.state === 'NONE') {
-    const previous = t.stages.find((s) => s.order === stage.order - 1);
+    const previous = tournament.stages.find((s) => s.order === stage.order - 1);
     return (
       <EmptyState
         icon={<GitBranch className="size-7" />}
-        title="A chave desta fase ainda não foi gerada"
-        description={
-          previous && previous.status !== 'COMPLETED'
-            ? `Ela sai quando a fase "${previous.name}" terminar e a organização confirmar quem avança. Siga o campeonato para ser avisado.`
-            : 'A organização ainda vai gerar e confirmar a chave. Siga o campeonato para ser avisado quando ela sair.'
-        }
+        title={t('chaveNaoGerada')}
+        description={previous && previous.status !== 'COMPLETED' ? t('chaveSaiDepoisDaFase', { fase: previous.name }) : t('chaveAindaVaiSair')}
       />
     );
   }
 
   const standingsBlock = standings.isPending ? (
-    <BlockSkeleton label="Carregando a classificação" rows={4} />
+    <BlockSkeleton label={t('carregandoClassificacao')} rows={4} />
   ) : standings.isError ? (
-    <ErrorState title="Não foi possível carregar a classificação" description={errorMessage(standings.error)} onRetry={() => void standings.refetch()} />
+    <ErrorState title={t('erroClassificacao')} description={errorMessage(standings.error)} onRetry={() => void standings.refetch()} />
   ) : standings.data.overall.length === 0 ? (
-    <p className="text-sm text-muted">A classificação aparece aqui depois do primeiro resultado.</p>
+    <p className="text-sm text-muted">{t('classificacaoDepois')}</p>
   ) : (
     <StageStandings standings={standings.data} participantHeader={participantHeader} highlightRegistrationId={me} />
   );
 
+  const seedText =
+    bracket.data.seedUsed &&
+    t.rich('sorteio', {
+      seed: bracket.data.seedUsed,
+      codigo: (chunks) => <code className="tabular break-all text-text">{chunks}</code>,
+    });
   const meta = (
     <div className="flex flex-col gap-2">
       {bracket.data.state === 'PREVIEW' && (
         <p className="flex items-start gap-2 rounded-md bg-warning-soft p-3 text-sm text-warning-soft-text">
           <EyeOff className="mt-0.5 size-4 shrink-0" aria-hidden />
-          Esta chave é uma prévia: só a organização vê. Os participantes só enxergam depois que ela for confirmada.
+          {t('previa')}
         </p>
       )}
       {bracket.data.seeding === 'RANDOM' && bracket.data.seedUsed && (
         <p className="flex items-center gap-1.5 text-xs text-muted">
           <ShieldCheck className="size-4 shrink-0" aria-hidden />
-          <span>
-            Chave definida por sorteio. Seed do sorteio: <code className="tabular break-all text-text">{bracket.data.seedUsed}</code>
-          </span>
+          <span>{seedText}</span>
         </p>
       )}
     </div>
@@ -133,15 +137,15 @@ function StageContent({ tournament: t, stage }: { tournament: Tournament; stage:
       {meta}
       {elimination ? (
         <>
-          <Section title="Chave">
+          <Section title={t('chave')}>
             <BracketView bracket={bracket.data} highlightRegistrationId={me} />
           </Section>
-          <Section title="Classificação">{standingsBlock}</Section>
+          <Section title={t('classificacao')}>{standingsBlock}</Section>
         </>
       ) : (
         <>
-          <Section title="Classificação">{standingsBlock}</Section>
-          <Section title={stage.format === 'BATTLE_ROYALE' || (stage.format === 'GROUPS' && stage.config.groupMode === 'BATTLE_ROYALE') ? 'Quedas' : 'Rodadas'}>
+          <Section title={t('classificacao')}>{standingsBlock}</Section>
+          <Section title={stage.format === 'BATTLE_ROYALE' || (stage.format === 'GROUPS' && stage.config.groupMode === 'BATTLE_ROYALE') ? t('quedas') : t('rodadas')}>
             <RoundsView bracket={bracket.data} highlightRegistrationId={me} />
           </Section>
         </>
@@ -150,22 +154,24 @@ function StageContent({ tournament: t, stage }: { tournament: Tournament; stage:
   );
 }
 
-export function BracketTab({ tournament: t }: { tournament: Tournament }) {
+export function BracketTab({ tournament }: { tournament: Tournament }) {
+  const t = useT(messages, 'CompetitionTabs');
   const [param, setParam] = useUrlParam('fase');
-  const stages = [...t.stages].sort((a, b) => a.order - b.order);
+  const stages = [...tournament.stages].sort((a, b) => a.order - b.order);
   const stage = stages.find((s) => s.id === param) ?? defaultStage(stages);
 
-  if (!stage) return <EmptyState icon={<GitBranch className="size-7" />} title="Este campeonato ainda não tem fases" description="A organização ainda não divulgou o formato." />;
+  if (!stage) return <EmptyState icon={<GitBranch className="size-7" />} title={t('semFasesTitulo')} description={t('semFasesDescricao')} />;
+  const formatLabel = stageFormatLabel(stage.format);
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
         <h2 className="text-lg">
-          {isEliminationFormat(stage.format) ? 'Chave e classificação' : 'Tabela e partidas'}
-          <span className="sr-only"> da fase {stage.name}</span>
+          {isEliminationFormat(stage.format) ? t('chaveEClassificacao') : t('tabelaEPartidas')}
+          <span className="sr-only">{t('daFase', { nome: stage.name })}</span>
         </h2>
         {stages.length > 1 ? (
-          <div role="group" aria-label="Fase" className="flex flex-wrap gap-2">
+          <div role="group" aria-label={t('fase')} className="flex flex-wrap gap-2">
             {stages.map((s) => (
               <button
                 key={s.id}
@@ -185,29 +191,33 @@ export function BracketTab({ tournament: t }: { tournament: Tournament }) {
         ) : (
           <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
             {stage.name}
-            {stage.name.trim().toLowerCase() !== STAGE_FORMAT_LABELS[stage.format].toLowerCase() && <Badge tone="neutral">{STAGE_FORMAT_LABELS[stage.format]}</Badge>}
+            {stage.name.trim().toLowerCase() !== formatLabel.toLowerCase() && <Badge tone="neutral">{formatLabel}</Badge>}
           </p>
         )}
       </div>
       {/* `key`: trocar de fase recomeça o estado interno (aba da rodada, zoom) do zero. */}
-      <StageContent key={stage.id} tournament={t} stage={stage} />
+      <StageContent key={stage.id} tournament={tournament} stage={stage} />
     </div>
   );
 }
 
 // ── Partidas ─────────────────────────────────────────────────────────
 
-export function MatchesTab({ tournament: t, matches }: { tournament: Tournament; matches: MatchesQuery }) {
+export function MatchesTab({ tournament, matches }: { tournament: Tournament; matches: MatchesQuery }) {
+  const t = useT(messages, 'CompetitionTabs');
   const [openId, setOpenId] = useUrlParam('partida');
 
-  if (matches.isPending) return <BlockSkeleton label="Carregando as partidas" rows={4} />;
-  if (matches.isError || !matches.data) return <ErrorState title="Não foi possível carregar as partidas" description={errorMessage(matches.error)} onRetry={() => void matches.refetch()} />;
+  if (matches.isPending) return <BlockSkeleton label={t('carregandoPartidas')} rows={4} />;
+  if (matches.isError || !matches.data) return <ErrorState title={t('erroPartidas')} description={errorMessage(matches.error)} onRetry={() => void matches.refetch()} />;
 
   const open = openId ? (matches.data.find((m) => m.id === openId) ?? null) : null;
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-lg">Partidas</h2>
-      <MatchesList matches={matches.data} stages={[...t.stages].sort((a, b) => a.order - b.order).map((s) => ({ id: s.id, name: s.name }))} onOpen={(m) => setOpenId(m.id)} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg">{t('partidas')}</h2>
+        <CalendarExport scope={{ kind: 'tournament', idOrSlug: tournament.slug, name: tournament.name }} />
+      </div>
+      <MatchesList matches={matches.data} stages={[...tournament.stages].sort((a, b) => a.order - b.order).map((s) => ({ id: s.id, name: s.name }))} onOpen={(m) => setOpenId(m.id)} />
       <MatchDetailModal match={open} onClose={() => setOpenId(null)} />
     </div>
   );
@@ -215,13 +225,14 @@ export function MatchesTab({ tournament: t, matches }: { tournament: Tournament;
 
 // ── Resultados ───────────────────────────────────────────────────────
 
-export function ResultsTab({ tournament: t, matches }: { tournament: Tournament; matches: MatchesQuery }) {
+export function ResultsTab({ tournament, matches }: { tournament: Tournament; matches: MatchesQuery }) {
+  const t = useT(messages, 'CompetitionTabs');
   const viewer = useMatchViewer();
-  const podium = usePodium(t.id);
+  const podium = usePodium(tournament.id);
   const [openId, setOpenId] = useState<string | null>(null);
 
-  if (matches.isPending) return <BlockSkeleton label="Carregando os resultados" rows={4} />;
-  if (matches.isError || !matches.data) return <ErrorState title="Não foi possível carregar os resultados" description={errorMessage(matches.error)} onRetry={() => void matches.refetch()} />;
+  if (matches.isPending) return <BlockSkeleton label={t('carregandoResultados')} rows={4} />;
+  if (matches.isError || !matches.data) return <ErrorState title={t('erroResultados')} description={errorMessage(matches.error)} onRetry={() => void matches.refetch()} />;
 
   const recency = (m: Match) => m.updatedAt ?? m.scheduledAt ?? '';
   // Bye não é resultado: só entra partida com dois lados (ou a queda inteira).
@@ -230,14 +241,14 @@ export function ResultsTab({ tournament: t, matches }: { tournament: Tournament;
 
   return (
     <div className="flex flex-col gap-8">
-      <h2 className="sr-only">Resultados</h2>
+      <h2 className="sr-only">{t('resultados')}</h2>
       {podium.data && <Podium podium={podium.data} highlightRegistrationId={viewer.registration?.id} />}
-      {t.status === 'FINISHED' && podium.isSuccess && !podium.data && <p className="text-sm text-muted">O campeonato terminou, mas a organização ainda não publicou o pódio.</p>}
-      <Section title="Partidas concluídas" aside={<span className="tabular text-sm text-muted">{concluded.length}</span>}>
+      {tournament.status === 'FINISHED' && podium.isSuccess && !podium.data && <p className="text-sm text-muted">{t('semPodio')}</p>}
+      <Section title={t('concluidas')} aside={<span className="tabular text-sm text-muted">{concluded.length}</span>}>
         {concluded.length === 0 ? (
-          <EmptyState icon={<Trophy className="size-7" />} title="Nenhum resultado ainda" description="Assim que a primeira partida terminar, o resultado aparece aqui." />
+          <EmptyState icon={<Trophy className="size-7" />} title={t('nenhumResultadoTitulo')} description={t('nenhumResultadoDescricao')} />
         ) : (
-          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2" aria-label="Partidas concluídas, da mais recente para a mais antiga">
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2" aria-label={t('concluidasLista')}>
             {concluded.map((match) => (
               <li key={match.id}>
                 <MatchCard match={match} variant="compact" onOpen={(m) => setOpenId(m.id)} headingLevel={4} />

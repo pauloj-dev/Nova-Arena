@@ -1,0 +1,69 @@
+name: Desempenho
+
+# Issue #111 (plano R2.1): gate de JavaScript inicial por rota e Lighthouse CI das páginas públicas.
+# Build de produção com a API real contra o Postgres do runner (migrations + seed + campeonato de exemplo),
+# como em produção: com a API simulada a página espera o MSW e a nota mediria o protótipo.
+
+on:
+  pull_request:
+  push:
+    branches: [main, staging]
+
+concurrency:
+  group: desempenho-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  desempenho:
+    name: JS inicial ≤ 180 KB e Lighthouse (celular ≥ 90)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: nova
+          POSTGRES_PASSWORD: nova
+          POSTGRES_DB: nova_perf
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nova -d nova_perf"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://nova:nova@localhost:5432/nova_perf
+      NEXT_PUBLIC_API_MOCK: none
+      NEXT_PUBLIC_SITE_URL: http://localhost:3152
+      # Só para o servidor local do job (assina tokens de sessão que ninguém usa aqui).
+      AUTH_JWT_SECRET: segredo-do-ci-de-desempenho-com-mais-de-32-caracteres
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Banco do job (migrations, seed e campeonato de exemplo)
+        run: |
+          pnpm --filter @nova/db exec prisma migrate deploy
+          pnpm --filter @nova/db db:seed
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/web/lighthouse/fixture.sql
+      - name: Build de produção
+        run: pnpm --filter web exec next build
+      - name: Gate de JS inicial por rota (180 KB gzip; dívida em bundle-budget.json só pode diminuir)
+        run: pnpm --filter web check:bundle
+      - name: Lighthouse CI (/, /campeonatos, /c/copa-lighthouse, /jogos, /ranking, /termos)
+        run: pnpm --filter web lhci
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: lighthouse
+          path: apps/web/.lighthouseci
+          retention-days: 14

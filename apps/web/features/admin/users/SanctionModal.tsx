@@ -8,6 +8,8 @@ import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { errorMessage } from '@/shared/api/client';
 import { useSanctionUser } from '@/shared/api/hooks/admin';
+import { useT } from '@/shared/i18n/react';
+import { adminUsersMessages } from './messages';
 
 export type SanctionType = CreateSanctionInput['type'];
 type FormValues = z.input<typeof CreateSanctionInput>;
@@ -28,26 +30,22 @@ interface SanctionModalProps {
   onDone?: (affected: OrphanOutcome[]) => void;
 }
 
-const COPY: Record<SanctionType, { title: string; verb: string; done: string; effect: string }> = {
-  WARNING: { title: 'Advertir', verb: 'Advertir', done: 'Advertência aplicada', effect: 'A pessoa recebe um aviso da moderação. A conta continua ativa.' },
-  SUSPENSION: { title: 'Suspender', verb: 'Suspender conta', done: 'Conta suspensa', effect: 'Vale na hora: a sessão cai e a pessoa não consegue entrar até o fim do prazo. A conta volta sozinha.' },
-  BAN: { title: 'Banir', verb: 'Banir conta', done: 'Conta banida', effect: 'Vale na hora: a sessão cai e a pessoa não entra mais. Só um administrador desfaz.' },
-};
-
-const DAY_OPTIONS = [1, 3, 7, 14, 30, 90].map((d) => ({ value: String(d), label: d === 1 ? '1 dia' : `${d} dias` }));
+const DAYS = [1, 3, 7, 14, 30, 90];
 
 /** Advertência, suspensão (com prazo) ou banimento, sempre com motivo. O motivo vai para a pessoa e para a auditoria. */
 export function SanctionModal({ open, onOpenChange, targets, type, reportId, onDone }: SanctionModalProps) {
+  const t = useT(adminUsersMessages, 'SanctionModal');
   const toast = useToast();
   const sanction = useSanctionUser();
   const [running, setRunning] = useState(false);
-  const copy = COPY[type];
+  const copy = { title: t(`${type}.titulo`), verb: t(`${type}.verbo`), done: t(`${type}.feito`), effect: t(`${type}.efeito`) };
+  const dayOptions = DAYS.map((d) => ({ value: String(d), label: t('dias', { dias: d, n: String(d) }) }));
   // O modal é montado a cada abertura (quem usa renderiza sob condição), então os valores iniciais bastam.
   const { register, handleSubmit, reset, formState } = useForm<FormValues>({
     resolver: zodResolver(CreateSanctionInput),
     defaultValues: { type, reason: '', days: type === 'SUSPENSION' ? 7 : undefined, reportId },
   });
-  const who = targets.length === 1 ? (targets[0]?.nickname ?? 'a conta') : `${targets.length} contas`;
+  const who = targets.length === 1 ? (targets[0]?.nickname ?? t('aConta')) : t('nContas', { n: String(targets.length) });
 
   function close() {
     reset();
@@ -70,18 +68,26 @@ export function SanctionModal({ open, onOpenChange, targets, type, reportId, onD
     setRunning(false);
     const ok = targets.length - failed.length;
     if (ok > 0) {
-      const paused = affected.filter((t) => t.outcome === 'PAUSED').length;
+      const paused = affected.filter((outcome) => outcome.outcome === 'PAUSED').length;
       toast.success(
-        targets.length === 1 ? copy.done : `${copy.done} para ${ok} de ${targets.length} contas`,
-        affected.length > 0 ? `${affected.length} campeonato(s) da organização foram afetados${paused > 0 ? `; ${paused} ficaram sem responsável` : ''}.` : undefined,
+        targets.length === 1 ? copy.done : t('feitoLote', { feito: copy.done, ok: String(ok), total: String(targets.length) }),
+        affected.length > 0
+          ? paused > 0
+            ? t('afetadosSemResponsavel', { n: String(affected.length), pausados: String(paused) })
+            : t('afetados', { n: String(affected.length) })
+          : undefined,
       );
     }
-    if (failed.length > 0) toast.error(targets.length === 1 ? 'Não foi possível aplicar a sanção' : `${failed.length} conta(s) ficaram sem a sanção`, failed.join(' · '));
+    if (failed.length > 0) toast.error(targets.length === 1 ? t('falhaUma') : t('falhaLote', { n: String(failed.length) }), failed.join(' · '));
     if (ok > 0) {
       onDone?.(affected);
       close();
     }
   }
+
+  const accounts = t.rich('contas', { lista: targets.map((target) => target.nickname).join(', '), destaque: (chunks) => <span className="text-text">{chunks}</span> });
+  const daysField = type !== 'SUSPENSION' ? undefined : register('days',{ setValueAs: (v: unknown) => (v === '' || v === undefined ? undefined : Number(v)) });
+  const reasonField = register('reason');
 
   return (
     <Modal
@@ -89,13 +95,13 @@ export function SanctionModal({ open, onOpenChange, targets, type, reportId, onD
       onOpenChange={(next) => {
         if (!next && !running) close();
       }}
-      title={`${copy.title} ${who}`}
+      title={t('tituloModal', { acao: copy.title, quem: who })}
       description={copy.effect}
       size="sm"
       footer={
         <>
           <Button variant="secondary" onClick={close} disabled={running}>
-            Voltar
+            {t('voltar')}
           </Button>
           <Button type="submit" form="sanction-form" variant={type === 'WARNING' ? 'primary' : 'danger'} loading={running}>
             {copy.verb}
@@ -106,27 +112,19 @@ export function SanctionModal({ open, onOpenChange, targets, type, reportId, onD
       <form id="sanction-form" onSubmit={(event) => void handleSubmit(submit)(event)} className="flex flex-col gap-4" noValidate>
         {targets.length > 1 && (
           <p className="text-sm text-muted [overflow-wrap:anywhere]">
-            Contas: <span className="text-text">{targets.map((t) => t.nickname).join(', ')}</span>
+            {accounts}
           </p>
         )}
         {type === 'SUSPENSION' && (
           <Select
-            label="Por quanto tempo"
+            label={t('prazo')}
             required
-            options={DAY_OPTIONS}
-            {...register('days', { setValueAs: (v: unknown) => (v === '' || v === undefined ? undefined : Number(v)) })}
+            options={dayOptions}
+            {...daysField}
             error={formState.errors.days?.message}
           />
         )}
-        <Textarea
-          label="Motivo"
-          required
-          rows={3}
-          maxLength={500}
-          hint="A pessoa recebe este texto na notificação."
-          error={formState.errors.reason?.message}
-          {...register('reason')}
-        />
+        <Textarea label={t('motivo')} required rows={3} maxLength={500} hint={t('motivoDica')} error={formState.errors.reason?.message} {...reasonField} />
       </form>
     </Modal>
   );

@@ -8,11 +8,14 @@ import { useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useGames } from '@/shared/api/hooks/games';
 import { useDeleteTemplate, useTournamentTemplates } from '@/shared/api/hooks/organizer';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
+import { messages } from '../messages';
 import { TemplateCard } from './TemplateCard';
 
 /** `/organizador/modelos` — modelos da plataforma e os meus: usar e excluir os meus (issue #24). */
 export function TemplatesPage() {
+  const t = useT(messages, 'TemplatesPage');
   const templates = useTournamentTemplates();
   const games = useGames();
   const remove = useDeleteTemplate();
@@ -34,13 +37,13 @@ export function TemplatesPage() {
             actions={
               <>
                 <Button asChild>
-                  <Link href={`/organizador/novo?modelo=${template.id}`} aria-label={`Usar o modelo ${template.name}`}>
-                    Usar modelo
+                  <Link href={`/organizador/novo?modelo=${template.id}`} aria-label={t('usarModeloDe', { nome: template.name })}>
+                    {t('usarModelo')}
                   </Link>
                 </Button>
                 {template.ownerId !== null && (
-                  <Button variant="ghost" iconLeft={<Trash2 className="size-4" aria-hidden />} aria-label={`Excluir o modelo ${template.name}`} onClick={() => setRemoving(template)}>
-                    Excluir
+                  <Button variant="ghost" iconLeft={<Trash2 className="size-4" aria-hidden />} aria-label={t('excluirModeloDe', { nome: template.name })} onClick={() => setRemoving(template)}>
+                    {t('excluir')}
                   </Button>
                 )}
               </>
@@ -53,7 +56,7 @@ export function TemplatesPage() {
 
   return (
     <PageContainer>
-      <PageHeader title="Modelos" description="Um modelo guarda jogo, vagas, fases, pontuação e regulamento. Use um pronto ou salve os seus a partir de um campeonato." />
+      <PageHeader title={t('titulo')} description={t('descricao')} />
       {failure ? (
         <ErrorState
           description={errorMessage(failure)}
@@ -63,7 +66,7 @@ export function TemplatesPage() {
           }}
         />
       ) : !templates.data || !games.data ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Carregando modelos">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" role="status" aria-label={t('carregando')}>
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-48 w-full" />
           ))}
@@ -72,16 +75,16 @@ export function TemplatesPage() {
         <>
           <section className="flex flex-col gap-3" aria-labelledby="meus-modelos">
             <h2 id="meus-modelos" className="text-lg">
-              Meus modelos
+              {t('meusModelos')}
             </h2>
             {mine.length === 0 ? (
               <EmptyState
                 icon={<FileStack className="size-7" />}
-                title="Você ainda não salvou nenhum modelo"
-                description='Em "Meus campeonatos", use "Salvar como modelo" para guardar a estrutura de um campeonato e repetir depois.'
+                title={t('nenhumMeuTitulo')}
+                description={t('nenhumMeuDescricao')}
                 action={
                   <Button asChild variant="secondary">
-                    <Link href="/organizador/campeonatos">Ir para Meus campeonatos</Link>
+                    <Link href="/organizador/campeonatos">{t('irParaMeusCampeonatos')}</Link>
                   </Button>
                 }
               />
@@ -91,9 +94,9 @@ export function TemplatesPage() {
           </section>
           <section className="flex flex-col gap-3" aria-labelledby="modelos-plataforma">
             <h2 id="modelos-plataforma" className="text-lg">
-              Modelos da Nova Arena
+              {t('modelosDaPlataforma')}
             </h2>
-            {platform.length === 0 ? <p className="text-sm text-muted">Nenhum modelo da plataforma no momento.</p> : grid(platform)}
+            {platform.length === 0 ? <p className="text-sm text-muted">{t('nenhumDaPlataforma')}</p> : grid(platform)}
           </section>
         </>
       )}
@@ -102,12 +105,12 @@ export function TemplatesPage() {
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}
         size="sm"
-        title="Excluir este modelo?"
-        description={removing ? `"${removing.name}" some da sua lista. Os campeonatos criados a partir dele não mudam.` : undefined}
+        title={t('excluirTitulo')}
+        description={removing ? t('excluirDescricao', { nome: removing.name }) : undefined}
         footer={
           <>
             <Button variant="secondary" onClick={() => setRemoving(null)}>
-              Voltar
+              {t('voltar')}
             </Button>
             <Button
               variant="danger"
@@ -116,14 +119,14 @@ export function TemplatesPage() {
                 if (!removing) return;
                 remove.mutate(removing.id, {
                   onSuccess: () => {
-                    success('Modelo excluído');
+                    success(t('excluido'));
                     setRemoving(null);
                   },
-                  onError: (e) => error('Não foi possível excluir', errorMessage(e)),
+                  onError: (e) => error(t('erroExcluir'), errorMessage(e)),
                 });
               }}
             >
-              Excluir modelo
+              {t('excluirModelo')}
             </Button>
           </>
         }

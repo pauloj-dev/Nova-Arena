@@ -16,6 +16,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@nova/ui';
 import { ArrowDown, ArrowUp, GripVertical } from 'lucide-react';
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 
 interface MoveContextValue {
   ids: string[];
@@ -48,6 +50,7 @@ interface PendingFocus {
  * de cada item. Toda mudança de posição é anunciada para leitores de tela.
  */
 export function SortableList({ ids, itemName, onMove, isLocked, children, className, 'aria-label': ariaLabel }: SortableListProps) {
+  const t = useT(messages, 'Sortable');
   const dndId = useId();
   const listRef = useRef<HTMLUListElement>(null);
   const pendingFocus = useRef<PendingFocus | null>(null);
@@ -69,10 +72,10 @@ export function SortableList({ ids, itemName, onMove, isLocked, children, classN
 
   const position = (id: UniqueIdentifier) => ids.indexOf(String(id)) + 1;
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `${itemName(String(active.id))} selecionado, na posição ${position(active.id)} de ${ids.length}.`,
-    onDragOver: ({ active, over }) => (over ? `${itemName(String(active.id))} sobre a posição ${position(over.id)} de ${ids.length}.` : undefined),
-    onDragEnd: ({ active, over }) => (over ? `${itemName(String(active.id))} solto na posição ${position(over.id)} de ${ids.length}.` : `${itemName(String(active.id))} solto.`),
-    onDragCancel: ({ active }) => `Reordenação cancelada. ${itemName(String(active.id))} voltou para a posição ${position(active.id)}.`,
+    onDragStart: ({ active }) => t('selecionado', { item: itemName(String(active.id)), posicao: position(active.id), total: ids.length }),
+    onDragOver: ({ active, over }) => (over ? t('sobre', { item: itemName(String(active.id)), posicao: position(over.id), total: ids.length }) : undefined),
+    onDragEnd: ({ active, over }) => (over ? t('solto', { item: itemName(String(active.id)), posicao: position(over.id), total: ids.length }) : t('soltoSemDestino', { item: itemName(String(active.id)) })),
+    onDragCancel: ({ active }) => t('cancelado', { item: itemName(String(active.id)), posicao: position(active.id) }),
   };
 
   function handleDragEnd({ active, over }: DragEndEvent) {
@@ -89,7 +92,7 @@ export function SortableList({ ids, itemName, onMove, isLocked, children, classN
     const target = ids[to];
     if (from < 0 || target === undefined || isLocked?.(target)) return;
     pendingFocus.current = { id, direction };
-    setStatus(`${itemName(id)} movido para a posição ${to + 1} de ${ids.length}.`);
+    setStatus(t('movido', { item: itemName(id), posicao: to + 1, total: ids.length }));
     onMove(from, to);
   }
 
@@ -102,7 +105,7 @@ export function SortableList({ ids, itemName, onMove, isLocked, children, classN
       accessibility={{
         announcements,
         screenReaderInstructions: {
-          draggable: 'Para reordenar, pressione espaço ou Enter, use as setas para mover e pressione espaço ou Enter de novo para soltar. Esc cancela.',
+          draggable: t('instrucoes'),
         },
       }}
     >
@@ -134,6 +137,7 @@ const controlButton =
   'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40';
 
 export function SortableItem({ id, children, compact, className }: SortableItemProps) {
+  const t = useT(messages, 'Sortable');
   const context = useContext(MoveContext);
   if (!context) throw new Error('SortableItem precisa estar dentro de <SortableList>.');
   const { ids, moveByButton, isLocked, itemName } = context;
@@ -141,7 +145,7 @@ export function SortableItem({ id, children, compact, className }: SortableItemP
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id,
     disabled: locked,
-    attributes: { roleDescription: 'item reordenável' },
+    attributes: { roleDescription: t('itemReordenavel') },
   });
 
   const index = ids.indexOf(id);
@@ -155,15 +159,15 @@ export function SortableItem({ id, children, compact, className }: SortableItemP
         ref={setActivatorNodeRef}
         {...attributes}
         {...listeners}
-        aria-label={`Arrastar ${name} para reordenar`}
+        aria-label={t('arrastar', { item: name })}
         className={cn(controlButton, 'cursor-grab touch-none active:cursor-grabbing', compact && 'hidden md:flex')}
       >
         <GripVertical className="size-4" aria-hidden />
       </button>
-      <button type="button" data-sortable-item={id} data-move="up" aria-label={`Subir ${name}`} disabled={blocked(ids[index - 1])} onClick={() => moveByButton(id, 'up')} className={controlButton}>
+      <button type="button" data-sortable-item={id} data-move="up" aria-label={t('subir', { item: name })} disabled={blocked(ids[index - 1])} onClick={() => moveByButton(id, 'up')} className={controlButton}>
         <ArrowUp className="size-4" aria-hidden />
       </button>
-      <button type="button" data-sortable-item={id} data-move="down" aria-label={`Descer ${name}`} disabled={blocked(ids[index + 1])} onClick={() => moveByButton(id, 'down')} className={controlButton}>
+      <button type="button" data-sortable-item={id} data-move="down" aria-label={t('descer', { item: name })} disabled={blocked(ids[index + 1])} onClick={() => moveByButton(id, 'down')} className={controlButton}>
         <ArrowDown className="size-4" aria-hidden />
       </button>
     </span>

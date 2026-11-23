@@ -3,17 +3,22 @@
 import type { Tournament } from '@nova/schemas';
 import { Button, Card, ErrorState, Progress, Skeleton } from '@nova/ui';
 import { CalendarClock, Hourglass, Lock, ShieldCheck, XCircle } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useGame } from '@/shared/api/hooks/games';
 import { useMyRegistration, useRegistrationEligibility } from '@/shared/api/hooks/registrations';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { useSession } from '@/shared/session/useSession';
 import { registrationPanelView } from './lib/rules';
-import { MyRegistrationCard } from './MyRegistrationCard';
-import { RegisterForm } from './RegisterForm';
+import { messages } from './messages';
+
+// Só quem está logado vê o formulário (squads, contas de jogo) e o cartão da inscrição: fora do JS inicial (#111).
+const MyRegistrationCard = dynamic(() => import('./MyRegistrationCard').then((m) => m.MyRegistrationCard), { loading: () => <Skeleton className="h-32 w-full" /> });
+const RegisterForm = dynamic(() => import('./RegisterForm').then((m) => m.RegisterForm), { loading: () => <Skeleton className="h-32 w-full" /> });
 
 function Notice({ icon, title, children }: { icon: ReactNode; title: string; children?: ReactNode }) {
   return (
@@ -43,6 +48,7 @@ export function RegistrationPanel({ tournament }: { tournament: Tournament }) {
   const game = useGame(tournament.gameId);
   // A hora é lida uma vez ao montar: a regra que vale é a da API, aqui é só para escolher o que mostrar.
   const [now] = useState(() => new Date());
+  const t = useT(messages, 'RegistrationPanel');
 
   const loading = sessionLoading || game.isPending || (logged && (mine.isPending || eligibility.isPending));
   const failed = game.error ?? (logged ? (mine.error ?? eligibility.error) : null);
@@ -51,7 +57,7 @@ export function RegistrationPanel({ tournament }: { tournament: Tournament }) {
   let body: ReactNode;
   if (loading) {
     body = (
-      <div className="flex flex-col gap-3" role="status" aria-label="Carregando a inscrição">
+      <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
         <Skeleton className="h-5 w-2/3" />
         <Skeleton className="h-11 w-full" />
       </div>
@@ -59,7 +65,7 @@ export function RegistrationPanel({ tournament }: { tournament: Tournament }) {
   } else if (failed || !game.data) {
     body = (
       <ErrorState
-        title="Não foi possível carregar a inscrição"
+        title={t('erroCarregar')}
         description={errorMessage(failed)}
         onRetry={() => {
           void game.refetch();
@@ -84,19 +90,13 @@ export function RegistrationPanel({ tournament }: { tournament: Tournament }) {
     });
     const slots = (
       <div className="flex flex-col gap-1">
-        <Progress value={tournament.takenSlots} max={tournament.maxParticipants} label="Vagas ocupadas" />
+        <Progress value={tournament.takenSlots} max={tournament.maxParticipants} label={t('vagasOcupadas')} />
         <p className="text-sm text-muted">
-          {free > 0
-            ? free === 1
-              ? 'Resta 1 vaga.'
-              : `Restam ${free} vagas.`
-            : tournament.waitlistEnabled
-              ? `Vagas esgotadas. ${tournament.waitlistCount === 0 ? 'Ninguém na lista de espera ainda.' : tournament.waitlistCount === 1 ? '1 inscrição na lista de espera.' : `${tournament.waitlistCount} inscrições na lista de espera.`}`
-              : 'Vagas esgotadas.'}
+          {free > 0 ? t('restam', { count: free }) : tournament.waitlistEnabled ? t('esgotadasComFila', { count: tournament.waitlistCount }) : t('esgotadas')}
         </p>
       </div>
     );
-    const closes = tournament.registrationClosesAt ? <p className="text-sm text-muted">Inscrições até {formatDateTime(tournament.registrationClosesAt)}.</p> : null;
+    const closes = tournament.registrationClosesAt ? <p className="text-sm text-muted">{t('inscricoesAte', { data: formatDateTime(tournament.registrationClosesAt) })}</p> : null;
 
     switch (view.kind) {
       case 'REGISTERED':
@@ -104,29 +104,29 @@ export function RegistrationPanel({ tournament }: { tournament: Tournament }) {
         break;
       case 'CANCELLED':
         body = (
-          <Notice icon={<XCircle className="size-5" />} title="Campeonato cancelado">
-            Este campeonato foi cancelado pela organização e não recebe inscrições.
+          <Notice icon={<XCircle className="size-5" />} title={t('canceladoTitulo')}>
+            {t('canceladoTexto')}
           </Notice>
         );
         break;
       case 'CLOSED':
         body = (
-          <Notice icon={<Lock className="size-5" />} title="Inscrições encerradas">
-            {tournament.registrationClosesAt ? `As inscrições fecharam em ${formatDateTime(tournament.registrationClosesAt)}.` : 'Este campeonato não recebe mais inscrições.'}
+          <Notice icon={<Lock className="size-5" />} title={t('encerradasTitulo')}>
+            {tournament.registrationClosesAt ? t('fecharamEm', { data: formatDateTime(tournament.registrationClosesAt) }) : t('naoRecebeMais')}
           </Notice>
         );
         break;
       case 'ORGANIZER':
         body = (
-          <Notice icon={<ShieldCheck className="size-5" />} title="Você organiza este campeonato">
-            Quem é da organização (dono, co-organizador ou moderador) não pode se inscrever no próprio campeonato. Para jogar, entre em um campeonato de outro organizador.
+          <Notice icon={<ShieldCheck className="size-5" />} title={t('organizadorTitulo')}>
+            {t('organizadorTexto')}
           </Notice>
         );
         break;
       case 'NOT_OPEN_YET':
         body = (
-          <Notice icon={<CalendarClock className="size-5" />} title="As inscrições ainda não abriram">
-            {view.opensAt ? `Elas abrem em ${formatDateTime(view.opensAt)}.` : 'A organização ainda não marcou a data de abertura.'}
+          <Notice icon={<CalendarClock className="size-5" />} title={t('naoAbriramTitulo')}>
+            {view.opensAt ? t('abremEm', { data: formatDateTime(view.opensAt) }) : t('semDataAbertura')}
           </Notice>
         );
         break;
@@ -134,8 +134,8 @@ export function RegistrationPanel({ tournament }: { tournament: Tournament }) {
         body = (
           <>
             {slots}
-            <Notice icon={<Hourglass className="size-5" />} title="Vagas esgotadas">
-              Este campeonato não tem lista de espera.
+            <Notice icon={<Hourglass className="size-5" />} title={t('esgotadasTitulo')}>
+              {t('semListaEspera')}
             </Notice>
           </>
         );
@@ -145,32 +145,34 @@ export function RegistrationPanel({ tournament }: { tournament: Tournament }) {
           <>
             {slots}
             {closes}
-            <p className="text-sm text-text">{view.waitlist ? 'Entre na sua conta para entrar na lista de espera.' : 'Entre na sua conta para se inscrever.'}</p>
+            <p className="text-sm text-text">{view.waitlist ? t('entreParaFila') : t('entreParaInscrever')}</p>
             <div className="flex flex-wrap gap-2">
               <Button asChild size="lg">
-                <Link href={`/entrar?next=${encodeURIComponent(pathname)}`}>{view.waitlist ? 'Entrar para pegar um lugar na fila' : 'Entrar para se inscrever'}</Link>
+                <Link href={`/entrar?next=${encodeURIComponent(pathname)}`}>{view.waitlist ? t('entrarParaFila') : t('entrarParaInscrever')}</Link>
               </Button>
               <Button asChild variant="secondary" size="lg">
-                <Link href={`/cadastro?next=${encodeURIComponent(pathname)}`}>Criar conta</Link>
+                <Link href={`/cadastro?next=${encodeURIComponent(pathname)}`}>{t('criarConta')}</Link>
               </Button>
             </div>
           </>
         );
         break;
-      case 'CAN_REGISTER':
+      case 'CAN_REGISTER': {
+        const waitlistOffer = view.waitlistPosition !== null ? t.rich('ofertaFila', { posicao: view.waitlistPosition, b: (chunks) => <strong>{chunks}</strong> }) : null;
         body = user ? (
           <>
             {slots}
             {closes}
             {view.waitlistPosition !== null && (
               <p className="rounded-md bg-info-soft p-3 text-sm text-info-soft-text" data-testid="waitlist-offer">
-                Você pode entrar na lista de espera. Hoje você seria o <strong>{view.waitlistPosition}º da fila</strong>; se alguém cancelar, a vaga passa para o primeiro, automaticamente.
+                {waitlistOffer}
               </p>
             )}
             <RegisterForm tournament={tournament} game={game.data} viewerId={user.id} waitlistPosition={view.waitlistPosition} missingGameAccount={view.missingGameAccount} />
           </>
         ) : null;
         break;
+      }
     }
   }
 
@@ -178,7 +180,7 @@ export function RegistrationPanel({ tournament }: { tournament: Tournament }) {
     <Card>
       <section aria-labelledby={`inscricao-${tournament.id}`} className="flex flex-col gap-4">
         <h2 id={`inscricao-${tournament.id}`} className="text-lg">
-          Inscrição
+          {t('titulo')}
         </h2>
         {body}
       </section>

@@ -5,6 +5,8 @@
  */
 import { computePoints, type Rule } from '@nova/engine';
 import type { Match, ResultEntryInput } from '@nova/schemas';
+import { getT } from '@/shared/i18n/core';
+import { messages } from '../messages';
 
 export interface DropMember {
   userId: string;
@@ -80,6 +82,7 @@ export function playerKillsSum(row: DropRow, members: DropMember[]): number {
  * "faltando" — vira erro na hora de enviar.
  */
 export function validateDrop(rows: DropRow[], opts: { killsPerPlayer?: boolean; members?: Record<string, DropMember[]> } = {}): DropValidation {
+  const t = getT(messages, 'brDrop');
   const errors: Record<string, DropRowErrors> = {};
   const set = (id: string, field: keyof DropRowErrors, message: string) => {
     errors[id] = { ...errors[id], [field]: message };
@@ -92,25 +95,25 @@ export function validateDrop(rows: DropRow[], opts: { killsPerPlayer?: boolean; 
     if (row.absent) continue;
     const placement = parseCount(row.placement);
     if (placement === null) missing += 1;
-    else if (!Number.isFinite(placement)) set(row.registrationId, 'placement', 'Use um número inteiro');
-    else if (placement < 1) set(row.registrationId, 'placement', 'A colocação começa em 1');
-    else if (placement > total) set(row.registrationId, 'placement', `Esta sala tem ${total} ${total === 1 ? 'equipe' : 'equipes'}: a colocação vai de 1 a ${total}`);
+    else if (!Number.isFinite(placement)) set(row.registrationId, 'placement', t('numeroInteiro'));
+    else if (placement < 1) set(row.registrationId, 'placement', t('colocacaoMinima'));
+    else if (placement > total) set(row.registrationId, 'placement', t('colocacaoMaxima', { total }));
     else byPlacement.set(placement, [...(byPlacement.get(placement) ?? []), row]);
 
     const kills = parseCount(row.kills);
     if (kills === null) missing += 1;
-    else if (!Number.isFinite(kills)) set(row.registrationId, 'kills', 'Use um número inteiro');
-    else if (kills < 0) set(row.registrationId, 'kills', 'Kills não podem ser negativas');
-    else if (kills > 999) set(row.registrationId, 'kills', 'O máximo é 999');
+    else if (!Number.isFinite(kills)) set(row.registrationId, 'kills', t('numeroInteiro'));
+    else if (kills < 0) set(row.registrationId, 'kills', t('killsNegativas'));
+    else if (kills > 999) set(row.registrationId, 'kills', t('maximo'));
 
     const members = opts.killsPerPlayer ? (opts.members?.[row.registrationId] ?? []) : [];
     if (members.length > 0) {
       const typed = members.map((m) => parseCount(row.playerKills[m.userId] ?? ''));
       if (typed.some((n) => n !== null && (!Number.isFinite(n) || n < 0))) {
-        set(row.registrationId, 'playerKills', 'As kills de cada jogador precisam ser um número inteiro a partir de 0');
+        set(row.registrationId, 'playerKills', t('killsJogadorInvalidas'));
       } else if (kills !== null && Number.isFinite(kills) && kills >= 0) {
         const sum = playerKillsSum(row, members);
-        if (sum !== kills) set(row.registrationId, 'playerKills', `A soma por jogador (${sum}) precisa ser igual às kills da equipe (${kills})`);
+        if (sum !== kills) set(row.registrationId, 'playerKills', t('somaDiferente', { sum: String(sum), kills: String(kills) }));
       }
     }
   }
@@ -118,7 +121,7 @@ export function validateDrop(rows: DropRow[], opts: { killsPerPlayer?: boolean; 
     if (same.length < 2) continue;
     for (const row of same) {
       const others = same.filter((r) => r !== row).map((r) => r.name);
-      set(row.registrationId, 'placement', `Colocação ${placement} repetida (também em ${others.join(', ')})`);
+      set(row.registrationId, 'placement', t('colocacaoRepetida', { placement: String(placement), others: others.join(', ') }));
     }
   }
   return { errors, missing, valid: missing === 0 && Object.keys(errors).length === 0 };

@@ -5,7 +5,8 @@ import { Role, UserStatus } from './user';
 import { TournamentStatus } from './tournament';
 
 // ── Denúncias e sanções ──────────────────────────────────────────────
-export const ReportTarget = z.enum(['USER', 'TEAM', 'MATCH', 'RESULT']);
+/** `CHAT_MESSAGE`: mensagem do chat de uma partida (issue 125). */
+export const ReportTarget = z.enum(['USER', 'TEAM', 'MATCH', 'RESULT', 'CHAT_MESSAGE']);
 export const ReportStatus = z.enum(['OPEN', 'IN_REVIEW', 'ACTIONED', 'DISMISSED']);
 export const ReportReason = z.enum(['CHEATING', 'FAKE_RESULT', 'HARASSMENT', 'OFFENSIVE_NAME', 'IMPERSONATION', 'OTHER']);
 export const REPORT_REASON_LABELS: Record<z.infer<typeof ReportReason>, string> = {
@@ -194,6 +195,10 @@ export const AUDIT_ACTIONS = {
   ADMIN_REMOVAL_REQUESTED: 'Remoção de administrador solicitada',
   ADMIN_REMOVAL_REVIEWED: 'Pedido de remoção de administrador analisado',
   TWO_FACTOR_CHANGED: 'Verificação em duas etapas alterada',
+  SEASON_CHANGED: 'Temporada do ranking criada ou alterada',
+  LEAGUE_CHANGED: 'Liga criada ou alterada',
+  FRAUD_ALERT_REVIEWED: 'Alerta antifraude analisado',
+  ACCOUNT_DELETED: 'Conta excluída a pedido (LGPD)',
 } as const satisfies Record<string, string>;
 export type AuditAction = keyof typeof AUDIT_ACTIONS;
 export const AuditActionSchema = z.enum(Object.keys(AUDIT_ACTIONS) as [AuditAction, ...AuditAction[]]);
@@ -277,8 +282,11 @@ export const SystemHealth = z.object({
   version: z.string(),
   environment: z.string(),
   checkedAt: IsoDateTime,
-  errorRate: z.number(),
+  /** Percentual de requisições com erro na última hora. Nulo quando o ambiente não mede (veja `errorTracking`). */
+  errorRate: z.number().nullable(),
   services: z.array(z.object({ key: z.string(), name: z.string(), status: z.enum(['ok', 'degraded', 'down']), detail: z.string(), latencyMs: z.number().nullable() })),
+  /** Monitoramento de erros (Sentry, issue #116): erros recebidos na última hora, quando o ambiente tem leitura. */
+  errorTracking: z.object({ configured: z.boolean(), eventsLastHour: z.number().int().nullable() }).optional(),
   failedJobs: z.number().int(),
   storageUsedMb: z.number(),
 });
@@ -414,7 +422,8 @@ export type SiteBannerItem = z.infer<typeof SiteBannerItem>;
 export const PublicSiteSettings = SiteSettings.omit({ requireApprovalForSeniorAdminRemoval: true });
 export type PublicSiteSettings = z.infer<typeof PublicSiteSettings>;
 
-export const FEATURE_FLAG_DEFAULTS = { ranking: true, publicSignup: true, resultSubmission: true, pushNotifications: false } as const;
+/** `resultOcr` (issue 123): leitura experimental do print do resultado, sempre com confirmação humana. */
+export const FEATURE_FLAG_DEFAULTS = { ranking: true, publicSignup: true, resultSubmission: true, pushNotifications: false, resultOcr: false } as const;
 export type FeatureFlagKey = keyof typeof FEATURE_FLAG_DEFAULTS;
 export const FeatureFlagInput = z.object({ enabled: z.boolean() });
 
@@ -433,3 +442,68 @@ export const TwoFactorDisableInput = z.object({ code: z.string().trim().min(6, '
 /** Só no protótipo: o código atual, para a demonstração funcionar sem aplicativo autenticador. */
 export const TwoFactorDevCode = z.object({ code: z.string(), expiresInSeconds: z.number().int() });
 export const TwoFactorResetInput = z.object({ reason: z.string().trim().min(5, 'Informe o motivo').max(500) });
+
+// ── Login com 2FA (issue #95) ────────────────────────────────────────
+/**
+ * Resposta de `POST /auth/login` para quem tem 2FA ativo: a sessão ainda não existe. O passo fica num cookie
+ * `httpOnly` de 5 minutos e o código é confirmado em `POST /auth/2fa/verify`.
+ */
+export const TwoFactorChallenge = z.object({ twoFactorRequired: z.literal(true) });
+export type TwoFactorChallenge = z.infer<typeof TwoFactorChallenge>;
+/** Código do aplicativo (6 dígitos) ou um código de recuperação (`xxxx-xxxx`). */
+export const TwoFactorVerifyInput = z.object({ code: z.string().trim().min(6, 'Informe o código').max(20) });
+export type TwoFactorVerifyInput = z.infer<typeof TwoFactorVerifyInput>;
+
+// ── Métricas de produto (issue #101: OKRs do PRD §3.2, North Star §3.3, HEART §20.1) ──
+/** Um indicador do dashboard: valor medido, meta e se está dentro dela. `value` nulo = ainda sem dados no período. */
+export const ProductMetric = z.object({
+  key: z.string(),
+  group: z.enum(['OKR', 'HEART']),
+  label: z.string(),
+  value: z.number().nullable(),
+  unit: z.enum(['minutes', 'seconds', 'percent', 'score', 'count']),
+  /** Meta do PRD no mesmo formato de `value` (ex.: 10 minutos; 0.9 = 90%). */
+  target: z.number().nullable(),
+  /** `max`: quanto menor melhor (≤ meta) · `min`: quanto maior melhor (≥ meta). */
+  direction: z.enum(['max', 'min']),
+  targetLabel: z.string(),
+  status: z.enum(['ok', 'attention', 'no_data']),
+  /** Quantos casos entraram na conta (campeonatos, partidas, pessoas, respostas). */
+  sample: z.number().int(),
+  detail: z.string(),
+});
+export type ProductMetric = z.infer<typeof ProductMetric>;
+export const ProductMetrics = z.object({
+  from: z.iso.date(),
+  to: z.iso.date(),
+  generatedAt: IsoDateTime,
+  northStar: z.object({
+    thisWeek: z.number().int(),
+    lastWeek: z.number().int(),
+    /** Partidas com resultado validado por semana (segunda a domingo, UTC), da mais antiga para a mais recente. */
+    weekly: z.array(z.object({ weekStart: z.iso.date(), count: z.number().int() })),
+  }),
+  metrics: z.array(ProductMetric),
+});
+export type ProductMetrics = z.infer<typeof ProductMetrics>;
+
+/**
+ * Evento de produto enviado pelo navegador (`POST /events`, sem cookie de análise). Só eventos do catálogo, com
+ * números ou rótulos curtos — nunca texto livre, IP ou identificador de aparelho (LGPD).
+ * - `result_entry_time`: tempo para lançar o resultado de uma partida (`durationMs`; `kind`: `LOBBY` ou `DUEL`).
+ */
+export const PRODUCT_EVENT_NAMES = ['result_entry_time'] as const;
+export const ProductEventInput = z.object({
+  name: z.enum(PRODUCT_EVENT_NAMES),
+  props: z
+    .record(z.string().max(30), z.union([z.number(), z.boolean(), z.string().max(40)]))
+    .refine((v) => Object.keys(v).length <= 8, 'No máximo 8 propriedades')
+    .default({}),
+});
+export type ProductEventInput = z.infer<typeof ProductEventInput>;
+
+/** Pesquisa NPS depois do campeonato (HEART · Happiness), para participantes e organização. */
+export const NpsAnswerInput = z.object({ tournamentId: Id, score: z.number().int().min(0, 'De 0 a 10').max(10, 'De 0 a 10') });
+export type NpsAnswerInput = z.infer<typeof NpsAnswerInput>;
+export const NpsAnswer = z.object({ tournamentId: Id, score: z.number().int(), as: z.enum(['PARTICIPANT', 'ORGANIZER']), createdAt: IsoDateTime });
+export type NpsAnswer = z.infer<typeof NpsAnswer>;

@@ -27,7 +27,9 @@ function setViewport(wide: boolean) {
 }
 
 /** O `<g>` do confronto na chave em SVG (tipado como HTMLElement só para as consultas da Testing Library). */
-const nodeOf = (nodeId: string) => document.querySelector(`[data-match-id="${matchId(nodeId)}"]`) as unknown as HTMLElement;
+/** O grupo do confronto (desenho + botão) e o botão em si, que tem o nome acessível e recebe o foco. */
+const groupOf = (nodeId: string) => document.querySelector(`[data-match-id="${matchId(nodeId)}"]`) as unknown as HTMLElement;
+const nodeOf = (nodeId: string) => groupOf(nodeId).querySelector('[data-testid="bracket-match"]') as unknown as HTMLElement;
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -54,9 +56,9 @@ describe('BracketView — chave em SVG (desktop e tablet)', () => {
     expect(svg.querySelectorAll(':scope > g > path')).toHaveLength(6); // 4 quartas → 2 semis → final (os ícones têm os seus próprios paths)
 
     // Vaga vazia mostra de onde vem o ocupante; vencedor em negrito.
-    expect(within(nodeOf('w-r2-m1')).getByText('Vencedor: Quartas de final 2', { selector: 'text' })).toBeInTheDocument();
-    expect(within(nodeOf('w-r1-m1')).getByText('Squad 1', { selector: 'text' })).toHaveClass('font-bold');
-    expect(within(nodeOf('w-r1-m1')).getByText('Concluída')).toBeInTheDocument();
+    expect(within(groupOf('w-r2-m1')).getByText('Vencedor: Quartas de final 2', { selector: 'text' })).toBeInTheDocument();
+    expect(within(groupOf('w-r1-m1')).getByText('Squad 1', { selector: 'text' })).toHaveClass('font-bold');
+    expect(within(groupOf('w-r1-m1')).getByText('Concluída')).toBeInTheDocument();
   });
 
   it('só um confronto entra na ordem do Tab; as setas andam entre eles e Enter abre o detalhe', () => {
@@ -102,7 +104,7 @@ describe('BracketView — chave em SVG (desktop e tablet)', () => {
     const highlighted = screen.getAllByTestId('bracket-match').filter((g) => g.getAttribute('data-highlight') === 'true');
     expect(highlighted).toEqual([nodeOf('w-r1-m1'), nodeOf('w-r2-m1')]);
     expect(nodeOf('w-r2-m1').getAttribute('aria-label')).toMatch(/, seu confronto$/);
-    expect(within(nodeOf('w-r2-m1')).getByText(/★ Squad 1/)).toBeInTheDocument();
+    expect(within(groupOf('w-r2-m1')).getByText(/★ Squad 1/)).toBeInTheDocument();
     expect(document.querySelectorAll('path[data-path="walked"]')).toHaveLength(1);
     expect(document.querySelectorAll('path[data-path="projected"]')).toHaveLength(1);
     // O Tab começa no confronto pendente dela.
@@ -184,7 +186,7 @@ describe('BracketView — chave em SVG (desktop e tablet)', () => {
     expect(within(svg).getByText('Chave de vencedores')).toBeInTheDocument();
     expect(within(svg).getByText('Chave de perdedores')).toBeInTheDocument();
     expect(within(svg).getAllByText('Grande Final', { selector: 'text' }).length).toBeGreaterThan(0);
-    expect(within(nodeOf('gf-2')).getByText(/Se necessário/)).toBeInTheDocument();
+    expect(within(groupOf('gf-2')).getByText(/Se necessário/)).toBeInTheDocument();
     expect(nodeOf('gf-2').getAttribute('aria-label')).toContain('só acontece se for necessário');
   });
 

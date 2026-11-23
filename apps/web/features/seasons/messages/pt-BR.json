@@ -1,0 +1,94 @@
+{
+  "RatingDelta": {
+    "subiu": "subiu {pontos} pontos de rating",
+    "caiu": "caiu {pontos} pontos de rating",
+    "semVariacao": "rating sem variação"
+  },
+  "ProvisionalBadge": {
+    "dica": "O rating fica provisório nas primeiras {partidas} partidas da temporada.",
+    "provisorio": "Provisório"
+  },
+  "RatingCard": {
+    "ratingEm": "Rating em {jogo}",
+    "deRating": "de rating",
+    "posicao": "Posição",
+    "posicaoValor": "{posicao}º",
+    "pico": "Pico",
+    "vitoriasEmpatesDerrotas": "V / E / D",
+    "ultimasPartidas": "Últimas partidas ({partidas} na temporada)",
+    "verTabela": "Ver a tabela da temporada"
+  },
+  "ProfileRatingSection": {
+    "titulo": "Rating da temporada",
+    "carregando": "Carregando o rating",
+    "erro": "Não foi possível carregar o rating"
+  },
+  "SeasonRankingSection": {
+    "tipos": {
+      "PLAYER": "Jogadores",
+      "TEAM": "Squads"
+    },
+    "colunas": {
+      "posicao": "Posição",
+      "posicaoValor": "{posicao}º",
+      "nome": "{tipo, select, PLAYER {Jogador} other {Squad}}",
+      "rating": "Rating",
+      "partidas": "Partidas",
+      "campanha": "V / E / D",
+      "campanhaExtenso": "{vitorias} vitórias, {empates} empates, {derrotas} derrotas",
+      "pico": "Pico"
+    },
+    "info": "Todo mundo começa a temporada com {inicial} de rating. Cada partida validada muda o rating: vencer quem está acima vale mais, perder para quem está abaixo custa mais. Nas quedas de Battle Royale, conta a colocação contra cada equipe da sala. W.O. não conta. O rating fica provisório nas primeiras {partidas} partidas.",
+    "temporadaDe": "Temporada de {jogo}",
+    "resumoTemporada": "{nome} · {inicio} a {fim} · {situacao}",
+    "mostrarTabelaDe": "Mostrar a tabela de",
+    "temporada": "Temporada",
+    "opcaoTemporada": "{nome} ({situacao})",
+    "carregando": "Carregando a tabela da temporada",
+    "erro": "Não foi possível carregar a tabela da temporada",
+    "semTemporadaTitulo": "Nenhuma temporada de {jogo} em andamento",
+    "semTemporadaDescricao": "Quando a administração abrir uma temporada, cada partida validada passa a contar aqui.",
+    "legenda": "Temporada {temporada} de {jogo}: {tipo, select, PLAYER {jogadores} other {squads}}",
+    "vazioTitulo": "{tipo, select, PLAYER {Ninguém jogou nesta temporada ainda} other {Nenhum squad jogou nesta temporada ainda}}",
+    "vazioDescricao": "A tabela começa com a primeira partida validada de um campeonato deste jogo."
+  },
+  "SeasonFormModal": {
+    "nomePadrao": "Temporada {ano}",
+    "escolhaJogo": "Escolha o jogo",
+    "atualizada": "Temporada atualizada",
+    "criada": "Temporada criada",
+    "salvaDescricao": "O ranking do jogo já usa as datas novas.",
+    "erroSalvar": "Não foi possível salvar a temporada",
+    "tituloEditar": "Editar temporada",
+    "tituloNova": "Nova temporada",
+    "descricao": "Partidas validadas entre o início e o fim contam no rating desta temporada. Cada temporada começa com todo mundo no rating inicial.",
+    "criar": "Criar temporada",
+    "jogo": "Jogo",
+    "nome": "Nome",
+    "inicio": "Início",
+    "fim": "Fim"
+  },
+  "AdminSeasonsPage": {
+    "colunas": {
+      "jogo": "Jogo",
+      "temporada": "Temporada",
+      "periodo": "Período",
+      "situacao": "Situação",
+      "acoes": "Ações"
+    },
+    "editar": "Editar<sr> {nome} de {jogo}</sr>",
+    "apagar": "Apagar<sr> {nome} de {jogo}</sr>",
+    "titulo": "Temporadas do ranking",
+    "descricao": "O rating ELO de cada jogo recomeça a cada temporada. Sem temporada em andamento, a tabela do jogo fica vazia.",
+    "novaTemporada": "Nova temporada",
+    "erro": "Não foi possível carregar as temporadas",
+    "legenda": "Temporadas do ranking",
+    "vazioTitulo": "Nenhuma temporada cadastrada",
+    "vazioDescricao": "Crie a temporada de cada jogo para o ranking começar a contar.",
+    "confirmarTitulo": "Apagar a temporada?",
+    "confirmarDescricao": "Nenhuma partida é apagada: só a tabela desta temporada deixa de existir.",
+    "apagarTemporada": "Apagar temporada",
+    "apagada": "Temporada apagada",
+    "erroApagar": "Não foi possível apagar a temporada"
+  }
+}

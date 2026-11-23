@@ -2,6 +2,8 @@
  * SEO das páginas públicas (issue #77): textos de descrição, URL canônica e dados estruturados (schema.org).
  */
 import type { Tournament } from '@nova/schemas';
+import { getT } from '../i18n/core';
+import { sharedMessages } from '../i18n/messages';
 
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
@@ -22,8 +24,9 @@ export function plainText(html: string, max = 160): string {
 const dateFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
 
 export function tournamentDescription(t: Tournament): string {
-  const when = t.startsAt ? `Começa em ${dateFmt.format(new Date(t.startsAt))} (horário de Brasília).` : '';
-  const base = `${t.gameName} · ${t.modeName} · ${t.maxParticipants} vagas. ${when}`.trim();
+  const m = getT(sharedMessages, 'seo');
+  const when = t.startsAt ? m('comecaEm', { data: dateFmt.format(new Date(t.startsAt)) }) : '';
+  const base = m('resumo', { jogo: t.gameName, modo: t.modeName, vagas: String(t.maxParticipants), quando: when }).trim();
   const about = plainText(t.description, 120);
   return about ? `${base} ${about}` : base;
 }

@@ -1,0 +1,163 @@
+{
+  "faq": {
+    "inscricao": {
+      "titulo": "Inscrição",
+      "descricao": "Como entrar num campeonato, sozinho ou com o seu squad.",
+      "comoMeInscrever": {
+        "pergunta": "Como me inscrevo num campeonato?",
+        "resposta1": "Abra o campeonato em Campeonatos e toque em \"Inscrever-se\" (ou \"Inscrever squad\", nos campeonatos por equipe). O botão só aparece enquanto as inscrições estão abertas.",
+        "resposta2": "Antes, cadastre no seu perfil a conta do jogo pedida (por exemplo, o ID do Free Fire). Sem ela a inscrição não é aceita, porque é com esse ID que a organização confere as partidas.",
+        "link": "Ver campeonatos com inscrições abertas"
+      },
+      "inscreverSquad": {
+        "pergunta": "Como inscrevo o meu squad?",
+        "resposta1": "Só o capitão inscreve o squad. Crie o squad em Minha conta → Squads, convide os membros pelo link ou pelo código e escolha quem joga no campeonato.",
+        "resposta2": "A inscrição fica \"Aguardando membros\" até cada titular confirmar a participação. Quando todos confirmam, ela vale.",
+        "link": "Abrir meus squads"
+      },
+      "listaDeEspera": {
+        "pergunta": "As vagas acabaram. E agora?",
+        "resposta1": "Se a organização ligou a lista de espera, você entra nela. Quando alguém cancela, a vaga vai para o primeiro da fila e você recebe uma notificação."
+      },
+      "cancelarInscricao": {
+        "pergunta": "Posso cancelar a minha inscrição?",
+        "resposta1": "Sim, até o check-in abrir (ou até a organização travar o elenco, o que vier primeiro). Depois disso, sair do campeonato conta como desistência e as próximas partidas viram W.O.",
+        "link": "Ver meus campeonatos"
+      }
+    },
+    "checkIn": {
+      "titulo": "Check-in",
+      "descricao": "Confirmar presença antes da partida.",
+      "oQueECheckIn": {
+        "pergunta": "O que é o check-in e quando faço?",
+        "resposta1": "É a confirmação de que você está pronto para jogar. O botão \"Fazer check-in\" aparece na sua partida só durante a janela de check-in, que a organização define (por exemplo, de 30 a 10 minutos antes do horário).",
+        "resposta2": "Você recebe uma notificação quando a janela abre. Todos os horários aparecem no seu fuso."
+      },
+      "checkInSquad": {
+        "pergunta": "No squad, quem faz o check-in?",
+        "resposta1": "Normalmente basta o capitão. Se a organização exigir, cada titular faz o próprio check-in; a partida mostra quem já confirmou."
+      },
+      "perdiOCheckIn": {
+        "pergunta": "Perdi o check-in. O que acontece?",
+        "resposta1": "Quem não faz o check-in exigido até o fim da janela leva W.O. naquela partida. Se foi um problema da plataforma, fale com a organização do campeonato pelo contato da página dele."
+      }
+    },
+    "wo": {
+      "titulo": "W.O.",
+      "descricao": "Vitória e derrota por ausência.",
+      "oQueEWo": {
+        "pergunta": "O que é W.O.?",
+        "resposta1": "W.O. é a vitória de quem compareceu quando o adversário não aparece, não faz check-in ou desiste. Vale vitória pelo placar configurado no campeonato (por exemplo, 3 a 0 ou 2 coroas) e 0 kills nas quedas de Battle Royale."
+      },
+      "desistencia": {
+        "pergunta": "E se eu desistir no meio do campeonato?",
+        "resposta1": "No mata-mata, a partida atual e as próximas viram W.O. para os adversários; os resultados que já valeram continuam.",
+        "resposta2": "Em pontos corridos e grupos, se você jogou menos da metade das partidas, todos os seus resultados são anulados. Se jogou metade ou mais, as partidas que faltam viram W.O."
+      }
+    },
+    "resultadosEDisputas": {
+      "titulo": "Resultados e disputas",
+      "descricao": "Enviar o placar, contestar e acompanhar a análise.",
+      "enviarResultado": {
+        "pergunta": "Como envio o resultado da partida?",
+        "resposta1": "Quando o campeonato permite, o capitão (ou o jogador, no solo) envia o placar com um print da tela final pela própria partida. O adversário confirma ou contesta; com a confirmação, a organização valida e a tabela se atualiza sozinha.",
+        "resposta2": "Os pontos são sempre calculados pela plataforma a partir das estatísticas: ninguém digita a pontuação final."
+      },
+      "contestar": {
+        "pergunta": "O resultado enviado está errado. Como contesto?",
+        "resposta1": "Na partida, toque em \"Contestar\" e explique o que aconteceu, de preferência com um print. A partida fica \"Em disputa\" até a organização decidir; você acompanha a conversa e a decisão pela página da disputa.",
+        "resposta2": "Se a organização não resolver, ela pode levar a disputa para a moderação da Nova Arena."
+      },
+      "denunciar": {
+        "pergunta": "Como denuncio um jogador, um squad ou uma trapaça?",
+        "resposta1": "Use \"Denunciar\" no perfil do jogador, no squad ou na partida. A moderação recebe a denúncia, e você acompanha o andamento em Minha conta → Denúncias.",
+        "link": "Ver minhas denúncias"
+      }
+    },
+    "organizar": {
+      "titulo": "Organizar campeonatos",
+      "descricao": "Para quem quer criar e conduzir os próprios campeonatos.",
+      "virarOrganizador": {
+        "pergunta": "Como viro organizador?",
+        "resposta1": "Em Minha conta, na seção \"Quero ser organizador\", conte por que você quer organizar campeonatos. O pedido vai para a administração da Nova Arena, e a resposta aparece ali mesmo e nas suas notificações.",
+        "resposta2": "Também é possível entrar por um convite de organizador enviado pela equipe.",
+        "link": "Pedir para ser organizador"
+      },
+      "limitesDoOrganizador": {
+        "pergunta": "Quantos campeonatos posso organizar ao mesmo tempo?",
+        "resposta1": "Até 3 campeonatos ativos ao mesmo tempo (publicados, com inscrições, em check-in, em andamento ou pausados). Organizadores verificados podem ter até 10. Rascunhos, cancelados e finalizados não contam."
+      },
+      "equipeDoEvento": {
+        "pergunta": "Posso dividir a organização com outras pessoas?",
+        "resposta1": "Sim. Na gestão do campeonato, aba Equipe, convide co-organizadores e moderadores para lançar resultados e cuidar das disputas com você."
+      }
+    },
+    "contaEApp": {
+      "titulo": "Conta e aplicativo",
+      "descricao": "Instalação, notificações e manutenção.",
+      "instalarApp": {
+        "pergunta": "Dá para instalar a Nova Arena no celular?",
+        "resposta1": "Sim. No Android (Chrome), use o botão \"Instalar app\" no rodapé ou o menu do navegador → \"Instalar app\". No iPhone (Safari), toque em Compartilhar → \"Adicionar à Tela de Início\".",
+        "resposta2": "O app instalado abre em tela cheia e avisa quando há uma versão nova."
+      },
+      "manutencao": {
+        "pergunta": "Como fico sabendo de uma manutenção?",
+        "resposta1": "Toda manutenção programada é avisada no topo do site com pelo menos 48 horas de antecedência, com início e fim no seu fuso.",
+        "link": "Ver a situação do serviço"
+      }
+    }
+  },
+  "HelpCenter": {
+    "titulo": "Central de ajuda",
+    "descricao": "Respostas rápidas sobre inscrição, check-in, W.O., disputas e como organizar campeonatos.",
+    "buscar": "Buscar na ajuda",
+    "buscarPlaceholder": "Ex.: check-in, W.O., squad",
+    "resumo": "{total} perguntas em {assuntos} assuntos.",
+    "nenhumaResposta": "Nenhuma resposta encontrada.",
+    "respostasEncontradas": "{total, plural, =1 {{total} resposta encontrada} other {{total} respostas encontradas}}.",
+    "assuntos": "Assuntos da ajuda",
+    "vazioTitulo": "Nada por aqui com essas palavras",
+    "vazioDescricao": "Tente outra palavra (por exemplo, “inscrição” ou “disputa”) ou fale com o suporte.",
+    "limparBusca": "Limpar a busca",
+    "falarComSuporte": "Falar com o suporte",
+    "naoAchou": "Não achou a resposta?",
+    "naoAchouDescricao": "A equipe de suporte responde por e-mail em dias úteis."
+  },
+  "ContactPage": {
+    "titulo": "Fale com a gente",
+    "descricao": "Problema com a conta, dúvida sobre a plataforma ou sugestão: o suporte responde por e-mail em dias úteis.",
+    "emailSuporte": "E-mail do suporte",
+    "carregando": "Carregando o contato do suporte",
+    "erro": "Não foi possível carregar o contato",
+    "assuntoEmail": "Suporte Nova Arena",
+    "escrever": "Escrever para o suporte",
+    "conte": "Para a gente resolver mais rápido, conte:",
+    "conte1": "o seu nick na Nova Arena e o e-mail da conta;",
+    "conte2": "o link do campeonato ou da partida, se for o caso;",
+    "conte3": "o que aconteceu e, se puder, um print da tela.",
+    "senha": "Nunca pedimos a sua senha. Desconfie de quem pedir.",
+    "outrosCaminhos": "Talvez seja mais rápido por aqui",
+    "ajuda": { "titulo": "Central de ajuda", "texto": "Inscrição, check-in, W.O., disputas e como organizar." },
+    "denuncias": { "titulo": "Denúncias", "texto": "Trapaça, ofensa ou conta falsa: denuncie pelo perfil ou pela partida e acompanhe aqui." },
+    "contestar": { "titulo": "Resultado errado", "texto": "Conteste pela própria partida: a organização do campeonato analisa primeiro." }
+  },
+  "MaintenancePage": {
+    "titulo": "Manutenção e situação do serviço",
+    "descricao": "Toda manutenção programada é avisada no topo do site com pelo menos 48 horas de antecedência.",
+    "carregando": "Carregando a situação do serviço",
+    "erro": "Não foi possível conferir a situação do serviço",
+    "emManutencao": "Estamos em manutenção",
+    "tudoFuncionando": "Tudo funcionando",
+    "emManutencaoDescricao": "Algumas telas podem ficar fora do ar por alguns minutos. Seus dados e inscrições estão guardados; partidas marcadas para este período são reagendadas pela organização.",
+    "programadaDescricao": "O serviço está no ar. Veja abaixo a próxima janela de manutenção.",
+    "nenhumaDescricao": "Nenhuma manutenção em andamento nem programada para os próximos dias.",
+    "emAndamento": "Em andamento",
+    "programadas": "Programadas",
+    "pillEmAndamento": "Em andamento",
+    "pillProgramada": "Programada",
+    "previsaoDeVolta": "Previsão de volta: {data}",
+    "janela": "De {inicio} até {fim}",
+    "voltarAoInicio": "Voltar ao início",
+    "falarComSuporte": "Falar com o suporte"
+  }
+}

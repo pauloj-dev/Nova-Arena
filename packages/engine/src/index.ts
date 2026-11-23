@@ -20,3 +20,11 @@ export {
 export { DEFAULT_TIEBREAKERS, computeStandings } from './standings';
 export { advanceStage, applyQualification } from './qualification';
 export * from './scoring-fields';
+export { DEFAULT_RATING_CONFIG, expectedScore, ratingDeltas } from './rating/elo';
+export type { RatedParticipant, RatingConfig } from './rating/elo';
+export { rankRatings, replayRatings, sortRatingMatches } from './rating/replay';
+export type { RatingChange, RatingMatch, RatingPool, RatingRankingRow, RatingRecord, RatingReplay, RatingSide } from './rating/replay';
+export { ratingMatchesFromStage } from './rating/extract';
+export type { ExtractOptions, RatingEntrantInfo } from './rating/extract';
+export { computeLeagueTable, finalPlacements, leaguePointsFor, validateLeagueRule } from './rating/league';
+export type { LeaguePlacement, LeagueRow, LeagueRowResult, LeagueRule, LeagueTournamentResult } from './rating/league';

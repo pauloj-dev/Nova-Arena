@@ -2,35 +2,41 @@
 
 import type { GameRanking, GameRankingEntry } from '@nova/schemas';
 import { Avatar, Button, cn, DataTable, EmptyState, ErrorState, Skeleton, type Column } from '@nova/ui';
-import { Info, Medal } from 'lucide-react';
+import { Info, Medal, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { SeasonRankingSection } from '@/features/seasons/SeasonRankingSection';
 import { listHref } from '@/features/tournaments/filters';
 import { errorMessage } from '@/shared/api/client';
 import { useGameRanking, useGames } from '@/shared/api/hooks/games';
+import { getFormat, getT } from '@/shared/i18n/core';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer } from '@/shared/layout/AreaShell';
+import { messages } from './messages';
 
 /** Número que ainda não é contado: traço na tela e explicação para leitor de tela. */
 function Pending() {
+  const t = useT(messages, 'Pending');
   return (
     <>
       <span aria-hidden>—</span>
-      <span className="sr-only">ainda não contabilizado</span>
+      <span className="sr-only">{t('naoContabilizado')}</span>
     </>
   );
 }
 
 function count(value: number | null) {
-  return value === null ? <Pending /> : <span className="tabular">{value.toLocaleString('pt-BR')}</span>;
+  return value === null ? <Pending /> : <span className="tabular">{getFormat().number(value)}</span>;
 }
 
 /** Colunas do ranking. A estatística de destaque muda com o jogo: kills no Battle Royale, placar nos duelos. */
 export function rankingColumns(highlight: GameRanking['highlight']): Column<GameRankingEntry>[] {
+  const t = getT(messages, 'rankingColumns');
   return [
-  { id: 'position', header: 'Posição', cell: (r) => <span className="tabular">{r.position}º</span>, className: 'w-20' },
+  { id: 'position', header: t('posicao'), cell: (r) => <span className="tabular">{t('posicaoValor', { posicao: String(r.position) })}</span>, className: 'w-20' },
   {
     id: 'player',
-    header: 'Jogador',
+    header: t('jogador'),
     primary: true,
     cell: (r) => (
       <Link href={`/u/${encodeURIComponent(r.nickname)}`} className="inline-flex min-h-11 max-w-full items-center gap-2 font-semibold underline-offset-2 hover:underline md:min-h-0">
@@ -39,13 +45,13 @@ export function rankingColumns(highlight: GameRanking['highlight']): Column<Game
       </Link>
     ),
   },
-  { id: 'titles', header: 'Títulos', align: 'right', cell: (r) => count(r.titles) },
-  { id: 'wins', header: 'Vitórias', align: 'right', cell: (r) => count(r.wins) },
+  { id: 'titles', header: t('titulos'), align: 'right', cell: (r) => count(r.titles) },
+  { id: 'wins', header: t('vitorias'), align: 'right', cell: (r) => count(r.wins) },
   highlight === 'KILLS'
-    ? { id: 'kills', header: 'Kills', align: 'right', cell: (r) => count(r.kills) }
-    : { id: 'score', header: 'Placar a favor', align: 'right', cell: (r) => count(r.score) },
-  { id: 'matches', header: 'Partidas', align: 'right', cell: (r) => count(r.matches) },
-  { id: 'played', header: 'Campeonatos', align: 'right', cell: (r) => <span className="tabular">{r.tournamentsPlayed}</span> },
+    ? { id: 'kills', header: t('kills'), align: 'right', cell: (r) => count(r.kills) }
+    : { id: 'score', header: t('placarAFavor'), align: 'right', cell: (r) => count(r.score) },
+  { id: 'matches', header: t('partidas'), align: 'right', cell: (r) => count(r.matches) },
+  { id: 'played', header: t('campeonatos'), align: 'right', cell: (r) => <span className="tabular">{r.tournamentsPlayed}</span> },
   ];
 }
 
@@ -57,16 +63,17 @@ export function RankingPage() {
   const requested = useSearchParams().get('jogo');
   const selected = games.data?.find((g) => g.slug === requested) ?? games.data?.[0];
   const ranking = useGameRanking(selected?.slug);
+  const t = useT(messages, 'RankingPage');
 
   return (
     <PageContainer>
       <div>
-        <h1 className="text-xl md:text-2xl">Ranking</h1>
-        <p className="mt-1 text-sm text-muted">Quem mais vence campeonatos e partidas em cada jogo.</p>
+        <h1 className="text-xl md:text-2xl">{t('titulo')}</h1>
+        <p className="mt-1 text-sm text-muted">{t('descricao')}</p>
       </div>
 
       {games.isPending ? (
-        <div role="status" aria-label="Carregando ranking" className="flex flex-col gap-4">
+        <div role="status" aria-label={t('carregando')} className="flex flex-col gap-4">
           <div className="flex gap-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-11 w-32 rounded-full" />
@@ -75,12 +82,12 @@ export function RankingPage() {
           <Skeleton className="h-64 w-full" />
         </div>
       ) : games.isError ? (
-        <ErrorState title="Não foi possível carregar os jogos" description={errorMessage(games.error)} onRetry={() => void games.refetch()} />
+        <ErrorState title={t('erroJogos')} description={errorMessage(games.error)} onRetry={() => void games.refetch()} />
       ) : !selected ? (
-        <EmptyState icon={<Medal className="size-7" />} title="Nenhum jogo disponível no momento" description="O ranking aparece quando houver jogos no catálogo." />
+        <EmptyState icon={<Medal className="size-7" />} title={t('semJogosTitulo')} description={t('semJogosDescricao')} />
       ) : (
         <>
-          <nav aria-label="Escolher o jogo do ranking">
+          <nav aria-label={t('escolherJogo')}>
             <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
               {games.data.map((g) => {
                 const active = g.id === selected.id;
@@ -96,24 +103,34 @@ export function RankingPage() {
             </ul>
           </nav>
 
+          <SeasonRankingSection key={selected.slug} game={selected} />
+
+          <p className="flex items-center gap-2 text-sm">
+            <Trophy className="size-4 text-accent" aria-hidden />
+            <Link href="/ligas" className="font-semibold text-accent underline-offset-2 hover:underline">
+              {t('verLigas')}
+            </Link>
+            <span className="text-muted">{t('ligasDescricao')}</span>
+          </p>
+
           <p className="flex items-start gap-2 rounded-md bg-info-soft px-3 py-2 text-sm text-info-soft-text">
             <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
             <span>
               {ranking.data?.resultsAvailable === false
-                ? 'Por enquanto o ranking conta campeonatos disputados e finalizados. Títulos, vitórias e kills passam a contar quando os resultados das partidas entrarem.'
-                : `A ordem é por títulos, depois vitórias, depois ${ranking.data?.highlight === 'KILLS' ? 'kills' : 'placar a favor'} e, por fim, campeonatos disputados. Só contam resultados validados.`}
+                ? t('semResultados')
+                : t('ordem', { destaque: ranking.data?.highlight === 'KILLS' ? 'KILLS' : 'SCORE' })}
             </span>
           </p>
 
           <section aria-labelledby="ranking-jogo" className="flex flex-col gap-3">
             <h2 id="ranking-jogo" className="text-lg">
-              Ranking de {selected.name}
+              {t('rankingDe', { jogo: selected.name })}
             </h2>
             {ranking.isError ? (
-              <ErrorState title="Não foi possível carregar o ranking" description={errorMessage(ranking.error)} onRetry={() => void ranking.refetch()} />
+              <ErrorState title={t('erroRanking')} description={errorMessage(ranking.error)} onRetry={() => void ranking.refetch()} />
             ) : (
               <DataTable
-                caption={`Ranking de ${selected.name}`}
+                caption={t('rankingDe', { jogo: selected.name })}
                 columns={rankingColumns(ranking.data?.highlight ?? 'SCORE')}
                 rows={ranking.data?.entries ?? []}
                 getRowId={(r) => r.userId}
@@ -121,11 +138,11 @@ export function RankingPage() {
                 empty={
                   <EmptyState
                     icon={<Medal className="size-7" />}
-                    title={`Ninguém no ranking de ${selected.name} ainda`}
-                    description="O ranking começa quando o primeiro campeonato deste jogo entrar em andamento. Inscreva-se em um para aparecer aqui."
+                    title={t('vazioTitulo', { jogo: selected.name })}
+                    description={t('vazioDescricao')}
                     action={
                       <Button asChild>
-                        <Link href={listHref({ game: selected.slug })}>Ver campeonatos de {selected.name}</Link>
+                        <Link href={listHref({ game: selected.slug })}>{t('verCampeonatosDe', { jogo: selected.name })}</Link>
                       </Button>
                     }
                   />

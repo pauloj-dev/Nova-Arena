@@ -1,0 +1,68 @@
+{
+  "NotificationBell": {
+    "titulo": "Notificações",
+    "rotuloNaoLidas": "{count, plural, =1 {Notificações, 1 não lida} other {Notificações, {count} não lidas}}",
+    "marcarTodas": "Marcar todas como lidas",
+    "carregando": "Carregando notificações",
+    "erro": "Não foi possível carregar as notificações",
+    "vazioTitulo": "Nenhuma notificação por aqui",
+    "vazioDescricao": "Avisos de inscrição, check-in e resultados aparecem neste painel.",
+    "verTodas": "Ver todas"
+  },
+  "NotificationsPage": {
+    "titulo": "Notificações",
+    "descricao": "{count, plural, =0 {Você está em dia: nenhuma notificação por ler.} =1 {1 notificação não lida.} other {{count} notificações não lidas.}}",
+    "marcarTodas": "Marcar todas como lidas",
+    "preferencias": "Preferências",
+    "filtrar": "Filtrar notificações",
+    "filtroTodas": "Todas",
+    "filtroNaoLidas": "Não lidas",
+    "carregando": "Carregando notificações",
+    "erro": "Não foi possível carregar as notificações",
+    "tudoLidoTitulo": "Tudo lido",
+    "tudoLidoDescricao": "Você não tem notificações por ler.",
+    "verTodas": "Ver todas",
+    "vazioTitulo": "Nenhuma notificação ainda",
+    "vazioDescricao": "Quando você se inscrever em um campeonato, os avisos de check-in, partidas e resultados aparecem aqui.",
+    "verAbertos": "Ver campeonatos abertos",
+    "listaNaoLidas": "Notificações não lidas",
+    "listaTodas": "Todas as notificações",
+    "carregarMais": "Carregar mais"
+  },
+  "NotificationItem": {
+    "naoLida": "Não lida"
+  },
+  "NotificationPreferencesPage": {
+    "titulo": "Preferências de notificação",
+    "descricao": "Escolha o que você quer receber no site e por e-mail.",
+    "carregando": "Carregando preferências",
+    "erro": "Não foi possível carregar as preferências",
+    "toastSalvas": "Preferências salvas",
+    "toastErro": "Não foi possível salvar as preferências",
+    "tabela": "Preferências de notificação por tipo e por canal",
+    "aviso": "Aviso",
+    "canal": {
+      "inApp": { "label": "No site", "aria": "no site" },
+      "email": { "label": "E-mail", "aria": "por e-mail" },
+      "push": { "label": "Celular", "aria": "no celular (push)" }
+    },
+    "toggle": "{tipo}: {canal}",
+    "prototipo": "No protótipo os e-mails não são enviados de verdade: a preferência fica gravada e passa a valer quando o envio de e-mail entrar no ar.",
+    "pushAviso": "Os avisos no celular chegam nos aparelhos em que você ativou as notificações. No iPhone, só com a Nova Arena instalada na tela de início.",
+    "salvar": "Salvar preferências",
+    "desfazer": "Desfazer alterações"
+  },
+  "PushPrompt": {
+    "ativadosTitulo": "Avisos no aparelho ativados",
+    "ativadosDescricao": "Você recebe o check-in e os resultados mesmo com o site fechado.",
+    "negadoTitulo": "Avisos no aparelho desligados",
+    "negadoDescricao": "Você pode ativar depois nas configurações do navegador para este site.",
+    "semSuporteTitulo": "Este aparelho não recebe avisos",
+    "semSuporteDescricao": "No iPhone, instale a Nova Arena na tela de início para receber os avisos.",
+    "erro": "Não foi possível ativar os avisos",
+    "titulo": "Não perca o check-in",
+    "descricao": "Quer receber no celular o aviso do check-in e dos resultados, mesmo com o site fechado?",
+    "ativar": "Ativar avisos",
+    "agoraNao": "Agora não"
+  }
+}

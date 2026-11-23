@@ -4,9 +4,12 @@ import type { Match, MatchStatus } from '@nova/schemas';
 import { Button, Checkbox, EmptyState, Select, statusLabel } from '@nova/ui';
 import { CalendarX } from 'lucide-react';
 import { useState } from 'react';
+import { getT } from '@/shared/i18n/core';
+import { useT } from '@/shared/i18n/react';
 import { formatDate, formatDateTime } from '@/shared/lib/datetime';
 import { MatchCard } from './MatchCard';
 import { isOver, MATCH_STATUS_PILL_LABEL, participantOf } from './matchText';
+import { messages } from './messages';
 import { useNow } from './useNow';
 import { useMatchViewer, type MatchViewer } from './viewer';
 
@@ -39,6 +42,7 @@ export interface DayGroup {
 
 /** Agrupa por dia (no fuso de quem vê), em ordem de horário. Partidas sem horário ficam por último. */
 export function groupByDay(matches: readonly Match[], now: number, timeZone?: string): DayGroup[] {
+  const t = getT(messages, 'MatchesList');
   const zone = timeZone ? { timeZone } : undefined;
   const today = formatDate(new Date(now).toISOString(), zone);
   const tomorrow = formatDate(new Date(now + DAY_MS).toISOString(), zone);
@@ -55,8 +59,8 @@ export function groupByDay(matches: readonly Match[], now: number, timeZone?: st
     let group = groups.find((g) => g.key === key);
     if (!group) {
       const day = match.scheduledAt ? (formatDateTime(match.scheduledAt, { ...zone, withZone: false }).split(' · ')[0] ?? key) : '';
-      const relative = key === today ? 'Hoje · ' : key === tomorrow ? 'Amanhã · ' : key === yesterday ? 'Ontem · ' : '';
-      group = { key, label: match.scheduledAt ? `${relative}${day}` : 'Sem horário definido', matches: [] };
+      const label = !match.scheduledAt ? t('semHorario') : key === today ? t('hoje', { dia: day }) : key === tomorrow ? t('amanha', { dia: day }) : key === yesterday ? t('ontem', { dia: day }) : day;
+      group = { key, label, matches: [] };
       groups.push(group);
     }
     group.matches.push(match);
@@ -74,6 +78,7 @@ export interface MatchesListProps {
 
 /** Lista de partidas do campeonato, agrupada por dia, com filtros por fase, status e "minhas partidas". */
 export function MatchesList({ matches, stages, viewer: viewerProp, onOpen }: MatchesListProps) {
+  const t = useT(messages, 'MatchesList');
   const contextViewer = useMatchViewer();
   const viewer = viewerProp ?? contextViewer;
   const [filters, setFilters] = useState<MatchFilters>(NO_FILTERS);
@@ -85,40 +90,39 @@ export function MatchesList({ matches, stages, viewer: viewerProp, onOpen }: Mat
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 items-end gap-3 xs:grid-cols-2 md:flex md:flex-wrap" role="group" aria-label="Filtros das partidas">
+      <div className="grid grid-cols-1 items-end gap-3 xs:grid-cols-2 md:flex md:flex-wrap" role="group" aria-label={t('filtros')}>
         {stages.length > 1 && (
           <Select
-            label="Fase"
+            label={t('fase')}
             className="md:w-56"
             value={filters.stageId}
             onChange={(e) => setFilters((f) => ({ ...f, stageId: e.target.value }))}
-            options={[{ value: '', label: 'Todas as fases' }, ...stages.map((s) => ({ value: s.id, label: s.name }))]}
+            options={[{ value: '', label: t('todasAsFases') }, ...stages.map((s) => ({ value: s.id, label: s.name }))]}
           />
         )}
         <Select
-          label="Status"
+          label={t('status')}
           className="md:w-56"
           value={filters.status}
           onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value as MatchStatus | '' }))}
-          options={[{ value: '', label: 'Todos os status' }, ...STATUSES.map((s) => ({ value: s, label: MATCH_STATUS_PILL_LABEL[s] ?? statusLabel(s) }))]}
+          options={[{ value: '', label: t('todosOsStatus') }, ...STATUSES.map((s) => ({ value: s, label: MATCH_STATUS_PILL_LABEL[s] ?? statusLabel(s) }))]}
         />
-        {registrationId && <Checkbox label="Só as minhas partidas" checked={filters.mine} onCheckedChange={(mine) => setFilters((f) => ({ ...f, mine }))} className="min-h-11 xs:col-span-2" />}
+        {registrationId && <Checkbox label={t('soAsMinhas')} checked={filters.mine} onCheckedChange={(mine) => setFilters((f) => ({ ...f, mine }))} className="min-h-11 xs:col-span-2" />}
       </div>
 
       <p className="text-sm text-muted" role="status">
-        {visible.length} {visible.length === 1 ? 'partida' : 'partidas'}
-        {filtering ? ` de ${matches.length}` : ''}
+        {filtering ? t('contagemDe', { count: visible.length, total: matches.length }) : t('contagem', { count: visible.length })}
       </p>
 
       {visible.length === 0 ? (
         <EmptyState
           icon={<CalendarX className="size-7" />}
-          title={filtering ? 'Nenhuma partida com esses filtros' : 'Nenhuma partida ainda'}
-          description={filtering ? 'Mude os filtros para ver outras partidas.' : 'As partidas aparecem aqui quando a chave for confirmada.'}
+          title={filtering ? t('vazioFiltrosTitulo') : t('vazioTitulo')}
+          description={filtering ? t('vazioFiltrosDescricao') : t('vazioDescricao')}
           action={
             filtering ? (
               <Button variant="secondary" onClick={() => setFilters(NO_FILTERS)}>
-                Limpar filtros
+                {t('limparFiltros')}
               </Button>
             ) : undefined
           }

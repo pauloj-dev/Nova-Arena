@@ -1,0 +1,166 @@
+{
+  "describe": {
+    "tipoDePartida": {
+      "DUEL": "Duelo",
+      "TEAM_VS_TEAM": "Equipe x Equipe",
+      "BATTLE_ROYALE": "Battle Royale"
+    },
+    "tipoDeRegra": {
+      "PER_UNIT": { "rotulo": "Pontos por unidade", "dica": "Cada unidade da estatística vale pontos. Ex.: 1 ponto por kill." },
+      "TABLE": { "rotulo": "Tabela de pontos", "dica": "Cada valor da estatística tem uma pontuação. Ex.: Booyah (1º lugar) vale 3." },
+      "OUTCOME": { "rotulo": "Resultado da partida", "dica": "Pontos por vitória, empate e derrota. Ex.: 3 / 1 / 0." },
+      "BONUS": { "rotulo": "Bônus", "dica": "Pontos extras quando uma condição é atingida. Ex.: +2 com 10 kills ou mais." },
+      "CAP": { "rotulo": "Limite", "dica": "Teto de pontos vindos de uma estatística. Ex.: no máximo 15 pontos de kill por queda." },
+      "MULTIPLIER": { "rotulo": "Multiplicador", "dica": "Multiplica os pontos da partida. Ex.: a última queda vale ×2." }
+    },
+    "resultado": {
+      "win": "Vitória",
+      "draw": "Empate",
+      "loss": "Derrota"
+    },
+    "condicaoBonus": {
+      "gte": "ou mais (≥)",
+      "lte": "ou menos (≤)",
+      "eq": "exatamente (=)"
+    },
+    "pontos": "{valor} {n, plural, =1 {ponto} other {pontos}}",
+    "pts": "{valor} {n, plural, =1 {pt} other {pts}}",
+    "ordinal": "{valor}º",
+    "placarDoJogo": {
+      "clashRoyale": "coroas",
+      "efootball": "gols",
+      "eightBallPool": "frames",
+      "freeFire": "rounds"
+    },
+    "estatistica": {
+      "placar": { "rotulo": "Placar", "um": "ponto de placar", "varios": "pontos de placar" },
+      "kills": { "rotulo": "Kills", "um": "kill", "varios": "kills" },
+      "colocacao": { "rotulo": "Colocação", "um": "colocação", "varios": "colocação" },
+      "resultado": { "rotulo": "Resultado", "um": "resultado", "varios": "resultado" }
+    },
+    "tabelaVazia": "Tabela de {estatistica} ainda sem valores",
+    "tabelaBooyah": "Booyah (1º lugar) vale {pontos}",
+    "tabelaColocacao": "Pontos por colocação: {lista}",
+    "tabelaEstatistica": "Pontos por {estatistica}: {lista}",
+    "bonusGanho": "{sinal} {n, plural, =1 {ponto} other {pontos}}",
+    "bonusAteColocacao": "{ganho} para quem ficar até o {colocacao} lugar",
+    "bonusDaColocacaoParaBaixo": "{ganho} para quem ficar do {colocacao} lugar para baixo",
+    "bonusNaColocacao": "{ganho} para o {colocacao} lugar",
+    "bonusOuMais": "{ganho} com {valor} {unidade} ou mais",
+    "bonusOuMenos": "{ganho} com {valor} {unidade} ou menos",
+    "bonusExatamente": "{ganho} com exatamente {valor} {unidade}",
+    "multiplicadorTodas": "Todos os pontos da {tipo, select, br {queda} other {partida}} valem {fator}",
+    "multiplicadorUltima": "A última {tipo, select, br {queda} other {partida}} vale {fator}",
+    "multiplicadorUma": "A {numero}ª {tipo, select, br {queda} other {partida}} vale {fator}",
+    "porUnidade": "{pontos} por {unidade}",
+    "resultadoDaPartida": "Vitória vale {pontos}, empate {empate} e derrota {derrota}",
+    "limite": "No máximo {pontos} de {estatistica} por {tipo, select, br {queda} other {partida}}",
+    "valorColocacao": "{colocacao} lugar",
+    "exemploNaPartida": "{exemplo} ({tipo, select, br {queda} other {partida}} {numero} de {total})"
+  },
+  "tiebreakers": {
+    "points": "Pontos totais",
+    "wins": "Vitórias",
+    "booyahs": "Booyahs (vitórias na queda)",
+    "kills": "Total de kills",
+    "score": "Placar feito (coroas, gols, frames)",
+    "scoreDoJogo": "Placar feito ({placar})",
+    "avgPlacement": "Melhor colocação média",
+    "headToHead": "Confronto direto",
+    "scoreDiff": "Saldo do placar",
+    "scoreDiffDoJogo": "Saldo de {placar}",
+    "lastDropKills": "Kills na última queda",
+    "draw": "Sorteio",
+    "dicaPontos": "Sempre o primeiro critério.",
+    "dicaSorteio": "Sempre o último; fica registrado na auditoria.",
+    "dicaNaoSeAplica": "Não se aplica a este tipo de partida. Desligue para tirar da lista."
+  },
+  "validation": {
+    "erroNaRegra": "Regra {numero}: {mensagem}"
+  },
+  "LivePreview": {
+    "campoDoExemplo": "{campo} do exemplo",
+    "numeroDaPartida": "Número da {tipo, select, br {queda} other {partida}}",
+    "totalDePartidas": "Total de {tipo, select, br {quedas} other {partidas}}",
+    "parcelas": "Quanto cada regra somou no exemplo"
+  },
+  "RuleCard": {
+    "foraDoTipo": "{estatistica} (fora deste tipo de partida)",
+    "estatistica": "Estatística",
+    "titulo": "Regra {numero} · {tipo}",
+    "remover": "Remover regra {numero}",
+    "tipoDeRegra": "Tipo de regra",
+    "pontosPorUnidade": "Pontos por unidade",
+    "vitoria": "Vitória",
+    "empate": "Empate",
+    "derrota": "Derrota",
+    "valorDeReferencia": "Valor de referência",
+    "condicao": "Condição",
+    "pontosDeBonus": "Pontos de bônus",
+    "maximoDePontos": "Máximo de pontos",
+    "maximoDica": "Por {tipo, select, br {queda} other {partida}}, somando as regras desta estatística.",
+    "fator": "Fator (×)",
+    "valePara": "Vale para",
+    "todas": "Todas as {tipo, select, br {quedas} other {partidas}}",
+    "soAUltima": "Só a última {tipo, select, br {queda} other {partida}}",
+    "umaEspecifica": "Uma {tipo, select, br {queda} other {partida}} específica",
+    "numeroDaPartida": "Número da {tipo, select, br {queda} other {partida}}"
+  },
+  "TableRuleFields": {
+    "colocacao": "Colocação",
+    "valorDe": "Valor de {estatistica}",
+    "preencherAte": "Preencher do 1º ao",
+    "preencherColocacoes": "Preencher colocações",
+    "usarTabelaDeLiga": "Usar tabela de liga",
+    "tabelaDeLiga": "Tabela de liga: 12 / 9 / 8 / 7 / 6 / 5 / 4 / 3 / 2 / 1 e zero do 11º em diante.",
+    "pontos": "Pontos",
+    "vazio": "Nenhuma linha ainda. Adicione a primeira.",
+    "pontosDaColocacao": "Pontos do {colocacao}º lugar",
+    "pontosParaValor": "Pontos para {estatistica} = {valor}",
+    "pontosDaLinha": "Pontos da linha {linha}",
+    "chaveDaLinha": "{cabecalho} (linha {linha})",
+    "valorRepetido": "Valor repetido",
+    "removerLinha": "Remover linha {linha}",
+    "adicionarLinha": "Adicionar linha"
+  },
+  "Sortable": {
+    "selecionado": "{item} selecionado, na posição {posicao} de {total}.",
+    "sobre": "{item} sobre a posição {posicao} de {total}.",
+    "solto": "{item} solto na posição {posicao} de {total}.",
+    "soltoSemDestino": "{item} solto.",
+    "cancelado": "Reordenação cancelada. {item} voltou para a posição {posicao}.",
+    "movido": "{item} movido para a posição {posicao} de {total}.",
+    "instrucoes": "Para reordenar, pressione espaço ou Enter, use as setas para mover e pressione espaço ou Enter de novo para soltar. Esc cancela.",
+    "itemReordenavel": "item reordenável",
+    "arrastar": "Arrastar {item} para reordenar",
+    "subir": "Subir {item}",
+    "descer": "Descer {item}"
+  },
+  "TiebreakerEditor": {
+    "emUso": "Critérios de desempate em uso, na ordem em que valem",
+    "itemEmUso": "{posicao}. {criterio}",
+    "desligados": "Critérios de desempate desligados"
+  },
+  "ScoringModelEditor": {
+    "nomeDoModelo": "Nome do modelo",
+    "nomePlaceholder": "Ex.: Padrão (kill 1, Booyah 3)",
+    "tipoDePartida": "Tipo de partida",
+    "tipoDePartidaDica": "Ao trocar, ficam só as regras que valem para o novo tipo.",
+    "tipoDePartidaTravado": "Tipo de partida: <strong>{tipo}</strong>",
+    "regras": "Regras",
+    "regrasDescricao": "Cada regra transforma uma estatística da partida em pontos. Limites e multiplicadores entram por último.",
+    "semRegras": "Nenhuma regra ainda. Escolha um tipo abaixo e adicione a primeira.",
+    "nomeDaRegra": "regra {numero}",
+    "regrasDoModelo": "Regras do modelo",
+    "tipoDaNovaRegra": "Tipo da nova regra",
+    "adicionarRegra": "Adicionar regra",
+    "previa": "Prévia",
+    "previaDescricao": "Mude o exemplo para conferir a conta. O cálculo é o mesmo que vale no campeonato.",
+    "desempate": "Critérios de desempate",
+    "desempateDescricao": "Quando duas equipes empatam em pontos, vale o primeiro critério da lista que as separar."
+  },
+  "ScoringPreview": {
+    "semRegras": "Nenhuma regra cadastrada.",
+    "exemplo": "Exemplo:"
+  }
+}

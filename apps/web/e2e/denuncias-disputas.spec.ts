@@ -5,7 +5,7 @@
  * a Camila organiza a Liga; a Ana é Admin; o Open 8 Ball Pool terminou com a Bianca campeã.
  */
 import type { Locator, Page } from '@playwright/test';
-import { expect as baseExpect, loginAs, test, waitForApp, type DemoUser } from './fixtures';
+import { expect as baseExpect, loginAs, test, waitForApp, type DemoUser, mid, NO_BLOB, NO_BLOB_REASON } from './fixtures';
 
 // Folga para o servidor de desenvolvimento, que compila cada rota na primeira visita.
 const expect = baseExpect.configure({ timeout: 20_000 });
@@ -13,7 +13,7 @@ test.describe.configure({ timeout: 180_000 });
 
 const DB_KEY = 'nova-mock-db';
 const LIGA = '/c/liga-semanal-clash-royale?aba=partidas';
-const LIGA_STAGE = 'tn_liga_cr_s1';
+const LIGA_STAGE = mid('tn_liga_cr_s1');
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
 const image = (name: string) => ({ name, mimeType: 'image/png', buffer: PNG });
 
@@ -83,6 +83,7 @@ async function standings(page: Page): Promise<unknown> {
 
 test.describe('denúncias', () => {
   test('denunciar um perfil com anexo e acompanhar em "Minhas denúncias"', async ({ page }) => {
+    test.skip(NO_BLOB, NO_BLOB_REASON);
     await visitAs(page, 'u_bianca', '/u/Lucas');
     await page.getByRole('button', { name: 'Denunciar Lucas' }).click();
     const dialog = page.getByRole('dialog', { name: 'Denunciar Lucas' });
@@ -134,13 +135,15 @@ test.describe('denúncias', () => {
 
     // O que foi gravado é o que a moderação vai ler: alvo, autor e dono do alvo.
     const stored = await page.evaluate((key) => ((JSON.parse(localStorage.getItem(key) ?? '{}') as { extra: { reports: Record<string, unknown>[] } }).extra.reports ?? []).find((r) => r.reporterId === 'u_bianca' && r.targetId === 'u_lucas'), DB_KEY);
-    expect(stored).toMatchObject({ targetType: 'USER', targetLabel: 'Lucas', targetLink: '/u/Lucas', reporterNickname: 'Bianca', reason: 'HARASSMENT', status: 'OPEN', targetOwnerUserId: 'u_lucas' });
+    expect(stored).toMatchObject({ targetType: 'USER', targetLabel: 'Lucas', targetLink: '/u/Lucas', reporterNickname: 'Bianca', reason: 'HARASSMENT', status: 'OPEN', targetOwnerUserId: mid('u_lucas') });
     expect((stored?.evidenceUrls as string[]).length).toBe(1);
   });
 
   test('visitante é levado ao login; o próprio perfil não tem botão de denúncia', async ({ page }) => {
     await page.goto('/u/Lucas');
     await waitForApp(page);
+    // A página vem pronta do servidor: espera a sessão (visitante) ser conhecida antes de clicar.
+    await expect(page.getByRole('link', { name: 'Criar conta' }).first()).toBeVisible();
     await page.getByRole('button', { name: 'Denunciar Lucas' }).click();
     await expect(page).toHaveURL(/\/entrar\?next=%2Fu%2FLucas/);
 
@@ -150,11 +153,11 @@ test.describe('denúncias', () => {
   });
 
   test('página do squad: quem não é o capitão pode denunciar o squad', async ({ page }) => {
-    await visitAs(page, 'u_lucas', '/minha-conta/squads/t_alfa');
+    await visitAs(page, 'u_lucas', `/minha-conta/squads/${mid('t_alfa')}`);
     await expect(page.getByRole('heading', { level: 1, name: 'Squad Alfa' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Denunciar/ })).toHaveCount(0);
 
-    await visitAs(page, 'u_bianca', '/minha-conta/squads/t_alfa');
+    await visitAs(page, 'u_bianca', `/minha-conta/squads/${mid('t_alfa')}`);
     await page.getByRole('button', { name: 'Denunciar Squad Alfa' }).click();
     const dialog = page.getByRole('dialog', { name: 'Denunciar Squad Alfa' });
     await dialog.getByLabel('Motivo').selectOption({ label: 'Nome, tag ou imagem ofensiva' });
@@ -167,12 +170,13 @@ test.describe('denúncias', () => {
     await waitForApp(page);
     const first = page.getByRole('list', { name: 'Minhas denúncias' }).getByRole('article').first();
     await expect(first).toContainText('Squad');
-    await expect(first.getByRole('link', { name: 'Squad Alfa [ALFA]' })).toHaveAttribute('href', '/minha-conta/squads/t_alfa');
+    await expect(first.getByRole('link', { name: 'Squad Alfa [ALFA]' })).toHaveAttribute('href', `/minha-conta/squads/${mid('t_alfa')}`);
   });
 });
 
 test.describe('envio de resultado e disputa', () => {
   test('envio → contestação com prova → mensagens → escalar → Admin resolve com o resultado corrigido', async ({ page }) => {
+    test.skip(NO_BLOB, NO_BLOB_REASON);
     test.slow();
 
     // 1. A Bianca envia o placar com print, pela página do campeonato.
@@ -299,7 +303,7 @@ test.describe('envio de resultado e disputa', () => {
     // Agora sim a tabela mudou, e a auditoria registrou a decisão.
     expect(await standings(page)).not.toEqual(before);
     const audit = await page.evaluate((key) => ((JSON.parse(localStorage.getItem(key) ?? '{}') as { extra: { auditLogs: { action: string; actorId: string; after: Record<string, unknown> | null }[] } }).extra.auditLogs ?? []).filter((l) => l.action === 'DISPUTE_RESOLVED' || l.action === 'RESULT_ENTERED'), DB_KEY);
-    expect(audit.find((l) => l.action === 'DISPUTE_RESOLVED')).toMatchObject({ actorId: 'u_ana', after: { status: 'RESOLVED', resultadoLancado: true } });
+    expect(audit.find((l) => l.action === 'DISPUTE_RESOLVED')).toMatchObject({ actorId: mid('u_ana'), after: { status: 'RESOLVED', resultadoLancado: true } });
     expect(audit.find((l) => l.action === 'RESULT_ENTERED')?.after).toMatchObject({ origem: 'DISPUTE' });
 
     // 8. Para a Bianca: partida concluída com o resultado corrigido e aviso da resolução.
@@ -316,6 +320,7 @@ test.describe('envio de resultado e disputa', () => {
   });
 
   test('adversário confirma pela partida; quem não joga não vê ações nem acessa a disputa', async ({ page }) => {
+    test.skip(NO_BLOB, NO_BLOB_REASON);
     await visitAs(page, 'u_bianca', LIGA);
     const m = await biancaMatch(page);
     await card(page, m.matchId).getByRole('button', { name: 'Enviar resultado' }).click();
@@ -342,7 +347,7 @@ test.describe('envio de resultado e disputa', () => {
     // Ainda não é oficial: a organização valida (fila do organizador).
     const queue = await (async () => {
       await loginAs(page, 'u_camila');
-      return apiCall<{ id: string; status: string }[]>(page, 'GET', '/tournaments/tn_liga_cr/submissions');
+      return apiCall<{ id: string; status: string }[]>(page, 'GET', `/tournaments/${mid('tn_liga_cr')}/submissions`);
     })();
     expect(queue.data.map((s) => s.status)).toEqual(['CONFIRMED']);
 

@@ -147,6 +147,8 @@ enum ReportTarget {
   TEAM
   MATCH
   RESULT
+  /// Mensagem do chat de uma partida (issue 125).
+  CHAT_MESSAGE
 }
 
 enum ReportStatus {
@@ -230,6 +232,10 @@ model User {
   lastSeenAt      DateTime?  @db.Timestamptz(3)
   /// Conta de destino quando esta foi mesclada (RN-13).
   mergedIntoId    String?    @db.Uuid
+  /// Menor de 18 anos: quando declarou ter a autorização do responsável no cadastro (LGPD art. 14, issue #115).
+  guardianConsentAt DateTime? @db.Timestamptz(3)
+  /// Exclusão da conta (LGPD, issue #115): a conta foi anonimizada neste instante.
+  deletedAt       DateTime?  @db.Timestamptz(3)
   createdAt       DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime   @updatedAt @db.Timestamptz(3)
 
@@ -238,6 +244,7 @@ model User {
   oauthAccounts        OAuthAccount[]
   uploads              Upload[]
   twoFactor            TwoFactor?
+  pushSubscriptions    PushSubscription[]
   emailTokens          EmailToken[]
   gameAccounts         GameAccount[]
   organizerRequests    OrganizerRequest[]
@@ -291,12 +298,17 @@ model Session {
   revokedAt         DateTime? @db.Timestamptz(3)
   replacedById      String?   @db.Uuid
   lastUsedAt        DateTime? @db.Timestamptz(3)
+  /// Aparelho (cookie `na_dev`, aleatório e sem dado pessoal): base do alerta de várias contas no mesmo aparelho (#114).
+  deviceId          String?   @db.Uuid
   createdAt         DateTime  @default(now()) @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([familyId])
+  /// Antifraude (#114): contas distintas que entraram do mesmo IP ou do mesmo aparelho numa janela.
+  @@index([ip, createdAt])
+  @@index([deviceId, createdAt])
   @@map("sessions")
 }
 
@@ -323,6 +335,8 @@ model TwoFactor {
   enabledAt         DateTime? @db.Timestamptz(3)
   /// Hash de cada código de recuperação (uso único).
   recoveryCodesHash String[]
+  /// Último passo de 30 s aceito: o mesmo código não entra duas vezes (proteção contra repetição).
+  lastUsedStep      Int?
   createdAt         DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
 
@@ -400,6 +414,10 @@ model AdminRemovalRequest {
   requestedById String        @db.Uuid
   status        RequestStatus @default(PENDING)
   decidedById   String?       @db.Uuid
+  /// Motivo informado por quem pediu a remoção (RN-11).
+  reason        String?
+  /// Quando o Super Admin aprovou ou recusou.
+  decidedAt     DateTime?     @db.Timestamptz(3)
   createdAt     DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
 
@@ -413,6 +431,8 @@ model GameAccount {
   gameId    String   @db.Uuid
   /// Ex.: `{ "playerId": "123", "nick": "Alfa" }`. Visível só para a organização e os adversários.
   fields    Json
+  /// ID do jogador normalizado (primeiro campo do jogo, sem espaços e em minúsculas): base do alerta de ID duplicado (#114).
+  externalKey String?
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
@@ -420,6 +440,7 @@ model GameAccount {
   game Game @relation(fields: [gameId], references: [id])
 
   @@unique([userId, gameId])
+  @@index([gameId, externalKey])
   @@map("game_accounts")
 }
 
@@ -444,6 +465,8 @@ model Game {
   accounts      GameAccount[]
   teams         Team[]
   templates     TournamentTemplate[]
+  seasons       Season[]
+  leagues       League[]
 
   @@index([active])
   @@map("games")
@@ -532,6 +555,9 @@ model Tournament {
   stages        Stage[]
   registrations Registration[]
   announcements Announcement[]
+  podium        TournamentPodium?
+  leagueEntry   LeagueTournament?
+  discordLink   DiscordLink?
 
   @@index([status, startsAt])
   @@index([gameId, status])
@@ -654,6 +680,15 @@ model Announcement {
   body         String
   /// Global: `ALL`, `ORGANIZERS` ou `GAME:<gameId>`. No campeonato: `ALL`, uma fase ou um grupo.
   audience     String    @default("ALL")
+  /// Só no comunicado global: `BANNER`, `NOTIFICATION` ou `MAINTENANCE` (nulo no do campeonato).
+  kind         String?
+  /// Banner e manutenção: janela de exibição (manutenção aparece 48 h antes do início).
+  startsAt     DateTime? @db.Timestamptz(3)
+  endsAt       DateTime? @db.Timestamptz(3)
+  /// Banner e manutenção ligados ou desligados pelo Admin. Notificação é envio único (`false`).
+  active       Boolean   @default(true)
+  /// Notificação global: quantas pessoas estavam no público-alvo no envio.
+  recipients   Int?
   createdAt    DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
 
@@ -662,6 +697,7 @@ model Announcement {
   group      Group?      @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@index([tournamentId, createdAt])
+  @@index([kind, active])
   @@map("announcements")
 }
 
@@ -774,6 +810,10 @@ model Registration {
   @@unique([tournamentId, userId])
   @@unique([tournamentId, teamId])
   @@index([tournamentId, status, createdAt])
+  /// "Minhas inscrições", perfil e disputas de uma pessoa em todos os campeonatos (revisão R2, #111).
+  @@index([userId])
+  /// Cron: reservas de vaga vencidas (`status = PENDING_MEMBERS` e `reservedUntil` no passado).
+  @@index([status, reservedUntil])
   @@map("registrations")
 }
 
@@ -793,6 +833,8 @@ model RegistrationMember {
 
   @@unique([tournamentId, userId])
   @@index([registrationId])
+  /// Elencos de que a pessoa faz parte, em qualquer campeonato (revisão R2, #111).
+  @@index([userId])
   @@map("registration_members")
 }
 
@@ -830,6 +872,7 @@ model Match {
   submissions  ResultSubmission[]
   disputes     Dispute[]
   resultEvents ResultEvent[]
+  chatMessages MatchChatMessage[]
 
   @@unique([stageId, nodeId])
   @@index([stageId, round, position])
@@ -930,6 +973,8 @@ model ResultSubmission {
   status        SubmissionStatus @default(PENDING)
   confirmedById String?          @db.Uuid
   reviewedById  String?          @db.Uuid
+  /// Motivo informado pelo staff ao recusar o envio (issue #90).
+  rejectReason  String?
   createdAt     DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime         @updatedAt @db.Timestamptz(3)
 
@@ -950,6 +995,10 @@ model Dispute {
   status       DisputeStatus @default(OPEN)
   resolution   String?
   resolvedById String?       @db.Uuid
+  /// Escalada para a administração da plataforma (issue #90).
+  escalatedAt   DateTime?    @db.Timestamptz(3)
+  escalatedById String?      @db.Uuid
+  resolvedAt    DateTime?    @db.Timestamptz(3)
   createdAt    DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
 
@@ -966,6 +1015,8 @@ model DisputeMessage {
   id           String   @id @default(uuid()) @db.Uuid
   disputeId    String   @db.Uuid
   authorId     String   @db.Uuid
+  /// Papel de quem escreveu no momento da mensagem: `PARTICIPANT`, `STAFF` ou `ADMIN` (issue #90).
+  authorRole   String?
   body         String
   evidenceUrls String[]
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
@@ -976,11 +1027,13 @@ model DisputeMessage {
   @@map("dispute_messages")
 }
 
-/// Histórico de resultados como eventos: somente inserção.
+/// Histórico de resultados como eventos: somente inserção (um gatilho bloqueia UPDATE, DELETE e TRUNCATE — issue #86).
+/// `after` guarda o resultado do motor depois do evento (base para reconstituir a tabela num instante passado).
 model ResultEvent {
   id        BigInt          @id @default(autoincrement())
   matchId   String          @db.Uuid
-  actorId   String          @db.Uuid
+  /// Nulo = ação do sistema (W.O. automático).
+  actorId   String?         @db.Uuid
   type      ResultEventType
   before    Json?
   after     Json?
@@ -991,6 +1044,18 @@ model ResultEvent {
 
   @@index([matchId, createdAt])
   @@map("result_events")
+}
+
+/// Pódio do campeonato encerrado (issue #88): `[{ place, registrationId }]`, de 1 a 3 lugares.
+model TournamentPodium {
+  tournamentId String   @id @db.Uuid
+  places       Json
+  finishedAt   DateTime @db.Timestamptz(3)
+  finishedById String?  @db.Uuid
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@map("tournament_podiums")
 }
 
 // ── Governança ───────────────────────────────────────────────────────
@@ -1036,6 +1101,11 @@ model Report {
   status       ReportStatus @default(OPEN)
   handledById  String?      @db.Uuid
   resolution   String?
+  /// Nome e link do alvo no momento da denúncia (o que a moderação vê).
+  targetLabel  String       @default("")
+  targetLink   String?
+  /// Quem responde pelo alvo: o próprio usuário, o capitão do squad ou quem enviou o resultado.
+  targetOwnerUserId String? @db.Uuid
   createdAt    DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime     @updatedAt @db.Timestamptz(3)
 
@@ -1043,6 +1113,8 @@ model Report {
 
   @@index([status, createdAt])
   @@index([targetType, targetId])
+  @@index([reporterId, createdAt])
+  @@index([targetOwnerUserId])
   @@map("reports")
 }
 
@@ -1062,6 +1134,7 @@ model Sanction {
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId, startsAt])
+  @@index([type, endsAt])
   @@map("sanctions")
 }
 
@@ -1073,7 +1146,11 @@ model Notification {
   body        String
   link        String?
   readAt      DateTime?        @db.Timestamptz(3)
+  /// Falso quando a pessoa desligou o aviso no site para este tipo: o registro existe só para o e-mail/push.
+  inApp       Boolean          @default(true)
   emailSentAt DateTime?        @db.Timestamptz(3)
+  /// Push (Web Push, issue #109) já enviado: a mensagem repetida do QStash não manda de novo.
+  pushSentAt  DateTime?        @db.Timestamptz(3)
   createdAt   DateTime         @default(now()) @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1087,11 +1164,30 @@ model NotificationPreference {
   type   NotificationType
   inApp  Boolean          @default(true)
   email  Boolean          @default(true)
+  /// Notificação push no aparelho (PWA, issue #109). Só chega a quem assinou o push.
+  push   Boolean          @default(true)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, type])
   @@map("notification_preferences")
+}
+
+/// Assinatura de Web Push de um aparelho (issue #109). O `endpoint` é do serviço de push do navegador.
+model PushSubscription {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  lastUsedAt DateTime? @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model Achievement {
@@ -1159,4 +1255,211 @@ model JobFailure {
 
   @@index([resolvedAt, createdAt])
   @@map("job_failures")
+}
+
+/// Fila "Sem responsável" (RN-09): campeonato pausado porque o organizador saiu (revogado, suspenso, banido ou
+/// conta mesclada) e não havia co-organizador para assumir. Sai da fila quando o Admin dá um novo responsável.
+model OrphanTournament {
+  tournamentId    String           @id @db.Uuid
+  previousOwnerId String           @db.Uuid
+  /// Estado em que o campeonato estava antes de ser pausado.
+  previousStatus  TournamentStatus
+  cause           String
+  since           DateTime         @default(now()) @db.Timestamptz(3)
+
+  @@index([since])
+  @@map("orphan_tournaments")
+}
+
+/// Eventos de produto (issue #101, PRD §3.2 e §20): análise própria, sem cookies nem identificador de navegador.
+/// Guarda só o nome do evento, o usuário (quando logado) e números do evento; nunca IP, navegador ou texto livre.
+model ProductEvent {
+  id        BigInt   @id @default(autoincrement())
+  name      String
+  userId    String?  @db.Uuid
+  /// Números e rótulos curtos do evento (ex.: `{ "durationMs": 42000 }`, `{ "score": 9, "as": "PARTICIPANT" }`).
+  props     Json     @default("{}")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([name, createdAt])
+  @@index([userId, createdAt])
+  @@map("product_events")
+}
+
+// ── Ranking de temporada e ligas (pós-lançamento, issue #120, ADR-0003) ──
+
+/// Temporada do ranking de um jogo. O rating não é gravado: é recalculado (replay) a partir dos resultados validados
+/// entre `startsAt` (inclusive) e `endsAt` (exclusivo). Temporadas do mesmo jogo não se sobrepõem (a API confere).
+model Season {
+  id          String   @id @default(uuid()) @db.Uuid
+  gameId      String   @db.Uuid
+  name        String
+  startsAt    DateTime @db.Timestamptz(3)
+  endsAt      DateTime @db.Timestamptz(3)
+  createdById String   @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, startsAt])
+  @@map("seasons")
+}
+
+/// Liga semanal de um organizador: soma pontos por colocação final dos campeonatos encerrados que agrupa.
+model League {
+  id                  String   @id @default(uuid()) @db.Uuid
+  slug                String   @unique
+  name                String
+  description         String   @default("")
+  gameId              String   @db.Uuid
+  /// Organizador dono da liga (só o ID, como os autores de ações).
+  ownerId             String   @db.Uuid
+  startsAt            DateTime @db.Timestamptz(3)
+  endsAt              DateTime @db.Timestamptz(3)
+  /// Pontos por colocação: índice 0 = 1º lugar.
+  placementPoints     Json
+  participationPoints Int      @default(0)
+  createdAt           DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
+
+  game        Game               @relation(fields: [gameId], references: [id])
+  tournaments LeagueTournament[]
+
+  @@index([ownerId])
+  @@index([gameId])
+  @@map("leagues")
+}
+
+/// Campeonato que faz parte de uma liga (no máximo uma liga por campeonato).
+model LeagueTournament {
+  leagueId     String   @db.Uuid
+  tournamentId String   @unique @db.Uuid
+  addedAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  league     League     @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@id([leagueId, tournamentId])
+  @@map("league_tournaments")
+}
+
+// ── Pós-lançamento (issues 121 e 125) ────────────────────────────────
+
+/// Vínculo de um campeonato com um servidor do Discord (issue 121). Nasce pendente, com o hash de um código de uso
+/// único que a organização cola em `/nova-arena vincular`; vira ativo com o servidor e o canal dos avisos.
+model DiscordLink {
+  id                 String    @id @default(uuid()) @db.Uuid
+  tournamentId       String    @unique @db.Uuid
+  /// SHA-256 do código de vínculo (o código em si nunca é guardado). Nulo depois de usado.
+  codeHash           String?   @unique
+  codeExpiresAt      DateTime? @db.Timestamptz(3)
+  guildId            String?
+  guildName          String?
+  /// Canal onde o comando foi usado: é para lá que vão os avisos.
+  channelId          String?
+  linkedById         String?   @db.Uuid
+  linkedAt           DateTime? @db.Timestamptz(3)
+  createdById        String    @db.Uuid
+  lastAnnouncementAt DateTime? @db.Timestamptz(3)
+  lastError          String?
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(3)
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+  @@map("discord_links")
+}
+
+/// Mensagem do chat de uma partida (issue 125): jogadores da partida e organização. Ocultar não apaga (moderação).
+model MatchChatMessage {
+  id          String    @id @default(uuid()) @db.Uuid
+  matchId     String    @db.Uuid
+  authorId    String    @db.Uuid
+  /// `PLAYER` ou `STAFF` no momento da mensagem.
+  authorRole  String
+  body        String
+  hiddenAt    DateTime? @db.Timestamptz(3)
+  hiddenById  String?   @db.Uuid
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, createdAt])
+  @@index([authorId, createdAt])
+  @@map("match_chat_messages")
+}
+
+// ── Antifraude e LGPD (R2) ───────────────────────────────────────────
+
+enum FraudAlertKind {
+  /// Várias contas entraram do mesmo IP numa janela curta.
+  MULTI_ACCOUNT_IP
+  /// Várias contas entraram do mesmo aparelho.
+  MULTI_ACCOUNT_DEVICE
+  /// O mesmo ID de jogo cadastrado em contas diferentes.
+  DUPLICATE_GAME_ID
+  /// Muitas ações administrativas do mesmo Admin em pouco tempo (PRD §22, R4).
+  MASS_ADMIN_ACTION
+}
+
+enum FraudAlertStatus {
+  OPEN
+  ACTIONED
+  DISMISSED
+}
+
+/// Fila de alertas antifraude (issue #114), tratada no painel de moderação. Um alerta aberto por `dedupeKey`:
+/// a repetição soma `occurrences` e atualiza `lastSeenAt` em vez de abrir outro.
+model FraudAlert {
+  id            String           @id @default(uuid()) @db.Uuid
+  kind          FraudAlertKind
+  status        FraudAlertStatus @default(OPEN)
+  /// `LOW`, `MEDIUM` ou `HIGH`.
+  severity      String
+  /// Ex.: `MULTI_ACCOUNT_IP:200.1.2.3`, `MASS_ADMIN_ACTION:BAN:<adminId>`.
+  dedupeKey     String
+  /// Contas envolvidas (para o Admin abrir cada uma).
+  userIds       String[]         @db.Uuid
+  /// Admin que disparou o alerta de ações em massa.
+  actorId       String?          @db.Uuid
+  /// Números e rótulos do alerta (janela, limite, contagem, jogo…). Nunca senha, token ou texto livre da pessoa.
+  details       Json             @default("{}")
+  occurrences   Int              @default(1)
+  firstSeenAt   DateTime         @default(now()) @db.Timestamptz(3)
+  lastSeenAt    DateTime         @default(now()) @db.Timestamptz(3)
+  reviewedById  String?          @db.Uuid
+  reviewedAt    DateTime?        @db.Timestamptz(3)
+  resolution    String?
+  createdAt     DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@index([status, lastSeenAt])
+  @@index([dedupeKey, status])
+  @@map("fraud_alerts")
+}
+
+enum DataExportStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+/// Exportação dos dados pessoais (LGPD, issue #115) gerada em job quando é grande. O arquivo fica no Blob privado
+/// e só o dono baixa, por `GET /me/exports/:id`, até `expiresAt`.
+model DataExport {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  status    DataExportStatus @default(PENDING)
+  blobUrl   String?
+  size      Int?
+  error     String?
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+  readyAt   DateTime?        @db.Timestamptz(3)
+  expiresAt DateTime         @db.Timestamptz(3)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+  @@map("data_exports")
 }

@@ -1,6 +1,8 @@
 import { cn } from '@nova/ui';
 import Link from 'next/link';
 import { LogoMark } from '../brand/LogoMark';
+import { getT } from '../i18n/core';
+import { sharedMessages } from '../i18n/messages';
 
 export interface LogoProps {
   href?: string;
@@ -16,18 +18,19 @@ export interface LogoProps {
 
 /** Símbolo + nome. O link tem o nome acessível; o símbolo é decorativo para o leitor de tela. */
 export function Logo({ href = '/', className, onColor = false, compact = false }: LogoProps) {
+  const t = getT(sharedMessages, 'Logo');
   return (
     <Link
       href={href}
-      aria-label="Nova Arena — página inicial"
+      aria-label={t('rotulo')}
       className={cn(
-        'group flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md font-display text-base font-bold tracking-wide focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent xs:text-lg md:gap-2.5 md:text-xl',
+        'group flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-md font-display text-base font-bold tracking-wide focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent xs:text-lg md:gap-2.5 md:text-xl',
         onColor && '[--logo-ink:currentColor]',
         className,
       )}
     >
       <LogoMark className="h-7 w-auto shrink-0 transition-transform duration-200 ease-out group-hover:scale-105 motion-reduce:transition-none md:h-8" />
-      <span className={cn('leading-none', compact && 'sr-only xs:not-sr-only')}>NOVA ARENA</span>
+      <span className={cn('leading-none', compact && 'sr-only xs:not-sr-only')}>{t('nome')}</span>
     </Link>
   );
 }

@@ -21,11 +21,18 @@ import { currentSession, requireSession } from '../../auth/session';
 import { checkInWindow, findMatch, listMatches, matchView } from '../../competition/bracket';
 import { requiredUsers, rosterSelect } from '../../competition/check-in';
 import { decryptLobby, encryptLobby } from '../../competition/lobby-crypto';
-import { applyManualWalkover } from '../../competition/walkover';
+import { applyManualWalkover, type WalkoverApplied } from '../../competition/walkover';
+import { publishStage, usersOfRegistrations } from '../../competition/results';
+import { standingsKey } from '../../competition/standings';
+import { notify } from '../../notify';
+import { announceResult } from '../discord/announce';
+import { scheduleDiscordReminder } from '../../discord';
 import { checkInOf } from '../tournaments/views';
 import { scheduleMatchJobs } from '../../jobs/matches';
 import { revalidateTournaments } from '../../revalidate';
 import { clientIp } from '../../security';
+import { EDGE_CACHE, isSettled, visitorCache } from '../../http-cache';
+import { messages } from '../../messages/pt-BR';
 
 /** Sem janela de check-in, a sala aparece 15 min antes do horário. */
 const REVEAL_WITHOUT_CHECKIN_MS = 15 * 60_000;
@@ -52,10 +59,28 @@ async function auditCtx(c: AppContext) {
 }
 
 /** Reagendou: as mensagens antigas se descartam (horário diferente) e as novas entram. Falha na fila não desfaz a agenda. */
-async function rescheduleJobs(c: AppContext, match: { id: string; scheduledAt: Date | null }, tournament: { checkInConfig: unknown }) {
+async function rescheduleJobs(c: AppContext, match: { id: string; scheduledAt: Date | null }, tournament: { id: string; checkInConfig: unknown }) {
+  await scheduleDiscordReminder(c, match, tournament.id);
   await scheduleMatchJobs(c.get('deps').queue(c.get('env'), c.get('log')), match, checkInWindow(tournament, match.scheduledAt)?.closesAt ?? null).catch((error: unknown) =>
     c.get('log').warn('não foi possível agendar as mensagens da partida; o Cron cobre', { matchId: match.id, error: String(error) }),
   );
+}
+
+/** Depois do W.O. (manual ou automático): avisa os dois lados, publica e revalida. Nunca lança. */
+export async function afterWalkover(c: AppContext, matchId: string, applied: WalkoverApplied, automatic = false): Promise<void> {
+  const db = c.get('deps').db();
+  await c.get('deps').cache(c.get('env')).del(standingsKey(applied.stageId)).catch(() => undefined);
+  const users = await usersOfRegistrations(db, [applied.winnerId, ...(applied.loserId ? [applied.loserId] : [])]).catch(() => new Map<string, string[]>());
+  const link = `/c/${applied.tournament.slug}?aba=partidas`;
+  if (automatic) {
+    await notify(c, users.get(applied.loserId ?? '') ?? [], { type: 'RESULT_POSTED', title: messages.results.walkoverLoser.title, body: messages.results.walkoverLoser.body(applied.label, applied.tournament.name), link });
+    await notify(c, users.get(applied.winnerId) ?? [], { type: 'RESULT_POSTED', title: messages.results.walkoverWinner.title, body: messages.results.walkoverWinner.body(applied.label, applied.tournament.name), link });
+  } else {
+    await notify(c, [...users.values()].flat(), { type: 'RESULT_POSTED', title: messages.results.walkoverApplied.title, body: messages.results.walkoverApplied.body(applied.label, applied.tournament.name), link });
+  }
+  await publishStage(c, applied.tournament.id, applied.stageId, { matchId, status: 'WALKOVER' });
+  await announceResult(c, { tournamentId: applied.tournament.id, tournamentName: applied.tournament.name, slug: applied.tournament.slug, matchId, label: applied.label, walkover: true });
+  revalidateTournaments(c);
 }
 
 export const matches = new Hono<AppEnv>();
@@ -66,6 +91,8 @@ matches.get('/tournaments/:id/matches', async (c) => {
   const t = await db.tournament.findFirst({ where: /^[0-9a-f-]{36}$/i.test(id) ? { id } : { slug: id }, select: { id: true, ownerId: true, status: true } });
   if (!t || (t.status === 'DRAFT' && !(await staffOf(c, t)))) throw notFound('Campeonato');
   let list = await listMatches(db, t.id, c.req.query('stageId') ?? null);
+  // `mine=1` depende de quem pede; a lista completa de um campeonato encerrado não muda mais.
+  if (c.req.query('mine') !== '1' && isSettled(t.status)) visitorCache(c, EDGE_CACHE.finished);
   if (c.req.query('mine') === '1') {
     const session = await currentSession(c);
     const reg = session ? await myRegistration(c, t.id, session.userId) : null;
@@ -238,7 +265,7 @@ matches.post('/matches/:id/walkover', async (c) => {
   await assertTournamentAccess(c, stage.tournamentId, 'moderate');
   const input = await body(c, WalkoverInput);
   if (!node.slots.some((s) => s.entrantId === input.winnerRegistrationId)) throw badRequest('O vencedor precisa ser um dos participantes da partida.', 'NOT_IN_MATCH');
-  await applyManualWalkover(db, { ...(await auditCtx(c)), reason: input.reason }, row.id, stage.id, input.winnerRegistrationId);
-  revalidateTournaments(c);
+  const applied = await applyManualWalkover(db, { ...(await auditCtx(c)), reason: input.reason }, row.id, stage.id, input.winnerRegistrationId);
+  await afterWalkover(c, row.id, applied);
   return respond(c, Match, (await matchView(db, row.id)) as Match);
 });

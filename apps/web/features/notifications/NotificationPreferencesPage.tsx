@@ -6,14 +6,14 @@ import { Lock } from 'lucide-react';
 import { Switch } from 'radix-ui';
 import { useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
+import { isModuleMocked } from '@/shared/api/mode';
 import { useNotificationPreferences, useSaveNotificationPreferences } from '@/shared/api/hooks/notifications';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
+import { messages } from './messages';
 
-type Channel = 'inApp' | 'email';
-const CHANNELS: { key: Channel; label: string; aria: string }[] = [
-  { key: 'inApp', label: 'No site', aria: 'no site' },
-  { key: 'email', label: 'E-mail', aria: 'por e-mail' },
-];
+type Channel = 'inApp' | 'email' | 'push';
+const CHANNELS: Channel[] = ['inApp', 'email', 'push'];
 
 /** Avisos da moderação não podem ser desligados (a API também recusa). */
 const LOCKED: NotificationType = 'SANCTION';
@@ -34,19 +34,20 @@ function Toggle({ checked, disabled, label, onChange }: { checked: boolean; disa
   );
 }
 
-/** `/minha-conta/notificacoes`: preferências por tipo, com os canais "No site" e "E-mail". */
+/** `/minha-conta/notificacoes`: preferências por tipo, com os canais "No site", "E-mail" e (com a API real) "Celular". */
 export function NotificationPreferencesPage() {
   const preferences = useNotificationPreferences();
+  const t = useT(messages, 'NotificationPreferencesPage');
   return (
     <PageContainer>
-      <PageHeader title="Preferências de notificação" description="Escolha o que você quer receber no site e por e-mail." />
+      <PageHeader title={t('titulo')} description={t('descricao')} />
       {preferences.isPending ? (
-        <div className="flex max-w-3xl flex-col gap-3" role="status" aria-label="Carregando preferências">
+        <div className="flex max-w-3xl flex-col gap-3" role="status" aria-label={t('carregando')}>
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-64 w-full" />
         </div>
       ) : preferences.isError ? (
-        <ErrorState className="max-w-3xl" title="Não foi possível carregar as preferências" description={errorMessage(preferences.error)} onRetry={() => void preferences.refetch()} />
+        <ErrorState className="max-w-3xl" title={t('erro')} description={errorMessage(preferences.error)} onRetry={() => void preferences.refetch()} />
       ) : (
         <PreferencesForm saved={preferences.data} />
       )}
@@ -57,10 +58,14 @@ export function NotificationPreferencesPage() {
 function PreferencesForm({ saved }: { saved: NotificationPreference[] }) {
   const { success, error } = useToast();
   const save = useSaveNotificationPreferences();
+  const t = useT(messages, 'NotificationPreferencesPage');
+  const mocked = isModuleMocked('notifications');
   // Rascunho local: só as linhas que a pessoa mexeu. O que não mudou continua vindo do servidor.
   const [draft, setDraft] = useState<Partial<Record<NotificationType, NotificationPreference>>>({});
   const rows = saved.map((p) => draft[p.type] ?? p);
-  const changed = rows.filter((row, i) => row.inApp !== saved[i]?.inApp || row.email !== saved[i]?.email);
+  const changed = rows.filter((row, i) => row.inApp !== saved[i]?.inApp || row.email !== saved[i]?.email || row.push !== saved[i]?.push);
+  // A coluna do push (issue #109) só aparece quando a API a oferece (a simulada não tem push).
+  const channels = CHANNELS.filter((c) => c !== 'push' || saved.some((p) => p.push !== undefined));
 
   function set(row: NotificationPreference, channel: Channel, value: boolean) {
     setDraft((d) => ({ ...d, [row.type]: { ...row, [channel]: value } }));
@@ -70,9 +75,9 @@ function PreferencesForm({ saved }: { saved: NotificationPreference[] }) {
     save.mutate(changed, {
       onSuccess: () => {
         setDraft({});
-        success('Preferências salvas');
+        success(t('toastSalvas'));
       },
-      onError: (e) => error('Não foi possível salvar as preferências', errorMessage(e)),
+      onError: (e) => error(t('toastErro'), errorMessage(e)),
     });
   }
 
@@ -80,15 +85,15 @@ function PreferencesForm({ saved }: { saved: NotificationPreference[] }) {
     <div className="flex max-w-3xl flex-col gap-4">
       <Card padding="none" className="overflow-hidden">
         <table className="w-full border-collapse text-left">
-          <caption className="sr-only">Preferências de notificação por tipo e por canal</caption>
+          <caption className="sr-only">{t('tabela')}</caption>
           <thead>
             <tr className="border-b border-border bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted">
               <th scope="col" className="px-3 py-2 md:px-6">
-                Aviso
+                {t('aviso')}
               </th>
-              {CHANNELS.map((c) => (
-                <th key={c.key} scope="col" className="w-16 px-1 py-2 text-center md:w-24">
-                  {c.label}
+              {channels.map((c) => (
+                <th key={c} scope="col" className="w-16 px-1 py-2 text-center md:w-24">
+                  {t(`canal.${c}.label`)}
                 </th>
               ))}
             </tr>
@@ -106,9 +111,9 @@ function PreferencesForm({ saved }: { saved: NotificationPreference[] }) {
                     </span>
                     <span className="mt-0.5 block text-xs text-muted">{meta.description}</span>
                   </th>
-                  {CHANNELS.map((c) => (
-                    <td key={c.key} className="px-1 py-1 align-middle">
-                      <Toggle checked={locked ? true : row[c.key]} disabled={locked || save.isPending} label={`${meta.label}: ${c.aria}`} onChange={(v) => set(row, c.key, v)} />
+                  {channels.map((c) => (
+                    <td key={c} className="px-1 py-1 align-middle">
+                      <Toggle checked={locked ? true : (row[c] ?? true)} disabled={locked || save.isPending} label={t('toggle', { tipo: meta.label, canal: t(`canal.${c}.aria`) })} onChange={(v) => set(row, c, v)} />
                     </td>
                   ))}
                 </tr>
@@ -118,15 +123,19 @@ function PreferencesForm({ saved }: { saved: NotificationPreference[] }) {
         </table>
       </Card>
 
-      <p className="text-xs text-muted">No protótipo os e-mails não são enviados de verdade: a preferência fica gravada e passa a valer quando o envio de e-mail entrar no ar.</p>
+      {mocked ? (
+        <p className="text-xs text-muted">{t('prototipo')}</p>
+      ) : (
+        channels.includes('push') && <p className="text-xs text-muted">{t('pushAviso')}</p>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={submit} disabled={changed.length === 0} loading={save.isPending}>
-          Salvar preferências
+          {t('salvar')}
         </Button>
         {changed.length > 0 && (
           <Button variant="ghost" onClick={() => setDraft({})} disabled={save.isPending}>
-            Desfazer alterações
+            {t('desfazer')}
           </Button>
         )}
       </div>

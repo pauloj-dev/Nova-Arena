@@ -14,6 +14,8 @@ const adminDb = (roles: string[]) =>
   (() => ({
     session: { findUnique: async () => ({ revokedAt: null, userId: ADMIN, twoFactorVerified: true, user: { status: 'ACTIVE', sessionVersion: 0 } }) },
     userRole: { findMany: async () => roles.map((role) => ({ role })) },
+    // `/admin/*` exige 2FA ativo (RNF-08).
+    twoFactor: { findUnique: async () => ({ enabledAt: new Date() }) },
     $transaction: async () => {
       throw new Error('modelo inválido não deveria chegar ao banco');
     },

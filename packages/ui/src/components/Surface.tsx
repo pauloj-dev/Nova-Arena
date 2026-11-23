@@ -1,6 +1,7 @@
 import { Avatar as RAvatar, Tabs as RTabs } from 'radix-ui';
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cn } from '../lib/cn';
+import { EmptyIllustration } from './Illustration';
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   padding?: 'none' | 'sm' | 'md';
@@ -69,7 +70,7 @@ export interface TabsProps {
 export function Tabs({ items, value, defaultValue, onValueChange, label, className }: TabsProps) {
   return (
     <RTabs.Root value={value} defaultValue={defaultValue ?? items[0]?.value} onValueChange={onValueChange} className={className}>
-      <RTabs.List aria-label={label} className="flex gap-1 overflow-x-auto border-b border-border [scrollbar-width:none]">
+      <RTabs.List aria-label={label} className="relative flex gap-1 overflow-x-auto border-b border-border [scrollbar-width:none]">
         {items.map((t) => (
           <RTabs.Trigger
             key={t.value}
@@ -100,15 +101,33 @@ export interface EmptyStateProps {
   description?: ReactNode;
   action?: ReactNode;
   className?: string;
+  /**
+   * Ilustração de fundo. Padrão: a "arena" da Nova Arena (`EmptyIllustration`) sempre que há ícone;
+   * `false` volta ao ícone simples (ex.: em espaços pequenos).
+   */
+  illustration?: ReactNode | false;
 }
 
-export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
+/** Estado vazio ilustrado (PRD §15.8): ilustração + título + ação sugerida. */
+export function EmptyState({ icon, title, description, action, className, illustration }: EmptyStateProps) {
+  const art = illustration === false ? null : (illustration ?? (icon ? <EmptyIllustration className="absolute inset-0 size-full" /> : null));
   return (
     <div className={cn('flex flex-col items-center gap-3 rounded-lg border border-dashed border-border-strong bg-surface px-6 py-10 text-center', className)}>
-      {icon && (
-        <div className="flex size-14 items-center justify-center rounded-full bg-accent-soft text-accent-soft-text" aria-hidden>
-          {icon}
+      {art ? (
+        <div className="relative flex h-28 w-44 items-center justify-center" data-illustration>
+          {art}
+          {icon && (
+            <div className="relative -mt-6 flex size-14 items-center justify-center rounded-full bg-surface text-accent-soft-text shadow-sm ring-4 ring-accent-soft" aria-hidden>
+              {icon}
+            </div>
+          )}
         </div>
+      ) : (
+        icon && (
+          <div className="flex size-14 items-center justify-center rounded-full bg-accent-soft text-accent-soft-text" aria-hidden>
+            {icon}
+          </div>
+        )
       )}
       <h3 className="text-lg text-text">{title}</h3>
       {description && <p className="max-w-md text-sm text-muted">{description}</p>}

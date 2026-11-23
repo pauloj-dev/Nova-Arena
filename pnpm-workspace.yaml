@@ -9,6 +9,11 @@ allowBuilds:
   msw: true
   prisma: true
   '@prisma/engines': true
+  '@swc/core': false
+  # Só um aviso de patrocínio no postinstall (issue 123): não precisa rodar.
+  tesseract.js: false
+  # Só o extrator de mensagens do next-intl (issue 108) usa; o app não precisa do binário nativo.
+  '@parcel/watcher': false
 minimumReleaseAgeExclude:
   - '@hookform/resolvers@7.0.6'
   - '@turbo/darwin-64@2.11.11'
@@ -20,3 +25,9 @@ minimumReleaseAgeExclude:
   - lucide-react@1.72.0
   - react-hook-form@7.92.0
   - turbo@2.11.11
+# Varredura de dependências (issue #113): versões corrigidas de dependências indiretas com alerta alto (as
+# moderadas — minimatch e glob, do ESLint — ficam: a correção é versão maior e só roda no desenvolvimento).
+# Revise e remova quando os pacotes de cima (@vercel/blob → @vercel/oidc, prisma → @prisma/config) atualizarem.
+overrides:
+  'zod@<4.6.6': '^4.6.6'
+  'effect@<3.22.1': '^3.22.1'

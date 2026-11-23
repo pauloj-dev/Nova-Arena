@@ -44,6 +44,8 @@ Gere um valor **diferente por ambiente** e cadastre como *Sensitive*:
 - [ ] `AUTH_JWT_SECRET`
 - [ ] `CRON_SECRET`
 - [ ] `LOBBY_ENCRYPTION_KEY`
+- [ ] `TWO_FACTOR_ENCRYPTION_KEY` (2FA, issue #95 — trocar invalida o 2FA de todas as contas)
+- [ ] `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` (push no PWA, issue #109)
 
 Os comandos para gerar estão no `.env.example`.
 
@@ -68,13 +70,20 @@ Funções em `gru1` (já no `vercel.json`). Para cada serviço, confirme a regi�
 - [ ] Domínio definitivo (ADR-0001 Q7: `novaarena.gg`, provisório até a compra) apontado para o projeto, com HTTPS.
 - [ ] `NEXT_PUBLIC_SITE_URL` de Production com esse domínio.
 
-### 9. API real no preview e no staging (issue #81)
-Os E2E do CI (`ci.yml`) continuam rodando no próprio runner com a API simulada: **não defina** `PLAYWRIGHT_BASE_URL` no repositório. O preview e o staging usam a API real nas telas do núcleo (F1) e o mock só no que ainda é do B2:
+### 9. API real no preview e no staging (issues #81 e #102)
+Os E2E do CI (`ci.yml`) continuam rodando no próprio runner com a API simulada: **não defina** `PLAYWRIGHT_BASE_URL` no repositório. Desde a #102 **todos** os módulos têm API real: preview, staging e produção não simulam nada.
 
-- [ ] Variável `NEXT_PUBLIC_API_MOCK` em **Preview** e **Staging** com os módulos que ainda não têm API real:
-  `competition,submissions,notifications,reports,profile-stats,admin-users,admin-roles,admin-tournaments,admin-audit,admin-moderation,admin-settings`
-  (a lista sai de `previewMockSetting()` em `apps/web/mocks/handlers/index.ts`; com a #102 ela vira `none`). Em **Production**, `none`.
-- [ ] Seed do banco do preview/staging com `SEED_PROFILE=staging` e `SEED_DEMO_PASSWORD` (8+ caracteres): as contas de demonstração (Camila organizadora, Bianca participante…) passam a entrar com essa senha. Nunca em produção.
+| Ambiente | `NEXT_PUBLIC_API_MOCK` | Dados |
+|---|---|---|
+| Local (protótipo) | sem a variável (`all`) | banco simulado no navegador |
+| Local com a API real | `none` | Postgres do docker-compose + `pnpm --filter web seed:demo --reset` (ver `apps/web/README.md`, "Modos da API") |
+| **Preview** e **Staging** | `none` (é o que `previewMockSetting()` devolve) | branch do Neon + seed de demonstração |
+| **Production** | `none` | só o catálogo e o Super Admin (`SEED_PROFILE=production`) |
+
+- [ ] Variável `NEXT_PUBLIC_API_MOCK=none` em **Preview**, **Staging** e **Production** (troca a lista antiga de módulos do B2).
+  O tempo real usa o Ably e precisa de `ABLY_API_KEY`; sem a chave, as páginas ao vivo mostram "Reconectando… atualizando a cada 10 s" (CT-10). Para manter só o tempo real simulado num ambiente sem Ably, use `NEXT_PUBLIC_API_MOCK=realtime`.
+- [ ] Redis dividido entre ambientes (o mesmo Upstash no preview e no staging): `KV_PREFIX` diferente em cada um (ex.: `preview:` e `staging:`), para um não ler o cache do outro.
+- [ ] Seed do banco do preview/staging: `pnpm --filter @nova/db db:seed` com `SEED_PROFILE=staging` cria o catálogo e as contas; para ter também **os cenários do protótipo** (campeonatos em vários estados, Liga Clash Royale em andamento com check-in aberto, Open 8 Ball finalizado com pódio, squads, convites, denúncias, notificações), rode num banco **vazio** `pnpm --filter web seed:demo` com `DATABASE_URL_UNPOOLED`, `SEED_DEMO_PASSWORD` (8+ caracteres) e a mesma `LOBBY_ENCRYPTION_KEY` do ambiente (as salas vão cifradas); `SEED_DEMO_TOTP_SECRET` (Base32) liga o 2FA do Rafael e da Ana. As contas de demonstração entram com essa senha. Nunca em produção (o script recusa `VERCEL_ENV=production`).
 - [ ] Vercel → Settings → Deployment Protection → **Protection Bypass for Automation**: gere o segredo.
 - [ ] GitHub → Settings → Secrets and variables → Actions:
   - variável `E2E_API_REAL` = `true`;

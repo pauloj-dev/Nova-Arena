@@ -1,8 +1,8 @@
-'use client';
+import { LegalRoute } from '@/shared/server/LegalRoute';
 
-import { LegalDocument } from '@/features/admin/settings/LegalDocument';
+/** Política de Privacidade: o texto é o que o Super Admin publica em Configurações (vem pronto no HTML, revisto a cada 5 min). */
+export const revalidate = 300;
 
-/** Política de Privacidade: o texto é o que o Super Admin publica em Configurações. */
 export default function PrivacyPage() {
-  return <LegalDocument doc="privacy" />;
+  return <LegalRoute doc="privacy" />;
 }

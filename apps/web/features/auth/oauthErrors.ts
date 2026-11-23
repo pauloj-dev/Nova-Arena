@@ -1,18 +1,17 @@
-/** Mensagens para `?erro=` quando o login social volta sem sucesso (códigos da API, issue #68). */
-const MESSAGES: Record<string, string> = {
-  oauth_cancelado: 'Você cancelou o login no provedor. Tente de novo quando quiser.',
-  oauth_estado: 'O login demorou demais ou foi aberto em outra janela. Tente de novo.',
-  oauth_falhou: 'Não conseguimos confirmar sua conta com o provedor. Tente de novo em instantes.',
-  oauth_indisponivel: 'Este jeito de entrar ainda não está disponível. Use e-mail e senha.',
-  oauth_sem_email: 'O provedor não compartilhou seu e-mail. Libere o e-mail na conta do provedor ou crie a conta com e-mail e senha.',
-  oauth_email_existente:
-    'Já existe uma conta com este e-mail. Entre com e-mail e senha e vincule o provedor em Minha conta › Segurança.',
-  sessao_expirada: 'Sua sessão expirou. Entre de novo para vincular o provedor.',
-  conta_banida: 'Esta conta foi banida.',
-  conta_suspensa: 'Esta conta está suspensa.',
-};
+import { getT } from '@/shared/i18n/core';
+import { messages } from './messages';
 
+/** Códigos de `?erro=` quando o login social volta sem sucesso (códigos da API, issue #68). */
+const CODES = ['oauth_cancelado', 'oauth_estado', 'oauth_falhou', 'oauth_indisponivel', 'oauth_sem_email', 'oauth_email_existente', 'sessao_expirada', 'conta_banida', 'conta_suspensa'] as const;
+type OAuthErrorCode = (typeof CODES)[number];
+
+function isKnown(code: string): code is OAuthErrorCode {
+  return (CODES as readonly string[]).includes(code);
+}
+
+/** Mensagem para `?erro=` quando o login social volta sem sucesso. */
 export function oauthErrorMessage(code: string | null): string | null {
   if (!code) return null;
-  return MESSAGES[code] ?? 'Não foi possível entrar. Tente de novo.';
+  const t = getT(messages, 'oauthErrors');
+  return isKnown(code) ? t(code) : t('generico');
 }

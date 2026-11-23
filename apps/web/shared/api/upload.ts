@@ -1,4 +1,6 @@
 import { isPrivateUpload, Me, UPLOAD_MAX_BYTES, UPLOAD_MIME_TYPES, UploadedFile, UploadResult, UploadToken, type UploadPurpose } from '@nova/schemas';
+import { getT } from '../i18n/core';
+import { sharedMessages } from '../i18n/messages';
 import { api, ApiError } from './client';
 import { isModuleMocked } from './mode';
 
@@ -8,8 +10,9 @@ export class UploadError extends Error {}
 
 /** Confere tipo e tamanho antes de qualquer envio (RNF-09). Devolve a mensagem de erro ou nulo. */
 export function validateImage(file: Pick<File, 'type' | 'size'>): string | null {
-  if (!(UPLOAD_MIME_TYPES as readonly string[]).includes(file.type)) return 'Envie uma imagem PNG, JPG ou WebP.';
-  if (file.size > UPLOAD_MAX_BYTES) return 'A imagem pode ter no máximo 5 MB.';
+  const t = getT(sharedMessages, 'upload');
+  if (!(UPLOAD_MIME_TYPES as readonly string[]).includes(file.type)) return t('tipoInvalido');
+  if (file.size > UPLOAD_MAX_BYTES) return t('grandeDemais');
   return null;
 }
 
@@ -22,17 +25,18 @@ export function fitWithin(width: number, height: number, maxSide: number): { wid
 /** Comprime no navegador (redimensiona e reencoda em JPEG) para o envio ficar leve no 4G. */
 export async function compressImage(file: Blob, opts: { maxSide?: number; quality?: number } = {}): Promise<Blob> {
   const { maxSide = 1280, quality = 0.72 } = opts;
+  const t = getT(sharedMessages, 'upload');
   const bitmap = await createImageBitmap(file);
   const { width, height } = fitWithin(bitmap.width, bitmap.height, maxSide);
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new UploadError('Não foi possível preparar a imagem neste navegador.');
+  if (!ctx) throw new UploadError(t('prepararImagem'));
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
-  if (!blob) throw new UploadError('Não foi possível comprimir a imagem.');
+  if (!blob) throw new UploadError(t('comprimirImagem'));
   return blob;
 }
 
@@ -54,6 +58,7 @@ const PREPARED = 15;
 
 /** PUT com XMLHttpRequest: é o único jeito de saber quantos bytes já subiram (o `fetch` não informa). */
 function putWithProgress(url: string, blob: Blob, onBytes: (loaded: number, total: number) => void): Promise<{ status: number; body: unknown }> {
+  const t = getT(sharedMessages, 'upload');
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', url);
@@ -70,8 +75,8 @@ function putWithProgress(url: string, blob: Blob, onBytes: (loaded: number, tota
       }
       resolve({ status: xhr.status, body });
     };
-    xhr.onerror = () => reject(new UploadError('A conexão caiu durante o envio. Tente de novo.'));
-    xhr.onabort = () => reject(new UploadError('O envio foi cancelado.'));
+    xhr.onerror = () => reject(new UploadError(t('conexaoCaiu')));
+    xhr.onabort = () => reject(new UploadError(t('cancelado')));
     xhr.send(blob);
   });
 }
@@ -86,8 +91,9 @@ function putWithProgress(url: string, blob: Blob, onBytes: (loaded: number, tota
  * Blob; depois a API confirma (`/uploads/complete`) e devolve o endereço a guardar (privado para provas).
  */
 async function uploadToBlob(blob: Blob, purpose: UploadPurpose, onPercent: (percent: number) => void): Promise<string> {
+  const t = getT(sharedMessages, 'upload');
   const me = await api.get('/me', { schema: Me.nullable() });
-  if (!me) throw new UploadError('Entre na sua conta para enviar imagens.');
+  if (!me) throw new UploadError(t('entrarParaEnviar'));
   const { upload } = await import('@vercel/blob/client');
   try {
     const stored = await upload(`${purpose}/${me.id}/imagem.jpg`, blob, {
@@ -101,7 +107,7 @@ async function uploadToBlob(blob: Blob, purpose: UploadPurpose, onPercent: (perc
     return file.url;
   } catch (error) {
     if (error instanceof ApiError || error instanceof UploadError) throw error;
-    throw new UploadError('Não foi possível enviar a imagem. Confira sua conexão e tente de novo.');
+    throw new UploadError(t('falhaConfiraConexao'));
   }
 }
 
@@ -130,7 +136,7 @@ export async function uploadImage(file: File, purpose: UploadPurpose, opts: Uplo
   const res = await putWithProgress(token.uploadUrl, blob, (loaded, total) => report('uploading', PREPARED + ((100 - PREPARED) * loaded) / Math.max(1, total)));
   if (res.status < 200 || res.status >= 300) {
     const problem = res.body as { title?: string } | null;
-    throw new ApiError({ type: 'about:blank', title: problem?.title ?? 'Não foi possível enviar a imagem.', status: res.status });
+    throw new ApiError({ type: 'about:blank', title: problem?.title ?? getT(sharedMessages, 'upload')('falha'), status: res.status });
   }
   const url = UploadResult.parse(res.body).url;
   report('uploading', 100);
@@ -139,5 +145,5 @@ export async function uploadImage(file: File, purpose: UploadPurpose, opts: Uplo
 
 export function uploadErrorMessage(error: unknown): string {
   if (error instanceof UploadError || error instanceof ApiError) return error.message;
-  return 'Não foi possível enviar a imagem. Tente de novo.';
+  return getT(sharedMessages, 'upload')('falhaTenteDeNovo');
 }

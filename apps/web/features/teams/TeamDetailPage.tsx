@@ -9,29 +9,35 @@ import { useState, type ReactNode } from 'react';
 import { ReportButton } from '@/features/reports/ReportButton';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useDeleteTeam, useRemoveTeamMember, useRevokeTeamInvite, useTeam, useTransferCaptain, useUpdateTeamMember } from '@/shared/api/hooks/teams';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer } from '@/shared/layout/AreaShell';
 import { useSession } from '@/shared/session/useSession';
 import { InvitePanel } from './InvitePanel';
+import { messages } from './messages';
 import { SquadRoster } from './SquadRoster';
 import { TeamFormModal } from './TeamFormModal';
 import { TeamLogo } from './TeamLogo';
 
-const backLink = (
-  <Link href="/minha-conta/squads" className="flex min-h-11 items-center gap-1 self-start text-sm font-semibold text-muted hover:text-text">
-    <ArrowLeft className="size-4" aria-hidden /> Meus squads
-  </Link>
-);
+function BackLink() {
+  const t = useT(messages, 'TeamDetailPage');
+  return (
+    <Link href="/minha-conta/squads" className="flex min-h-11 items-center gap-1 self-start text-sm font-semibold text-muted hover:text-text">
+      <ArrowLeft className="size-4" aria-hidden /> {t('meusSquads')}
+    </Link>
+  );
+}
 
 /** `/minha-conta/squads/[id]`: elenco, convites e ações do squad. */
 export function TeamDetailPage({ teamId }: { teamId: string }) {
   const { user } = useSession();
   const team = useTeam(teamId);
+  const t = useT(messages, 'TeamDetailPage');
 
   if (team.isPending) {
     return (
       <PageContainer>
-        {backLink}
-        <div className="flex flex-col gap-6" role="status" aria-label="Carregando o squad">
+        <BackLink />
+        <div className="flex flex-col gap-6" role="status" aria-label={t('carregando')}>
           <Skeleton className="h-20 w-full max-w-md" />
           <div className="grid gap-6 lg:grid-cols-2">
             <Skeleton className="h-72 w-full" />
@@ -45,21 +51,21 @@ export function TeamDetailPage({ teamId }: { teamId: string }) {
     const missing = team.error instanceof ApiError && team.error.status === 404;
     return (
       <PageContainer>
-        {backLink}
-        <h1 className="sr-only">Squad</h1>
+        <BackLink />
+        <h1 className="sr-only">{t('squad')}</h1>
         {missing ? (
           <EmptyState
             icon={<SearchX className="size-7" />}
-            title="Squad não encontrado"
-            description="Ele pode ter sido excluído pelo capitão."
+            title={t('naoEncontradoTitulo')}
+            description={t('naoEncontradoDescricao')}
             action={
               <Button asChild>
-                <Link href="/minha-conta/squads">Ver meus squads</Link>
+                <Link href="/minha-conta/squads">{t('verMeusSquads')}</Link>
               </Button>
             }
           />
         ) : (
-          <ErrorState title="Não foi possível carregar o squad" description={errorMessage(team.error)} onRetry={() => void team.refetch()} />
+          <ErrorState title={t('erroCarregar')} description={errorMessage(team.error)} onRetry={() => void team.refetch()} />
         )}
       </PageContainer>
     );
@@ -74,6 +80,7 @@ function TeamDetail({ team, viewerId }: { team: Team; viewerId: string | null })
   const { success, error } = useToast();
   const [dialog, setDialog] = useState<Dialog>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const t = useT(messages, 'TeamDetail');
   const close = () => setDialog(null);
 
   const updateMember = useUpdateTeamMember(team.id);
@@ -90,60 +97,64 @@ function TeamDetail({ team, viewerId }: { team: Team; viewerId: string | null })
     updateMember.mutate(
       { userId: member.userId, isSub: !member.isSub },
       {
-        onSuccess: () => success(member.isSub ? `${member.nickname} voltou a ser titular` : `${member.nickname} agora é reserva`),
-        onError: (e) => error('Não foi possível mudar a escalação', errorMessage(e)),
+        onSuccess: () => success(member.isSub ? t('voltouTitular', { nome: member.nickname }) : t('agoraReserva', { nome: member.nickname })),
+        onError: (e) => error(t('erroEscalacao'), errorMessage(e)),
       },
     );
   }
   function revokeInvite(invite: TeamInvite) {
     setRevokingId(invite.id);
     revoke.mutate(invite.id, {
-      onSuccess: () => success('Convite cancelado'),
-      onError: (e) => error('Não foi possível cancelar o convite', errorMessage(e)),
+      onSuccess: () => success(t('conviteCancelado')),
+      onError: (e) => error(t('erroCancelarConvite'), errorMessage(e)),
       onSettled: () => setRevokingId(null),
     });
   }
   function confirmTransfer(member: TeamMember) {
     transfer.mutate(member.userId, {
       onSuccess: () => {
-        success(`${member.nickname} agora é o capitão`);
+        success(t('agoraCapitao', { nome: member.nickname }));
         close();
       },
-      onError: (e) => error('Não foi possível transferir a capitania', errorMessage(e)),
+      onError: (e) => error(t('erroTransferir'), errorMessage(e)),
     });
   }
   function confirmRemove(member: TeamMember) {
     removeMember.mutate(member.userId, {
       onSuccess: () => {
-        success(`${member.nickname} saiu do squad`);
+        success(t('saiuDoSquad', { nome: member.nickname }));
         close();
       },
-      onError: (e) => error(`Não foi possível remover ${member.nickname}`, errorMessage(e)),
+      onError: (e) => error(t('erroRemover', { nome: member.nickname }), errorMessage(e)),
     });
   }
   function confirmLeave() {
     if (!viewerId) return;
     removeMember.mutate(viewerId, {
       onSuccess: () => {
-        success(`Você saiu do ${team.name}`);
+        success(t('voceSaiu', { nome: team.name }));
         router.push('/minha-conta/squads');
       },
-      onError: (e) => error('Não foi possível sair do squad', errorMessage(e)),
+      onError: (e) => error(t('erroSair'), errorMessage(e)),
     });
   }
   function confirmDelete() {
     remove.mutate(team.id, {
       onSuccess: () => {
-        success(`${team.name} excluído`);
+        success(t('excluido', { nome: team.name }));
         router.push('/minha-conta/squads');
       },
-      onError: (e) => error('Não foi possível excluir o squad', errorMessage(e)),
+      onError: (e) => error(t('erroExcluir'), errorMessage(e)),
     });
   }
 
+  const bold = (chunks: ReactNode) => <strong>{chunks}</strong>;
+  const transferText = dialog?.kind === 'transfer' ? t.rich('transferirConfirmacao', { nome: dialog.member.nickname, time: team.name, b: bold }) : null;
+  const removeText = dialog?.kind === 'remove' ? t.rich('removerConfirmacao', { nome: dialog.member.nickname, time: team.name, b: bold }) : null;
+
   return (
     <PageContainer>
-      {backLink}
+      <BackLink />
 
       <div className="flex flex-wrap items-center gap-4">
         <TeamLogo tag={team.tag} logoUrl={team.logoUrl} size="xl" />
@@ -153,13 +164,13 @@ function TeamDetail({ team, viewerId }: { team: Team; viewerId: string | null })
             <span className="tabular">[{team.tag}]</span>
             <span className="flex items-center gap-1.5">
               <Users className="size-4" aria-hidden />
-              {count === 1 ? '1 membro' : `${count} membros`}
+              {t('membros', { count })}
             </span>
           </p>
         </div>
         {isCaptain ? (
           <Button variant="secondary" iconLeft={<Pencil className="size-4" aria-hidden />} onClick={() => setDialog({ kind: 'edit' })}>
-            Editar
+            {t('editar')}
           </Button>
         ) : (
           <ReportButton targetType="TEAM" targetId={team.id} targetLabel={team.name} />
@@ -170,7 +181,7 @@ function TeamDetail({ team, viewerId }: { team: Team; viewerId: string | null })
         <Card className="min-w-0">
           <section aria-labelledby="squad-elenco" className="flex flex-col gap-2">
             <h2 id="squad-elenco" className="text-lg">
-              Elenco
+              {t('elenco')}
             </h2>
             <SquadRoster
               team={team}
@@ -190,7 +201,7 @@ function TeamDetail({ team, viewerId }: { team: Team; viewerId: string | null })
             <Card>
               <section aria-labelledby="squad-convidar" className="flex flex-col gap-4">
                 <h2 id="squad-convidar" className="text-lg">
-                  Convidar jogadores
+                  {t('convidarJogadores')}
                 </h2>
                 <InvitePanel team={team} />
               </section>
@@ -199,13 +210,13 @@ function TeamDetail({ team, viewerId }: { team: Team; viewerId: string | null })
             <Card>
               <section aria-labelledby="squad-excluir" className="flex flex-col gap-3">
                 <h2 id="squad-excluir" className="text-lg">
-                  Excluir squad
+                  {t('excluirSquad')}
                 </h2>
                 <p className="text-sm text-muted">
-                  O squad some para todos os membros. Não dá para excluir enquanto ele estiver inscrito em um campeonato que ainda não terminou. Para sair sem excluir, passe a capitania para outro membro.
+                  {t('excluirDescricao')}
                 </p>
                 <Button variant="danger" className="self-start" iconLeft={<Trash2 className="size-4" aria-hidden />} onClick={() => setDialog({ kind: 'delete' })}>
-                  Excluir squad
+                  {t('excluirSquad')}
                 </Button>
               </section>
             </Card>
@@ -218,14 +229,14 @@ function TeamDetail({ team, viewerId }: { team: Team; viewerId: string | null })
       <ConfirmModal
         open={dialog?.kind === 'transfer'}
         onClose={close}
-        title="Passar a capitania"
-        confirmLabel="Passar a capitania"
+        title={t('passarCapitania')}
+        confirmLabel={t('passarCapitania')}
         loading={transfer.isPending}
         onConfirm={() => dialog?.kind === 'transfer' && confirmTransfer(dialog.member)}
       >
         {dialog?.kind === 'transfer' && (
           <p>
-            <strong>{dialog.member.nickname}</strong> vira o capitão do {team.name}: só ele poderá convidar, remover membros e inscrever o squad em campeonatos. Você continua no squad como membro.
+            {transferText}
           </p>
         )}
       </ConfirmModal>
@@ -233,30 +244,30 @@ function TeamDetail({ team, viewerId }: { team: Team; viewerId: string | null })
       <ConfirmModal
         open={dialog?.kind === 'remove'}
         onClose={close}
-        title="Remover do squad"
-        confirmLabel="Remover"
+        title={t('removerDoSquad')}
+        confirmLabel={t('remover')}
         danger
         loading={removeMember.isPending}
         onConfirm={() => dialog?.kind === 'remove' && confirmRemove(dialog.member)}
       >
         {dialog?.kind === 'remove' && (
           <p>
-            <strong>{dialog.member.nickname}</strong> sai do {team.name}. Para voltar, vai precisar de um novo convite.
+            {removeText}
           </p>
         )}
       </ConfirmModal>
 
-      <ConfirmModal open={dialog?.kind === 'leave'} onClose={close} title="Sair do squad" confirmLabel="Sair do squad" danger loading={removeMember.isPending} onConfirm={confirmLeave}>
-        <p>Você deixa de fazer parte do {team.name}. Para voltar, vai precisar de um novo convite do capitão.</p>
+      <ConfirmModal open={dialog?.kind === 'leave'} onClose={close} title={t('sairDoSquad')} confirmLabel={t('sairDoSquad')} danger loading={removeMember.isPending} onConfirm={confirmLeave}>
+        <p>{t('sairConfirmacao', { nome: team.name })}</p>
       </ConfirmModal>
 
       <ConfirmDestructive
         open={dialog?.kind === 'delete'}
         onOpenChange={(open) => !open && close()}
-        title="Excluir squad"
-        description="Esta ação não pode ser desfeita. O squad some para todos os membros e os convites pendentes são cancelados."
+        title={t('excluirSquad')}
+        description={t('excluirConfirmacao')}
         confirmText={team.name}
-        confirmLabel="Excluir squad"
+        confirmLabel={t('excluirSquad')}
         loading={remove.isPending}
         onConfirm={confirmDelete}
       />
@@ -277,6 +288,7 @@ interface ConfirmModalProps {
 
 /** Confirmação simples (sim/não) para ações que mudam o elenco. */
 function ConfirmModal({ open, onClose, title, confirmLabel, danger, loading, onConfirm, children }: ConfirmModalProps) {
+  const t = useT(messages, 'TeamDetail');
   return (
     <Modal
       open={open}
@@ -286,7 +298,7 @@ function ConfirmModal({ open, onClose, title, confirmLabel, danger, loading, onC
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Voltar
+            {t('voltar')}
           </Button>
           <Button variant={danger ? 'danger' : 'primary'} loading={loading} onClick={onConfirm}>
             {confirmLabel}

@@ -5,6 +5,7 @@ import { TournamentDraftInput, type Game, type GameMode, type OrganizerTournamen
 import { Button, Card, ErrorState, Skeleton, Stepper, useToast } from '@nova/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, Rocket, Save } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -15,6 +16,7 @@ import { useOrganizerTournament, usePublishTournament } from '@/shared/api/hooks
 import { keys } from '@/shared/api/keys';
 import { PageContainer, PageHeader } from '@/shared/layout/AreaShell';
 import { Tip } from '../onboarding/Tip';
+import { useT } from '@/shared/i18n/react';
 import { formatDate } from '@/shared/lib/datetime';
 import { useSession } from '@/shared/session/useSession';
 import { NoAccess, TournamentNotFound } from '../components/NoAccess';
@@ -35,15 +37,28 @@ import { defaultMaxParticipants, suggestedStages } from '../lib/formats';
 import { IssueList } from '../stage-builder/IssueList';
 import { isRichTextEmpty, REVIEW_STEP, validateDraft, WIZARD_STEPS } from '../validation';
 import { WizardContext, type WizardContextValue } from './context';
+import { messages } from './messages';
 import { SaveIndicator } from './SaveIndicator';
-import { GameStep } from './steps/GameStep';
 import { InfoStep } from './steps/InfoStep';
-import { RegistrationStep } from './steps/RegistrationStep';
-import { ReviewStep } from './steps/ReviewStep';
-import { RulesStep } from './steps/RulesStep';
-import { ScoringStep } from './steps/ScoringStep';
-import { StagesStep } from './steps/StagesStep';
 import { useAutosave } from './useAutosave';
+
+// Só o primeiro passo vem no JS inicial; os outros (montador de fases com arrastar e soltar, pontuação, revisão…)
+// descem quando a pessoa chega neles (#111).
+function StepLoading() {
+  const t = useT(messages, 'TournamentWizard');
+  return (
+    <div className="flex flex-col gap-3" role="status" aria-label={t('carregandoPasso')}>
+      <Skeleton className="h-11 w-full" />
+      <Skeleton className="h-48 w-full" />
+    </div>
+  );
+}
+const GameStep = dynamic(() => import('./steps/GameStep').then((m) => m.GameStep), { loading: StepLoading });
+const RegistrationStep = dynamic(() => import('./steps/RegistrationStep').then((m) => m.RegistrationStep), { loading: StepLoading });
+const ReviewStep = dynamic(() => import('./steps/ReviewStep').then((m) => m.ReviewStep), { loading: StepLoading });
+const RulesStep = dynamic(() => import('./steps/RulesStep').then((m) => m.RulesStep), { loading: StepLoading });
+const ScoringStep = dynamic(() => import('./steps/ScoringStep').then((m) => m.ScoringStep), { loading: StepLoading });
+const StagesStep = dynamic(() => import('./steps/StagesStep').then((m) => m.StagesStep), { loading: StepLoading });
 
 const editPath = (id: string) => `/organizador/campeonatos/${id}/editar`;
 const managePath = (id: string) => `/organizador/campeonatos/${id}`;
@@ -61,9 +76,10 @@ export interface WizardFormProps {
 }
 
 export function WizardSkeleton() {
+  const t = useT(messages, 'TournamentWizard');
   return (
     <PageContainer>
-      <div role="status" aria-label="Carregando o assistente" className="flex flex-col gap-6">
+      <div role="status" aria-label={t('carregandoAssistente')} className="flex flex-col gap-6">
         <Skeleton className="h-9 w-64" />
         <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
           <Skeleton className="hidden h-96 lg:block" />
@@ -79,6 +95,7 @@ export function WizardSkeleton() {
 
 /** Assistente de criação em 7 passos (issue #22), com rascunho automático. */
 export function WizardForm({ games, userId, tournament, template }: WizardFormProps) {
+  const t = useT(messages, 'TournamentWizard');
   const router = useRouter();
   const qc = useQueryClient();
   const { success, error: toastError, toast } = useToast();
@@ -188,7 +205,7 @@ export function WizardForm({ games, userId, tournament, template }: WizardFormPr
     if (current.maxParticipants === defaultMaxParticipants(previous)) setValue('maxParticipants', defaultMaxParticipants(nextMode), { shouldDirty: true });
     if (current.stages.length > 0 && !stagesFitMode(current.stages, nextGame, nextMode)) {
       setValue('stages', [], { shouldDirty: true });
-      toast({ title: 'As fases foram reiniciadas', description: `As fases que você tinha não servem para ${nextGame.name} · ${nextMode.name}. No passo Fases há uma nova sugestão.` });
+      toast({ title: t('fasesReiniciadasTitulo'), description: t('fasesReiniciadasDescricao', { jogo: nextGame.name, modo: nextMode.name }) });
     }
     if (!current.gameModeId || !nextMode.teamSize || nextMode.teamSize < 2) setValue('rosterLockAt', null);
   }
@@ -220,14 +237,14 @@ export function WizardForm({ games, userId, tournament, template }: WizardFormPr
     }
     const id = await autosave.flush(toDraftPayload(getValues(), REVIEW_STEP));
     if (!id) {
-      setPublishError(`Não foi possível salvar o rascunho. ${errorMessage(autosave.lastError.current)}`);
+      setPublishError(t('erroSalvarRascunho', { detalhe: errorMessage(autosave.lastError.current) }));
       return;
     }
     publish.mutate(
       { id },
       {
         onSuccess: (published) => {
-          success('Campeonato publicado!', published.status === 'REGISTRATION_OPEN' ? 'As inscrições já estão abertas.' : 'As inscrições abrem na data que você marcou.');
+          success(t('publicado'), published.status === 'REGISTRATION_OPEN' ? t('inscricoesAbertas') : t('inscricoesAbremNaData'));
           router.push(managePath(published.id));
         },
         onError: (e) => {
@@ -249,11 +266,11 @@ export function WizardForm({ games, userId, tournament, template }: WizardFormPr
     if (!id) {
       const message = errorMessage(autosave.lastError.current);
       setPublishError(message);
-      toastError('Não foi possível salvar', message);
+      toastError(t('naoFoiPossivelSalvar'), message);
       return;
     }
     await qc.invalidateQueries({ queryKey: keys.tournaments.all });
-    success('Alterações salvas');
+    success(t('alteracoesSalvas'));
     router.push(managePath(id));
   }
 
@@ -269,27 +286,27 @@ export function WizardForm({ games, userId, tournament, template }: WizardFormPr
     let description: string;
     switch (index) {
       case 0:
-        description = values.name.trim() || 'Sem nome ainda';
+        description = values.name.trim() || t('passoSemNome');
         break;
       case 1:
-        description = game && mode ? `${game.name} · ${mode.name}` : 'Escolha o jogo';
+        description = game && mode ? t('passoJogoModo', { jogo: game.name, modo: mode.name }) : t('passoEscolhaJogo');
         break;
       case 2:
-        description = `${values.maxParticipants} vagas${values.startsAt ? ` · começa em ${formatDate(values.startsAt)}` : ''}`;
+        description = values.startsAt ? t('passoVagasComInicio', { count: values.maxParticipants, data: formatDate(values.startsAt) }) : t('passoVagas', { count: values.maxParticipants });
         break;
       case 3:
-        description = values.stages.length === 0 ? 'Nenhuma fase' : `${values.stages.length} ${values.stages.length === 1 ? 'fase' : 'fases'}`;
+        description = values.stages.length === 0 ? t('passoNenhumaFase') : t('passoFases', { count: values.stages.length });
         break;
       case 4:
-        description = values.stages.length === 0 ? 'Definida por fase' : 'Modelo e desempate por fase';
+        description = values.stages.length === 0 ? t('passoDefinidaPorFase') : t('passoModeloEDesempate');
         break;
       case 5:
-        description = isRichTextEmpty(values.rules) ? 'Sem regulamento' : 'Regulamento escrito';
+        description = isRichTextEmpty(values.rules) ? t('passoSemRegulamento') : t('passoRegulamentoEscrito');
         break;
       default:
-        description = issues.length === 0 ? (isPublished ? 'Pronto para salvar' : 'Pronto para publicar') : `${issues.length} ${issues.length === 1 ? 'pendência' : 'pendências'}`;
+        description = issues.length === 0 ? (isPublished ? t('passoProntoSalvar') : t('passoProntoPublicar')) : t('passoPendencias', { count: issues.length });
     }
-    if (index < REVIEW_STEP && pending > 0 && visited) description = `${description} · ${pending} ${pending === 1 ? 'pendência' : 'pendências'}`;
+    if (index < REVIEW_STEP && pending > 0 && visited) description = t('passoComPendencias', { descricao: description, count: pending });
     return { id: s.id, label: s.label, description };
   });
 
@@ -302,26 +319,26 @@ export function WizardForm({ games, userId, tournament, template }: WizardFormPr
       <WizardContext.Provider value={context}>
         <PageContainer className="pb-28 md:pb-8">
           <PageHeader
-            title={isPublished ? 'Editar campeonato' : 'Criar campeonato'}
-            description={isPublished ? `${tournament?.name} já está publicado: as mudanças só valem depois de salvar.` : template ? `A partir do modelo "${template.name}". Ajuste o que quiser.` : 'Sete passos, com sugestões em tudo. Dá para publicar em poucos minutos.'}
+            title={isPublished ? t('tituloEditar') : t('tituloCriar')}
+            description={isPublished ? t('descricaoPublicado', { nome: tournament?.name ?? '' }) : template ? t('descricaoModelo', { nome: template.name }) : t('descricaoNovo')}
             actions={
               <>
                 <SaveIndicator state={autosave.state} savedAt={autosave.savedAt} manual={isPublished} dirty={autosave.dirty} onRetry={() => void autosave.retry()} />
                 {isPublished ? (
                   <Button asChild variant="secondary">
-                    <Link href={tournamentId ? managePath(tournamentId) : '/organizador/campeonatos'}>Sair sem salvar</Link>
+                    <Link href={tournamentId ? managePath(tournamentId) : '/organizador/campeonatos'}>{t('sairSemSalvar')}</Link>
                   </Button>
                 ) : (
                   <Button variant="secondary" loading={leaving} onClick={() => void handleSaveAndLeave()}>
-                    {tournamentId || isValidName(values.name) ? 'Salvar e sair' : 'Sair'}
+                    {tournamentId || isValidName(values.name) ? t('salvarESair') : t('sair')}
                   </Button>
                 )}
               </>
             }
           />
           {!isPublished && (
-            <Tip id="assistente" title="O rascunho se salva sozinho">
-              Pode sair e voltar quando quiser: o campeonato fica em Meus campeonatos como rascunho. Tudo já vem com uma sugestão — mude só o que precisar e publique no último passo.
+            <Tip id="assistente" title={t('dicaTitulo')}>
+              {t('dicaTexto')}
             </Tip>
           )}
 
@@ -341,7 +358,7 @@ export function WizardForm({ games, userId, tournament, template }: WizardFormPr
                 </h2>
                 {showStepIssues && stepIssues.length > 0 && step < REVIEW_STEP && (
                   <div ref={summaryRef} tabIndex={-1} className="rounded-md outline-none focus-visible:outline-2 focus-visible:outline-accent" data-testid="step-issues">
-                    <p className="mb-1 text-sm font-semibold text-text">Antes de continuar, resolva:</p>
+                    <p className="mb-1 text-sm font-semibold text-text">{t('antesDeContinuar')}</p>
                     <IssueList messages={stepIssues.map((i) => i.message)} />
                   </div>
                 )}
@@ -354,24 +371,24 @@ export function WizardForm({ games, userId, tournament, template }: WizardFormPr
                 {step === REVIEW_STEP && <ReviewStep publishError={publishError} />}
               </Card>
 
-              <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-border bg-surface px-4 py-3 pb-safe md:static md:border-0 md:bg-transparent md:p-0">
+              <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-border bg-surface px-[max(1rem,env(safe-area-inset-left))] pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:static md:border-0 md:bg-transparent md:p-0">
                 {step > 0 && (
                   <Button variant="secondary" iconLeft={<ArrowLeft className="size-4" aria-hidden />} onClick={() => goToStep(step - 1)}>
-                    Voltar
+                    {t('voltar')}
                   </Button>
                 )}
                 <div className="ml-auto flex items-center gap-3">
                   {step < REVIEW_STEP ? (
                     <Button iconRight={<ArrowRight className="size-4" aria-hidden />} onClick={handleContinue}>
-                      Continuar
+                      {t('continuar')}
                     </Button>
                   ) : isPublished ? (
                     <Button loading={busy} iconLeft={<Save className="size-4" aria-hidden />} onClick={() => void handleSaveChanges()}>
-                      Salvar alterações
+                      {t('salvarAlteracoes')}
                     </Button>
                   ) : (
                     <Button loading={busy} disabled={issues.length > 0} iconLeft={<Rocket className="size-4" aria-hidden />} onClick={() => void handlePublish()}>
-                      Publicar campeonato
+                      {t('publicar')}
                     </Button>
                   )}
                 </div>
@@ -386,6 +403,7 @@ export function WizardForm({ games, userId, tournament, template }: WizardFormPr
 
 /** `/organizador/campeonatos/[id]/editar`: retoma o rascunho (ou edita um campeonato publicado). */
 export function TournamentWizard({ tournamentId }: { tournamentId: string }) {
+  const t = useT(messages, 'TournamentWizard');
   const tournament = useOrganizerTournament(tournamentId);
   const games = useGames();
   const { user } = useSession();
@@ -411,9 +429,9 @@ export function TournamentWizard({ tournamentId }: { tournamentId: string }) {
   if (['FINISHED', 'ARCHIVED', 'CANCELLED'].includes(tournament.data.status)) {
     return (
       <PageContainer narrow>
-        <ErrorState title="Este campeonato não pode mais ser editado" description="Campeonatos finalizados, arquivados ou cancelados ficam só para consulta. Você pode duplicar para criar uma nova edição.">
+        <ErrorState title={t('naoEditavelTitulo')} description={t('naoEditavelDescricao')}>
           <Button asChild variant="secondary">
-            <Link href={managePath(tournament.data.id)}>Voltar ao campeonato</Link>
+            <Link href={managePath(tournament.data.id)}>{t('voltarAoCampeonato')}</Link>
           </Button>
         </ErrorState>
       </PageContainer>

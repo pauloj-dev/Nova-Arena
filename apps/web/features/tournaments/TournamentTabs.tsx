@@ -9,10 +9,12 @@ import { scoringLines } from '@/features/games/scoringText';
 import { errorMessage } from '@/shared/api/client';
 import { useGame } from '@/shared/api/hooks/games';
 import { useTournamentAnnouncements, useTournamentRegistrations } from '@/shared/api/hooks/tournaments';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { richTextToPlain, streamEmbed, type StreamEmbed } from '@/shared/lib/sanitize';
+import { messages } from './messages';
 import { RichText } from './RichText';
-import { describeAdvancement, describeStageFormat, STAGE_FORMAT_LABELS } from './stageText';
+import { describeAdvancement, describeStageFormat, stageFormatLabel } from './stageText';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -48,18 +50,19 @@ function usePageHost(): string {
 const PROVIDER_NAME: Record<StreamEmbed['provider'], string> = { youtube: 'YouTube', twitch: 'Twitch' };
 
 function Streams({ urls, tournamentName }: { urls: string[]; tournamentName: string }) {
+  const t = useT(messages, 'OverviewTab');
   const host = usePageHost();
   // Só Twitch e YouTube viram player (PRD §5.2). Qualquer outro link é descartado por `streamEmbed`.
   const embeds = host ? urls.map((u) => streamEmbed(u, host)).filter((e): e is StreamEmbed => e !== null) : [];
   if (embeds.length === 0) return null;
   return (
-    <Section title="Transmissão">
+    <Section title={t('transmissao')}>
       <div className="grid grid-cols-1 gap-4">
         {embeds.map((embed, i) => (
           <div key={embed.embedUrl} className="aspect-video w-full overflow-hidden rounded-lg border border-border bg-surface-2">
             <iframe
               src={embed.embedUrl}
-              title={`Transmissão de ${tournamentName} no ${PROVIDER_NAME[embed.provider]}${embeds.length > 1 ? ` (${i + 1} de ${embeds.length})` : ''}`}
+              title={t('transmissaoTitulo', { nome: tournamentName, provedor: PROVIDER_NAME[embed.provider], posicao: i + 1, total: embeds.length })}
               loading="lazy"
               // O player precisa de script e da própria origem; não ganha acesso à nossa página, a formulários nem a navegação do topo.
               sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
@@ -74,19 +77,21 @@ function Streams({ urls, tournamentName }: { urls: string[]; tournamentName: str
   );
 }
 
-function Format({ tournament: t }: { tournament: Tournament }) {
-  const game = useGame(t.gameId);
-  if (t.stages.length === 0) {
+function Format({ tournament }: { tournament: Tournament }) {
+  const t = useT(messages, 'OverviewTab');
+  const game = useGame(tournament.gameId);
+  if (tournament.stages.length === 0) {
     return (
-      <Section title="Formato">
-        <p className="text-sm text-muted">A organização ainda não divulgou as fases deste campeonato.</p>
+      <Section title={t('formato')}>
+        <p className="text-sm text-muted">{t('semFases')}</p>
       </Section>
     );
   }
   return (
-    <Section title="Formato">
+    <Section title={t('formato')}>
       <ol className="flex flex-col gap-3">
-        {t.stages.map((stage, index) => {
+        {tournament.stages.map((stage, index) => {
+          const formatLabel = stageFormatLabel(stage.format);
           const model = game.data?.scoringModels.find((m) => m.id === stage.scoringModelId);
           return (
             <li key={stage.id}>
@@ -96,32 +101,32 @@ function Format({ tournament: t }: { tournament: Tournament }) {
                     {index + 1}
                   </span>
                   <h3 className="text-base">
-                    <span className="sr-only">Fase {index + 1}: </span>
+                    <span className="sr-only">{t('fase', { n: index + 1 })}</span>
                     {stage.name}
                   </h3>
                   {/* Fase chamada "Fase de grupos" não precisa do selo repetindo o formato. */}
-                  {stage.name.trim().toLowerCase() !== STAGE_FORMAT_LABELS[stage.format].toLowerCase() && <Badge tone="neutral">{STAGE_FORMAT_LABELS[stage.format]}</Badge>}
+                  {stage.name.trim().toLowerCase() !== formatLabel.toLowerCase() && <Badge tone="neutral">{formatLabel}</Badge>}
                 </div>
                 <dl className="flex flex-col gap-2 text-sm">
                   <div>
-                    <dt className="font-semibold">Como funciona</dt>
-                    <dd className="text-muted">{describeStageFormat(stage, t.participantType).join(' ')}</dd>
+                    <dt className="font-semibold">{t('comoFunciona')}</dt>
+                    <dd className="text-muted">{describeStageFormat(stage, tournament.participantType).join(' ')}</dd>
                   </div>
                   <div>
-                    <dt className="font-semibold">Pontuação</dt>
+                    <dt className="font-semibold">{t('pontuacao')}</dt>
                     <dd className="text-muted">
                       {game.isPending ? (
                         <Skeleton className="mt-1 h-4 w-48" />
                       ) : model ? (
                         scoringLines(model, game.data).join(' · ')
                       ) : (
-                        'Definida pela organização. Confira o regulamento.'
+                        t('pontuacaoPadrao')
                       )}
                     </dd>
                   </div>
                   <div>
-                    <dt className="font-semibold">Quem avança</dt>
-                    <dd className="text-muted">{describeAdvancement(stage.qualification, t.participantType)}</dd>
+                    <dt className="font-semibold">{t('quemAvanca')}</dt>
+                    <dd className="text-muted">{describeAdvancement(stage.qualification, tournament.participantType)}</dd>
                   </div>
                 </dl>
               </Card>
@@ -133,35 +138,37 @@ function Format({ tournament: t }: { tournament: Tournament }) {
   );
 }
 
-export function OverviewTab({ tournament: t }: { tournament: Tournament }) {
-  const hasDescription = richTextToPlain(t.description) !== '';
-  const hasPrize = richTextToPlain(t.prize) !== '';
+export function OverviewTab({ tournament }: { tournament: Tournament }) {
+  const t = useT(messages, 'OverviewTab');
+  const hasDescription = richTextToPlain(tournament.description) !== '';
+  const hasPrize = richTextToPlain(tournament.prize) !== '';
   return (
     <div className="flex flex-col gap-8">
-      <Section title="Sobre o campeonato">
-        {hasDescription ? <RichText html={t.description} /> : <p className="text-sm text-muted">A organização ainda não escreveu a descrição.</p>}
+      <Section title={t('sobre')}>
+        {hasDescription ? <RichText html={tournament.description} /> : <p className="text-sm text-muted">{t('semDescricao')}</p>}
       </Section>
       {hasPrize && (
-        <Section title="Premiação">
-          <RichText html={t.prize} />
+        <Section title={t('premiacao')}>
+          <RichText html={tournament.prize} />
         </Section>
       )}
-      <Format tournament={t} />
-      <Streams urls={t.streamUrls} tournamentName={t.name} />
+      <Format tournament={tournament} />
+      <Streams urls={tournament.streamUrls} tournamentName={tournament.name} />
     </div>
   );
 }
 
 // ── Regulamento ──────────────────────────────────────────────────────
 
-export function RulesTab({ tournament: t }: { tournament: Tournament }) {
-  if (richTextToPlain(t.rules) === '') {
-    return <EmptyState icon={<FileText className="size-7" />} title="Regulamento ainda não publicado" description="Quando a organização publicar as regras, elas aparecem aqui." />;
+export function RulesTab({ tournament }: { tournament: Tournament }) {
+  const t = useT(messages, 'RulesTab');
+  if (richTextToPlain(tournament.rules) === '') {
+    return <EmptyState icon={<FileText className="size-7" />} title={t('vazioTitulo')} description={t('vazioDescricao')} />;
   }
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg">Regulamento</h2>
-      <RichText html={t.rules} />
+      <h2 className="text-lg">{t('titulo')}</h2>
+      <RichText html={tournament.rules} />
     </section>
   );
 }
@@ -169,8 +176,9 @@ export function RulesTab({ tournament: t }: { tournament: Tournament }) {
 // ── Inscritos ────────────────────────────────────────────────────────
 
 function Members({ registration }: { registration: Registration }) {
+  const t = useT(messages, 'RegistrationsTab');
   return (
-    <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-border pt-3" aria-label={`Membros de ${registration.displayName}`}>
+    <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-border pt-3" aria-label={t('membrosDe', { nome: registration.displayName })}>
       {registration.members.map((m) => (
         <li key={m.userId} className="flex min-w-0 items-center gap-1.5 text-sm">
           <Avatar name={m.nickname} src={m.avatarUrl} size="sm" />
@@ -180,39 +188,43 @@ function Members({ registration }: { registration: Registration }) {
           {m.isCaptain && (
             <span className="flex items-center gap-0.5 text-xs font-semibold text-gold-soft-text">
               <Crown className="size-3.5" aria-hidden />
-              Capitão
+              {t('capitao')}
             </span>
           )}
-          {m.isSub && <span className="text-xs text-muted">(reserva)</span>}
-          {!m.confirmedAt && <span className="text-xs text-muted">(aguardando confirmar)</span>}
+          {m.isSub && <span className="text-xs text-muted">{t('reserva')}</span>}
+          {!m.confirmedAt && <span className="text-xs text-muted">{t('aguardandoConfirmar')}</span>}
         </li>
       ))}
     </ul>
   );
 }
 
-export function RegistrationsTab({ tournament: t }: { tournament: Tournament }) {
-  const registrations = useTournamentRegistrations(t.id);
-  const team = t.participantType === 'TEAM';
+export function RegistrationsTab({ tournament }: { tournament: Tournament }) {
+  const t = useT(messages, 'RegistrationsTab');
+  const registrations = useTournamentRegistrations(tournament.id);
+  const team = tournament.participantType === 'TEAM';
 
-  if (registrations.isPending) return <ListSkeleton rows={4} label="Carregando inscritos" />;
-  if (registrations.isError) return <ErrorState title="Não foi possível carregar os inscritos" description={errorMessage(registrations.error)} onRetry={() => void registrations.refetch()} />;
+  if (registrations.isPending) return <ListSkeleton rows={4} label={t('carregando')} />;
+  if (registrations.isError) return <ErrorState title={t('erroCarregar')} description={errorMessage(registrations.error)} onRetry={() => void registrations.refetch()} />;
   if (registrations.data.length === 0) {
     return (
       <EmptyState
         icon={<Users className="size-7" />}
-        title="Ninguém se inscreveu ainda"
-        description={t.status === 'REGISTRATION_OPEN' ? `As inscrições estão abertas: ${team ? 'seu squad pode ser o primeiro' : 'você pode ser a primeira pessoa'}.` : 'Os inscritos aparecem aqui quando as inscrições abrirem.'}
+        title={t('vazioTitulo')}
+        description={tournament.status === 'REGISTRATION_OPEN' ? t('vazioAbertas', { participante: tournament.participantType }) : t('vazioFechadas')}
       />
     );
   }
 
+  const heading = t.rich('titulo', {
+    inscritos: registrations.data.length,
+    vagas: tournament.maxParticipants,
+    contagem: (chunks) => <span className="tabular text-base text-muted">{chunks}</span>,
+  });
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg">
-        Inscritos <span className="tabular text-base text-muted">({registrations.data.length} de {t.maxParticipants})</span>
-      </h2>
-      <ul className="grid grid-cols-1 gap-3 md:grid-cols-2" aria-label="Inscritos">
+      <h2 className="text-lg">{heading}</h2>
+      <ul className="grid grid-cols-1 gap-3 md:grid-cols-2" aria-label={t('lista')}>
         {registrations.data.map((r) => (
           <li key={r.id} className="rounded-lg border border-border bg-surface p-3">
             <div className="flex items-center justify-between gap-2">
@@ -241,19 +253,20 @@ export function RegistrationsTab({ tournament: t }: { tournament: Tournament }) 
 
 // ── Comunicados ──────────────────────────────────────────────────────
 
-export function AnnouncementsTab({ tournament: t }: { tournament: Tournament }) {
-  const announcements = useTournamentAnnouncements(t.id);
+export function AnnouncementsTab({ tournament }: { tournament: Tournament }) {
+  const t = useT(messages, 'AnnouncementsTab');
+  const announcements = useTournamentAnnouncements(tournament.id);
 
-  if (announcements.isPending) return <ListSkeleton rows={2} label="Carregando comunicados" />;
-  if (announcements.isError) return <ErrorState title="Não foi possível carregar os comunicados" description={errorMessage(announcements.error)} onRetry={() => void announcements.refetch()} />;
+  if (announcements.isPending) return <ListSkeleton rows={2} label={t('carregando')} />;
+  if (announcements.isError) return <ErrorState title={t('erroCarregar')} description={errorMessage(announcements.error)} onRetry={() => void announcements.refetch()} />;
   if (announcements.data.length === 0) {
-    return <EmptyState icon={<Megaphone className="size-7" />} title="Nenhum comunicado ainda" description="Os avisos da organização aparecem aqui. Siga o campeonato para ser avisado quando sair um novo." />;
+    return <EmptyState icon={<Megaphone className="size-7" />} title={t('vazioTitulo')} description={t('vazioDescricao')} />;
   }
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg">Comunicados</h2>
-      <ul className="flex flex-col gap-3" aria-label="Comunicados">
+      <h2 className="text-lg">{t('titulo')}</h2>
+      <ul className="flex flex-col gap-3" aria-label={t('titulo')}>
         {announcements.data.map((a) => (
           <li key={a.id}>
             <Card padding="sm" className="flex flex-col gap-2 md:p-4">

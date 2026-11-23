@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import type { Page } from '@playwright/test';
-import { expect, loginAs, test } from './fixtures';
+import { expect, loginAs, test, isRealApi, mid } from './fixtures';
 
 /** Chama a API simulada de dentro da página (a sessão é a de quem está logado). */
 async function api<T = unknown>(page: Page, path: string, init?: { method?: string; body?: unknown }): Promise<{ status: number; data: T }> {
@@ -136,13 +136,13 @@ test.describe('organizador — criar e publicar', () => {
     await continuar(page).click();
     await continuar(page).click();
     await expect(stepTitle(page)).toHaveText('Pontuação');
-    await expect(page.getByLabel('Modelo de pontuação')).toHaveValue('sm_cr_padrao');
+    await expect(page.getByLabel('Modelo de pontuação')).toHaveValue(mid('sm_cr_padrao'));
 
     await page.getByRole('button', { name: 'Personalizar pontuação' }).click();
     const dialog = page.getByRole('dialog', { name: 'Personalizar pontuação' });
     await dialog.getByRole('button', { name: 'Salvar pontuação' }).click();
     await expect(dialog).toHaveCount(0);
-    await expect(page.getByLabel('Modelo de pontuação')).not.toHaveValue('sm_cr_padrao');
+    await expect(page.getByLabel('Modelo de pontuação')).not.toHaveValue(mid('sm_cr_padrao'));
     await expect(page.getByLabel('Modelo de pontuação').locator('option:checked')).toContainText('(personalizado)');
     await expect(page.getByRole('button', { name: 'Editar pontuação personalizada' })).toBeVisible();
 
@@ -150,8 +150,8 @@ test.describe('organizador — criar e publicar', () => {
     const detail = await api<{ stages: { scoringModelId: string }[] }>(page, `/tournaments/${id}`);
     const modelId = detail.data.stages[0]?.scoringModelId;
     const games = await api<{ id: string; scoringModels: { id: string; ownerId: string | null; matchType: string }[] }[]>(page, '/games');
-    const model = games.data.find((g) => g.id === 'g_clashroyale')?.scoringModels.find((m) => m.id === modelId);
-    expect(model).toMatchObject({ ownerId: 'u_camila', matchType: 'DUEL' });
+    const model = games.data.find((g) => g.id === mid('g_clashroyale'))?.scoringModels.find((m) => m.id === modelId);
+    expect(model).toMatchObject({ ownerId: mid('u_camila'), matchType: 'DUEL' });
   });
 
   test('banner: recusa arquivo que não é imagem e mostra a prévia de uma imagem válida', async ({ page }) => {
@@ -351,18 +351,18 @@ test.describe('organizador — criar e publicar', () => {
 test.describe('organizador — permissões', () => {
   test('organizadora A não edita o campeonato do B (403 tratado na tela)', async ({ page }) => {
     await loginAs(page, 'u_camila');
-    await page.goto('/organizador/campeonatos/tn_contra_squad/editar');
+    await page.goto(`/organizador/campeonatos/${mid('tn_contra_squad')}/editar`);
     await expect(page.getByRole('heading', { name: 'Este campeonato é de outra organização' })).toBeVisible();
-    await page.goto('/organizador/campeonatos/tn_contra_squad');
+    await page.goto(`/organizador/campeonatos/${mid('tn_contra_squad')}`);
     await expect(page.getByRole('heading', { name: 'Este campeonato é de outra organização' })).toBeVisible();
 
-    const patch = await api(page, '/tournaments/tn_contra_squad', { method: 'PATCH', body: { name: 'Invadido' } });
+    const patch = await api(page, `/tournaments/${mid('tn_contra_squad')}`, { method: 'PATCH', body: { name: 'Invadido' } });
     expect(patch.status).toBe(403);
-    const cancel = await api(page, '/tournaments/tn_contra_squad/cancel', { method: 'POST', body: { reason: 'Porque sim' } });
+    const cancel = await api(page, `/tournaments/${mid('tn_contra_squad')}/cancel`, { method: 'POST', body: { reason: 'Porque sim' } });
     expect(cancel.status).toBe(403);
-    const review = await api(page, '/registrations/r_1', { method: 'PATCH', body: { action: 'approve' } });
+    const review = await api(page, `/registrations/${mid('r_1')}`, { method: 'PATCH', body: { action: 'approve' } });
     expect([200, 409]).toContain(review.status); // r_1 é da Copa Nova FF, que é da própria Camila
-    const csv = await api(page, '/tournaments/tn_contra_squad/registrations.csv');
+    const csv = await api(page, `/tournaments/${mid('tn_contra_squad')}/registrations.csv`);
     expect(csv.status).toBe(403);
   });
 
@@ -378,7 +378,7 @@ test.describe('organizador — permissões', () => {
 test.describe('organizador — inscrições', () => {
   test('aprova a inscrição que aguardava na Arena Contra Squad 4v4', async ({ page }) => {
     await loginAs(page, 'u_diego');
-    await page.goto('/organizador/campeonatos/tn_contra_squad?aba=inscricoes');
+    await page.goto(`/organizador/campeonatos/${mid('tn_contra_squad')}?aba=inscricoes`);
     await expect(registrationRow(page, 'Squad Puma')).toContainText('Aguardando aprovação');
     await page.getByRole('button', { name: 'Aprovar Squad Puma' }).click();
     await expect(page.getByText('Squad Puma aprovado')).toBeVisible();
@@ -388,7 +388,7 @@ test.describe('organizador — inscrições', () => {
 
   test('aprova em lote as inscrições selecionadas', async ({ page }) => {
     await loginAs(page, 'u_diego');
-    await page.goto('/organizador/campeonatos/tn_contra_squad?aba=inscricoes');
+    await page.goto(`/organizador/campeonatos/${mid('tn_contra_squad')}?aba=inscricoes`);
     await registrationRow(page, 'Squad Puma').getByRole('checkbox').check();
     await registrationRow(page, 'Squad Alfa').getByRole('checkbox').check();
     await expect(page.getByText('2 selecionados')).toBeVisible();
@@ -399,7 +399,7 @@ test.describe('organizador — inscrições', () => {
 
   test('recusar exige motivo', async ({ page }) => {
     await loginAs(page, 'u_diego');
-    await page.goto('/organizador/campeonatos/tn_contra_squad?aba=inscricoes');
+    await page.goto(`/organizador/campeonatos/${mid('tn_contra_squad')}?aba=inscricoes`);
     await page.getByRole('button', { name: 'Recusar Squad Puma' }).click();
     const dialog = page.getByRole('dialog', { name: 'Recusar Squad Puma?' });
     await dialog.getByRole('button', { name: 'Recusar inscrição' }).click();
@@ -413,7 +413,7 @@ test.describe('organizador — inscrições', () => {
 
   test('remover um inscrito da Copa eFootball Iniciantes promove o primeiro da lista de espera', async ({ page }) => {
     await loginAs(page, 'u_diego');
-    await page.goto('/organizador/campeonatos/tn_efootball?aba=inscricoes');
+    await page.goto(`/organizador/campeonatos/${mid('tn_efootball')}?aba=inscricoes`);
     const waitlist = page.getByRole('list', { name: 'Lista de espera, em ordem' });
     await expect(waitlist.getByRole('listitem')).toHaveCount(2);
     await expect(waitlist.getByRole('listitem').first()).toContainText('ManuBR38');
@@ -432,7 +432,7 @@ test.describe('organizador — inscrições', () => {
 
   test('importar CSV com uma linha inválida mostra a linha e o motivo', async ({ page }) => {
     await loginAs(page, 'u_diego');
-    await page.goto('/organizador/campeonatos/tn_contra_squad?aba=inscricoes');
+    await page.goto(`/organizador/campeonatos/${mid('tn_contra_squad')}?aba=inscricoes`);
     await page.getByRole('button', { name: 'Importar CSV' }).click();
     const dialog = page.getByRole('dialog', { name: 'Importar inscritos por CSV' });
     await expect(dialog.getByRole('button', { name: 'Baixar modelo de CSV' })).toBeVisible();
@@ -457,7 +457,7 @@ test.describe('organizador — inscrições', () => {
 
   test('exportar CSV entrega o arquivo com BOM e ponto e vírgula', async ({ page }) => {
     await loginAs(page, 'u_diego');
-    await page.goto('/organizador/campeonatos/tn_contra_squad?aba=inscricoes');
+    await page.goto(`/organizador/campeonatos/${mid('tn_contra_squad')}?aba=inscricoes`);
     await expect(registrationRow(page, 'Squad Alfa')).toBeVisible();
     const downloading = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Exportar CSV' }).click();
@@ -480,7 +480,7 @@ test.describe('organizador — regras da API', () => {
     // O Diego pode ter 3 ativos e já tem 2 (Copa eFootball e Arena Contra Squad).
     await loginAs(page, 'u_diego');
     const create = (name: string) =>
-      api<{ id: string }>(page, '/tournaments', { method: 'POST', body: { templateId: 'tpl_cr_md3', name, registrationClosesAt: future(5), startsAt: future(6) } });
+      api<{ id: string }>(page, '/tournaments', { method: 'POST', body: { templateId: mid('tpl_cr_md3'), name, registrationClosesAt: future(5), startsAt: future(6) } });
 
     const third = await create('Terceiro Ativo');
     expect(third.status).toBe(201);
@@ -508,7 +508,7 @@ test.describe('organizador — regras da API', () => {
     await loginAs(page, 'u_camila');
     const draft = await api<{ id: string; status: string }>(page, '/tournaments', {
       method: 'POST',
-      body: { templateId: 'tpl_ef_grupos', name: 'Copa Agendada', registrationOpensAt: future(2), registrationClosesAt: future(5), startsAt: future(6) },
+      body: { templateId: mid('tpl_ef_grupos'), name: 'Copa Agendada', registrationOpensAt: future(2), registrationClosesAt: future(5), startsAt: future(6) },
     });
     expect(draft.data.status).toBe('DRAFT');
     const id = draft.data.id;
@@ -522,7 +522,7 @@ test.describe('organizador — regras da API', () => {
     expect((await api(page, `/tournaments/${id}/publish`, { method: 'POST' })).status).toBe(409);
     expect((await api(page, `/tournaments/${id}`, { method: 'DELETE' })).status).toBe(409);
     expect((await api(page, `/tournaments/${id}/close-registration`, { method: 'POST' })).status).toBe(409);
-    expect((await api(page, `/tournaments/${id}`, { method: 'PATCH', body: { gameId: 'g_8ball' } })).status).toBe(409);
+    expect((await api(page, `/tournaments/${id}`, { method: 'PATCH', body: { gameId: mid('g_8ball') } })).status).toBe(409);
 
     // Na tela, só aparecem as ações que valem para "Publicado"
     await page.goto(`/organizador/campeonatos/${id}`);
@@ -546,7 +546,7 @@ test.describe('organizador — regras da API', () => {
 
   test('o HTML do organizador é limpo pela API antes de gravar', async ({ page }) => {
     await loginAs(page, 'u_camila');
-    const saved = await api<{ description: string; rules: string; prize: string }>(page, '/tournaments/tn_cr_2v2', {
+    const saved = await api<{ description: string; rules: string; prize: string }>(page, `/tournaments/${mid('tn_cr_2v2')}`, {
       method: 'PATCH',
       body: {
         description: '<p onclick="alert(1)">Oi<script>alert(1)</script></p><img src=x onerror=alert(1)>',
@@ -558,7 +558,7 @@ test.describe('organizador — regras da API', () => {
     expect(saved.data.description).toBe('<p>Oi</p>');
     expect(saved.data.rules).toBe('<h2>Regras</h2>clique <a href="https://novaarena.gg" target="_blank" rel="noopener noreferrer nofollow">site</a>');
     expect(saved.data.prize).toBe('<b>R$ 100</b>');
-    const badLink = await api<{ errors: Record<string, string> }>(page, '/tournaments/tn_cr_2v2', { method: 'PATCH', body: { streamUrls: ['https://exemplo.com/live'] } });
+    const badLink = await api<{ errors: Record<string, string> }>(page, `/tournaments/${mid('tn_cr_2v2')}`, { method: 'PATCH', body: { streamUrls: ['https://exemplo.com/live'] } });
     expect(badLink.status).toBe(400);
     expect(badLink.data.errors['streamUrls.0']).toContain('Twitch');
   });
@@ -566,24 +566,30 @@ test.describe('organizador — regras da API', () => {
   test('campeonato publicado: a edição só é barrada pelo que ela mesma toca', async ({ page }) => {
     // A administração tira o eFootball do catálogo…
     await loginAs(page, 'u_ana');
-    const off = await api(page, '/admin/games/g_efootball', { method: 'PATCH', body: { active: false } });
+    const off = await api(page, `/admin/games/${mid('g_efootball')}`, { method: 'PATCH', body: { active: false } });
     expect(off.status).toBe(200);
 
     // …e a organização ainda consegue ajustar a página do campeonato que já estava publicado
     await loginAs(page, 'u_diego');
-    const prize = await api<{ prize: string }>(page, '/tournaments/tn_efootball', { method: 'PATCH', body: { prize: 'Medalha no perfil.' } });
+    const prize = await api<{ prize: string }>(page, `/tournaments/${mid('tn_efootball')}`, { method: 'PATCH', body: { prize: 'Medalha no perfil.' } });
     expect(prize.status).toBe(200);
     expect(prize.data.prize).toBe('Medalha no perfil.');
 
     // Mas o que a edição toca continua sendo conferido: vagas abaixo das ocupadas, fases que deixam de fechar
-    const fewer = await api<{ errors: Record<string, string> }>(page, '/tournaments/tn_efootball', { method: 'PATCH', body: { maxParticipants: 4 } });
+    const fewer = await api<{ errors: Record<string, string> }>(page, `/tournaments/${mid('tn_efootball')}`, { method: 'PATCH', body: { maxParticipants: 4 } });
     expect(fewer.status).toBe(400);
     expect(fewer.data.errors.maxParticipants).toContain('8 vagas ocupadas');
-    const noRules = await api<{ errors: Record<string, string> }>(page, '/tournaments/tn_efootball', { method: 'PATCH', body: { rules: '<p></p>' } });
+    const noRules = await api<{ errors: Record<string, string> }>(page, `/tournaments/${mid('tn_efootball')}`, { method: 'PATCH', body: { rules: '<p></p>' } });
     expect(noRules.status).toBe(400);
     expect(noRules.data.errors.rules).toContain('regulamento');
     // Um rascunho novo desse jogo não publica
-    const draft = await api<{ id: string }>(page, '/tournaments', { method: 'POST', body: { templateId: 'tpl_ef_grupos', name: 'Copa Fora do Catálogo', registrationClosesAt: future(5), startsAt: future(6) } });
+    const draft = await api<{ id: string; errors?: Record<string, string> }>(page, '/tournaments', { method: 'POST', body: { templateId: mid('tpl_ef_grupos'), name: 'Copa Fora do Catálogo', registrationClosesAt: future(5), startsAt: future(6) } });
+    if (isRealApi) {
+      // A API real já recusa o rascunho (decisão da #74: jogo desativado não entra em campeonato novo).
+      expect(draft.status).toBe(400);
+      expect(draft.data.errors?.gameId).toContain('desativado');
+      return;
+    }
     const publish = await api<{ code: string; errors: Record<string, string> }>(page, `/tournaments/${draft.data.id}/publish`, { method: 'POST' });
     expect(publish.status).toBe(400);
     expect(publish.data.errors.gameId).toContain('não está mais disponível');
@@ -591,16 +597,16 @@ test.describe('organizador — regras da API', () => {
 
   test('fase que já começou não pode ser alterada', async ({ page }) => {
     await loginAs(page, 'u_camila');
-    const current = await api<{ stages: { id: string; name: string; format: string; scoringModelId: string; config: Record<string, unknown>; qualification: null; tiebreakers: string[]; seeding: string }[] }>(page, '/tournaments/tn_liga_cr');
+    const current = await api<{ stages: { id: string; name: string; format: string; scoringModelId: string; config: Record<string, unknown>; qualification: null; tiebreakers: string[]; seeding: string }[] }>(page, `/tournaments/${mid('tn_liga_cr')}`);
     const stage = current.data.stages[0];
     expect(stage).toBeTruthy();
-    const changed = await api<{ code: string }>(page, '/tournaments/tn_liga_cr', { method: 'PATCH', body: { stages: [{ ...stage, config: { ...stage?.config, bestOf: 5 } }] } });
+    const changed = await api<{ code: string }>(page, `/tournaments/${mid('tn_liga_cr')}`, { method: 'PATCH', body: { stages: [{ ...stage, config: { ...stage?.config, bestOf: 5 } }] } });
     expect(changed.status).toBe(409);
     expect(changed.data.code).toBe('STAGE_LOCKED');
-    const removed = await api<{ code: string }>(page, '/tournaments/tn_liga_cr', { method: 'PATCH', body: { stages: [] } });
+    const removed = await api<{ code: string }>(page, `/tournaments/${mid('tn_liga_cr')}`, { method: 'PATCH', body: { stages: [] } });
     expect(removed.data.code).toBe('STAGE_LOCKED');
     // A página pública continua editável
-    const page_ = await api(page, '/tournaments/tn_liga_cr', { method: 'PATCH', body: { prize: 'Troféu digital.' } });
+    const page_ = await api(page, `/tournaments/${mid('tn_liga_cr')}`, { method: 'PATCH', body: { prize: 'Troféu digital.' } });
     expect(page_.status).toBe(200);
   });
 });
@@ -608,7 +614,7 @@ test.describe('organizador — regras da API', () => {
 test.describe('organizador — painel, lista e modelos', () => {
   test('substituir um inscrito por alguém da lista de espera', async ({ page }) => {
     await loginAs(page, 'u_diego');
-    await page.goto('/organizador/campeonatos/tn_efootball?aba=inscricoes');
+    await page.goto(`/organizador/campeonatos/${mid('tn_efootball')}?aba=inscricoes`);
     await page.getByRole('button', { name: 'Substituir VitorPro31' }).click();
     const dialog = page.getByRole('dialog', { name: 'Substituir VitorPro31' });
     await dialog.getByLabel('Quem entra no lugar').selectOption({ label: '2º da fila · EnzoX39' });
@@ -622,13 +628,13 @@ test.describe('organizador — painel, lista e modelos', () => {
 
   test('edita a página pública de um campeonato publicado', async ({ page }) => {
     await loginAs(page, 'u_camila');
-    await page.goto('/organizador/campeonatos/tn_copa_ff?aba=pagina');
+    await page.goto(`/organizador/campeonatos/${mid('tn_copa_ff')}?aba=pagina`);
     await expect(page.getByRole('button', { name: 'Salvar página' })).toBeDisabled();
     await page.getByLabel('Premiação').fill('1º lugar: troféu e destaque na home.');
     await page.getByRole('textbox', { name: 'Regulamento' }).fill('Novo regulamento da copa.');
     await page.getByRole('button', { name: 'Salvar página' }).click();
     await expect(page.getByText('Página atualizada')).toBeVisible();
-    const detail = await api<{ prize: string; rules: string; status: string }>(page, '/tournaments/tn_copa_ff');
+    const detail = await api<{ prize: string; rules: string; status: string }>(page, `/tournaments/${mid('tn_copa_ff')}`);
     expect(detail.data.prize).toBe('1º lugar: troféu e destaque na home.');
     expect(detail.data.rules).toContain('Novo regulamento da copa.');
     expect(detail.data.rules).not.toContain('Respeite os horários');
@@ -637,7 +643,7 @@ test.describe('organizador — painel, lista e modelos', () => {
 
   test('edita um campeonato já publicado pelo assistente (sem rascunho automático)', async ({ page }) => {
     await loginAs(page, 'u_camila');
-    await page.goto('/organizador/campeonatos/tn_ff_solo/editar');
+    await page.goto(`/organizador/campeonatos/${mid('tn_ff_solo')}/editar`);
     await expect(page.getByRole('heading', { level: 1, name: 'Editar campeonato' })).toBeVisible();
     await page.getByLabel('Nome do campeonato').fill('FF Solo Rush — Edição 2');
     await expect(page.getByTestId('save-indicator')).toContainText('Alterações ainda não salvas');
@@ -646,12 +652,12 @@ test.describe('organizador — painel, lista e modelos', () => {
     await expect(page.getByRole('radio', { name: /Free Fire/ })).toBeDisabled();
     for (let i = 0; i < 5; i += 1) await continuar(page).click();
     await expect(stepTitle(page)).toHaveText('Revisão e publicar');
-    const before = await api<{ name: string }>(page, '/tournaments/tn_ff_solo');
+    const before = await api<{ name: string }>(page, `/tournaments/${mid('tn_ff_solo')}`);
     expect(before.data.name).toBe('FF Solo Rush');
     await page.getByRole('button', { name: 'Salvar alterações' }).click();
-    await expect(page).toHaveURL(/\/organizador\/campeonatos\/tn_ff_solo$/);
+    await expect(page).toHaveURL(new RegExp(`/organizador/campeonatos/${mid('tn_ff_solo')}$`));
     await expect(page.getByRole('heading', { level: 1, name: 'FF Solo Rush — Edição 2' })).toBeVisible();
-    const after = await api<{ name: string; slug: string; status: string }>(page, '/tournaments/tn_ff_solo');
+    const after = await api<{ name: string; slug: string; status: string }>(page, `/tournaments/${mid('tn_ff_solo')}`);
     expect(after.data).toMatchObject({ name: 'FF Solo Rush — Edição 2', slug: 'ff-solo-rush', status: 'PUBLISHED' });
   });
 
@@ -676,8 +682,8 @@ test.describe('organizador — painel, lista e modelos', () => {
     await expect(page.getByText('Campeonato cancelado').first()).toBeVisible();
 
     await page.getByRole('tab', { name: /^Cancelados \(2\)/ }).click();
-    await expect(page.getByTestId('tournament-tn_contra_squad')).toContainText('Cancelado');
-    const detail = await api<{ status: string }>(page, '/tournaments/tn_contra_squad');
+    await expect(page.getByTestId(`tournament-${mid('tn_contra_squad')}`)).toContainText('Cancelado');
+    const detail = await api<{ status: string }>(page, `/tournaments/${mid('tn_contra_squad')}`);
     expect(detail.data.status).toBe('CANCELLED');
   });
 
@@ -700,14 +706,14 @@ test.describe('organizador — painel, lista e modelos', () => {
     await page.goto('/organizador/campeonatos');
     await expect(page.getByRole('tab', { name: 'Todos (4)' })).toBeVisible();
     await page.getByRole('tab', { name: 'Encerrados (1)' }).click();
-    await expect(page.getByTestId('tournament-tn_open_8ball')).toBeVisible();
-    await expect(page.getByTestId('tournament-tn_efootball')).toHaveCount(0);
+    await expect(page.getByTestId(`tournament-${mid('tn_open_8ball')}`)).toBeVisible();
+    await expect(page.getByTestId(`tournament-${mid('tn_efootball')}`)).toHaveCount(0);
   });
 
   test('salva um campeonato como modelo, usa e exclui o modelo', async ({ page }) => {
     await loginAs(page, 'u_camila');
     await page.goto('/organizador/campeonatos');
-    await page.getByRole('button', { name: 'Salvar Copa Nova FF — Squad como modelo' }).click();
+    await page.getByRole('button', { name: 'Salvar como modelo: Copa Nova FF — Squad' }).click();
     const dialog = page.getByRole('dialog', { name: 'Salvar como modelo' });
     await dialog.getByLabel('Nome do modelo').fill('Meu formato de copa');
     await dialog.getByRole('button', { name: 'Salvar modelo' }).click();
@@ -745,7 +751,7 @@ test.describe('organizador — painel, lista e modelos', () => {
 
   test('as telas do organizador não têm rolagem horizontal', async ({ page }) => {
     await loginAs(page, 'u_diego');
-    for (const path of ['/organizador', '/organizador/campeonatos', '/organizador/modelos', '/organizador/campeonatos/tn_contra_squad?aba=inscricoes', '/organizador/campeonatos/tn_efootball/editar']) {
+    for (const path of ['/organizador', '/organizador/campeonatos', '/organizador/modelos', `/organizador/campeonatos/${mid('tn_contra_squad')}?aba=inscricoes`, `/organizador/campeonatos/${mid('tn_efootball')}/editar`]) {
       await page.goto(path);
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await page.waitForLoadState('networkidle');

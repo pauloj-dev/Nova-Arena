@@ -9,13 +9,21 @@ import { useForm } from 'react-hook-form';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useGames } from '@/shared/api/hooks/games';
 import { useDeleteGameAccount, useUpsertGameAccount } from '@/shared/api/hooks/users';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 import { gameAccountDefaults, gameAccountSchema } from './profileLib';
 
 interface AccountValues {
   fields: Record<string, string>;
 }
 
+/** ID só de números (ex.: `^[0-9]{6,12}$` do Free Fire): abre o teclado numérico no celular. */
+function onlyDigits(pattern: string | null | undefined): boolean {
+  return Boolean(pattern) && /^\^?(\[0-9\]|\\d)(\{\d+(,\d*)?\}|[+*])?\$?$/.test(pattern ?? '');
+}
+
 function GameAccountForm({ game, account }: { game: Game; account: GameAccount | undefined }) {
+  const t = useT(messages, 'GameAccountsSection');
   const { success, error } = useToast();
   const upsert = useUpsertGameAccount();
   const remove = useDeleteGameAccount();
@@ -39,7 +47,7 @@ function GameAccountForm({ game, account }: { game: Game; account: GameAccount |
         onField = true;
       }
     }
-    error(title, onField ? 'Confira os campos destacados.' : errorMessage(e));
+    error(title, onField ? t('confiraCampos') : errorMessage(e));
   }
 
   const onSubmit = handleSubmit((values) => {
@@ -48,9 +56,9 @@ function GameAccountForm({ game, account }: { game: Game; account: GameAccount |
       {
         onSuccess: (me) => {
           reset({ fields: gameAccountDefaults(game.requiredAccountFields, me.gameAccounts.find((a) => a.gameId === game.id)?.fields) });
-          success(`ID de ${game.name} salvo`);
+          success(t('salvo', { jogo: game.name }));
         },
-        onError: (e) => showError(`Não foi possível salvar o ID de ${game.name}`, e),
+        onError: (e) => showError(t('erroSalvar', { jogo: game.name }), e),
       },
     );
   });
@@ -59,9 +67,9 @@ function GameAccountForm({ game, account }: { game: Game; account: GameAccount |
     remove.mutate(game.id, {
       onSuccess: () => {
         reset({ fields: gameAccountDefaults(game.requiredAccountFields, undefined) });
-        success(`ID de ${game.name} removido`);
+        success(t('removido', { jogo: game.name }));
       },
-      onError: (e) => showError(`Não foi possível remover o ID de ${game.name}`, e),
+      onError: (e) => showError(t('erroRemover', { jogo: game.name }), e),
     });
   }
 
@@ -75,30 +83,30 @@ function GameAccountForm({ game, account }: { game: Game; account: GameAccount |
           </h3>
           {account ? (
             <Badge tone="primary" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>
-              Informado
+              {t('informado')}
             </Badge>
           ) : (
             <Badge tone="neutral" icon={<CircleDashed className="size-3.5" aria-hidden />}>
-              Não informado
+              {t('naoInformado')}
             </Badge>
           )}
         </div>
         {game.requiredAccountFields.length === 0 ? (
-          <p className="text-sm text-muted">Este jogo não exige ID para se inscrever.</p>
+          <p className="text-sm text-muted">{t('semId')}</p>
         ) : (
           <>
             <div className="grid gap-3 xs:grid-cols-2">
               {game.requiredAccountFields.map((field) => (
-                <Input key={field.key} label={field.label} placeholder={field.placeholder} autoComplete="off" autoCapitalize="off" spellCheck={false} error={errors.fields?.[field.key]?.message} {...register(`fields.${field.key}`)} />
+                <Input key={field.key} label={field.label} placeholder={field.placeholder} inputMode={onlyDigits(field.pattern) ? 'numeric' : undefined} autoComplete="off" autoCapitalize="off" spellCheck={false} error={errors.fields?.[field.key]?.message} {...register(`fields.${field.key}`)} />
               ))}
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="submit" size="sm" loading={upsert.isPending} aria-label={`Salvar ID de ${game.name}`}>
-                Salvar
+              <Button type="submit" size="sm" loading={upsert.isPending} aria-label={t('salvarRotulo', { jogo: game.name })}>
+                {t('salvar')}
               </Button>
               {account && (
-                <Button variant="ghost" size="sm" loading={remove.isPending} onClick={onRemove} aria-label={`Remover ID de ${game.name}`}>
-                  Remover
+                <Button variant="ghost" size="sm" loading={remove.isPending} onClick={onRemove} aria-label={t('removerRotulo', { jogo: game.name })}>
+                  {t('remover')}
                 </Button>
               )}
             </div>
@@ -112,10 +120,11 @@ function GameAccountForm({ game, account }: { game: Game; account: GameAccount |
 /** IDs/nicks por jogo: um mini-formulário para cada jogo ativo, com os campos que o jogo exige. */
 export function GameAccountsSection({ user }: { user: Me }) {
   const games = useGames();
+  const t = useT(messages, 'GameAccountsSection');
 
   if (games.isPending) {
     return (
-      <div className="flex flex-col gap-3" role="status" aria-label="Carregando jogos">
+      <div className="flex flex-col gap-3" role="status" aria-label={t('carregando')}>
         {[0, 1, 2].map((i) => (
           <div key={i} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
             <Skeleton className="h-6 w-40" />
@@ -127,10 +136,10 @@ export function GameAccountsSection({ user }: { user: Me }) {
     );
   }
   if (games.isError) {
-    return <ErrorState title="Não foi possível carregar os jogos" description={errorMessage(games.error)} onRetry={() => void games.refetch()} />;
+    return <ErrorState title={t('erroCarregar')} description={errorMessage(games.error)} onRetry={() => void games.refetch()} />;
   }
   if (games.data.length === 0) {
-    return <EmptyState icon={<Gamepad2 className="size-7" />} title="Nenhum jogo disponível no momento" description="Quando houver jogos ativos na plataforma, você informa seus IDs aqui." />;
+    return <EmptyState icon={<Gamepad2 className="size-7" />} title={t('vazioTitulo')} description={t('vazioDescricao')} />;
   }
   return (
     <ul className="flex flex-col gap-3">

@@ -1,16 +1,15 @@
 import type { Role, UserStatus } from '@nova/schemas';
-
-const NUMBER = new Intl.NumberFormat('pt-BR');
-const PERCENT = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 1 });
+import { getFormat, getT } from '@/shared/i18n/core';
+import { adminCommonMessages } from './messages';
 
 /** "12.480" */
 export function formatNumber(value: number): string {
-  return NUMBER.format(value);
+  return getFormat().number(value);
 }
 
 /** Fração (0 a 1) como porcentagem: 0,083 → "8,3%". */
 export function formatPercent(fraction: number): string {
-  return PERCENT.format(fraction);
+  return getFormat().number(fraction, { style: 'percent', maximumFractionDigits: 1 });
 }
 
 /** "2026-11-12" → "12/11" (rótulo de eixo). A data já é um dia inteiro: não passa por fuso. */
@@ -25,22 +24,12 @@ export function formatDayLong(date: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export const ROLE_LABELS: Record<Role, string> = {
-  SUPER_ADMIN: 'Super Admin',
-  ADMIN: 'Administrador',
-  ORGANIZER: 'Organizador',
-  PARTICIPANT: 'Participante',
-};
+/** Nome do papel na tela ("Administrador"). */
+export function roleLabel(role: Role): string {
+  return getT(adminCommonMessages, 'papeis')(role);
+}
 
-export const USER_STATUS_LABELS: Record<UserStatus, string> = {
-  ACTIVE: 'Ativo',
-  SUSPENDED: 'Suspenso',
-  BANNED: 'Banido',
-  MERGED: 'Mesclado',
-  DELETED: 'Excluído',
-};
-
-/** Plural simples: `plural(2, 'campeonato', 'campeonatos')` → "2 campeonatos". */
-export function plural(count: number, one: string, many: string): string {
-  return `${formatNumber(count)} ${count === 1 ? one : many}`;
+/** Nome do status da conta na tela ("Suspenso"). */
+export function userStatusLabel(status: UserStatus): string {
+  return getT(adminCommonMessages, 'statusConta')(status);
 }

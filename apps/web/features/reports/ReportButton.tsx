@@ -4,11 +4,13 @@ import { Button, cn } from '@nova/ui';
 import { Flag } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useT } from '@/shared/i18n/react';
 import { useSession } from '@/shared/session/useSession';
+import { messages } from './messages';
 import { ReportDialog } from './ReportDialog';
 
 export interface ReportButtonProps {
-  targetType: 'USER' | 'TEAM' | 'MATCH' | 'RESULT';
+  targetType: 'USER' | 'TEAM' | 'MATCH' | 'RESULT' | 'CHAT_MESSAGE';
   targetId: string;
   /** Nome do que está sendo denunciado, para o título do formulário. */
   targetLabel: string;
@@ -23,6 +25,7 @@ export function ReportButton({ targetType, targetId, targetLabel, variant = 'but
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const t = useT(messages, 'ReportButton');
 
   function start() {
     if (isLoading) return;
@@ -39,15 +42,15 @@ export function ReportButton({ targetType, targetId, targetLabel, variant = 'but
         <button
           type="button"
           onClick={start}
-          aria-label={`Denunciar ${targetLabel}`}
-          title="Denunciar"
+          aria-label={t('denunciarAlvo', { alvo: targetLabel })}
+          title={t('denunciar')}
           className={cn('flex size-11 shrink-0 items-center justify-center rounded-md text-muted hover:bg-neutral-soft hover:text-text', className)}
         >
           <Flag className="size-4" aria-hidden />
         </button>
       ) : (
-        <Button variant="ghost" size="sm" className={className} iconLeft={<Flag className="size-4" aria-hidden />} onClick={start} aria-label={`Denunciar ${targetLabel}`}>
-          Denunciar
+        <Button variant="ghost" size="sm" className={className} iconLeft={<Flag className="size-4" aria-hidden />} onClick={start} aria-label={t('denunciarAlvo', { alvo: targetLabel })}>
+          {t('denunciar')}
         </Button>
       )}
       {/* Montado só quando aberto: cada abertura começa com o formulário limpo. */}

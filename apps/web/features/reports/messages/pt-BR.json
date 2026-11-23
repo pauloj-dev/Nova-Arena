@@ -1,0 +1,61 @@
+{
+  "reportStatus": {
+    "OPEN": { "label": "Aberta", "help": "Aguardando a análise da moderação." },
+    "IN_REVIEW": { "label": "Em análise", "help": "A moderação está analisando." },
+    "ACTIONED": { "label": "Medida aplicada", "help": "A moderação analisou e tomou uma medida." },
+    "DISMISSED": { "label": "Arquivada", "help": "A moderação analisou e não aplicou medida." }
+  },
+  "reportTarget": {
+    "USER": "Jogador",
+    "TEAM": "Squad",
+    "MATCH": "Partida",
+    "RESULT": "Resultado",
+    "CHAT_MESSAGE": "Mensagem no chat da partida"
+  },
+  "ReportButton": {
+    "denunciar": "Denunciar",
+    "denunciarAlvo": "Denunciar {alvo}"
+  },
+  "ReportDialog": {
+    "toastEnviadaTitulo": "Denúncia enviada",
+    "toastEnviadaDescricao": "A moderação vai analisar. Acompanhe em Minha conta › Denúncias.",
+    "toastErro": "Não foi possível enviar a denúncia",
+    "enviadaTitulo": "Denúncia enviada",
+    "verMinhas": "Ver minhas denúncias",
+    "entendi": "Entendi",
+    "recebemos": "Recebemos sua denúncia sobre {alvo}.",
+    "oQueAcontece": "O que acontece agora:",
+    "passo1": "A moderação da Nova Arena analisa o que você contou e os anexos.",
+    "passo2": "Se for preciso, quem foi denunciado recebe uma advertência, suspensão ou banimento.",
+    "passo3": "Você acompanha o andamento e a resposta em Minha conta › Denúncias.",
+    "anonimo": "Quem foi denunciado não fica sabendo quem denunciou.",
+    "titulo": "Denunciar {alvo}",
+    "descricao": "Conte o que aconteceu com {tipo, select, USER {o jogador} TEAM {o squad} MATCH {a partida} RESULT {o resultado} other {a mensagem}}. Só a moderação vê a sua denúncia.",
+    "cancelar": "Cancelar",
+    "enviar": "Enviar denúncia",
+    "motivo": "Motivo",
+    "motivoPlaceholder": "Escolha o motivo",
+    "motivoErro": "Escolha um motivo",
+    "oQueAconteceu": "O que aconteceu?",
+    "oQueAconteceuDica": "Diga quando foi e em qual partida ou campeonato. Quanto mais detalhe, mais rápida a análise.",
+    "anexos": "Anexos (opcional)",
+    "anexosDica": "Até {max} imagens PNG, JPG ou WebP de até 5 MB: prints do chat, do placar ou do perfil."
+  },
+  "MyReportsPage": {
+    "titulo": "Denúncias",
+    "descricao": "Acompanhe o que você denunciou e a resposta da moderação.",
+    "carregando": "Carregando denúncias",
+    "erro": "Não foi possível carregar as suas denúncias",
+    "vazioTitulo": "Você não fez nenhuma denúncia",
+    "vazioDescricao": "Viu trapaça, resultado falso ou ofensa? Use o botão “Denunciar” no perfil do jogador, na página do squad ou na partida.",
+    "verCampeonatos": "Ver campeonatos",
+    "lista": "Minhas denúncias",
+    "cardRotulo": "Denúncia sobre {alvo}",
+    "motivo": "Motivo:",
+    "enviadaEm": "Enviada em:",
+    "anexo": "Anexo",
+    "resposta": "Resposta da moderação",
+    "respostaDe": "Resposta da moderação ({nick})",
+    "atualizadaEm": "Atualizada em {data}"
+  }
+}

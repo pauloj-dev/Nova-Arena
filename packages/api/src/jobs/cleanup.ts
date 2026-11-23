@@ -24,6 +24,8 @@ export interface CleanupResult {
   uploadsFailed: number;
   emailTokensDeleted: number;
   sessionsDeleted: number;
+  /** Exportações LGPD vencidas (7 dias): o arquivo sai do Blob e o registro some. */
+  exportsDeleted: number;
 }
 
 export async function dailyCleanup(deps: { db: PrismaClient; blob: BlobStore; env: Env; log: Logger }, now: Date): Promise<CleanupResult> {
@@ -50,5 +52,18 @@ export async function dailyCleanup(deps: { db: PrismaClient; blob: BlobStore; en
   const emailTokens = await db.emailToken.deleteMany({ where: { OR: [{ usedAt: { lte: new Date(now.getTime() - 7 * DAY) } }, { expiresAt: { lte: new Date(now.getTime() - 7 * DAY) } }] } });
   const sessions = await db.session.deleteMany({ where: { OR: [{ revokedAt: { lte: new Date(now.getTime() - 30 * DAY) } }, { expiresAt: { lte: new Date(now.getTime() - 30 * DAY) } }] } });
 
-  return { invitesExpired: invites.count, uploadsDeleted, uploadsFailed, emailTokensDeleted: emailTokens.count, sessionsDeleted: sessions.count };
+  let exportsDeleted = 0;
+  const expired = await db.dataExport.findMany({ where: { expiresAt: { lte: now } }, take: BATCH, orderBy: { expiresAt: 'asc' } });
+  const exportToken = env.BLOB_PRIVATE_READ_WRITE_TOKEN ?? env.BLOB_READ_WRITE_TOKEN;
+  for (const record of expired) {
+    try {
+      if (record.blobUrl && exportToken) await blob.remove(record.blobUrl, exportToken);
+      await db.dataExport.delete({ where: { id: record.id } });
+      exportsDeleted += 1;
+    } catch (error) {
+      log.warn('exportação vencida não apagada', { exportId: record.id, error: String(error) });
+    }
+  }
+
+  return { invitesExpired: invites.count, uploadsDeleted, uploadsFailed, emailTokensDeleted: emailTokens.count, sessionsDeleted: sessions.count, exportsDeleted };
 }

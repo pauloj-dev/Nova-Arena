@@ -3,7 +3,10 @@
 import { Button } from '@nova/ui';
 import { AlertCircle, ImagePlus, Trash2 } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
+import { useT } from '@/shared/i18n/react';
+import { BlobImage } from '@/shared/lib/blob-image';
 import { BANNER_TYPES, fileToBannerDataUrl } from '../lib/banner';
+import { messages } from '../messages';
 
 interface BannerUploadProps {
   value: string | null;
@@ -13,6 +16,7 @@ interface BannerUploadProps {
 
 /** Banner do campeonato. No protótipo a imagem fica no próprio navegador (data URL). */
 export function BannerUpload({ value, onChange, disabled }: BannerUploadProps) {
+  const t = useT(messages, 'BannerUpload');
   const inputRef = useRef<HTMLInputElement>(null);
   const id = useId();
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +29,7 @@ export function BannerUpload({ value, onChange, disabled }: BannerUploadProps) {
     try {
       onChange(await fileToBannerDataUrl(file));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Não foi possível usar esta imagem.');
+      setError(e instanceof Error ? e.message : t('erroGenerico'));
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -35,16 +39,17 @@ export function BannerUpload({ value, onChange, disabled }: BannerUploadProps) {
   return (
     <div className="flex flex-col gap-2" role="group" aria-labelledby={`${id}-label`}>
       <span id={`${id}-label`} className="text-sm font-medium text-text">
-        Banner
+        {t('titulo')}
       </span>
       <div className="overflow-hidden rounded-lg border border-dashed border-border-strong bg-surface-2">
         {value ? (
-          // eslint-disable-next-line @next/next/no-img-element -- imagem local (data URL) escolhida agora; o otimizador do Next não se aplica
-          <img src={value} alt="Prévia do banner do campeonato" className="aspect-[16/6] w-full object-cover" />
+          <div className="relative aspect-[16/6] w-full">
+            <BlobImage src={value} alt={t('previa')} sizes="(min-width: 768px) 640px, 100vw" className="object-cover" />
+          </div>
         ) : (
           <div className="flex aspect-[16/6] w-full flex-col items-center justify-center gap-1 px-4 text-center text-sm text-muted">
             <ImagePlus className="size-6" aria-hidden />
-            Sem banner. A página usa a cor do jogo no lugar.
+            {t('semBanner')}
           </div>
         )}
       </div>
@@ -61,11 +66,11 @@ export function BannerUpload({ value, onChange, disabled }: BannerUploadProps) {
       />
       <div className="flex flex-wrap gap-2">
         <Button variant="secondary" size="sm" loading={busy} disabled={disabled} aria-describedby={`${id}-hint`} iconLeft={<ImagePlus className="size-4" aria-hidden />} onClick={() => inputRef.current?.click()}>
-          {value ? 'Trocar imagem' : 'Escolher imagem'}
+          {value ? t('trocarImagem') : t('escolherImagem')}
         </Button>
         {value && (
           <Button variant="ghost" size="sm" disabled={disabled} iconLeft={<Trash2 className="size-4" aria-hidden />} onClick={() => onChange(null)}>
-            Remover banner
+            {t('removerBanner')}
           </Button>
         )}
       </div>
@@ -76,7 +81,7 @@ export function BannerUpload({ value, onChange, disabled }: BannerUploadProps) {
         </p>
       ) : (
         <p id={`${id}-hint`} className="text-xs text-muted">
-          PNG, JPG ou WebP de até 5 MB. Imagens largas (16:6) ficam melhor.
+          {t('dica')}
         </p>
       )}
     </div>

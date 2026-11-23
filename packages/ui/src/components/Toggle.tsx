@@ -24,7 +24,7 @@ export function Checkbox({ label, hint, checked, onCheckedChange, disabled, clas
         disabled={disabled}
         onCheckedChange={(v) => onCheckedChange(v === true)}
         aria-describedby={hint ? `${fieldId}-hint` : undefined}
-        className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-sm border border-border-strong bg-surface data-[state=checked]:border-accent data-[state=checked]:bg-accent disabled:opacity-60"
+        className="relative mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-sm border border-border-strong bg-surface after:absolute after:-inset-3 after:content-[''] data-[state=checked]:border-accent data-[state=checked]:bg-accent disabled:opacity-60"
       >
         <RCheckbox.Indicator>
           <Check className="size-4 text-on-accent" aria-hidden />
@@ -65,7 +65,7 @@ export function Switch({ label, hint, checked, onCheckedChange, disabled, classN
         disabled={disabled}
         onCheckedChange={onCheckedChange}
         aria-describedby={hint ? `${fieldId}-hint` : undefined}
-        className="relative h-6 w-11 shrink-0 rounded-full border border-border-strong bg-neutral-soft transition-colors data-[state=checked]:border-accent data-[state=checked]:bg-accent disabled:opacity-60"
+        className="relative h-6 w-11 shrink-0 rounded-full border border-border-strong bg-neutral-soft transition-colors after:absolute after:-inset-x-px after:-inset-y-2.5 after:content-[''] data-[state=checked]:border-accent data-[state=checked]:bg-accent disabled:opacity-60"
       >
         <RSwitch.Thumb className="block size-4.5 translate-x-0.5 rounded-full bg-border-strong shadow-sm data-[state=checked]:bg-surface transition-transform data-[state=checked]:translate-x-5.5" />
       </RSwitch.Root>

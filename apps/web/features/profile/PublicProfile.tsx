@@ -7,16 +7,20 @@ import Link from 'next/link';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { usePublicProfile } from '@/shared/api/hooks/users';
 import { ReportButton } from '@/features/reports/ReportButton';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer } from '@/shared/layout/AreaShell';
 import { formatDate } from '@/shared/lib/datetime';
 import { useSession } from '@/shared/session/useSession';
+import { ProfileRatingSection } from '@/features/seasons/ProfileRatingSection';
 import { CompetitiveHistory } from './competitive/CompetitiveHistory';
+import { messages } from './messages';
 import { locationLabel, SOCIAL_NETWORKS, socialHref } from './profileLib';
 import { VerifiedBadge } from './VerifiedBadge';
 
 function ProfileSkeleton() {
+  const t = useT(messages, 'PublicProfile');
   return (
-    <div className="flex flex-col gap-6" role="status" aria-label="Carregando perfil">
+    <div className="flex flex-col gap-6" role="status" aria-label={t('carregando')}>
       <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-surface p-4 xs:flex-row xs:items-start md:p-6">
         <Skeleton className="size-20 shrink-0 rounded-full" />
         <div className="flex w-full flex-col items-center gap-3 xs:items-start">
@@ -31,6 +35,7 @@ function ProfileSkeleton() {
 }
 
 function Socials({ socials }: { socials: PublicUser['socials'] }) {
+  const t = useT(messages, 'PublicProfile');
   const filled = SOCIAL_NETWORKS.map((n) => ({ ...n, value: socials[n.key]?.trim() ?? '' })).filter((n) => n.value !== '');
   if (filled.length === 0) return null;
   return (
@@ -44,7 +49,7 @@ function Socials({ socials }: { socials: PublicUser['socials'] }) {
               {href ? (
                 <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="text-primary-text underline underline-offset-2">
                   {n.value}
-                  <span className="sr-only"> (abre em nova aba)</span>
+                  <span className="sr-only">{t('novaAba')}</span>
                 </a>
               ) : (
                 n.value
@@ -61,6 +66,7 @@ function Socials({ socials }: { socials: PublicUser['socials'] }) {
 export function PublicProfile({ nickname }: { nickname: string }) {
   const profile = usePublicProfile(nickname);
   const { user: me } = useSession();
+  const t = useT(messages, 'PublicProfile');
 
   if (profile.isPending) {
     return (
@@ -79,16 +85,16 @@ export function PublicProfile({ nickname }: { nickname: string }) {
             <div className="flex size-14 items-center justify-center rounded-full bg-accent-soft text-accent-soft-text" aria-hidden>
               <UserX className="size-7" />
             </div>
-            <h1 className="text-xl">Perfil não encontrado</h1>
-            <p className="max-w-md text-sm text-muted">Não existe jogador com este apelido. Ele pode ter mudado de apelido ou a conta pode ter sido excluída.</p>
+            <h1 className="text-xl">{t('naoEncontrado')}</h1>
+            <p className="max-w-md text-sm text-muted">{t('naoEncontradoDescricao')}</p>
             <Button asChild>
-              <Link href="/campeonatos">Ver campeonatos</Link>
+              <Link href="/campeonatos">{t('verCampeonatos')}</Link>
             </Button>
           </div>
         ) : (
           <>
-            <h1 className="text-xl md:text-2xl">Perfil</h1>
-            <ErrorState title="Não foi possível carregar este perfil" description={errorMessage(profile.error)} onRetry={() => void profile.refetch()} />
+            <h1 className="text-xl md:text-2xl">{t('perfil')}</h1>
+            <ErrorState title={t('erroCarregar')} description={errorMessage(profile.error)} onRetry={() => void profile.refetch()} />
           </>
         )}
       </PageContainer>
@@ -119,13 +125,13 @@ export function PublicProfile({ nickname }: { nickname: string }) {
               )}
               <li className="flex items-center justify-center gap-2 xs:justify-start">
                 <CalendarDays className="size-4 shrink-0" aria-hidden />
-                Na Nova Arena desde {formatDate(user.createdAt)}
+                {t('desde', { data: formatDate(user.createdAt) })}
               </li>
             </ul>
             <Socials socials={user.socials} />
             {isMine ? (
               <Button asChild variant="secondary" size="sm" iconLeft={<Pencil className="size-4" aria-hidden />}>
-                <Link href="/minha-conta">Editar perfil</Link>
+                <Link href="/minha-conta">{t('editar')}</Link>
               </Button>
             ) : (
               <ReportButton targetType="USER" targetId={user.id} targetLabel={user.nickname} />
@@ -133,6 +139,8 @@ export function PublicProfile({ nickname }: { nickname: string }) {
           </div>
         </div>
       </Card>
+
+      <ProfileRatingSection nickname={user.nickname} />
 
       <CompetitiveHistory nickname={user.nickname} isMine={isMine} />
     </PageContainer>

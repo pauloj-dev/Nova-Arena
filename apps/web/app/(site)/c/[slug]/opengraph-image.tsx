@@ -1,11 +1,16 @@
 /**
  * Imagem do link compartilhado do campeonato (issue #77): nome, jogo, data e vagas, com a identidade Nova Green.
+ * Campeonato encerrado (com pódio) usa a arte de campeões (issue #89), a mesma de `/c/[slug]/arte`.
  * O gerador de imagem não lê variáveis CSS, então as cores dos tokens se repetem aqui.
  */
 import { ImageResponse } from 'next/og';
-import { getPublicTournament } from '@/shared/server/public-data';
+import { appMessages } from '@/app/messages';
+import { championsImage } from '@/features/artwork/og';
+import { getT } from '@/shared/i18n/core';
+import { getPublicPodium, getPublicTournament } from '@/shared/server/public-data';
 
-export const alt = 'Campeonato na Nova Arena';
+// O Next lê o `alt` como constante do módulo (não há função para ele).
+export const alt = getT(appMessages, 'ImagemDoCampeonato')('alt');
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -22,17 +27,24 @@ const dateFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo'
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const t = await getPublicTournament(slug).catch(() => null);
-  const title = t?.name ?? 'Campeonato de eSports mobile';
-  const subtitle = t ? `${t.gameIcon} ${t.gameName} · ${t.modeName}` : 'Free Fire · Clash Royale · 8 Ball Pool · eFootball';
-  const details = t ? [t.startsAt ? `Começa ${dateFmt.format(new Date(t.startsAt))}` : null, `${t.takenSlots}/${t.maxParticipants} vagas`].filter(Boolean).join('  ·  ') : 'Inscreva-se, monte seu squad e acompanhe as partidas';
+  const tournament = await getPublicTournament(slug).catch(() => null);
+  if (tournament && (tournament.status === 'FINISHED' || tournament.status === 'ARCHIVED')) {
+    const podium = await getPublicPodium(tournament.id).catch(() => null);
+    if (podium && podium.places.length > 0) return championsImage(tournament, podium, 'landscape');
+  }
+  const t = getT(appMessages, 'ImagemDoCampeonato');
+  const title = tournament?.name ?? t('tituloPadrao');
+  const subtitle = tournament ? `${tournament.gameIcon} ${tournament.gameName} · ${tournament.modeName}` : t('subtituloPadrao');
+  const details = tournament
+    ? [tournament.startsAt ? t('comeca', { data: dateFmt.format(new Date(tournament.startsAt)) }) : null, t('vagas', { ocupadas: String(tournament.takenSlots), total: String(tournament.maxParticipants) })].filter(Boolean).join('  ·  ')
+    : t('detalhesPadrao');
 
   return new ImageResponse(
     (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 72, background: `linear-gradient(135deg, ${COLORS.ink} 0%, ${COLORS.deep} 100%)`, color: COLORS.text, fontFamily: 'sans-serif' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 32, fontWeight: 700, letterSpacing: 4 }}>
           <div style={{ width: 20, height: 20, borderRadius: 10, background: COLORS.glow }} />
-          NOVA ARENA
+          {t('marca')}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div style={{ fontSize: 34, color: COLORS.muted }}>{subtitle}</div>

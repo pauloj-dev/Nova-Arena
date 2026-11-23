@@ -3,6 +3,7 @@
  * São os mesmos cenários que a API real terá de passar em B2 (plano, tabela de testes: linhas Admin e Moderação).
  */
 import {
+  ProductMetrics,
   AdminMember,
   AdminOrganizer,
   AdminOrganizerRequest,
@@ -99,6 +100,7 @@ const banner = { title: 'Novidade na Arena', body: 'Ranking por jogo no ar.', ki
 
 const ROUTES: Route[] = [
   { method: 'GET', path: '/admin/stats' },
+  { method: 'GET', path: '/admin/metrics' },
   { method: 'GET', path: '/admin/users' },
   { method: 'GET', path: `/admin/users/${BIANCA}` },
   { method: 'POST', path: '/admin/users/u_p20/sanctions', body: { type: 'WARNING', reason: 'Linguagem ofensiva no chat' }, admin: 201 },
@@ -212,6 +214,21 @@ describe('permissões: toda rota /admin/* exige Admin ou Super Admin', () => {
 });
 
 // ── Dashboard ────────────────────────────────────────────────────────
+describe('metas do produto (issue #101)', () => {
+  it('devolve OKRs e HEART no contrato, com W.O. e disputas vindos do banco e a situação de cada meta', async () => {
+    as(ANA);
+    const metrics = ProductMetrics.parse((await call('GET', '/admin/metrics')).data);
+    const stats = AdminStats.parse((await call('GET', '/admin/stats')).data);
+    expect(metrics.northStar.thisWeek).toBe(stats.validatedMatchesThisWeek);
+    expect(metrics.metrics.find((m) => m.key === 'walkoverRate')?.value).toBeCloseTo(stats.walkoverRate, 3);
+    expect(new Set(metrics.metrics.map((m) => m.group))).toEqual(new Set(['OKR', 'HEART']));
+    for (const m of metrics.metrics) {
+      if (m.value === null) expect(m.status).toBe('no_data');
+      else expect(m.status).toBe((m.direction === 'max' ? m.value <= (m.target ?? 0) : m.value >= (m.target ?? 0)) ? 'ok' : 'attention');
+    }
+  });
+});
+
 describe('dashboard: indicadores calculados do banco', () => {
   it('conta usuários, campeonatos, partidas validadas da semana (North Star) e filas abertas', async () => {
     as(ANA);
@@ -1201,11 +1218,11 @@ describe('configurações, flags e saúde do sistema', () => {
 
   it('flag alterada no painel muda GET /site/flags', async () => {
     as(null);
-    expect(FeatureFlags.parse((await call('GET', '/site/flags')).data)).toEqual({ ranking: true, publicSignup: true, resultSubmission: true, pushNotifications: false });
+    expect(FeatureFlags.parse((await call('GET', '/site/flags')).data)).toEqual({ ranking: true, publicSignup: true, resultSubmission: true, pushNotifications: false, resultOcr: false });
 
     as(ANA);
     const flags = z.array(FeatureFlag).parse((await call('GET', '/admin/flags')).data);
-    expect(flags.map((f) => f.key)).toEqual(['ranking', 'publicSignup', 'resultSubmission', 'pushNotifications']);
+    expect(flags.map((f) => f.key)).toEqual(['ranking', 'publicSignup', 'resultSubmission', 'pushNotifications', 'resultOcr']);
     expect((await call('PUT', '/admin/flags/ranking', { enabled: false })).status).toBe(403);
 
     as(RAFAEL);

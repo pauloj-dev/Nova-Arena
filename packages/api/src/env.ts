@@ -21,6 +21,11 @@ export const EnvSchema = z
     DATABASE_URL_UNPOOLED: optionalUrl,
     KV_REST_API_URL: optionalUrl,
     KV_REST_API_TOKEN: optionalSecret,
+    /**
+     * Prefixo das chaves no Redis (cache, idempotência e limites). Para dividir um mesmo Upstash entre ambientes
+     * (ex.: preview e staging) ou entre servidores locais, sem um ler o cache do outro. Vazio: sem prefixo.
+     */
+    KV_PREFIX: z.string().regex(/^[A-Za-z0-9:_-]{1,40}$/, 'Use até 40 letras, números, ":", "_" ou "-".').optional(),
     QSTASH_URL: optionalUrl,
     QSTASH_TOKEN: optionalSecret,
     QSTASH_CURRENT_SIGNING_KEY: optionalSecret,
@@ -30,19 +35,42 @@ export const EnvSchema = z
     /** Loja privada do Blob (provas e denúncias). Sem ela, usa a mesma de `BLOB_READ_WRITE_TOKEN`. */
     BLOB_PRIVATE_READ_WRITE_TOKEN: optionalSecret,
     EDGE_CONFIG: optionalUrl,
+    /** Gravação das flags e configurações no Edge Config pela API da Vercel (issue #94). Sem as duas, só o banco. */
+    EDGE_CONFIG_ID: optionalSecret,
+    VERCEL_API_TOKEN: optionalSecret,
+    /** Time da Vercel dono do Edge Config (quando o token é de um time). */
+    VERCEL_TEAM_ID: optionalSecret,
     RESEND_API_KEY: optionalSecret,
     /** Remetente de um domínio verificado no Resend, ex.: "Nova Arena <nao-responda@novaarena.gg>". */
     EMAIL_FROM: z.string().min(3).optional(),
     /** Fora de produção, todos os e-mails vão para esta caixa (com o destinatário original no assunto). */
     EMAIL_TEST_INBOX: z.email().optional(),
     SENTRY_DSN: optionalUrl,
+    /** Leitura das estatísticas do Sentry para a Saúde do Sistema (issue #116): token com `project:read`. */
+    SENTRY_AUTH_TOKEN: optionalSecret,
+    SENTRY_ORG: z.string().min(1).optional(),
+    SENTRY_PROJECT: z.string().min(1).optional(),
+    /** Sentry auto-hospedado ou região própria; padrão `https://sentry.io`. */
+    SENTRY_API_URL: optionalUrl,
     ABLY_API_KEY: optionalSecret,
     AUTH_JWT_SECRET: z.string().min(32, 'Use pelo menos 32 caracteres aleatórios.').optional(),
     LOBBY_ENCRYPTION_KEY: optionalSecret,
+    /** Segredo TOTP do 2FA cifrado com AES-256-GCM (32 bytes em base64), issue #95. */
+    TWO_FACTOR_ENCRYPTION_KEY: optionalSecret,
+    /** Web Push (issue #109): par de chaves VAPID (`npx web-push generate-vapid-keys`) e o contato do remetente. */
+    VAPID_PUBLIC_KEY: optionalSecret,
+    VAPID_PRIVATE_KEY: optionalSecret,
+    /** `mailto:` ou URL de contato exigido pelos serviços de push (ex.: `mailto:suporte@novaarena.gg`). */
+    VAPID_SUBJECT: z.string().regex(/^(mailto:|https:\/\/)/, 'Use mailto: ou https://').optional(),
     GOOGLE_CLIENT_ID: optionalSecret,
     GOOGLE_CLIENT_SECRET: optionalSecret,
     DISCORD_CLIENT_ID: optionalSecret,
     DISCORD_CLIENT_SECRET: optionalSecret,
+    /** Bot do Discord (issue 121). Sem as três, o módulo fica desligado (`discordConfigured`). */
+    DISCORD_APP_ID: z.string().regex(/^\d{5,25}$/, 'Use o Application ID (só números).').optional(),
+    /** Chave pública da aplicação (hex, 32 bytes): confere a assinatura Ed25519 das interações. */
+    DISCORD_PUBLIC_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, 'Use a Public Key da aplicação (64 caracteres hex).').optional(),
+    DISCORD_BOT_TOKEN: optionalSecret,
   })
   .superRefine((env, ctx) => {
     if (env.VERCEL_ENV !== 'production') return;

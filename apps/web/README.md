@@ -45,7 +45,38 @@ e2e/             Playwright (fixtures.ts tem `test`, `expect`, `loginAs`, `waitF
 
 - Seletor **"Entrar como"** (canto inferior esquerdo): Bianca (participante), Lucas (capitão), Camila (organizadora verificada), Diego (organizador), Ana (admin), Rafael (super admin). Senha de todas as contas: `arena1234`.
 - Os dados ficam no `localStorage` do navegador. "Reiniciar dados" volta ao seed (`mocks/seed.ts`).
-- `NEXT_PUBLIC_API_MOCK`: `all` (padrão) · `none` · lista de módulos (`auth,games`).
+- `NEXT_PUBLIC_API_MOCK`: `all` (padrão) · `none` · lista de módulos (`auth,games`). Ver "Modos da API" abaixo.
+
+## Modos da API
+
+| Modo | `NEXT_PUBLIC_API_MOCK` | Onde | O que precisa |
+|---|---|---|---|
+| **Protótipo** (tudo simulado, dados no `localStorage`) | sem a variável, ou `all` | `pnpm dev` local, E2E do CI | nada |
+| **API real** | `none` | preview, staging e produção (desde a #102: `previewMockSetting()` em `mocks/handlers/index.ts` devolve `none`); local para testar contra o Postgres | Postgres com as migrations e a seed, e as variáveis do servidor |
+| Misto (só alguns módulos simulados) | lista, ex.: `realtime` | depuração | — |
+
+Com `none`, o MSW e o banco simulado nem são carregados no navegador (`MockGate` só importa os handlers sob demanda), o seletor "Entrar como" some e os atalhos do protótipo não existem.
+
+**API real no computador** (Postgres e Redis do `docker compose up -d`):
+
+```bash
+docker compose exec -T postgres psql -U nova -d nova -c "create database nova_dev"
+DATABASE_URL=postgres://nova:nova@localhost:5432/nova_dev DATABASE_URL_UNPOOLED=postgres://nova:nova@localhost:5432/nova_dev \
+  pnpm --filter @nova/db exec prisma migrate deploy
+# apps/web/.env.local (não vai para o git):
+#   NEXT_PUBLIC_API_MOCK=none
+#   NEXT_PUBLIC_SITE_URL=http://localhost:3000
+#   DATABASE_URL=… e DATABASE_URL_UNPOOLED=… (o banco acima)
+#   AUTH_JWT_SECRET, LOBBY_ENCRYPTION_KEY, TWO_FACTOR_ENCRYPTION_KEY, CRON_SECRET (gere como no /.env.example)
+#   KV_REST_API_URL=http://localhost:8079  KV_REST_API_TOKEN=nova-local  KV_PREFIX=dev:   (Redis do docker-compose)
+#   SEED_DEMO_PASSWORD=arena1234   SEED_DEMO_TOTP_SECRET=<Base32, opcional: 2FA do Rafael e da Ana>
+pnpm --filter web seed:demo --reset   # os mesmos cenários do protótipo, no Postgres
+pnpm dev
+```
+
+Sem `ABLY_API_KEY`, as páginas ao vivo mostram "Reconectando… atualizando a cada 10 s" (CT-10); sem `BLOB_READ_WRITE_TOKEN`, o envio de imagens responde 503; sem `RESEND_API_KEY`, os e-mails só aparecem no log do servidor; sem QStash, os jobs agendados ficam com o Cron (`GET /api/v1/cron/sweep` com o `CRON_SECRET`).
+
+**Seed de demonstração** (`scripts/seed-demo.ts` → `seedDemo()` de `@nova/api/demo`): grava o objeto de `mocks/seed.ts` com UUIDs determinísticos (`demoId('u_bianca')`, `demoId('tn_liga_cr')`…), as chaves projetadas pelas funções da API (Liga Semanal Clash Royale em andamento com o check-in da Bianca aberto, Open 8 Ball Pool finalizado com pódio), squads e convites, convites de papel (válidos, expirado e revogado), pedido de organizador, denúncias e notificações de demonstração. Idempotente; `--reset` apaga tudo antes (só local: desliga os gatilhos de "somente inserção"). Nunca em produção.
 
 ## Testes
 
@@ -58,6 +89,20 @@ Para rodar E2E contra um servidor já no ar: `PLAYWRIGHT_BASE_URL=http://localho
 Para subir uma segunda instância sem conflito de build: `NEXT_DIST_DIR=.next-x pnpm --filter web exec next dev -p 3111`.
 
 Nos testes E2E, importe `test`, `expect`, `loginAs` e `waitForApp` de `./fixtures`. Cada teste começa com o banco simulado limpo (contexto novo do navegador).
+
+**E2E com a API real** (`E2E_MODE=real`, issue #102): a mesma suíte, contra um servidor local com `NEXT_PUBLIC_API_MOCK=none` e o `.env.local` acima.
+
+```bash
+cd apps/web
+NEXT_DIST_DIR=.next-real pnpm exec next dev -p 3141      # ou next build && next start
+E2E_MODE=real PLAYWRIGHT_BASE_URL=http://localhost:3141 PW_OUTPUT_DIR=test-results-real pnpm exec playwright test
+```
+
+- O `globalSetup` (`e2e/real/global-setup.ts`) zera o banco do servidor, roda a seed de demonstração e guarda um retrato no schema `e2e_snapshot`; **cada teste restaura o retrato** (com as datas andando o tempo que passou) e apaga o cache do servidor no Redis (`KV_PREFIX` obrigatório para isso). Um teste por vez (`workers: 1`).
+- `mid('tn_liga_cr')` dá o ID do registro no modo em uso (o próprio ID no protótipo; o UUID da seed com a API real).
+- Atalhos do protótipo têm caminho equivalente em `e2e/real/`: `loginAs` abre a sessão direto no banco (em vez de `/auth/dev-login`); `apiAs(...)` chama a API como outra pessoa pelo Node; `emailLink(email, 'VERIFY' | 'RESET')` é o link que o e-mail levaria; `totp(segredo)` é o código do aplicativo autenticador. Cada teste usa um IP próprio (`x-forwarded-for`) para o limite de 5 logins por minuto.
+- Ficam de fora com o motivo no próprio teste (`test.skip(isRealApi, …)`): o que depende de credencial que o ambiente local não tem (OAuth do Google/Discord, Vercel Blob, Ably) e o que só existe no protótipo.
+- `api-real.spec.ts` também roda contra o preview (`E2E_API_REAL=1`, sem acesso ao banco).
 
 ## Competição, tempo real e utilidades compartilhadas (F2)
 
@@ -79,8 +124,72 @@ Nos testes E2E, importe `test`, `expect`, `loginAs` e `waitForApp` de `./fixture
 | Participante | `/c/[slug]?aba=chave\|partidas\|resultados`, `/c/[slug]/arte`, `/notificacoes`, `/minha-conta/notificacoes`, `/minha-conta/denuncias`, `/minha-conta/seguranca` (2FA), `/disputas/[id]`, `/termos`, `/privacidade` | `features/brackets`, `features/matches`, `features/notifications`, `features/reports`, `features/disputes`, `features/profile/{competitive,security}`, `features/artwork` |
 | Organizador | `/organizador/campeonatos/[id]?aba=fases\|partidas\|validacao\|equipe\|comunicados\|auditoria` | `features/organizer/{manage,operation,onboarding}` |
 | Admin | `/admin`, `/admin/usuarios`, `/admin/administradores`, `/admin/organizadores`, `/admin/campeonatos`, `/admin/comunicados`, `/admin/auditoria`, `/admin/moderacao`, `/admin/configuracoes`, `/admin/saude` | `features/admin/*` |
+| Telão (OBS, #124) | `/c/[slug]/telao/tabela` e `/c/[slug]/telao/chave` (`?fase=`, `?fundo=transparente`, `?intervalo=` em s, `?tema=claro`), no grupo `app/(telao)` sem o cabeçalho do site; link "Abrir no telão" na aba Fases do organizador | `features/telao` |
+| Ranking de temporada e ligas (#120, ADR-0003) | `/ranking` (seção "Temporada", flag `ranking`), `/u/[nick]` (seção "Rating da temporada"), `/ligas`, `/ligas/[slug]`, `/organizador/ligas`, `/organizador/ligas/nova`, `/organizador/ligas/[id]`, `/admin/temporadas` | `features/seasons`, `features/leagues`; API simulada em `mocks/seasons.ts` e `mocks/handlers/seasons.ts` |
 
 - **Feature flags:** `useFlag('ranking' | 'publicSignup' | 'resultSubmission' | 'pushNotifications')` e `<FlagGate flag>` em `shared/flags`. A flag vale também no handler (`isFlagEnabled` em `mocks/handlers/admin-settings.ts`): esconder na tela não basta.
 - **Sessão e papéis na API simulada:** `currentUser()` devolve nulo para quem não está `ACTIVE` (banido, suspenso, mesclado, excluído); `requireAdmin()` exige verificação em duas etapas ativa.
 - **Coleções de F2 no banco simulado** (`db().extra`): `stageRuns`, `matchMeta`, `podiums`, `resultEvents`, `auditLogs`, `notifications`, `notificationPreferences`, `reports`, `submissions`, `disputes`, `sanctions`, `roleGrants`, `globalAnnouncements`, `siteSettings`, `featureFlags`, `twoFactor`.
-- **Atalhos que só existem no protótipo** e não vão para a API real: `POST /auth/dev-login`, `GET /me/2fa/dev-code`, os tokens `devVerifyToken`/`devResetToken` nas respostas e o link de redefinição mostrado ao Admin.
+- **Atalhos que só existem no protótipo** e não vão para a API real: `POST /auth/dev-login`, `GET /me/2fa/dev-code`, os tokens `devVerifyToken`/`devResetToken` nas respostas e o link de redefinição mostrado ao Admin. A API real não tem nenhum deles (o teste `packages/api/test/contract-parity.unit.test.ts` garante); com ela, os links vão só por e-mail.
+
+## Textos e idiomas (issue 108, ADR-0004)
+
+- **Nenhum texto de interface fixo no código.** Cada área tem o catálogo dela: `features/<área>/messages/pt-BR.json` + `index.ts` (`defineMessages`). Textos comuns e de `shared/` ficam em `shared/i18n/messages`; os de `app/` em `app/messages`.
+- **Componente cliente:** `const t = useT(messages, 'Componente')` (`@/shared/i18n/react`). **Servidor, `metadata`, `.ts`:** `getT(messages, 'Trecho')` (`@/shared/i18n/core`), chamado dentro da função.
+- **Plural:** ICU com `=1` (em pt-BR a categoria `one` também pega o 0): `{n, plural, =1 {# inscrito} other {{n} inscritos}}`. Número que não deve ganhar separador de milhar vai como texto. Trecho com link no meio: `t.rich`.
+- **CI:** a regra `i18next/no-literal-string` (`i18n-lint.mjs`) acusa texto em JSX e nos atributos lidos (`aria-label`, `placeholder`, `title`, `alt`, `label`…). Só a função `t` (e `t.rich`) é isenta: um segundo tradutor ou chamada com texto dentro do JSX vira variável antes do `return`. `pnpm --filter web check:i18n <pastas>` confere uma área.
+- **Fica no servidor:** rótulos e mensagens de validação de `@nova/schemas` e o `detail` dos erros da API. As notificações da API estão em `packages/api/src/messages/pt-BR.ts` e os e-mails em `packages/email/src/messages.pt-BR.ts`.
+
+## Refinamento R1 (responsividade, acessibilidade, PWA)
+
+- **Telas revisadas automaticamente:** `e2e/rotas.ts` lista todas as telas com o usuário que as abre. Tela nova entra ali e passa a ser conferida em 360/480/768/1024/1440 px e paisagem (`r1-responsividade`, com screenshot de cada tamanho no relatório), pelo axe nos dois temas (`r1-acessibilidade`) e, se `principal`, nas áreas de toque de 44 px (`r1-toque-e-movimento`). Roteiros de leitor de tela: `docs/acessibilidade.md`.
+- **Carregando:** toda rota tem `loading.tsx` com `RouteSkeleton` (`shared/layout/RouteSkeleton.tsx`). **Vazio:** `EmptyState` com ícone já vem ilustrado (`EmptyIllustration`).
+- **Áreas seguras:** `pt-safe`, `px-safe` e `pb-safe` (`viewport-fit=cover`).
+- **PWA:** `app/manifest.ts`, ícones em `public/icons` (gerados por `scripts/brand-assets.mts`), service worker em `sw/sw.ts` servido por `app/serwist/[path]/route.ts` (`@serwist/turbopack`). Nunca guarda `/api`. Só é registrado sem API simulada (`NEXT_PUBLIC_API_MOCK=none`) em produção — o MSW usa o mesmo escopo. `NEXT_PUBLIC_PWA=off|on` força. Push: ponto de extensão em `sw/extensions.ts`. Teste do worker de verdade: `e2e/r1-pwa-sw.spec.ts` (instruções no arquivo).
+- **Ajuda e suporte:** `/ajuda` (conteúdo em `features/help/faq.ts`), `/contato` (e-mail de `GET /site/settings`), `/manutencao` e o aviso global `SiteBanner` (manutenção aparece 48 h antes, em todas as áreas).
+
+## Pós-lançamento B (issues 121, 123 e 125)
+
+Bot do Discord e chat por partida: `docs/notificacoes.md`. Módulos simulados novos: `discord`, `chat` e `calendar` (paridade de rotas em `packages/api/test/contract-parity-pos-b.unit.test.ts`).
+
+### Leitura do print com OCR (issue 123, experimental)
+
+- **Flag:** `resultOcr`, desligada por padrão; quem liga é o Super Admin em Configurações. A importação pelas APIs oficiais dos jogos ficou de fora, porque depende de parceria.
+- **Onde aparece:** "Ler o print" fica no lançamento de queda BR (organização) e no envio de resultado (participante).
+- **Como lê:**
+  - `tesseract.js` é carregado sob demanda, só no clique (`features/ocr/recognize.ts`), e roda no navegador.
+  - Na primeira vez, o navegador baixa o motor e o idioma do CDN jsdelivr. Uma CSP futura precisa liberar `cdn.jsdelivr.net` e `blob:` em `worker-src`.
+  - O parser (`features/ocr/parse.ts`) sugere colocação e kills por equipe, ou o placar do duelo, com a confiança de cada valor.
+- **Confirmação humana:** a leitura nunca grava sozinha. A tela destaca o que foi lido e exige marcar "Conferi os valores lidos do print" antes de salvar.
+- **Imagens de exemplo:** são inventadas e ficam em `features/ocr/fixtures`, geradas por `scripts/ocr-fixtures.mts`. O teste com o Tesseract de verdade só roda com `OCR_REAL=1`, porque baixa o idioma da internet.
+
+### Assistente de formato (issue 125)
+
+- **Onde:** "Sugerir formato" no passo Fases do assistente de criação.
+- **O que considera:** o nº de inscritos, o tempo disponível e o jogo/modo.
+- **Como sugere:** a função pura `suggestFormats` (`features/organizer/lib/formatAssistant.ts`) monta as fases com os mesmos padrões do StageBuilder e filtra tudo por `validateStages`.
+- **Premissas da duração estimada:**
+  - partidas da mesma rodada são simultâneas;
+  - 10 min por jogo de duelo, vezes a série;
+  - 25 min por queda BR;
+  - 5 min entre rodadas e 15 min entre fases.
+
+### Calendário .ics (issue 125)
+
+| Rota | Quem usa | O que devolve |
+|---|---|---|
+| `GET /me/calendar` | pessoa logada | os endereços do calendário pessoal |
+| `GET /calendar/u/<userId>.<assinatura>.ics` | aplicativo de calendário, sem cookie | "minhas partidas"; a assinatura é HMAC-SHA256 com `AUTH_JWT_SECRET` |
+| `GET /tournaments/:id/calendar` | qualquer pessoa | os endereços do calendário de um campeonato |
+| `GET /calendar/t/<slug>.ics` | qualquer pessoa | as partidas do campeonato; rascunho não aparece |
+
+- **Formato:** RFC 5545 (`packages/schemas/src/calendar.ts`), com horários em UTC (`…Z`), linhas dobradas em 75 octetos, `REFRESH-INTERVAL` de 1 h e lembrete 15 min antes.
+- **Na tela:** o botão "Adicionar ao calendário" fica em Meus campeonatos e na aba Partidas do campeonato. Ele oferece assinar por `webcal://`, copiar o endereço ou baixar o arquivo.
+- **Limitação:** o endereço pessoal não pode ser revogado. Ele só muda se `AUTH_JWT_SECRET` mudar.
+
+### Resultados offline (issue 125)
+
+- **Quando guarda:** o lançamento de queda BR e de duelo continua sem rede. Sem conexão, ou com erro de rede, o envio vai para o IndexedDB (`nova-arena-offline`), com a mesma `Idempotency-Key` do `useSubmitResult`.
+- **Fila pendente:** aparece em "Resultados pendentes de envio", na aba Partidas e resultados. O envio é sozinho quando a conexão volta, ou pelo botão.
+- **Conflito:** se outra pessoa já lançou o resultado, a API responde `CORRECTION_REASON_REQUIRED`. A tela mostra "Outra pessoa já lançou o resultado desta partida", com "Ver resultado atual" e "Descartar".
+- **Limitação:** a prova em imagem não sobe sem rede. O lançamento offline leva só os números.

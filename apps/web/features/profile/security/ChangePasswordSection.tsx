@@ -8,9 +8,11 @@ import { useForm, useWatch } from 'react-hook-form';
 import { errorMessage } from '@/shared/api/client';
 import { useChangePassword } from '@/shared/api/hooks/account';
 import { useLoginMethods } from '@/shared/api/hooks/login-methods';
+import { useT } from '@/shared/i18n/react';
 import { FormAlert } from '@/features/auth/AuthParts';
 import { applyFieldErrors, hasFieldErrors } from '@/features/auth/formErrors';
 import { PasswordStrengthMeter } from '@/features/auth/PasswordStrengthMeter';
+import { messages } from '../messages';
 
 const FIELDS = ['currentPassword', 'newPassword'] as const;
 
@@ -18,6 +20,7 @@ const FIELDS = ['currentPassword', 'newPassword'] as const;
 export function ChangePasswordSection() {
   const methods = useLoginMethods();
   const change = useChangePassword();
+  const t = useT(messages, 'ChangePasswordSection');
   const toast = useToast();
   const {
     register,
@@ -28,6 +31,8 @@ export function ChangePasswordSection() {
     formState: { errors },
   } = useForm<ChangePasswordInput>({ resolver: zodResolver(ChangePasswordInput), mode: 'onTouched', defaultValues: { currentPassword: '', newPassword: '' } });
   const newPassword = useWatch({ control, name: 'newPassword' });
+  const currentPasswordField = register('currentPassword');
+  const newPasswordField = register('newPassword');
 
   // Sem senha ainda: quem cuida é a seção "Jeitos de entrar".
   if (methods.data && !methods.data.hasPassword) return null;
@@ -35,9 +40,9 @@ export function ChangePasswordSection() {
   return (
     <section aria-labelledby="seguranca-senha" className="flex flex-col gap-3">
       <h2 id="seguranca-senha" className="text-lg">
-        Senha
+        {t('senha')}
       </h2>
-      <p className="text-sm text-muted">Ao trocar a senha, os outros aparelhos saem da sua conta. Este continua conectado.</p>
+      <p className="text-sm text-muted">{t('aviso')}</p>
       <form
         noValidate
         className="flex max-w-md flex-col gap-3"
@@ -45,22 +50,22 @@ export function ChangePasswordSection() {
           change.mutate(input, {
             onSuccess: () => {
               reset();
-              toast.success('Senha trocada', 'Os outros aparelhos saíram da sua conta.');
+              toast.success(t('senhaTrocada'), t('outrosSairam'));
             },
             onError: (e) => {
-              if (!applyFieldErrors(e, setError, FIELDS)) toast.error('Não foi possível trocar a senha', errorMessage(e));
+              if (!applyFieldErrors(e, setError, FIELDS)) toast.error(t('erroTrocar'), errorMessage(e));
             },
           }),
         )}
       >
         {change.isError && !hasFieldErrors(change.error, FIELDS) && <FormAlert>{errorMessage(change.error)}</FormAlert>}
-        <Input label="Senha atual" type="password" autoComplete="current-password" error={errors.currentPassword?.message} {...register('currentPassword')} />
+        <Input label={t('senhaAtual')} type="password" autoComplete="current-password" error={errors.currentPassword?.message} {...currentPasswordField} />
         <div className="flex flex-col gap-2">
-          <Input label="Nova senha" type="password" autoComplete="new-password" error={errors.newPassword?.message} {...register('newPassword')} />
+          <Input label={t('novaSenha')} type="password" autoComplete="new-password" error={errors.newPassword?.message} {...newPasswordField} />
           <PasswordStrengthMeter password={newPassword} />
         </div>
         <Button type="submit" className="self-start" loading={change.isPending} iconLeft={<KeyRound className="size-4" aria-hidden />}>
-          Trocar senha
+          {t('trocarSenha')}
         </Button>
       </form>
     </section>

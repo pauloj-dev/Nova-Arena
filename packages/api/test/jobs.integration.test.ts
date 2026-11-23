@@ -31,6 +31,8 @@ describe.skipIf(!url)('jobs (Postgres)', () => {
   async function makeUser(key: string, roles: ('ADMIN' | 'PARTICIPANT')[]) {
     const nickname = `jb${key}${stamp}`;
     const user = await db.user.create({ data: { email: `jb.${key}.${stamp}@exemplo.com`, nickname, nicknameKey: nickname.toLowerCase(), roles: { create: roles.map((role) => ({ role })) } } });
+    // Toda rota /admin/* exige 2FA ativo e feito na sessão (RNF-08).
+    if (roles.includes('ADMIN')) await db.twoFactor.create({ data: { userId: user.id, secretEnc: 'teste', enabledAt: new Date(), recoveryCodesHash: [] } });
     const session = await db.session.create({ data: { userId: user.id, familyId: randomUUID(), refreshTokenHash: `jb-${randomUUID()}`, expiresAt: new Date(Date.now() + 3600_000) } });
     cookies.set(key, `na_at=${await signAccessToken(env, { sub: user.id, sid: session.id, sv: 0, tfa: true, roles }, new Date())}`);
     return user;

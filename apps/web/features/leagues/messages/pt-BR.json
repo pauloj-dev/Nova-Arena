@@ -1,0 +1,126 @@
+{
+  "leagueText": {
+    "colocacaoPontos": "{posicao}º {pontos}",
+    "mais": " …",
+    "participacao": " · +{pontos} por participar",
+    "periodo": "{inicio} a {fim}",
+    "colocacao": "{posicao}º"
+  },
+  "LeagueCard": {
+    "resumo": "{total, plural, =1 {{total} campeonato} other {{total} campeonatos}} · {encerrados, plural, =1 {{encerrados} encerrado} other {{encerrados} encerrados}} · por {dono}"
+  },
+  "LeaguesPage": {
+    "titulo": "Ligas semanais",
+    "descricao": "Campeonatos toda semana que somam pontos numa tabela da temporada.",
+    "carregando": "Carregando as ligas",
+    "erro": "Não foi possível carregar as ligas",
+    "vazioTitulo": "Nenhuma liga por enquanto",
+    "vazioDescricao": "Quando uma organização criar uma liga semanal, ela aparece aqui."
+  },
+  "LeaguePage": {
+    "colunas": {
+      "posicao": "Posição",
+      "participante": "Participante",
+      "pontos": "Pontos",
+      "campeonatos": "Campeonatos",
+      "jogadosDe": "{jogados} de {total}",
+      "titulos": "Títulos",
+      "melhorColocacao": "Melhor colocação"
+    },
+    "carregando": "Carregando a liga",
+    "naoEncontradaTitulo": "Liga não encontrada",
+    "naoEncontradaDescricao": "O endereço pode estar errado ou a liga foi encerrada pela organização.",
+    "erro": "Não foi possível carregar a liga",
+    "ligaSemanalDe": "Liga semanal de {jogo}",
+    "organizacao": "Organização: <link>{nome}</link>",
+    "comoFunciona": "Como a pontuação funciona",
+    "comoFuncionaTexto": "Cada campeonato encerrado da liga dá pontos pela colocação final: <destaque>{regra}</destaque>. Os pontos somam na tabela da temporada da liga.",
+    "tabela": "Tabela da liga",
+    "tabelaLegenda": "Tabela da {nome}",
+    "tabelaVaziaTitulo": "A tabela ainda está vazia",
+    "tabelaVaziaDescricao": "Os pontos entram quando o primeiro campeonato da liga for encerrado.",
+    "campeonatos": "Campeonatos da liga",
+    "campeonatosVazioTitulo": "Nenhum campeonato na liga ainda",
+    "campeonatosVazioDescricao": "A organização inclui aqui os campeonatos de cada semana.",
+    "jaContaPontos": "Já conta pontos",
+    "contaQuandoTerminar": "Conta pontos quando terminar"
+  },
+  "LeagueForm": {
+    "erros": {
+      "pontosColocacao": "Use números inteiros separados por vírgula (ex.: 25, 18, 15)",
+      "pontosParticipacao": "Use um número inteiro a partir de 0",
+      "inicio": "Informe o início",
+      "fim": "Informe o fim",
+      "nome": "Dê um nome para a liga",
+      "jogo": "Escolha o jogo"
+    },
+    "nome": "Nome da liga",
+    "descricao": "Descrição",
+    "descricaoDica": "Dia e horário dos campeonatos, premiação da temporada… (opcional)",
+    "jogo": "Jogo",
+    "jogoDicaEdicao": "O jogo não muda depois que a liga é criada.",
+    "jogoDica": "Só campeonatos deste jogo entram na liga.",
+    "jogoPlaceholder": "Escolha o jogo",
+    "inicio": "Início da temporada da liga",
+    "fim": "Fim da temporada da liga",
+    "pontosPorColocacao": "Pontos por colocação",
+    "pontosColocacao": "Pontos do 1º, 2º, 3º lugar…",
+    "pontosColocacaoDica": "Separe por vírgula. Colocações além da lista ganham só os pontos de participação.",
+    "pontosParticipacao": "Pontos por participar",
+    "previa": "Prévia: {previa}"
+  },
+  "OrganizerLeaguesPage": {
+    "titulo": "Minhas ligas",
+    "descricao": "Agrupe seus campeonatos semanais numa liga: cada campeonato encerrado soma pontos na tabela da temporada.",
+    "criarLiga": "Criar liga",
+    "carregando": "Carregando suas ligas",
+    "erro": "Não foi possível carregar suas ligas",
+    "vazioTitulo": "Você ainda não tem ligas",
+    "vazioDescricao": "Crie uma liga, defina os pontos por colocação e inclua os campeonatos de cada semana.",
+    "criarPrimeira": "Criar a primeira liga"
+  },
+  "NewLeaguePage": {
+    "titulo": "Criar liga",
+    "descricao": "Os pontos de cada colocação somam na tabela da liga quando um campeonato dela termina.",
+    "enviar": "Criar liga",
+    "criada": "Liga criada",
+    "criadaDescricao": "Agora inclua os campeonatos da liga.",
+    "erroCriar": "Não foi possível criar a liga"
+  },
+  "TournamentsManager": {
+    "titulo": "Campeonatos da liga",
+    "incluido": "Campeonato incluído na liga",
+    "erroIncluir": "Não foi possível incluir o campeonato",
+    "incluirCampeonato": "Incluir campeonato",
+    "semCandidatos": "Nenhum campeonato seu de {jogo} disponível. Crie o campeonato da semana e volte aqui.",
+    "candidatos": "Seus campeonatos de {jogo} que ainda não estão numa liga.",
+    "escolhaCampeonato": "Escolha um campeonato",
+    "incluir": "Incluir",
+    "vazioTitulo": "A liga ainda não tem campeonatos",
+    "vazioDescricao": "Inclua o campeonato de cada semana. Os pontos entram quando ele for encerrado.",
+    "jaContaPontos": "Já conta pontos",
+    "contaQuandoTerminar": "Conta pontos quando terminar",
+    "retirado": "Campeonato retirado da liga",
+    "erroRetirar": "Não foi possível retirar o campeonato",
+    "retirar": "Retirar<sr> {nome} da liga</sr>"
+  },
+  "ManageLeaguePage": {
+    "carregando": "Carregando a liga",
+    "naoEncontradaTitulo": "Liga não encontrada",
+    "naoEncontradaDescricao": "Ela pode ter sido apagada.",
+    "voltar": "Voltar para minhas ligas",
+    "erro": "Não foi possível carregar a liga",
+    "ligaDe": "Liga de {jogo}",
+    "verPaginaPublica": "Ver página pública",
+    "apagarLiga": "Apagar liga",
+    "dadosEPontuacao": "Dados e pontuação",
+    "salvarAlteracoes": "Salvar alterações",
+    "atualizada": "Liga atualizada",
+    "atualizadaDescricao": "A tabela já usa a regra nova.",
+    "erroSalvar": "Não foi possível salvar a liga",
+    "confirmarTitulo": "Apagar a liga?",
+    "confirmarDescricao": "A tabela da liga deixa de existir. Os campeonatos continuam publicados, só saem da liga.",
+    "apagada": "Liga apagada",
+    "erroApagar": "Não foi possível apagar a liga"
+  }
+}

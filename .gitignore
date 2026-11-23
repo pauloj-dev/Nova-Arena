@@ -21,3 +21,7 @@ playwright-report
 blob-report
 .next-*
 test-results-*
+.claude/worktrees/
+
+# Relatórios do Lighthouse CI (issue #111): artefato do CI, não do repositório.
+.lighthouseci

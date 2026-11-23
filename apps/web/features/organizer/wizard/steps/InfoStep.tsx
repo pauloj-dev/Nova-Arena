@@ -3,43 +3,48 @@
 import { Input, Textarea } from '@nova/ui';
 import { Controller, useFormContext } from 'react-hook-form';
 import { BannerUpload } from '../../components/BannerUpload';
-import { RichTextEditor } from '../../components/RichTextEditor';
+import { RichTextEditor } from '../../components/LazyRichTextEditor';
 import { StreamLinksField } from '../../components/StreamLinksField';
 import type { WizardValues } from '../../lib/draft';
+import { useT } from '@/shared/i18n/react';
 import { useWizard } from '../context';
+import { messages } from '../messages';
 
 /** Passo 1 — Informações: nome, descrição, banner, premiação e transmissão. */
 export function InfoStep() {
   const { register, control } = useFormContext<WizardValues>();
   const { fieldError, values } = useWizard();
+  const t = useT(messages, 'InfoStep');
+  const nameField = register('name');
+  const prizeField = register('prize');
   return (
     <div className="flex flex-col gap-5">
       <Input
-        label="Nome do campeonato"
+        label={t('nome')}
         required
         maxLength={80}
         autoComplete="off"
-        placeholder="Ex.: Copa da Comunidade — Squad"
-        hint="É o que aparece na vitrine e no link da página."
+        placeholder={t('nomePlaceholder')}
+        hint={t('nomeHint')}
         error={fieldError('name')}
-        {...register('name')}
+        {...nameField}
       />
       <Controller
         control={control}
         name="description"
         render={({ field }) => (
-          <RichTextEditor label="Descrição" value={field.value} onChange={field.onChange} hint="Conte como vai ser: formato, dias de jogo, quem pode participar." error={fieldError('description')} />
+          <RichTextEditor label={t('descricao')} value={field.value} onChange={field.onChange} hint={t('descricaoHint')} error={fieldError('description')} />
         )}
       />
       <Controller control={control} name="bannerUrl" render={({ field }) => <BannerUpload value={field.value} onChange={field.onChange} />} />
       <Textarea
-        label="Premiação"
+        label={t('premiacao')}
         rows={3}
         maxLength={2000}
-        placeholder="Ex.: 1º lugar: troféu digital e destaque na home. 2º e 3º: medalhas no perfil."
-        hint="Texto livre. A Nova Arena não processa pagamentos nesta versão."
+        placeholder={t('premiacaoPlaceholder')}
+        hint={t('premiacaoHint')}
         error={fieldError('prize')}
-        {...register('prize')}
+        {...prizeField}
       />
       <Controller
         control={control}

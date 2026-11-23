@@ -5,19 +5,23 @@ import { Gamepad2, Home, Medal, Trophy, User } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { NotificationBell } from '@/features/notifications/NotificationBell';
+import { NotificationBell } from '@/features/notifications/LazyNotificationBell';
 import { useFlag } from '../flags/useFlag';
+import { sharedMessages } from '../i18n/messages';
+import { useT } from '../i18n/react';
 import { useSession } from '../session/useSession';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { Logo } from './Logo';
+import { SiteFooter } from './SiteFooter';
+import { UnreadAnnouncer } from './UnreadAnnouncer';
 import { SiteBanner } from './SiteBanner';
 import { UserMenu } from './UserMenu';
 
 const allNav = [
-  { href: '/campeonatos', label: 'Campeonatos', icon: Trophy },
-  { href: '/jogos', label: 'Jogos', icon: Gamepad2 },
-  { href: '/ranking', label: 'Ranking', icon: Medal },
-];
+  { href: '/campeonatos', label: 'campeonatos', icon: Trophy },
+  { href: '/jogos', label: 'jogos', icon: Gamepad2 },
+  { href: '/ranking', label: 'ranking', icon: Medal },
+] as const;
 
 function isActive(pathname: string, href: string): boolean {
   if (href === '/') return pathname === '/';
@@ -27,27 +31,29 @@ function isActive(pathname: string, href: string): boolean {
 
 /** Casca das áreas pública e do participante: header no desktop, barra inferior no celular. */
 export function SiteShell({ children }: { children: ReactNode }) {
+  const t = useT(sharedMessages, 'SiteShell');
   const pathname = usePathname();
   const { user } = useSession();
   // O ranking pode ser desligado nas configurações do site (flag `ranking`).
   const rankingOn = useFlag('ranking');
-  const nav = allNav.filter((n) => n.href !== '/ranking' || rankingOn);
-  const bottom = [{ href: '/', label: 'Início', icon: Home }, ...nav, { href: user ? '/minha-conta' : '/entrar', label: user ? 'Conta' : 'Entrar', icon: User }];
+  const nav = allNav.filter((n) => n.href !== '/ranking' || rankingOn).map((n) => ({ ...n, label: t(`nav.${n.label}`) }));
+  const bottom = [{ href: '/', label: t('nav.inicio'), icon: Home }, ...nav, { href: user ? '/minha-conta' : '/entrar', label: user ? t('nav.conta') : t('nav.entrar'), icon: User }];
 
   return (
-    <div className="flex min-h-dvh flex-col" data-area="participant">
+    // Celular: espaço embaixo para a barra inferior fixa (56 px + área segura), para o rodapé não ficar escondido.
+    <div className="flex min-h-dvh flex-col px-safe pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:pb-0" data-area="participant">
       <SiteBanner />
-      <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-[1280px] items-center gap-4 px-4 md:h-16 md:px-6">
+      <header className="sticky top-0 z-40 border-b border-border bg-surface/95 pt-safe backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-[1280px] items-center gap-2 px-4 md:h-16 md:px-6 lg:gap-4">
           <Logo />
-          <nav aria-label="Principal" className="ml-4 hidden items-center gap-1 md:flex">
+          <nav aria-label={t('principal')} className="hidden items-center gap-1 md:ml-1 md:flex lg:ml-4">
             {nav.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
                 aria-current={isActive(pathname, n.href) ? 'page' : undefined}
                 className={cn(
-                  'flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-muted hover:bg-neutral-soft hover:text-text',
+                  'flex min-h-11 items-center rounded-md px-2 text-sm font-semibold text-muted hover:bg-neutral-soft hover:text-text lg:px-3',
                   isActive(pathname, n.href) && 'bg-accent-soft text-accent-soft-text',
                 )}
               >
@@ -63,24 +69,12 @@ export function SiteShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <div className="flex-1 pb-20 md:pb-0">{children}</div>
+      <UnreadAnnouncer />
+      <div className="flex-1">{children}</div>
 
-      <footer className="hidden border-t border-border bg-surface md:block">
-        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-3 px-6 py-6 text-sm text-muted">
-          <p>Nova Arena · Onde todo campeonato vira história.</p>
-          <p>Plataforma independente, não afiliada às empresas dos jogos.</p>
-          <p className="flex gap-4">
-            <Link href="/termos" className="underline-offset-2 hover:underline">
-              Termos de Uso
-            </Link>
-            <Link href="/privacidade" className="underline-offset-2 hover:underline">
-              Privacidade
-            </Link>
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
 
-      <nav aria-label="Principal" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface pb-safe md:hidden">
+      <nav aria-label={t('principal')} className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface px-safe pb-safe md:hidden">
         <ul className="grid" style={{ gridTemplateColumns: `repeat(${bottom.length}, minmax(0, 1fr))` }}>
           {bottom.map((n) => {
             const active = isActive(pathname, n.href);

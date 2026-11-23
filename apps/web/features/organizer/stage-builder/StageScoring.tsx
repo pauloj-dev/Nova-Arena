@@ -8,9 +8,13 @@ import { useState } from 'react';
 import { ScoringModelEditor, ScoringPreview, type ScoringDraft } from '@/features/scoring/ScoringModelEditor';
 import { errorMessage } from '@/shared/api/client';
 import { useSaveCustomScoringModel } from '@/shared/api/hooks/organizer';
+import { getT } from '@/shared/i18n/core';
+import { sharedMessages } from '@/shared/i18n/messages';
+import { useT } from '@/shared/i18n/react';
 import { compatibleScoringModels, DEFAULT_TIEBREAKERS, isBattleRoyaleStage, stageMatchType } from '../lib/formats';
 import { MATCH_TYPE_LABEL } from '../lib/labels';
 import { IssueList } from './IssueList';
+import { messages } from './messages';
 import { TiebreakerList } from './TiebreakerList';
 
 interface StageScoringProps<T extends StageInput> {
@@ -26,8 +30,9 @@ interface StageScoringProps<T extends StageInput> {
 }
 
 function modelLabel(model: ScoringModel): string {
-  if (model.ownerId !== null) return `${model.name} (personalizado)`;
-  return model.isDefault ? `${model.name} (padrão)` : model.name;
+  const t = getT(messages, 'StageScoring');
+  if (model.ownerId !== null) return t('modeloPersonalizado', { nome: model.name });
+  return model.isDefault ? t('modeloPadrao', { nome: model.name }) : model.name;
 }
 
 /** Quanto vale a última queda com o multiplicador da fase — a conta é do motor, nunca da tela (RN-01). */
@@ -36,7 +41,7 @@ function lastDropExample(model: ScoringModel, multiplier: number): string | null
   const stats = { kills: 7, placement: 1 };
   const normal = computePoints(stats, model.rules).total;
   const last = computePoints(stats, model.rules, { multiplier }).total;
-  return `Na última queda (×${String(multiplier).replace('.', ',')}), 7 kills + 1º lugar valem ${last} pts em vez de ${normal}.`;
+  return getT(messages, 'StageScoring')('exemploUltimaQueda', { multiplicador: String(multiplier).replace('.', ','), ultima: last, normal });
 }
 
 interface CustomDialogProps {
@@ -51,6 +56,8 @@ interface CustomDialogProps {
 }
 
 function CustomScoringDialog({ open, onOpenChange, game, base, initial, editingId, onSaved }: CustomDialogProps) {
+  const t = useT(messages, 'StageScoring');
+  const common = useT(sharedMessages, 'comum');
   const [draft, setDraft] = useState<ScoringDraft>(initial);
   const [errors, setErrors] = useState<string[]>([]);
   const save = useSaveCustomScoringModel();
@@ -61,12 +68,12 @@ function CustomScoringDialog({ open, onOpenChange, game, base, initial, editingI
       open={open}
       onOpenChange={onOpenChange}
       size="lg"
-      title="Personalizar pontuação"
-      description={base ? `Começamos pelo modelo "${base.name}". O que você mudar aqui vale só para os seus campeonatos.` : 'Monte as regras desta fase. O modelo vale só para os seus campeonatos.'}
+      title={t('personalizar')}
+      description={base ? t('personalizarDescricaoBase', { nome: base.name }) : t('personalizarDescricao')}
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Cancelar
+            {common('cancelar')}
           </Button>
           <Button
             loading={save.isPending}
@@ -76,7 +83,7 @@ function CustomScoringDialog({ open, onOpenChange, game, base, initial, editingI
                 { id: editingId, input: { gameId: game.id, name: draft.name, matchType: draft.matchType, rules: draft.rules, tiebreakers: draft.tiebreakers } },
                 {
                   onSuccess: (model) => {
-                    success('Pontuação personalizada salva');
+                    success(t('salva'));
                     onSaved(model);
                     onOpenChange(false);
                   },
@@ -85,7 +92,7 @@ function CustomScoringDialog({ open, onOpenChange, game, base, initial, editingI
               );
             }}
           >
-            Salvar pontuação
+            {t('salvarPontuacao')}
           </Button>
         </>
       }
@@ -97,6 +104,7 @@ function CustomScoringDialog({ open, onOpenChange, game, base, initial, editingI
 
 /** Pontuação de uma fase: modelo (do catálogo ou personalizado), prévia e ordem de desempate. */
 export function StageScoring<T extends StageInput>({ stage, onChange, game, mode, userId, stageName, scoringIssues, tiebreakerIssues, disabled }: StageScoringProps<T>) {
+  const t = useT(messages, 'StageScoring');
   const [customOpen, setCustomOpen] = useState(false);
   const matchType = stageMatchType(stage.format, stage.config, mode);
   const models = compatibleScoringModels(game, matchType, userId);
@@ -107,7 +115,7 @@ export function StageScoring<T extends StageInput>({ stage, onChange, game, mode
   // Sem modelo no catálogo do jogo para este tipo de partida, o editor parte do modelo padrão do motor.
   const engineDefault = DEFAULT_SCORING_MODELS.find((m) => m.matchType === matchType && m.gameSlug === game.slug) ?? DEFAULT_SCORING_MODELS.find((m) => m.matchType === matchType);
   const initialDraft: ScoringDraft = {
-    name: isMine && selected ? selected.name : `${stageName} · pontuação personalizada`.slice(0, 80),
+    name: isMine && selected ? selected.name : t('nomePersonalizado', { fase: stageName }).slice(0, 80),
     matchType,
     rules: selected?.rules ?? engineDefault?.rules ?? [],
     tiebreakers: selected?.tiebreakers ?? engineDefault?.tiebreakers ?? DEFAULT_TIEBREAKERS[matchType],
@@ -117,11 +125,11 @@ export function StageScoring<T extends StageInput>({ stage, onChange, game, mode
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
         <Select
-          label="Modelo de pontuação"
-          hint={`Modelos de ${game.name} para ${MATCH_TYPE_LABEL[matchType]}.`}
+          label={t('modelo')}
+          hint={t('modeloHint', { jogo: game.name, tipo: MATCH_TYPE_LABEL[matchType] })}
           disabled={disabled}
           value={selected?.id ?? ''}
-          placeholder={selected ? undefined : 'Escolha um modelo…'}
+          placeholder={selected ? undefined : t('escolhaModelo')}
           options={models.map((m) => ({ value: m.id, label: modelLabel(m) }))}
           onChange={(e) => {
             const model = models.find((m) => m.id === e.target.value);
@@ -132,20 +140,20 @@ export function StageScoring<T extends StageInput>({ stage, onChange, game, mode
         <IssueList messages={scoringIssues} />
         {selected && (
           <div className="rounded-md border border-border bg-surface-2 p-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Como os pontos são contados</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">{t('comoContados')}</p>
             <ScoringPreview rules={selected.rules} matchType={matchType} extraStats={game.extraStatFields} />
             {example && <p className="mt-2 text-sm text-muted">{example}</p>}
           </div>
         )}
         {models.length === 0 && (
           <p className="text-sm text-muted">
-            {game.name} ainda não tem modelo de pontuação para {MATCH_TYPE_LABEL[matchType]}. Crie o seu em &quot;Personalizar pontuação&quot;.
+            {t('semModelos', { jogo: game.name, tipo: MATCH_TYPE_LABEL[matchType] })}
           </p>
         )}
         {!disabled && (
           <div>
             <Button variant="secondary" size="sm" iconLeft={<SlidersHorizontal className="size-4" aria-hidden />} onClick={() => setCustomOpen(true)}>
-              {isMine ? 'Editar pontuação personalizada' : 'Personalizar pontuação'}
+              {isMine ? t('editarPersonalizada') : t('personalizar')}
             </Button>
           </div>
         )}
@@ -153,8 +161,8 @@ export function StageScoring<T extends StageInput>({ stage, onChange, game, mode
 
       <div className="flex flex-col gap-2">
         <div>
-          <h4 className="text-sm font-semibold text-text">Critérios de desempate</h4>
-          <p className="text-xs text-muted">Quando duas equipes empatam em pontos, vale a ordem abaixo. Arraste ou use as setas.</p>
+          <h4 className="text-sm font-semibold text-text">{t('criteriosTitulo')}</h4>
+          <p className="text-xs text-muted">{t('criteriosDescricao')}</p>
         </div>
         <IssueList messages={tiebreakerIssues} />
         <TiebreakerList value={stage.tiebreakers} onChange={(tiebreakers) => onChange({ ...stage, tiebreakers })} matchType={matchType} stageName={stageName} disabled={disabled} />

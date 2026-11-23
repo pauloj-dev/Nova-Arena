@@ -3,7 +3,9 @@
 import type { Notification, NotificationType } from '@nova/schemas';
 import { cn } from '@nova/ui';
 import { AlertTriangle, Bell, CalendarCheck, CheckCircle2, Clock, Megaphone, Scale, ShieldAlert, Trophy, Users, XCircle, type LucideIcon } from 'lucide-react';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime';
+import { messages } from './messages';
 
 const ICONS: Record<NotificationType, LucideIcon> = {
   REGISTRATION_CONFIRMED: CheckCircle2,
@@ -31,6 +33,7 @@ export interface NotificationItemProps {
 export function NotificationItem({ notification: n, onOpen, compact }: NotificationItemProps) {
   const Icon = ICONS[n.type] ?? AlertTriangle;
   const unread = n.readAt === null;
+  const t = useT(messages, 'NotificationItem');
   return (
     <button
       type="button"
@@ -51,7 +54,7 @@ export function NotificationItem({ notification: n, onOpen, compact }: Notificat
       {unread && (
         <span className="mt-1.5 flex shrink-0 items-center">
           <span className="size-2.5 rounded-full bg-primary-500" aria-hidden />
-          <span className="sr-only">Não lida</span>
+          <span className="sr-only">{t('naoLida')}</span>
         </span>
       )}
     </button>

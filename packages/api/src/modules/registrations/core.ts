@@ -27,7 +27,7 @@ export async function lockTournament(tx: Tx, id: string): Promise<TournamentForR
 }
 
 export const registrationInclude = {
-  members: { include: { user: { select: { nickname: true, avatarUrl: true } } }, orderBy: { createdAt: 'asc' } },
+  members: { include: { user: { select: { nickname: true, avatarUrl: true } } }, orderBy: [{ isCaptain: 'desc' }, { createdAt: 'asc' }, { userId: 'asc' }] },
   team: { select: { name: true, tag: true, logoUrl: true, captainId: true } },
   user: { select: { nickname: true, avatarUrl: true } },
 } satisfies Prisma.RegistrationInclude;
@@ -126,4 +126,16 @@ export const RELEASED: RegistrationStatus[] = ['CANCELLED', 'REJECTED'];
 
 export async function releaseMembers(tx: Tx, registrationId: string): Promise<void> {
   await tx.registrationMember.deleteMany({ where: { registrationId } });
+}
+
+/**
+ * IDs das inscrições de uma pessoa, em qualquer campeonato: as solo (`userId`) e as do elenco de um squad.
+ * Duas consultas por índice (`registrations.userId`, `registration_members.userId`) no lugar do
+ * `OR: [{ userId }, { members: { some: { userId } } }]`, que obriga o Postgres a varrer a tabela inteira de
+ * inscrições (revisão de índices do R2, issue #111). Com `confirmedMember`, só conta o elenco que já confirmou.
+ */
+export async function registrationIdsOfUser(db: Db, userId: string, options: { confirmedMember?: boolean } = {}): Promise<string[]> {
+  const solo = await db.registration.findMany({ where: { userId }, select: { id: true } });
+  const member = await db.registrationMember.findMany({ where: { userId, ...(options.confirmedMember ? { confirmedAt: { not: null } } : {}) }, select: { registrationId: true } });
+  return [...new Set([...solo.map((r) => r.id), ...member.map((m) => m.registrationId)])];
 }

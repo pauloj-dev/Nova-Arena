@@ -16,6 +16,7 @@ import {
   MergeUsersResult,
   numberedPage,
   PasswordResetLink,
+  ProductMetrics,
   RoleInvite,
   RoleRevokeResult,
   SanctionResult,
@@ -44,6 +45,16 @@ export function useAdminStats(range: { from: string; to: string }) {
     queryKey: keys.admin.stats(range),
     queryFn: ({ signal }) => api.get('/admin/stats', { schema: AdminStats, signal, query: range }),
     placeholderData: keepPreviousData,
+  });
+}
+
+/** Métricas de produto (OKRs, North Star e HEART, issue #101). Só a API real calcula: na simulada, a seção mostra o aviso. */
+export function useProductMetrics(range: { from: string; to: string }) {
+  return useQuery({
+    queryKey: keys.admin.metrics(range),
+    queryFn: ({ signal }) => api.get('/admin/metrics', { schema: ProductMetrics, signal, query: range }),
+    placeholderData: keepPreviousData,
+    retry: false,
   });
 }
 

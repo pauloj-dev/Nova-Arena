@@ -26,7 +26,18 @@ import { teams } from './modules/teams';
 import { registrations } from './modules/registrations';
 import { competition } from './modules/competition';
 import { matches } from './modules/competition/matches';
+import { results } from './modules/competition/results';
+import { stages } from './modules/competition/stages';
+import { closing } from './modules/competition/closing';
+import { submissions } from './modules/submissions';
+import { stats } from './modules/stats';
 import { qstashQueue } from './jobs';
+import { ablyRealtime } from './realtime';
+import { notifications, notificationJobs } from './modules/notifications';
+import { push, pushJobs } from './modules/push';
+import { webPushSender } from './modules/push/sender';
+import { realtime } from './modules/realtime';
+import { twoFactor } from './modules/two-factor';
 import { uploads } from './modules/uploads';
 import { users } from './modules/users';
 import { vercelBlobStore } from './uploads/store';
@@ -34,14 +45,32 @@ import { auth } from './modules/auth';
 import { oauth } from './modules/oauth';
 import { databaseCheck, health, qstashCheck, redisCheck } from './modules/health';
 import { memoryLimiter, requireSameOrigin, upstashLimiter, type RateLimiter } from './security';
+import { adminArea } from './auth/admin';
+import { defaultNoStore } from './http-cache';
+import { adminModules } from './modules/admin';
+import { reports } from './modules/reports';
+import { site } from './modules/site';
+import { seasons } from './modules/seasons';
+import { leagues } from './modules/seasons/leagues';
+import { productEvents, trackAdminMutations } from './modules/site/events';
+import { discord } from './modules/discord';
+import { chat } from './modules/chat';
+import { calendar } from './modules/calendar';
+import { fraud, watchAdminActions } from './modules/fraud';
+import { privacy } from './modules/privacy';
 
 export const API_BASE_PATH = '/api/v1';
+/** Metas de latência do RNF-02 (p95), usadas no aviso de requisição lenta. */
+export const SLOW_READ_MS = 300;
+export const SLOW_WRITE_MS = 600;
 
 /**
  * Módulos registrados. Entram, na ordem do B1: auth (#67 ✓, OAuth #68 ✓), users e me (#72), roles e audit (#70: `auth/rbac.ts` ✓; rotas na #72),
- * uploads (#73), games (#74), tournaments (#75, #76), teams (#78), registrations (#79).
+ * uploads (#73), games (#74), tournaments (#75, #76), teams (#78), registrations (#79). B2: chave (#82), partidas (#83, #84),
+ * resultados e histórico (#85, #86), fases (#87, #88), desistência e encerramento (#88, #100), envios e disputas (#90),
+ * perfil competitivo (#89).
  */
-const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs, teams, registrations, competition, matches];
+const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs, teams, registrations, competition, matches, results, stages, closing, submissions, stats, twoFactor, realtime, notifications, notificationJobs, push, pushJobs, ...adminModules, reports, site, productEvents, seasons, leagues, discord, chat, calendar, fraud, privacy];
 
 export interface CreateAppOptions {
   /** Variáveis já validadas; padrão: as do processo, validadas na primeira requisição. */
@@ -65,7 +94,13 @@ export function createApp(options: CreateAppOptions = {}) {
     limiter:
       options.deps?.limiter ??
       ((env) => {
-        limiter ??= env.KV_REST_API_URL && env.KV_REST_API_TOKEN ? upstashLimiter(env) : memoryLimiter(now);
+        let warned = false;
+        const onFallback = (error: unknown) => {
+          if (warned) return;
+          warned = true;
+          createLogger(options.logSink).warn('limite de tentativas sem o Redis: valendo por instância, em memória', { error: error instanceof Error ? error.message : String(error) });
+        };
+        limiter ??= env.KV_REST_API_URL && env.KV_REST_API_TOKEN ? upstashLimiter(env, onFallback) : memoryLimiter(now);
         return limiter;
       }),
     mailer: options.deps?.mailer ?? defaultMailer,
@@ -75,6 +110,9 @@ export function createApp(options: CreateAppOptions = {}) {
     blob: options.deps?.blob ?? vercelBlobStore,
     queue: options.deps?.queue ?? qstashQueue,
     revalidate: options.deps?.revalidate ?? (() => undefined),
+    reportError: options.deps?.reportError ?? (() => undefined),
+    realtime: options.deps?.realtime ?? ablyRealtime,
+    push: options.deps?.push ?? webPushSender,
     cache:
       options.deps?.cache ??
       ((env) => {
@@ -82,7 +120,8 @@ export function createApp(options: CreateAppOptions = {}) {
         return cache;
       }),
   };
-  const baseLog = createLogger(options.logSink);
+  // Campos fixos em toda linha de log (filtros do log drain): o serviço, a região e a versão publicada.
+  const baseLog = createLogger(options.logSink, { service: 'api', ...(process.env.VERCEL_REGION ? { region: process.env.VERCEL_REGION } : {}), ...(process.env.VERCEL_GIT_COMMIT_SHA ? { release: process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7) } : {}) });
 
   const app = new Hono<AppEnv>().basePath(API_BASE_PATH);
 
@@ -97,11 +136,24 @@ export function createApp(options: CreateAppOptions = {}) {
     const started = performance.now();
     await next();
     c.header('X-Request-Id', requestId);
-    log.info('requisição', { method: c.req.method, path: c.req.path, status: c.res.status, durationMs: Math.round(performance.now() - started) });
+    const durationMs = Math.round(performance.now() - started);
+    log.info('requisição', { method: c.req.method, path: c.req.path, status: c.res.status, durationMs });
+    // Meta do RNF-02 (p95: 300 ms leitura, 600 ms escrita): a requisição acima dela vira aviso, base do alerta de
+    // latência no log drain (docs/operacao.md). Jobs e Cron têm tempo próprio e ficam fora.
+    const budget = c.req.method === 'GET' ? SLOW_READ_MS : SLOW_WRITE_MS;
+    if (durationMs > budget && !/^\/api\/v1\/(jobs|cron)\//.test(c.req.path)) log.warn('requisição acima da meta', { method: c.req.method, route: c.req.routePath, status: c.res.status, durationMs, budgetMs: budget });
   });
+
+  // Cache (#111): o que não escolheu um cache público (`http-cache.ts`) sai com `private, no-store`.
+  app.use(defaultNoStore);
 
   // CSRF: toda mutação precisa vir do próprio site (plano B1.2).
   app.use(requireSameOrigin);
+
+  // Área de administração (RNF-08): toda rota `/admin/*`, de qualquer módulo, exige Admin ou Super Admin com 2FA
+  // feito. As alterações bem-sucedidas viram evento de produto (KR de auditoria, #101).
+  // Ações administrativas em massa (#114) são conferidas depois de cada alteração bem-sucedida.
+  app.use('/admin/*', trackAdminMutations, adminArea, watchAdminActions);
 
   for (const module of [...modules, ...(options.extraModules ?? [])]) app.route('/', module);
 
@@ -116,6 +168,11 @@ export function createApp(options: CreateAppOptions = {}) {
       return problemResponse(new HttpProblem(500, 'O servidor está com a configuração incompleta. Avise o suporte.', 'CONFIG_INVALID'), requestId);
     }
     (c.get('log') ?? baseLog).error('erro inesperado', { error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : String(error) });
+    try {
+      deps.reportError(error, { requestId, method: c.req.method, path: c.req.routePath ?? c.req.path });
+    } catch {
+      // O monitoramento nunca derruba a resposta.
+    }
     return problemResponse(new HttpProblem(500, 'Algo deu errado do nosso lado. Tente de novo em instantes.', 'INTERNAL'), requestId);
   });
 

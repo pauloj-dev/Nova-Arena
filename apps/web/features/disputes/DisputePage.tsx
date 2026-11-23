@@ -22,19 +22,16 @@ import { EscalateDialog, ResolveDialog } from './DisputeDecision';
 import { EvidenceGallery } from './evidence/EvidenceGallery';
 import { EvidenceUpload } from '@/features/evidence/EvidenceUpload';
 import { scoreLine } from './scoreForm';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 
 type Message = Dispute['messages'][number];
 
-const ROLE: Record<Message['authorRole'], { label: string; tone: BadgeTone }> = {
-  PARTICIPANT: { label: 'Participante', tone: 'neutral' },
-  STAFF: { label: 'Organização', tone: 'accent' },
-  ADMIN: { label: 'Administração', tone: 'info' },
-};
-
-const STATUS_HELP: Record<Dispute['status'], string> = {
-  OPEN: 'A organização do campeonato está analisando as provas. A tabela não muda até a decisão.',
-  ESCALATED: 'A organização passou a decisão para a administração da Nova Arena. A tabela não muda até a decisão.',
-  RESOLVED: 'Esta disputa foi encerrada.',
+/** Cor do selo de quem escreveu (o nome do papel vem do catálogo: `DisputePage.papel`). */
+const ROLE_TONE: Record<Message['authorRole'], BadgeTone> = {
+  PARTICIPANT: 'neutral',
+  STAFF: 'accent',
+  ADMIN: 'info',
 };
 
 /** Mantém a disputa em dia: decisão/contestação chegam pelo canal do campeonato; mensagens, pela notificação. */
@@ -56,6 +53,7 @@ function useLiveDispute(dispute: Dispute | undefined, userId: string | undefined
 
 /** `/disputas/[id]`: histórico da disputa para os envolvidos, o staff do campeonato e a administração. */
 export function DisputePage({ disputeId }: { disputeId: string }) {
+  const t = useT(messages, 'DisputePage');
   const { user } = useSession();
   const dispute = useDispute(disputeId);
   useLiveDispute(dispute.data, user?.id);
@@ -63,7 +61,7 @@ export function DisputePage({ disputeId }: { disputeId: string }) {
   if (dispute.isPending) {
     return (
       <PageContainer narrow>
-        <div className="flex flex-col gap-4" role="status" aria-label="Carregando a disputa">
+        <div className="flex flex-col gap-4" role="status" aria-label={t('carregando')}>
           <Skeleton className="h-8 w-2/3" />
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-64 w-full" />
@@ -76,12 +74,12 @@ export function DisputePage({ disputeId }: { disputeId: string }) {
     const status = dispute.error instanceof ApiError ? dispute.error.status : 0;
     return (
       <PageContainer narrow>
-        <h1 className="text-xl md:text-2xl">Disputa</h1>
+        <h1 className="text-xl md:text-2xl">{t('titulo')}</h1>
         {status === 403 ? (
           <EmptyState
             icon={<Lock className="size-7" />}
-            title="Você não tem acesso a esta disputa"
-            description="Só quem joga a partida, a organização do campeonato e a administração veem o histórico e as provas."
+            title={t('semAcessoTitulo')}
+            description={t('semAcessoDescricao')}
             action={
               <Button asChild variant="secondary">
                 <Link href="/minha-conta/campeonatos">Meus campeonatos</Link>
@@ -91,8 +89,8 @@ export function DisputePage({ disputeId }: { disputeId: string }) {
         ) : status === 404 ? (
           <EmptyState
             icon={<Scale className="size-7" />}
-            title="Disputa não encontrada"
-            description="O link pode estar incompleto ou a disputa não existe mais."
+            title={t('naoEncontradaTitulo')}
+            description={t('naoEncontradaDescricao')}
             action={
               <Button asChild variant="secondary">
                 <Link href="/minha-conta/campeonatos">Meus campeonatos</Link>
@@ -100,7 +98,7 @@ export function DisputePage({ disputeId }: { disputeId: string }) {
             }
           />
         ) : (
-          <ErrorState title="Não foi possível carregar a disputa" description={errorMessage(dispute.error)} onRetry={() => void dispute.refetch()} />
+          <ErrorState title={t('erro')} description={errorMessage(dispute.error)} onRetry={() => void dispute.refetch()} />
         )}
       </PageContainer>
     );
@@ -110,6 +108,7 @@ export function DisputePage({ disputeId }: { disputeId: string }) {
 }
 
 function DisputeDetail({ dispute }: { dispute: Dispute }) {
+  const t = useT(messages, 'DisputePage');
   const tournament = useTournament(dispute.tournamentId);
   const match = useMatch(dispute.matchId);
   const submission = useSubmission(dispute.submissionId);
@@ -126,18 +125,18 @@ function DisputeDetail({ dispute }: { dispute: Dispute }) {
 
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <h1 className="min-w-0 text-xl [overflow-wrap:anywhere] md:text-2xl">Disputa: {dispute.matchLabel}</h1>
+          <h1 className="min-w-0 text-xl [overflow-wrap:anywhere] md:text-2xl">{t('tituloDisputa', { partida: dispute.matchLabel })}</h1>
           <StatusPill status={dispute.status} />
         </div>
         <p className="text-sm text-muted">
-          {dispute.tournamentName} · {STATUS_HELP[dispute.status]}
+          {dispute.tournamentName} · {t(`ajudaStatus.${dispute.status}`)}
         </p>
       </div>
 
       <Card>
         <section aria-labelledby="disputa-historico" className="flex flex-col gap-4">
           <h2 id="disputa-historico" className="text-lg">
-            Histórico
+            {t('historico')}
           </h2>
           <Timeline dispute={dispute} submission={submission.data} match={match.data} />
         </section>
@@ -176,48 +175,50 @@ function Event({ icon, title, meta, children }: { icon: ReactNode; title: ReactN
 }
 
 function Timeline({ dispute, submission, match }: { dispute: Dispute; submission: ResultSubmission | undefined; match: Match | undefined }) {
-  const [opening, ...messages] = dispute.messages;
+  const t = useT(messages, 'Timeline');
+  const roles = useT(messages, 'DisputePage.papel');
+  const [opening, ...rest] = dispute.messages;
   const official = match && (match.status === 'VALIDATED' || match.status === 'WALKOVER') ? match.participants.map((p) => `${p.name} ${p.score ?? 0}`).join(' x ') : null;
+  const officialText = official ? t.rich('oficial', { resultado: official, strong: (chunks) => <strong className="tabular text-text">{chunks}</strong> }) : null;
+
   return (
-    <ol className="flex flex-col" aria-label="Histórico da disputa">
+    <ol className="flex flex-col" aria-label={t('historico')}>
       {submission && (
-        <Event icon={<Upload className="size-4" />} title="Resultado enviado" meta={`${submission.submittedByNickname} · ${formatDateTime(submission.createdAt)}`}>
+        <Event icon={<Upload className="size-4" />} title={t('enviado')} meta={`${submission.submittedByNickname} · ${formatDateTime(submission.createdAt)}`}>
           <p className="tabular text-lg font-bold text-text [overflow-wrap:anywhere]">{scoreLine(submission, match)}</p>
-          <EvidenceGallery urls={submission.evidenceUrls} label="Print do envio" />
+          <EvidenceGallery urls={submission.evidenceUrls} label={t('printEnvio')} />
         </Event>
       )}
 
-      <Event icon={<AlertTriangle className="size-4" />} title="Resultado contestado" meta={`${dispute.openedByNickname} · ${formatDateTime(dispute.createdAt)}`}>
+      <Event icon={<AlertTriangle className="size-4" />} title={t('contestado')} meta={`${dispute.openedByNickname} · ${formatDateTime(dispute.createdAt)}`}>
         <p className="whitespace-pre-line text-sm text-text [overflow-wrap:anywhere]">{dispute.reason}</p>
-        <EvidenceGallery urls={opening?.evidenceUrls ?? []} label="Prova da contestação" />
+        <EvidenceGallery urls={opening?.evidenceUrls ?? []} label={t('provaContestacao')} />
       </Event>
 
-      {messages.map((m) => (
+      {rest.map((m) => (
         <Event
           key={m.id}
           icon={<MessageSquare className="size-4" />}
           title={
             <>
               {m.authorNickname}
-              <Badge tone={ROLE[m.authorRole].tone}>{ROLE[m.authorRole].label}</Badge>
+              <Badge tone={ROLE_TONE[m.authorRole]}>{roles(m.authorRole)}</Badge>
             </>
           }
           meta={formatDateTime(m.createdAt)}
         >
           <p className="whitespace-pre-line text-sm text-text [overflow-wrap:anywhere]">{m.body}</p>
-          <EvidenceGallery urls={m.evidenceUrls} label="Anexo" />
+          <EvidenceGallery urls={m.evidenceUrls} label={t('anexo')} />
         </Event>
       ))}
 
       {dispute.status === 'RESOLVED' && (
-        <Event icon={<CheckCircle2 className="size-4" />} title="Disputa resolvida" meta={dispute.resolvedAt ? formatDateTime(dispute.resolvedAt) : ''}>
+        <Event icon={<CheckCircle2 className="size-4" />} title={t('resolvida')} meta={dispute.resolvedAt ? formatDateTime(dispute.resolvedAt) : ''}>
           <p className="whitespace-pre-line text-sm text-text [overflow-wrap:anywhere]">{dispute.resolution}</p>
           {official ? (
-            <p className="text-sm text-muted">
-              Resultado oficial: <strong className="tabular text-text">{official}</strong>
-            </p>
+            <p className="text-sm text-muted">{officialText}</p>
           ) : (
-            <p className="text-sm text-muted">Nenhum resultado foi lançado: a partida voltou a aguardar resultado.</p>
+            <p className="text-sm text-muted">{t('nenhumResultado')}</p>
           )}
         </Event>
       )}
@@ -230,6 +231,7 @@ const MessageSchema = DisputeMessageInput.pick({ body: true });
 type MessageValues = z.infer<typeof MessageSchema>;
 
 function MessageBox({ disputeId }: { disputeId: string }) {
+  const t = useT(messages, 'MessageBox');
   const send = useSendDisputeMessage(disputeId);
   const { success, error } = useToast();
   const [evidenceUrls, setEvidenceUrls] = useState<string[]>([]);
@@ -243,22 +245,24 @@ function MessageBox({ disputeId }: { disputeId: string }) {
         onSuccess: () => {
           form.reset({ body: '' });
           setEvidenceUrls([]);
-          success('Mensagem enviada');
+          success(t('enviada'));
         },
-        onError: (e) => error('Não foi possível enviar a mensagem', errorMessage(e)),
+        onError: (e) => error(t('erro'), errorMessage(e)),
       },
     );
   });
 
+  const bodyField = form.register('body');
+
   return (
     <form onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-4" aria-labelledby="disputa-mensagem">
       <h2 id="disputa-mensagem" className="text-lg">
-        Enviar mensagem
+        {t('titulo')}
       </h2>
-      <Textarea label="Mensagem" required rows={3} maxLength={1000} hint="Todos os envolvidos e a organização leem. Mantenha o respeito." error={form.formState.errors.body?.message} {...form.register('body')} />
-      <EvidenceUpload label="Anexos (opcional)" hint="Até 3 imagens PNG, JPG ou WebP de até 5 MB." purpose="evidence" max={3} value={evidenceUrls} onChange={setEvidenceUrls} onBusyChange={setUploading} />
+      <Textarea label={t('mensagem')} required rows={3} maxLength={1000} hint={t('mensagemDica')} error={form.formState.errors.body?.message} {...bodyField} />
+      <EvidenceUpload label={t('anexos')} hint={t('anexosDica')} purpose="evidence" max={3} value={evidenceUrls} onChange={setEvidenceUrls} onBusyChange={setUploading} />
       <Button type="submit" className="self-start" loading={send.isPending} disabled={uploading} iconLeft={<Send className="size-4" aria-hidden />}>
-        Enviar mensagem
+        {t('enviar')}
       </Button>
     </form>
   );
@@ -266,6 +270,7 @@ function MessageBox({ disputeId }: { disputeId: string }) {
 
 // ── Ações do staff e da administração ────────────────────────────────
 function StaffActions({ dispute, access, submission, match }: { dispute: Dispute; access: TournamentAccessLevel; submission: ResultSubmission | undefined; match: Match | undefined }) {
+  const t = useT(messages, 'StaffActions');
   const [dialog, setDialog] = useState<'escalate' | 'resolve' | null>(null);
   const isAdmin = access === 'ADMIN';
   const canResolve = dispute.status === 'OPEN' || isAdmin;
@@ -275,27 +280,27 @@ function StaffActions({ dispute, access, submission, match }: { dispute: Dispute
     <Card>
       <section aria-labelledby="disputa-decisao" className="flex flex-col gap-3">
         <h2 id="disputa-decisao" className="text-lg">
-          Decisão
+          {t('titulo')}
         </h2>
         {canResolve ? (
           <p className="text-sm text-muted">
-            {isAdmin ? 'Como administração, você pode decidir esta disputa.' : 'Analise as provas dos dois lados. Se não der para decidir, passe a disputa para a administração da Nova Arena.'}
+            {isAdmin ? t('admin') : t('organizacao')}
           </p>
         ) : (
           <p className="flex items-start gap-2 text-sm text-muted">
             <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-            Você escalou esta disputa: agora a decisão é da administração da Nova Arena. Você ainda pode mandar mensagens.
+            {t('escalada')}
           </p>
         )}
         <div className="flex flex-wrap gap-2">
           {canResolve && (
             <Button iconLeft={<Scale className="size-4" aria-hidden />} onClick={() => setDialog('resolve')}>
-              Resolver disputa
+              {t('resolver')}
             </Button>
           )}
           {canEscalate && (
             <Button variant="secondary" iconLeft={<ShieldAlert className="size-4" aria-hidden />} onClick={() => setDialog('escalate')}>
-              Escalar para a administração
+              {t('escalar')}
             </Button>
           )}
         </div>

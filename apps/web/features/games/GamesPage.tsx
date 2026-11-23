@@ -5,20 +5,23 @@ import { ChevronRight, Gamepad2 } from 'lucide-react';
 import Link from 'next/link';
 import { errorMessage } from '@/shared/api/client';
 import { useGames } from '@/shared/api/hooks/games';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer } from '@/shared/layout/AreaShell';
+import { messages } from './messages';
 
 /** `/jogos`: grade dos jogos ativos do catálogo. */
 export function GamesPage() {
   const games = useGames();
+  const t = useT(messages, 'GamesPage');
   return (
     <PageContainer>
       <div>
-        <h1 className="text-xl md:text-2xl">Jogos</h1>
-        <p className="mt-1 text-sm text-muted">Veja os modos, como a pontuação funciona e os campeonatos abertos de cada jogo.</p>
+        <h1 className="text-xl md:text-2xl">{t('titulo')}</h1>
+        <p className="mt-1 text-sm text-muted">{t('descricao')}</p>
       </div>
 
       {games.isPending ? (
-        <ul className="grid grid-cols-1 gap-4 xs:grid-cols-2 lg:grid-cols-4" role="status" aria-label="Carregando jogos">
+        <ul className="grid grid-cols-1 gap-4 xs:grid-cols-2 lg:grid-cols-4" role="status" aria-label={t('carregando')}>
           {Array.from({ length: 4 }).map((_, i) => (
             <li key={i}>
               <Skeleton className="h-40 w-full" />
@@ -26,20 +29,20 @@ export function GamesPage() {
           ))}
         </ul>
       ) : games.isError ? (
-        <ErrorState title="Não foi possível carregar os jogos" description={errorMessage(games.error)} onRetry={() => void games.refetch()} />
+        <ErrorState title={t('erro')} description={errorMessage(games.error)} onRetry={() => void games.refetch()} />
       ) : games.data.length === 0 ? (
         <EmptyState
           icon={<Gamepad2 className="size-7" />}
-          title="Nenhum jogo disponível no momento"
-          description="O catálogo está sendo atualizado. Enquanto isso, veja os campeonatos."
+          title={t('vazioTitulo')}
+          description={t('vazioDescricao')}
           action={
             <Link href="/campeonatos" className="font-semibold text-primary-text underline underline-offset-2">
-              Ver campeonatos
+              {t('verCampeonatos')}
             </Link>
           }
         />
       ) : (
-        <ul className="grid grid-cols-1 gap-4 xs:grid-cols-2 lg:grid-cols-4" aria-label="Jogos">
+        <ul className="grid grid-cols-1 gap-4 xs:grid-cols-2 lg:grid-cols-4" aria-label={t('lista')}>
           {games.data.map((g) => (
             <li key={g.id}>
               <Link href={`/jogos/${g.slug}`} className="group block h-full rounded-lg">
@@ -53,7 +56,7 @@ export function GamesPage() {
                   </div>
                   <p className="text-sm text-muted">{g.modes.map((m) => m.name).join(' · ')}</p>
                   <span className="mt-auto flex items-center gap-1 text-sm font-semibold text-primary-text">
-                    Ver jogo
+                    {t('verJogo')}
                     <ChevronRight className="size-4" aria-hidden />
                   </span>
                 </Card>

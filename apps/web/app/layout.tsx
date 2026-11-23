@@ -1,6 +1,12 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import { Inter, JetBrains_Mono, Rajdhani } from 'next/font/google';
+import { CookieBanner } from '@/shared/privacy/CookieBanner';
+import { consentInitScript } from '@/shared/privacy/consent-init';
+import { Measurement } from '@/shared/privacy/Measurement';
 import { themeInitScript } from '@/shared/theme/theme';
+import { getT } from '@/shared/i18n/core';
+import { appMessages } from './messages';
 import { Providers } from './providers';
 import './globals.css';
 
@@ -9,12 +15,18 @@ const rajdhani = Rajdhani({ variable: '--font-rajdhani', subsets: ['latin'], wei
 const inter = Inter({ variable: '--font-inter', subsets: ['latin'], display: 'swap' });
 const jetbrains = JetBrains_Mono({ variable: '--font-jetbrains', subsets: ['latin'], weight: ['600'], display: 'swap' });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
-  title: { default: 'Nova Arena — campeonatos de eSports mobile', template: '%s · Nova Arena' },
-  description: 'Crie, organize e acompanhe campeonatos de Free Fire, Clash Royale, 8 Ball Pool, eFootball e outros jogos.',
-  applicationName: 'Nova Arena',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = getT(appMessages, 'metadata');
+  return {
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
+    title: { default: t('titulo'), template: t('tituloModelo') },
+    description: t('descricao'),
+    applicationName: t('nomeApp'),
+    // PWA no iOS (issue 105): abre em tela cheia pela tela de início, com o nome curto embaixo do ícone.
+    appleWebApp: { capable: true, title: t('nomeApp'), statusBarStyle: 'default' },
+    formatDetection: { telephone: false },
+  };
+}
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -29,17 +41,24 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+export default async function RootLayout({ children }: LayoutProps<'/'>) {
+  // Nonce da CSP desta resposta (gerado no `proxy.ts`, issue #113). Ler o header deixa as páginas sempre dinâmicas:
+  // é o preço do nonce (os dados públicos continuam em cache na API e no `unstable_cache`).
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+  const t = getT(appMessages, 'RootLayout');
   return (
     <html lang="pt-BR" className={`${rajdhani.variable} ${inter.variable} ${jetbrains.variable}`} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: consentInitScript }} />
       </head>
       <body className="min-h-dvh antialiased">
         <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-accent focus:px-4 focus:py-2 focus:text-on-accent">
-          Pular para o conteúdo
+          {t('pularConteudo')}
         </a>
         <Providers>{children}</Providers>
+        <CookieBanner />
+        <Measurement />
       </body>
     </html>
   );

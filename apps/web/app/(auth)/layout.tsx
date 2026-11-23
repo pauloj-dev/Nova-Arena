@@ -1,10 +1,12 @@
 import { Logo } from '@/shared/layout/Logo';
+import { SiteBanner } from '@/shared/layout/SiteBanner';
 
 /** Entrar, cadastrar, recuperar senha e convites: tela limpa, sem navegação. */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-hero">
-      <header className="px-4 py-4 text-white md:px-8">
+    <div className="flex min-h-dvh flex-col bg-hero px-safe">
+      <SiteBanner />
+      <header className="px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 text-white md:px-8">
         <Logo onColor />
       </header>
       <main id="conteudo" className="flex flex-1 items-start justify-center px-4 pb-10 pt-2 md:items-center md:pt-0">

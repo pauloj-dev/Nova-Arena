@@ -1,0 +1,149 @@
+{
+  "comum": {
+    "carregando": "Carregando",
+    "carregandoAlgo": "Carregando {oque}",
+    "tentarDeNovo": "Tentar de novo",
+    "voltarParaInicio": "Voltar para o início",
+    "salvar": "Salvar",
+    "cancelar": "Cancelar",
+    "fechar": "Fechar"
+  },
+  "Forbidden": {
+    "titulo": "Você não tem acesso a esta área",
+    "descricaoArea": "A área {area} é restrita. Se você acha que deveria ter acesso, fale com a administração da Nova Arena.",
+    "descricao": "Esta página é restrita. Se você acha que deveria ter acesso, fale com a administração da Nova Arena.",
+    "erro403": "Erro 403"
+  },
+  "FlagGate": {
+    "titulo": "Página indisponível no momento",
+    "descricao": "Este recurso está desligado pela administração da Nova Arena."
+  },
+  "AreaShell": {
+    "abrirMenu": "Abrir menu",
+    "recolherMenu": "Recolher o menu",
+    "expandirMenu": "Expandir o menu"
+  },
+  "Logo": {
+    "rotulo": "Nova Arena — página inicial",
+    "nome": "NOVA ARENA"
+  },
+  "RequireRole": {
+    "titulo2fa": "Ative a verificação em duas etapas",
+    "descricao2fa": "Para entrar na área de administração é obrigatório proteger sua conta com um aplicativo autenticador.",
+    "configurarAgora": "Configurar agora"
+  },
+  "ComingSoon": {
+    "descricao": "Esta tela faz parte da fase {fase} do plano e ainda não foi construída."
+  },
+  "UnreadAnnouncer": {
+    "aviso": "{novas, plural, =1 {Chegou 1 notificação nova} other {Chegaram {novas} notificações novas}}. Total não lidas: {total}."
+  },
+  "SiteBanner": {
+    "regiao": "Avisos da Nova Arena",
+    "manutencaoEmAndamento": "Manutenção em andamento: ",
+    "manutencaoProgramada": "Manutenção programada: ",
+    "previsaoDeVolta": "Previsão de volta: {fim}.",
+    "periodo": "De {inicio} até {fim}.",
+    "saibaMais": "Saiba mais",
+    "dispensar": "Dispensar o aviso: {titulo}"
+  },
+  "SiteFooter": {
+    "slogan": "Nova Arena · Onde todo campeonato vira história.",
+    "independente": "Plataforma independente, não afiliada às empresas dos jogos.",
+    "rodape": "Rodapé",
+    "links": {
+      "ajuda": "Ajuda",
+      "contato": "Contato",
+      "situacao": "Situação do serviço",
+      "termos": "Termos de Uso",
+      "privacidade": "Privacidade"
+    }
+  },
+  "SiteShell": {
+    "principal": "Principal",
+    "nav": {
+      "campeonatos": "Campeonatos",
+      "jogos": "Jogos",
+      "ranking": "Ranking",
+      "inicio": "Início",
+      "conta": "Conta",
+      "entrar": "Entrar"
+    }
+  },
+  "UserMenu": {
+    "entrar": "Entrar",
+    "criarConta": "Criar conta",
+    "contaDe": "Conta de {nick}",
+    "minhaConta": "Minha conta",
+    "meusCampeonatos": "Meus campeonatos",
+    "meusSquads": "Meus squads",
+    "trocarDeArea": "Trocar de área",
+    "participante": "Participante",
+    "organizacao": "Organização",
+    "administracao": "Administração",
+    "sair": "Sair"
+  },
+  "CookieBanner": {
+    "titulo": "Cookies e medição de uso",
+    "texto": "Usamos só os cookies necessários para você entrar e manter a conta segura. Medimos a velocidade das páginas sem cookies e, com a sua permissão, também as páginas visitadas, de forma anônima. <link>Política de Privacidade</link>",
+    "soONecessario": "Só o necessário",
+    "aceitarMedicao": "Aceitar medição"
+  },
+  "InstallAppButton": {
+    "instalar": "Instalar app",
+    "instaladoTitulo": "App instalado",
+    "instaladoTexto": "A Nova Arena agora abre direto da tela inicial.",
+    "iosTitulo": "Instalar no iPhone ou iPad",
+    "iosDescricao": "Leva menos de 10 segundos, direto pelo Safari.",
+    "passoCompartilhar": "Toque em <strong>Compartilhar</strong> <icone></icone> na barra do Safari.",
+    "passoAdicionarTela": "Role e toque em <strong>Adicionar à Tela de Início</strong> <icone></icone>.",
+    "passoConfirmar": "Confirme em <strong>Adicionar</strong>. O ícone da Nova Arena aparece na sua tela inicial."
+  },
+  "UpdateNotice": {
+    "titulo": "Nova versão disponível",
+    "texto": "Atualize para usar a versão mais recente da Nova Arena.",
+    "depois": "Depois",
+    "atualizar": "Atualizar"
+  },
+  "LiveIndicator": {
+    "reconectando": "Reconectando… atualizando a cada 10 s",
+    "aoVivo": "AO VIVO"
+  },
+  "ThemeToggle": {
+    "usarTemaClaro": "Usar tema claro",
+    "usarTemaEscuro": "Usar tema escuro"
+  },
+  "erros": {
+    "semConexao": "Sem conexão. Confira sua internet e tente de novo.",
+    "generico": "Algo deu errado. Tente de novo em instantes.",
+    "inesperado": "Erro inesperado",
+    "exportarAuditoriaSemPermissao": "Você não tem permissão para exportar a auditoria.",
+    "exportarAuditoria": "Não foi possível exportar a auditoria. Tente de novo.",
+    "baixarCalendario": "Não foi possível baixar o calendário. Tente de novo.",
+    "exportarInscritos": "Não foi possível exportar os inscritos."
+  },
+  "upload": {
+    "tipoInvalido": "Envie uma imagem PNG, JPG ou WebP.",
+    "grandeDemais": "A imagem pode ter no máximo 5 MB.",
+    "prepararImagem": "Não foi possível preparar a imagem neste navegador.",
+    "comprimirImagem": "Não foi possível comprimir a imagem.",
+    "conexaoCaiu": "A conexão caiu durante o envio. Tente de novo.",
+    "cancelado": "O envio foi cancelado.",
+    "entrarParaEnviar": "Entre na sua conta para enviar imagens.",
+    "falhaConfiraConexao": "Não foi possível enviar a imagem. Confira sua conexão e tente de novo.",
+    "falha": "Não foi possível enviar a imagem.",
+    "falhaTenteDeNovo": "Não foi possível enviar a imagem. Tente de novo."
+  },
+  "fusos": {
+    "brasilia": "horário de Brasília",
+    "manaus": "horário de Manaus",
+    "cuiaba": "horário de Cuiabá",
+    "acre": "horário do Acre",
+    "noronha": "horário de Fernando de Noronha",
+    "lisboa": "horário de Lisboa"
+  },
+  "seo": {
+    "comecaEm": "Começa em {data} (horário de Brasília).",
+    "resumo": "{jogo} · {modo} · {vagas} vagas. {quando}"
+  }
+}

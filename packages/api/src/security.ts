@@ -23,8 +23,9 @@ function allowedOrigins(requestUrl: string, env: Env): Set<string> {
  * sem os dois, a mutação é recusada.
  */
 export const requireSameOrigin: MiddlewareHandler<AppEnv> = async (c, next) => {
-  // Jobs do QStash não vêm de navegador: a proteção deles é a assinatura (`requireQStash`).
-  if (MUTATIONS.has(c.req.method) && !c.req.path.startsWith('/api/v1/jobs/')) {
+  // Jobs do QStash e interações do Discord não vêm de navegador: a proteção deles é a assinatura
+  // (`requireQStash` e Ed25519 em `modules/discord`).
+  if (MUTATIONS.has(c.req.method) && !c.req.path.startsWith('/api/v1/jobs/') && c.req.path !== '/api/v1/discord/interactions') {
     const origin = c.req.header('origin') ?? (c.req.header('referer') ? new URL(c.req.header('referer') as string).origin : undefined);
     if (!origin || !allowedOrigins(c.req.url, c.get('env')).has(origin)) {
       throw new HttpProblem(403, 'Requisição recusada: ela não veio do site da Nova Arena.', 'INVALID_ORIGIN');
@@ -62,19 +63,29 @@ export const RULES = {
   confirmPassword: { name: 'confirm-password', tokens: 5, windowSeconds: 300 },
 } satisfies Record<string, RateRule>;
 
-/** Upstash Redis (vale para todas as instâncias da função). */
-export function upstashLimiter(env: Env): RateLimiter {
+/**
+ * Upstash Redis (vale para todas as instâncias da função). Se o Redis falhar (fora do ar, ou o Redis local do
+ * docker-compose, que não roda os scripts do `@upstash/ratelimit`), o limite continua valendo por instância, em
+ * memória: login e cadastro não viram erro 500 por causa do Redis.
+ */
+export function upstashLimiter(env: Env, onFallback: (error: unknown) => void = () => undefined): RateLimiter {
   const redis = new Redis({ url: env.KV_REST_API_URL as string, token: env.KV_REST_API_TOKEN as string });
   const cache = new Map<string, Ratelimit>();
+  const fallback = memoryLimiter();
   return {
     async limit(key, rule) {
       let limiter = cache.get(rule.name);
       if (!limiter) {
-        limiter = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(rule.tokens, `${rule.windowSeconds} s`), prefix: `rl:${rule.name}` });
+        limiter = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(rule.tokens, `${rule.windowSeconds} s`), prefix: `${env.KV_PREFIX ?? ''}rl:${rule.name}` });
         cache.set(rule.name, limiter);
       }
-      const r = await limiter.limit(key);
-      return { success: r.success, reset: r.reset };
+      try {
+        const r = await limiter.limit(key);
+        return { success: r.success, reset: r.reset };
+      } catch (error) {
+        onFallback(error);
+        return fallback.limit(key, rule);
+      }
     },
   };
 }

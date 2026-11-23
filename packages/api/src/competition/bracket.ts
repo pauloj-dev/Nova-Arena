@@ -3,17 +3,48 @@
  * Mesmos campos da API simulada (`apps/web/mocks/competition.ts`); o `id` da partida é o da tabela `matches`.
  */
 import type { Prisma, PrismaClient } from '@nova/db';
-import { computePoints, getMatchStatus, isStageComplete, type MatchNode, type ResultEntry, type Rule } from '@nova/engine';
+import { getMatchStatus, isStageComplete, type MatchNode, type Rule } from '@nova/engine';
 import type { Bracket, Match, MatchParticipant, MatchStatus } from '@nova/schemas';
 import { checkInOf, toStage } from '../modules/tournaments/views';
 import { isComplete, loadRoster } from './check-in';
+import { dropCountOf, entryPoints } from './points';
 import { isLocked, readRun, type StageRun } from './run';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 type StageRow = Prisma.StageGetPayload<{ include: { tournament: true; scoringModel: { select: { rules: true; matchType: true } } } }>;
-type MatchRow = { id: string; nodeId: string; scheduledAt: Date | null; lobbyCodeEnc: string | null; evidenceUrls: string[]; status: MatchStatus; updatedAt: Date; checkIns: { registrationId: string; userId: string }[] };
+type MatchRow = {
+  id: string;
+  nodeId: string;
+  scheduledAt: Date | null;
+  lobbyCodeEnc: string | null;
+  evidenceUrls: string[];
+  status: MatchStatus;
+  updatedAt: Date;
+  checkIns: { registrationId: string; userId: string }[];
+  participants?: { registrationId: string; playerStats: { userId: string; stats: unknown }[] }[];
+};
 /** Colunas da partida que a tela usa (com os check-ins feitos). */
-const matchRowSelect = { id: true, nodeId: true, scheduledAt: true, lobbyCodeEnc: true, evidenceUrls: true, status: true, updatedAt: true, checkIns: { select: { registrationId: true, userId: true } } } as const;
+const matchRowSelect = {
+  id: true,
+  nodeId: true,
+  scheduledAt: true,
+  lobbyCodeEnc: true,
+  evidenceUrls: true,
+  status: true,
+  updatedAt: true,
+  checkIns: { select: { registrationId: true, userId: true } },
+  participants: { select: { registrationId: true, playerStats: { select: { userId: true, stats: true } } } },
+} as const;
+
+/** Kills por jogador (RN-03) de uma inscrição na partida: `userId → kills`. */
+function playerKillsOf(row: MatchRow | undefined, registrationId: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const ps of row?.participants?.find((p) => p.registrationId === registrationId)?.playerStats ?? []) {
+    const kills = (ps.stats as { kills?: unknown } | null)?.kills;
+    if (typeof kills === 'number') out[ps.userId] = kills;
+  }
+  return out;
+}
 interface Named {
   name: string;
   tag: string | null;
@@ -47,15 +78,6 @@ function statusOf(run: StageRun, node: MatchNode, row: MatchRow | undefined, tou
   return 'SCHEDULED';
 }
 
-function entryPoints(entry: ResultEntry, node: MatchNode, result: { winnerId: string | null; draw: boolean }, rules: Rule[], dropCount: number): number {
-  if (node.kind === 'LOBBY') {
-    if (entry.absent) return 0;
-    return computePoints({ kills: entry.kills ?? 0, placement: entry.placement, ...entry.stats }, rules, { matchIndex: node.dropIndex ?? 1, matchCount: dropCount, multiplier: node.multiplier ?? 1 }).total;
-  }
-  const outcome = result.draw ? 'draw' : result.winnerId === entry.entrantId ? 'win' : 'loss';
-  return computePoints({ score: entry.score ?? 0, outcome, ...entry.stats }, rules).total;
-}
-
 function sourceLabel(run: StageRun, source: { matchId: string; outcome: 'winner' | 'loser' } | undefined): string | null {
   if (!source) return null;
   const from = run.structure.matches.find((m) => m.id === source.matchId);
@@ -76,7 +98,7 @@ export function buildMatches(stage: StageRow, run: StageRun, rows: Map<string, M
   return visibleNodes(run).map((node) => {
     const row = rows.get(node.id);
     const result = run.state.results[node.id];
-    const dropCount = node.kind === 'LOBBY' ? run.structure.matches.filter((m) => m.kind === 'LOBBY' && m.groupId === node.groupId).length : 1;
+    const dropCount = dropCountOf(run.structure, node);
     const window = checkInWindow(stage.tournament, row?.scheduledAt ?? null);
     const participants: MatchParticipant[] = node.slots.map((slot) => {
       const entry = result?.entries.find((e) => e.entrantId === slot.entrantId);
@@ -95,12 +117,12 @@ export function buildMatches(stage: StageRow, run: StageRun, rows: Map<string, M
         placement: entry?.placement ?? null,
         kills: entry?.kills ?? null,
         absent: entry?.absent ?? false,
-        points: entry && result && !result.voided ? entryPoints(entry, node, result, rules, dropCount) : null,
+        points: entry && result && !result.voided ? entryPoints(entry, node, result, rules, dropCount).total : null,
         isWinner: result ? (node.kind === 'LOBBY' ? entry?.placement === 1 : result.winnerId === slot.entrantId) : null,
         checkedIn: slot.entrantId ? isComplete(roster.get(slot.entrantId), row?.checkIns ?? [], slot.entrantId) : false,
         checkedInUserIds: slot.entrantId ? (row?.checkIns ?? []).filter((c) => c.registrationId === slot.entrantId).map((c) => c.userId) : [],
         stats,
-        playerKills: {},
+        playerKills: slot.entrantId ? playerKillsOf(row, slot.entrantId) : {},
         status: slot.entrantId ? (run.state.entrantStatus[slot.entrantId] ?? 'ACTIVE') : 'ACTIVE',
       };
     });
@@ -139,8 +161,9 @@ export function buildMatches(stage: StageRow, run: StageRun, rows: Map<string, M
 }
 
 /** Chave da fase. A prévia (antes de confirmar) só aparece para a organização (`includePreview`). */
-export async function buildBracket(db: Db, stage: StageRow, opts: { includePreview: boolean }): Promise<Bracket> {
-  const run = readRun(stage);
+export async function buildBracket(db: Db, stage: StageRow, opts: { includePreview: boolean; run?: StageRun }): Promise<Bracket> {
+  // `run` em memória: prévia que ainda não foi gravada (ex.: a próxima fase no avanço).
+  const run = opts.run ?? readRun(stage);
   const format = toStage(stage).format;
   if (!run || (!run.confirmed && !opts.includePreview)) {
     return { stageId: stage.id, tournamentId: stage.tournamentId, format, state: 'NONE', seeding: null, seedUsed: null, locked: false, rounds: 0, groups: [], entrants: [], matches: [], complete: false };

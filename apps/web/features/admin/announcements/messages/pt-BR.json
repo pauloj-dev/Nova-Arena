@@ -1,0 +1,73 @@
+{
+  "tipos": {
+    "BANNER": {
+      "rotulo": "Banner no topo do site",
+      "dica": "Fica no topo até você desativar (ou até a data final). Quem vê pode dispensar.",
+      "enviar": "Publicar banner"
+    },
+    "NOTIFICATION": {
+      "rotulo": "Notificação",
+      "dica": "Vai uma vez para o sino de cada pessoa do público escolhido.",
+      "enviar": "Enviar notificação"
+    },
+    "MAINTENANCE": {
+      "rotulo": "Aviso de manutenção",
+      "dica": "Aparece no topo 48 horas antes do início. Durante a manutenção, não pode ser dispensado.",
+      "enviar": "Agendar aviso"
+    }
+  },
+  "publicos": {
+    "ALL": "Todos",
+    "ORGANIZERS": "Organizadores",
+    "GAME": "Inscritos de um jogo"
+  },
+  "AnnouncementForm": {
+    "escolhaJogo": "Escolha o jogo",
+    "informeInicio": "Informe quando a manutenção começa",
+    "informeFim": "Informe quando a manutenção termina",
+    "fimDepoisInicio": "O fim precisa ser depois do início",
+    "toastNotificacao": "Notificação enviada",
+    "toastManutencao": "Aviso de manutenção agendado",
+    "toastBanner": "Banner publicado",
+    "toastErro": "Não foi possível criar o comunicado",
+    "titulo": "Novo comunicado",
+    "tipo": "Tipo",
+    "publico": "Público",
+    "jogo": "Jogo",
+    "carregandoJogos": "Carregando jogos…",
+    "jogoDica": "Recebe quem tem inscrição ativa em campeonato do jogo ou segue o jogo.",
+    "tituloCampo": "Título",
+    "mensagem": "Mensagem",
+    "mensagemDica": "{n}/500 caracteres. Texto simples, sem formatação.",
+    "inicioManutencao": "Início da manutenção",
+    "comecaEm": "Começa a aparecer em (opcional)",
+    "fimManutencao": "Fim da manutenção",
+    "someEm": "Some em (opcional)",
+    "fuso": "No seu fuso horário."
+  },
+  "situacao": {
+    "enviada": "Enviada",
+    "desativado": "Desativado",
+    "encerrado": "Encerrado",
+    "emCurso": "Manutenção em curso",
+    "avisoPrevio": "No ar (aviso prévio)",
+    "agendado": "Agendado",
+    "noAr": "No ar"
+  },
+  "AnnouncementsPage": {
+    "titulo": "Comunicados",
+    "descricao": "Fale com a plataforma inteira ou com um grupo: banner no topo do site, notificação no sino ou aviso de manutenção.",
+    "criados": "Comunicados criados",
+    "carregando": "Carregando comunicados",
+    "nenhum": "Nenhum comunicado ainda",
+    "nenhumDescricao": "Crie o primeiro no formulário acima. Banners e avisos de manutenção aparecem no topo do site.",
+    "detalhes": "{tipo} · Público: {publico}{temJogo, select, sim { ({jogo})} other {}} · por {autor}, {quando}",
+    "de": "De {data}",
+    "ate": " até {data}",
+    "ativo": "Ativo",
+    "ativoSr": ": {titulo}",
+    "toastAtivado": "Comunicado ativado",
+    "toastDesativado": "Comunicado desativado",
+    "toastErro": "Não foi possível alterar o comunicado"
+  }
+}

@@ -3,8 +3,8 @@
 import type { Rule } from '@nova/engine';
 import type { Match, ResultEntryInput } from '@nova/schemas';
 import { Badge, Button, Checkbox, cn, Switch, Textarea } from '@nova/ui';
-import { AlertCircle, CheckCircle2, FileUp, ListOrdered, Save, Trophy, UserX } from 'lucide-react';
-import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { AlertCircle, CheckCircle2, FileUp, ListOrdered, Save, ScanText, Trophy, UserX } from 'lucide-react';
+import { useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import {
   applyDraft,
   fillPlacementsInOrder,
@@ -21,6 +21,10 @@ import {
 } from './brDrop';
 import { EvidenceUpload } from '@/features/evidence/EvidenceUpload';
 import { CELL_INPUT } from './fields';
+import { focusOcrConfirm, OcrConfirm, OcrDialog, OcrMark, type OcrValues } from '@/features/ocr/OcrDialog';
+import type { Recognizer } from '@/features/ocr/recognize';
+import { useFormat, useT } from '@/shared/i18n/react';
+import { messages } from '../messages';
 
 export interface BRDropSubmit {
   entries: ResultEntryInput[];
@@ -46,16 +50,25 @@ export interface BRDropFormProps {
   onImportCsv?: () => void;
   /** Envio de imagem (troca nos testes). */
   upload?: (file: File) => Promise<string>;
+  /** Mostra "Ler o print" (flag `resultOcr`, issue 123). */
+  ocrEnabled?: boolean;
+  /** Troca o reconhecimento do print (testes). */
+  recognize?: Recognizer;
 }
 
+/** Valores que vieram do print, por equipe (como texto, para comparar com o que está no campo). */
+type OcrApplied = Record<string, Partial<Record<'placement' | 'kills', string>>>;
+
 type Field = 'placement' | 'kills';
+const PLACEMENT: Field = 'placement';
+const KILLS: Field = 'kills';
 
 /**
  * Lançamento de uma queda de Battle Royale (PRD §15.6, US-ORG-07). Uma linha por squad da sala,
  * com Colocação e Kills; Tab e Enter andam célula a célula, as setas sobem e descem; a coluna
  * "Pontos (prévia)" é calculada pelo motor com o modelo da fase. No celular cada squad vira um cartão.
  */
-export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, members = {}, correction = false, submitting = false, disabled = false, onSubmit, onImportCsv, upload }: BRDropFormProps) {
+export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, members = {}, correction = false, submitting = false, disabled = false, onSubmit, onImportCsv, upload, ocrEnabled = false, recognize }: BRDropFormProps) {
   const [rows, setRows] = useState<DropRow[]>(() => (correction ? rowsFromMatch(match) : applyDraft(rowsFromMatch(match), loadDropDraft(match.id))));
   const [restored] = useState(() => !correction && loadDropDraft(match.id) !== null);
   const [autoSort, setAutoSort] = useState(false);
@@ -65,6 +78,14 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
   const [reason, setReason] = useState('');
   const [draftNote, setDraftNote] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  // Leitura do print (issue 123): o valor fica marcado enquanto a pessoa não o altera, e salvar pede conferência.
+  const [ocrOpen, setOcrOpen] = useState(false);
+  const [ocrApplied, setOcrApplied] = useState<OcrApplied>({});
+  const [ocrChecked, setOcrChecked] = useState(false);
+  const [ocrError, setOcrError] = useState<string | undefined>();
+  const ocrConfirmId = useId();
+  const t = useT(messages, 'BRDropForm');
+  const format = useFormat();
 
   const dropIndex = match.dropIndex ?? match.round;
   const ctx = useMemo(() => ({ rules, dropIndex, dropCount, multiplier: match.multiplier }), [rules, dropIndex, dropCount, match.multiplier]);
@@ -72,6 +93,23 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
   const absentCount = rows.filter((r) => r.absent).length;
   const errorCount = Object.keys(validation.errors).length;
   const reasonMissing = correction && reason.trim().length < 3;
+  const fromPrint = (row: DropRow, field: 'placement' | 'kills') => !row.absent && ocrApplied[row.registrationId]?.[field] !== undefined && ocrApplied[row.registrationId]?.[field] === row[field];
+  const ocrPending = rows.reduce((n, row) => n + (fromPrint(row, 'placement') ? 1 : 0) + (fromPrint(row, 'kills') ? 1 : 0), 0);
+
+  function applyOcr(values: OcrValues) {
+    const applied: OcrApplied = {};
+    for (const [id, v] of Object.entries(values)) {
+      applied[id] = {
+        ...(v.placement !== undefined ? { placement: String(v.placement) } : {}),
+        ...(v.kills !== undefined ? { kills: String(v.kills) } : {}),
+      };
+    }
+    setRows((list) => list.map((row) => (applied[row.registrationId] ? { ...row, ...applied[row.registrationId], absent: false } : row)));
+    setOcrApplied(applied);
+    setOcrChecked(false);
+    setOcrError(undefined);
+    setDraftNote(null);
+  }
 
   function update(registrationId: string, change: Partial<DropRow>) {
     setRows((list) => list.map((row) => (row.registrationId === registrationId ? { ...row, ...change } : row)));
@@ -82,7 +120,7 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
   function fieldError(row: DropRow, field: Field): string | undefined {
     const live = validation.errors[row.registrationId]?.[field];
     if (live) return live;
-    if (attempted && !row.absent && parseCount(row[field]) === null) return field === 'placement' ? 'Informe a colocação' : 'Informe as kills';
+    if (attempted && !row.absent && parseCount(row[field]) === null) return field === 'placement' ? t('informeColocacao') : t('informeKills');
     return undefined;
   }
 
@@ -142,21 +180,26 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
       firstProblemField()?.focus();
       return;
     }
+    if (ocrPending > 0 && !ocrChecked) {
+      setOcrError(t('confirmeOcr'));
+      focusOcrConfirm(ocrConfirmId);
+      return;
+    }
     onSubmit({ entries: toEntries(rows, { killsPerPlayer, members }), evidenceUrls, ...(correction ? { correctionReason: reason.trim() } : {}) });
   }
 
   function saveDraft() {
     const ok = saveDropDraft(match.id, rows);
-    setDraftNote(ok ? 'Rascunho salvo neste aparelho. Ele continua aqui se você recarregar a página.' : 'Não foi possível salvar o rascunho neste navegador.');
+    setDraftNote(ok ? t('rascunhoSalvo') : t('rascunhoErro'));
   }
 
-  const title = [match.stageName, match.groupName, `Queda ${dropIndex} de ${dropCount}`].filter(Boolean).join(' · ');
+  const title = [match.stageName, match.groupName, t('quedaDe', { index: dropIndex, count: dropCount })].filter(Boolean).join(' · ');
 
   return (
     <form
       noValidate
       className="flex flex-col gap-4"
-      aria-label={`Lançamento: ${title}`}
+      aria-label={t('formulario', { title })}
       onSubmit={(event) => {
         event.preventDefault();
         submit();
@@ -168,30 +211,47 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
             {title}
           </h3>
           <p className="text-sm text-muted">
-            {rows.length} {rows.length === 1 ? 'squad' : 'squads'} na sala
-            {match.multiplier > 1 && <> · esta queda vale ×{match.multiplier.toLocaleString('pt-BR')}</>}
-            {correction && <> · corrigindo um resultado já validado</>}
+            {t('squadsNaSala', { count: rows.length })}
+            {match.multiplier > 1 && t('multiplicador', { multiplier: match.multiplier })}
+            {correction && t('corrigindo')}
           </p>
         </div>
-        {onImportCsv && (
-          <Button type="button" variant="secondary" size="sm" iconLeft={<FileUp className="size-4" aria-hidden />} onClick={onImportCsv}>
-            Importar CSV
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {ocrEnabled && !disabled && (
+            <Button type="button" variant="secondary" size="sm" iconLeft={<ScanText className="size-4" aria-hidden />} onClick={() => setOcrOpen(true)}>
+              {t('lerPrint')}
+            </Button>
+          )}
+          {onImportCsv && (
+            <Button type="button" variant="secondary" size="sm" iconLeft={<FileUp className="size-4" aria-hidden />} onClick={onImportCsv}>
+              {t('importarCsv')}
+            </Button>
+          )}
+        </div>
       </div>
+      {ocrEnabled && (
+        <OcrDialog
+          open={ocrOpen}
+          onClose={() => setOcrOpen(false)}
+          kind="drop"
+          candidates={rows.filter((r) => !r.absent).map((r) => ({ registrationId: r.registrationId, name: r.name, tag: r.tag }))}
+          onApply={applyOcr}
+          recognize={recognize}
+        />
+      )}
 
       {restored && (
         <p role="status" className="rounded-md bg-info-soft px-3 py-2 text-sm text-info-soft-text">
-          Recuperamos o rascunho que você salvou para esta queda.
+          {t('rascunhoRecuperado')}
         </p>
       )}
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <Button type="button" variant="secondary" size="sm" disabled={disabled} iconLeft={<ListOrdered className="size-4" aria-hidden />} onClick={() => setRows((list) => fillPlacementsInOrder(list))}>
-          Preencher colocações na ordem
+          {t('preencherOrdem')}
         </Button>
         <Switch
-          label="Ordenar pela colocação"
+          label={t('ordenar')}
           checked={autoSort}
           onCheckedChange={(checked) => {
             setAutoSort(checked);
@@ -201,28 +261,28 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
         />
       </div>
 
-      <div ref={gridRef} role="table" aria-label={`Resultado da ${title}`} className="flex flex-col gap-2 md:gap-0 md:rounded-lg md:border md:border-border">
+      <div ref={gridRef} role="table" aria-label={t('tabela', { title })} className="flex flex-col gap-2 md:gap-0 md:rounded-lg md:border md:border-border">
         <div role="row" className="hidden grid-cols-[minmax(0,1fr)_7rem_7rem_7rem] items-center gap-3 bg-surface-2 px-3 py-2 text-xs font-semibold text-muted md:grid md:rounded-t-lg">
-          <span role="columnheader">Squad</span>
+          <span role="columnheader">{t('squad')}</span>
           <span role="columnheader" className="text-center">
-            Colocação
+            {t('colocacao')}
           </span>
           <span role="columnheader" className="text-center">
-            Kills
+            {t('kills')}
           </span>
           <span role="columnheader" className="text-right">
-            Pontos (prévia)
+            {t('pontosPrevia')}
           </span>
         </div>
         {rows.map((row, index) => {
-          const placementError = fieldError(row, 'placement');
-          const killsError = fieldError(row, 'kills');
+          const placementError = fieldError(row, PLACEMENT);
+          const killsError = fieldError(row, KILLS);
           const playersError = validation.errors[row.registrationId]?.playerKills;
           const points = previewPoints(row, ctx, rows.length);
           const first = !row.absent && parseCount(row.placement) === 1;
           const squad = killsPerPlayer ? (members[row.registrationId] ?? []) : [];
           const errorId = `erro-${row.registrationId}`;
-          const messages = [placementError, killsError, playersError].filter((m): m is string => Boolean(m));
+          const rowErrors = [placementError, killsError, playersError].filter((m): m is string => Boolean(m));
           return (
             <div
               key={row.registrationId}
@@ -239,23 +299,24 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
                   {row.name}
                   {row.tag && <span className="tabular ml-1 text-xs font-normal text-muted">[{row.tag}]</span>}
                 </span>
-                {first && <span className="sr-only">Booyah</span>}
+                {first && <span className="sr-only">{t('booyah')}</span>}
                 {row.absent && (
                   <Badge tone="neutral" icon={<UserX className="size-3.5" aria-hidden />}>
-                    Ausente
+                    {t('ausente')}
                   </Badge>
                 )}
               </div>
               <label role="cell" className="flex flex-col gap-1 text-xs font-medium text-muted">
                 <span className="md:sr-only" aria-hidden>
-                  Colocação
+                  {t('colocacao')}
                 </span>
                 <input
                   data-cell="placement"
-                  aria-label={`Colocação de ${row.name}`}
+                  aria-label={t('colocacaoDe', { name: row.name })}
                   // Abre já na primeira célula: dá para lançar a queda inteira sem tirar a mão do teclado.
                   autoFocus={index === 0 && !correction}
-                  className={CELL_INPUT}
+                  className={cn(CELL_INPUT, fromPrint(row, 'placement') && 'border-warning')}
+                  data-ocr={fromPrint(row, 'placement') ? 'true' : undefined}
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -265,21 +326,23 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
                   value={row.absent ? '' : row.placement}
                   disabled={row.absent || disabled}
                   aria-invalid={placementError ? true : undefined}
-                  aria-describedby={messages.length > 0 ? errorId : undefined}
+                  aria-describedby={rowErrors.length > 0 ? errorId : undefined}
                   onChange={(e) => update(row.registrationId, { placement: e.target.value })}
                   onBlur={() => autoSort && setRows((list) => sortByPlacement(list))}
                   onFocus={(e) => e.currentTarget.select()}
                   onKeyDown={onCellKeyDown}
                 />
+                {fromPrint(row, PLACEMENT) && <OcrMark />}
               </label>
               <label role="cell" className="flex flex-col gap-1 text-xs font-medium text-muted">
                 <span className="md:sr-only" aria-hidden>
-                  Kills
+                  {t('kills')}
                 </span>
                 <input
                   data-cell="kills"
-                  aria-label={`Kills de ${row.name}`}
-                  className={CELL_INPUT}
+                  aria-label={t('killsDe', { name: row.name })}
+                  className={cn(CELL_INPUT, fromPrint(row, 'kills') && 'border-warning')}
+                  data-ocr={fromPrint(row, 'kills') ? 'true' : undefined}
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -289,19 +352,20 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
                   value={row.absent ? '' : row.kills}
                   disabled={row.absent || disabled}
                   aria-invalid={killsError ? true : undefined}
-                  aria-describedby={messages.length > 0 ? errorId : undefined}
+                  aria-describedby={rowErrors.length > 0 ? errorId : undefined}
                   onChange={(e) => update(row.registrationId, { kills: e.target.value })}
                   onFocus={(e) => e.currentTarget.select()}
                   onKeyDown={onCellKeyDown}
                 />
+                {fromPrint(row, KILLS) && <OcrMark />}
               </label>
               <div role="cell" className="col-span-2 flex items-baseline justify-between gap-2 text-sm md:col-span-1 md:justify-end" data-testid="drop-points">
-                <span className="text-xs text-muted md:sr-only">Pontos (prévia)</span>
-                <span className="tabular text-base font-bold text-text">{points === null ? <span className="font-normal text-muted">—</span> : points.toLocaleString('pt-BR')}</span>
+                <span className="text-xs text-muted md:sr-only">{t('pontosPrevia')}</span>
+                <span className="tabular text-base font-bold text-text">{points === null ? <span className="font-normal text-muted">—</span> : format.number(points)}</span>
               </div>
               {squad.length > 0 && !row.absent && (
                 <fieldset className="col-span-2 flex flex-wrap items-end gap-2 md:col-span-4">
-                  <legend className="mb-1 text-xs text-muted">Kills por jogador de {row.name}</legend>
+                  <legend className="mb-1 text-xs text-muted">{t('killsPorJogador', { name: row.name })}</legend>
                   {squad.map((member) => (
                     <label key={member.userId} className="flex w-20 flex-col gap-1 text-xs text-muted">
                       <span className="truncate">{member.nickname}</span>
@@ -312,7 +376,7 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
                         pattern="[0-9]*"
                         autoComplete="off"
                         maxLength={3}
-                        aria-label={`Kills de ${member.nickname} (${row.name})`}
+                        aria-label={t('killsDoJogador', { nickname: member.nickname, name: row.name })}
                         aria-invalid={playersError ? true : undefined}
                         aria-describedby={playersError ? errorId : undefined}
                         disabled={disabled}
@@ -324,9 +388,9 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
                   ))}
                 </fieldset>
               )}
-              {messages.length > 0 && (
+              {rowErrors.length > 0 && (
                 <ul id={errorId} className="col-span-2 flex flex-col gap-0.5 text-xs font-medium text-danger md:col-span-4" data-testid="drop-row-error">
-                  {messages.map((message) => (
+                  {rowErrors.map((message) => (
                     <li key={message} className="flex items-start gap-1">
                       <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                       {message}
@@ -341,12 +405,12 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
 
       <details className="rounded-lg border border-border bg-surface px-3 py-2">
         <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold text-text">
-          Marcar squad ausente{absentCount > 0 ? ` (${absentCount})` : ''}
+          {t('marcarAusente', { count: absentCount })}
         </summary>
-        <p className="text-xs text-muted">Squad ausente não recebe colocação nem pontos nesta queda.</p>
+        <p className="text-xs text-muted">{t('ausenteDica')}</p>
         <div className="grid grid-cols-1 gap-x-4 xs:grid-cols-2 lg:grid-cols-3">
           {rows.map((row) => (
-            <Checkbox key={row.registrationId} label={`${row.name} ausente`} checked={row.absent} disabled={disabled} onCheckedChange={(checked) => update(row.registrationId, { absent: checked })} />
+            <Checkbox key={row.registrationId} label={t('squadAusente', { name: row.name })} checked={row.absent} disabled={disabled} onCheckedChange={(checked) => update(row.registrationId, { absent: checked })} />
           ))}
         </div>
       </details>
@@ -355,14 +419,14 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
 
       {correction && (
         <Textarea
-          label="Motivo da correção"
+          label={t('motivo')}
           required
           rows={2}
           maxLength={500}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          hint="Fica registrado no histórico da partida e na auditoria."
-          error={attempted && reasonMissing ? 'Informe o motivo da correção' : undefined}
+          hint={t('motivoDica')}
+          error={attempted && reasonMissing ? t('motivoErro') : undefined}
         />
       )}
 
@@ -370,17 +434,29 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
         {errorCount > 0 ? (
           <>
             <AlertCircle className="size-4 shrink-0" aria-hidden />
-            {errorCount === 1 ? 'Corrija o squad destacado antes de validar.' : `Corrija os ${errorCount} squads destacados antes de validar.`}
+            {t('corrijaSquads', { count: errorCount })}
           </>
         ) : validation.missing > 0 ? (
-          `${validation.missing === 1 ? 'Falta 1 campo' : `Faltam ${validation.missing} campos`} para validar a queda.`
+          t('faltamCampos', { count: validation.missing })
         ) : (
           <>
             <CheckCircle2 className="size-4 shrink-0 text-primary-soft-text" aria-hidden />
-            Tudo preenchido. Os pontos oficiais são calculados pelo servidor ao validar.
+            {t('tudoPreenchido')}
           </>
         )}
       </p>
+      {ocrPending > 0 && (
+        <OcrConfirm
+          id={ocrConfirmId}
+          count={ocrPending}
+          checked={ocrChecked}
+          onCheckedChange={(checked) => {
+            setOcrChecked(checked);
+            if (checked) setOcrError(undefined);
+          }}
+          error={ocrError}
+        />
+      )}
       {draftNote && (
         <p role="status" className="text-sm text-muted">
           {draftNote}
@@ -390,11 +466,11 @@ export function BRDropForm({ match, rules, dropCount, killsPerPlayer = false, me
       <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end">
         {!correction && (
           <Button type="button" variant="secondary" disabled={disabled} iconLeft={<Save className="size-4" aria-hidden />} onClick={saveDraft}>
-            Salvar rascunho
+            {t('salvarRascunho')}
           </Button>
         )}
         <Button type="submit" loading={submitting} disabled={disabled || uploading} iconLeft={<CheckCircle2 className="size-4" aria-hidden />}>
-          {correction ? 'Salvar correção' : 'Validar queda'}
+          {correction ? t('salvarCorrecao') : t('validarQueda')}
         </Button>
       </div>
     </form>

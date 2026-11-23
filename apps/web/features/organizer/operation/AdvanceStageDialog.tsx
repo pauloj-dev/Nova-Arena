@@ -5,6 +5,8 @@ import { Badge, Button, ErrorState, Modal, Skeleton, useToast } from '@nova/ui';
 import { ArrowRight, CheckCircle2, LifeBuoy } from 'lucide-react';
 import { errorMessage } from '@/shared/api/client';
 import { useAdvancePreview, useAdvanceStage } from '@/shared/api/hooks/competition';
+import { useT } from '@/shared/i18n/react';
+import { messages } from './messages';
 import { seedingContainers } from './stageUtils';
 
 export interface AdvanceStageDialogProps {
@@ -23,6 +25,7 @@ export function AdvanceStageDialog({ stage, nextStage, open, onOpenChange, onAdv
   const preview = useAdvancePreview(stage.id, open);
   const advance = useAdvanceStage(stage.id);
   const { success, error } = useToast();
+  const t = useT(messages, 'AdvanceStageDialog');
   const data = preview.data;
 
   return (
@@ -30,12 +33,12 @@ export function AdvanceStageDialog({ stage, nextStage, open, onOpenChange, onAdv
       open={open}
       onOpenChange={onOpenChange}
       size="lg"
-      title={`Avançar de "${stage.name}" para "${nextStage.name}"`}
-      description="Confira a prévia. Depois de confirmar, você ainda ajusta e confirma a chave da próxima fase."
+      title={t('titulo', { from: stage.name, to: nextStage.name })}
+      description={t('descricao')}
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Voltar
+            {t('voltar')}
           </Button>
           <Button
             loading={advance.isPending}
@@ -44,15 +47,15 @@ export function AdvanceStageDialog({ stage, nextStage, open, onOpenChange, onAdv
             onClick={() =>
               advance.mutate(undefined, {
                 onSuccess: () => {
-                  success('Fase avançada', `Os classificados já estão em "${nextStage.name}". Ajuste e confirme a chave.`);
+                  success(t('sucessoTitulo'), t('sucessoDescricao', { next: nextStage.name }));
                   onOpenChange(false);
                   onAdvanced?.();
                 },
-                onError: (e) => error('Não foi possível avançar a fase', errorMessage(e)),
+                onError: (e) => error(t('erroTitulo'), errorMessage(e)),
               })
             }
           >
-            Confirmar avanço
+            {t('confirmar')}
           </Button>
         </>
       }
@@ -61,7 +64,7 @@ export function AdvanceStageDialog({ stage, nextStage, open, onOpenChange, onAdv
         preview.error ? (
           <ErrorState description={errorMessage(preview.error)} onRetry={() => void preview.refetch()} />
         ) : (
-          <div className="flex flex-col gap-3" role="status" aria-label="Calculando a prévia">
+          <div className="flex flex-col gap-3" role="status" aria-label={t('calculando')}>
             <Skeleton className="h-40 w-full" />
             <Skeleton className="h-24 w-full" />
           </div>
@@ -70,26 +73,26 @@ export function AdvanceStageDialog({ stage, nextStage, open, onOpenChange, onAdv
         <div className="flex flex-col gap-5" data-testid="advance-preview">
           <section className="flex flex-col gap-2" aria-labelledby="avanco-classificados">
             <h3 id="avanco-classificados" className="text-base">
-              Classificados ({data.qualified.length})
+              {t('classificados', { count: data.qualified.length })}
             </h3>
             <ol className="flex flex-col divide-y divide-border rounded-lg border border-border" data-testid="advance-qualified">
               {data.qualified.map((q) => (
                 <li key={q.registrationId} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
                   <span className="tabular w-6 shrink-0 text-center text-xs text-muted">
-                    <span className="sr-only">Cabeça de chave </span>
+                    <span className="sr-only">{t('cabecaDeChave')}</span>
                     {q.seed}
                   </span>
                   <span className="min-w-0 flex-1 font-semibold text-text">{q.name}</span>
                   <span className="text-muted">
-                    {q.groupPosition}º{q.groupName ? ` · ${q.groupName}` : ''}
+                    {q.groupName ? t('posicaoNoGrupo', { position: q.groupPosition, group: q.groupName }) : t('posicao', { position: q.groupPosition })}
                   </span>
                   {q.via === 'REPECHAGE' ? (
                     <Badge tone="info" icon={<LifeBuoy className="size-3.5" aria-hidden />}>
-                      Via repescagem
+                      {t('viaRepescagem')}
                     </Badge>
                   ) : (
                     <Badge tone="primary" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>
-                      Classificado
+                      {t('classificado')}
                     </Badge>
                   )}
                 </li>
@@ -99,14 +102,14 @@ export function AdvanceStageDialog({ stage, nextStage, open, onOpenChange, onAdv
 
           <section className="flex flex-col gap-2" aria-labelledby="avanco-eliminados">
             <h3 id="avanco-eliminados" className="text-base">
-              Eliminados ({data.eliminated.length})
+              {t('eliminados', { count: data.eliminated.length })}
             </h3>
-            {data.eliminated.length === 0 ? <p className="text-sm text-muted">Ninguém é eliminado nesta passagem.</p> : <p className="text-sm text-text">{data.eliminated.map((e) => e.name).join(', ')}</p>}
+            {data.eliminated.length === 0 ? <p className="text-sm text-muted">{t('ninguemEliminado')}</p> : <p className="text-sm text-text">{data.eliminated.map((e) => e.name).join(', ')}</p>}
           </section>
 
           <section className="flex flex-col gap-2" aria-labelledby="avanco-proxima">
             <h3 id="avanco-proxima" className="text-base">
-              Chave de “{nextStage.name}”
+              {t('chaveDe', { name: nextStage.name })}
             </h3>
             <div className="grid grid-cols-1 gap-3 xs:grid-cols-2">
               {seedingContainers(data.next).map((container) => (

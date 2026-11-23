@@ -3,7 +3,9 @@
 import type { AdminStats } from '@nova/schemas';
 import type { ReactNode } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useT } from '@/shared/i18n/react';
 import { formatDayLong, formatDayShort, formatNumber } from '../common/format';
+import { adminDashboardMessages } from './messages';
 
 /**
  * Gráficos do dashboard (Recharts). Série única em cada um: a cor é a do acento da área, vinda dos
@@ -15,6 +17,8 @@ const TOOLTIP_STYLE = { background: 'var(--surface)', border: '1px solid var(--b
 const TOOLTIP_LABEL_STYLE = { color: 'var(--text-muted)', fontWeight: 600 };
 const TOOLTIP_ITEM_STYLE = { color: 'var(--text)' };
 const HEIGHT = 240;
+/** Valor ao lado de cada barra (configuração do Recharts, não texto). */
+const BAR_VALUE_LABEL = { position: 'right', fill: 'var(--text)', fontSize: 12 } as const;
 
 type DailyPoint = AdminStats['signups'][number];
 
@@ -79,6 +83,8 @@ export function DailyBarChart({ data, seriesName, label }: { data: DailyPoint[];
 }
 
 export function GameBarChart({ data, label }: { data: AdminStats['tournamentsByGame']; label: string }) {
+  const t = useT(adminDashboardMessages, 'charts');
+  const series = t('campeonatos');
   return (
     <Frame label={label}>
       <ResponsiveContainer width="100%" height={HEIGHT}>
@@ -86,8 +92,8 @@ export function GameBarChart({ data, label }: { data: AdminStats['tournamentsByG
           <CartesianGrid stroke="var(--border)" horizontal={false} />
           <XAxis type="number" allowDecimals={false} tick={AXIS_TICK} tickLine={false} axisLine={false} />
           <YAxis type="category" dataKey="gameName" tick={{ ...AXIS_TICK, fill: 'var(--text)' }} tickLine={false} axisLine={{ stroke: 'var(--border-strong)' }} width={96} />
-          <Tooltip formatter={(value) => [formatNumber(Number(value)), 'Campeonatos']} contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} cursor={{ fill: 'var(--neutral-soft)' }} />
-          <Bar dataKey="count" name="Campeonatos" fill="var(--accent)" radius={[0, 4, 4, 0]} maxBarSize={28} isAnimationActive={false} label={{ position: 'right', fill: 'var(--text)', fontSize: 12 }} />
+          <Tooltip formatter={(value) => [formatNumber(Number(value)), series]} contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} cursor={{ fill: 'var(--neutral-soft)' }} />
+          <Bar dataKey="count" name={series} fill="var(--accent)" radius={[0, 4, 4, 0]} maxBarSize={28} isAnimationActive={false} label={BAR_VALUE_LABEL} />
         </BarChart>
       </ResponsiveContainer>
     </Frame>

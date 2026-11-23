@@ -4,8 +4,10 @@ import type { Bracket, Match } from '@nova/schemas';
 import { cn, EmptyState, Tabs } from '@nova/ui';
 import { GitBranch } from 'lucide-react';
 import { useCallback, useSyncExternalStore, type ReactNode } from 'react';
+import { useT } from '@/shared/i18n/react';
 import { BracketCanvas } from './BracketCanvas';
 import { eliminationMatches } from './layout';
+import { messages } from './messages';
 import { RoundTabs } from './RoundList';
 import { bracketSides, defaultSide, isEliminationFormat } from './rounds';
 import { RoundsView } from './RoundsView';
@@ -47,6 +49,7 @@ function useIsWide(): boolean {
  * rodada com abas. Formatos sem árvore são entregues ao `RoundsView`.
  */
 export function BracketView({ bracket, mode = 'auto', highlightRegistrationId, onMatchSelect, renderMatchDetail, className, ...slots }: BracketViewProps) {
+  const t = useT(messages, 'BracketView');
   const wide = useIsWide();
   const { select, modal } = useMatchDetail(bracket.matches, onMatchSelect, renderMatchDetail);
 
@@ -56,27 +59,27 @@ export function BracketView({ bracket, mode = 'auto', highlightRegistrationId, o
 
   const matches = eliminationMatches(bracket.matches);
   if (matches.length === 0) {
-    return <EmptyState icon={<GitBranch className="size-7" />} title="A chave ainda não foi gerada" description="Os confrontos aparecem aqui quando a organização gerar e confirmar a chave desta fase." className={className} />;
+    return <EmptyState icon={<GitBranch className="size-7" />} title={t('vazioTitulo')} description={t('vazioDescricao')} className={className} />;
   }
 
   const canvas = mode === 'canvas' || (mode === 'auto' && wide);
   const sides = bracketSides(matches);
-  const label = `Chave com ${matches.length} ${matches.length === 1 ? 'confronto' : 'confrontos'}`;
+  const label = t('rotulo', { count: matches.length });
 
   return (
     <div className={cn('flex flex-col gap-3', className)} data-testid="bracket-view" data-mode={canvas ? 'canvas' : 'list'}>
       {canvas ? (
         <BracketCanvas matches={matches} label={label} highlightRegistrationId={highlightRegistrationId} onMatchSelect={select} {...slots} />
       ) : sides.length === 1 && sides[0] ? (
-        <RoundTabs rounds={sides[0].rounds} label="Rodadas da chave" highlightRegistrationId={highlightRegistrationId} onSelect={select} {...slots} />
+        <RoundTabs rounds={sides[0].rounds} label={t('rodadas')} highlightRegistrationId={highlightRegistrationId} onSelect={select} {...slots} />
       ) : (
         <Tabs
-          label="Lados da chave"
+          label={t('lados')}
           defaultValue={defaultSide(sides, highlightRegistrationId)}
           items={sides.map((side) => ({
             value: side.side,
             label: side.label,
-            content: <RoundTabs rounds={side.rounds} label={`Rodadas: ${side.label}`} highlightRegistrationId={highlightRegistrationId} onSelect={select} {...slots} />,
+            content: <RoundTabs rounds={side.rounds} label={t('rodadasDe', { side: side.label })} highlightRegistrationId={highlightRegistrationId} onSelect={select} {...slots} />,
           }))}
         />
       )}

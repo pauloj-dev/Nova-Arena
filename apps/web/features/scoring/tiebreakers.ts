@@ -1,6 +1,8 @@
 /** Critérios de desempate (PRD §10.6): nomes em pt-BR, quais valem em cada tipo de partida e as regras de ordem. */
 import type { MatchType, Tiebreaker } from '@nova/schemas';
+import { getT } from '@/shared/i18n/core';
 import type { DescribeOptions } from './describe';
+import { messages } from './messages';
 
 /**
  * Todos os critérios que o motor conhece. São os 8 do PRD: `wins`/`booyahs` (nº de vitórias ou de Booyahs)
@@ -17,36 +19,19 @@ export function tiebreakersFor(matchType: MatchType): readonly Tiebreaker[] {
 }
 
 export function tiebreakerLabel(tiebreaker: Tiebreaker, opts: DescribeOptions = {}): string {
+  const t = getT(messages, 'tiebreakers');
   const score = opts.scoreLabel?.trim().toLowerCase();
-  switch (tiebreaker) {
-    case 'points':
-      return 'Pontos totais';
-    case 'wins':
-      return 'Vitórias';
-    case 'booyahs':
-      return 'Booyahs (vitórias na queda)';
-    case 'kills':
-      return 'Total de kills';
-    case 'score':
-      return score ? `Placar feito (${score})` : 'Placar feito (coroas, gols, frames)';
-    case 'avgPlacement':
-      return 'Melhor colocação média';
-    case 'headToHead':
-      return 'Confronto direto';
-    case 'scoreDiff':
-      return score ? `Saldo de ${score}` : 'Saldo do placar';
-    case 'lastDropKills':
-      return 'Kills na última queda';
-    case 'draw':
-      return 'Sorteio';
-  }
+  if (tiebreaker === 'score' && score) return t('scoreDoJogo', { placar: score });
+  if (tiebreaker === 'scoreDiff' && score) return t('scoreDiffDoJogo', { placar: score });
+  return t(tiebreaker);
 }
 
 /** Observação que acompanha alguns critérios na tela. */
 export function tiebreakerHint(tiebreaker: Tiebreaker, matchType?: MatchType): string | null {
-  if (tiebreaker === 'points') return 'Sempre o primeiro critério.';
-  if (tiebreaker === 'draw') return 'Sempre o último; fica registrado na auditoria.';
-  if (matchType && !tiebreakersFor(matchType).includes(tiebreaker)) return 'Não se aplica a este tipo de partida. Desligue para tirar da lista.';
+  const t = getT(messages, 'tiebreakers');
+  if (tiebreaker === 'points') return t('dicaPontos');
+  if (tiebreaker === 'draw') return t('dicaSorteio');
+  if (matchType && !tiebreakersFor(matchType).includes(tiebreaker)) return t('dicaNaoSeAplica');
   return null;
 }
 

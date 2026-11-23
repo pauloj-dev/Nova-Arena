@@ -9,20 +9,23 @@ import { TournamentCard, TournamentCardSkeleton, TournamentGrid } from '@/featur
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useGame } from '@/shared/api/hooks/games';
 import { useTournaments } from '@/shared/api/hooks/tournaments';
+import { useT } from '@/shared/i18n/react';
 import { PageContainer } from '@/shared/layout/AreaShell';
+import { messages } from './messages';
 import { defaultScoringModels, matchTypeText, scoringLines, teamSizeText } from './scoringText';
 
 function NotFound() {
+  const t = useT(messages, 'NotFound');
   return (
     <PageContainer narrow>
-      <h1 className="sr-only">Jogo não encontrado</h1>
+      <h1 className="sr-only">{t('titulo')}</h1>
       <EmptyState
         icon={<Compass className="size-7" />}
-        title="Jogo não encontrado"
-        description="Este jogo não está no catálogo da Nova Arena, ou o link está errado."
+        title={t('titulo')}
+        description={t('descricao')}
         action={
           <Button asChild>
-            <Link href="/jogos">Ver todos os jogos</Link>
+            <Link href="/jogos">{t('verTodos')}</Link>
           </Button>
         }
       />
@@ -32,14 +35,15 @@ function NotFound() {
 
 function OpenTournaments({ slug, gameId, name }: { slug: string; gameId: string; name: string }) {
   const open = useTournaments({ game: slug, status: 'open' }, 8);
+  const t = useT(messages, 'OpenTournaments');
   return (
     <section className="flex flex-col gap-4" aria-labelledby="campeonatos-abertos">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="campeonatos-abertos" className="text-lg">
-          Campeonatos com inscrições abertas
+          {t('titulo')}
         </h2>
         <Link href={listHref({ game: slug })} className="flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-text underline-offset-2 hover:underline">
-          Todos os campeonatos de {name}
+          {t('todosDe', { jogo: name })}
           <ArrowRight className="size-4" aria-hidden />
         </Link>
       </div>
@@ -52,16 +56,16 @@ function OpenTournaments({ slug, gameId, name }: { slug: string; gameId: string;
           ))}
         </TournamentGrid>
       ) : open.isError ? (
-        <ErrorState title="Não foi possível carregar os campeonatos" description={errorMessage(open.error)} onRetry={() => void open.refetch()} />
+        <ErrorState title={t('erro')} description={errorMessage(open.error)} onRetry={() => void open.refetch()} />
       ) : open.data.items.length === 0 ? (
         <EmptyState
           icon={<Trophy className="size-7" />}
-          title={`Nenhum campeonato de ${name} com inscrições abertas`}
-          description="Siga o jogo e a gente avisa quando um campeonato novo abrir inscrições."
+          title={t('vazioTitulo', { jogo: name })}
+          description={t('vazioDescricao')}
           action={<FollowButton type="game" id={gameId} name={name} />}
         />
       ) : (
-        <TournamentGrid label={`Campeonatos de ${name} com inscrições abertas`}>
+        <TournamentGrid label={t('lista', { jogo: name })}>
           {open.data.items.map((t) => (
             <li key={t.id}>
               <TournamentCard tournament={t} />
@@ -76,11 +80,12 @@ function OpenTournaments({ slug, gameId, name }: { slug: string; gameId: string;
 /** `/jogos/[game]`: modos, pontuação padrão explicada e campeonatos abertos do jogo. */
 export function GamePage({ slug }: { slug: string }) {
   const game = useGame(slug);
+  const t = useT(messages, 'GamePage');
 
   if (game.isPending) {
     return (
       <PageContainer>
-        <div role="status" aria-label="Carregando jogo" className="flex flex-col gap-6">
+        <div role="status" aria-label={t('carregando')} className="flex flex-col gap-6">
           <div className="flex items-center gap-4">
             <Skeleton className="size-16" />
             <div className="flex flex-1 flex-col gap-2">
@@ -98,8 +103,8 @@ export function GamePage({ slug }: { slug: string }) {
     if (game.error instanceof ApiError && game.error.status === 404) return <NotFound />;
     return (
       <PageContainer narrow>
-        <h1 className="sr-only">Jogo</h1>
-        <ErrorState title="Não foi possível carregar o jogo" description={errorMessage(game.error)} onRetry={() => void game.refetch()} />
+        <h1 className="sr-only">{t('jogo')}</h1>
+        <ErrorState title={t('erro')} description={errorMessage(game.error)} onRetry={() => void game.refetch()} />
       </PageContainer>
     );
   }
@@ -118,7 +123,7 @@ export function GamePage({ slug }: { slug: string }) {
           </span>
           <div className="min-w-0">
             <h1 className="text-xl break-words md:text-2xl">{g.name}</h1>
-            <p className="text-sm text-muted">Plataforma: {g.platform}</p>
+            <p className="text-sm text-muted">{t('plataforma', { plataforma: g.platform })}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -126,7 +131,7 @@ export function GamePage({ slug }: { slug: string }) {
           <Button asChild variant="secondary">
             <Link href={`/ranking?jogo=${g.slug}`}>
               <Medal className="size-4" aria-hidden />
-              Ver ranking
+              {t('verRanking')}
             </Link>
           </Button>
         </div>
@@ -134,7 +139,7 @@ export function GamePage({ slug }: { slug: string }) {
 
       <section className="flex flex-col gap-3" aria-labelledby="modos">
         <h2 id="modos" className="text-lg">
-          Modos de jogo
+          {t('modos')}
         </h2>
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           {g.modes.map((m) => (
@@ -152,12 +157,12 @@ export function GamePage({ slug }: { slug: string }) {
       <section className="flex flex-col gap-3" aria-labelledby="pontuacao">
         <div>
           <h2 id="pontuacao" className="text-lg">
-            Como a pontuação funciona
+            {t('comoFunciona')}
           </h2>
-          <p className="text-sm text-muted">Estes são os modelos padrão do jogo. Cada campeonato diz, na própria página, qual modelo usa em cada fase.</p>
+          <p className="text-sm text-muted">{t('comoFuncionaDescricao')}</p>
         </div>
         {models.length === 0 ? (
-          <p className="text-sm text-muted">Este jogo ainda não tem um modelo de pontuação padrão. A pontuação é definida em cada campeonato.</p>
+          <p className="text-sm text-muted">{t('semModelo')}</p>
         ) : (
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {models.map((model) => (

@@ -22,6 +22,8 @@ const IGNORE_MARK = 'check-colors-ignore';
 
 // #rgb, #rgba, #rrggbb ou #rrggbbaa. Não casa com entidades HTML (&#123;) nem com âncoras maiores (#secao).
 const HEX = /(?<![\w&])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![\w-])/g;
+// Referência a issue ("issue #109", "PR #148") não é cor.
+const ISSUE_REF = /\b(?:issues?|PRs?|pull request|veja|ver)\s+#$/i;
 const COLOR_FUNCTION = /(?<![\w-])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(/g;
 
 /**
@@ -35,6 +37,9 @@ export function findColorsInSource(source) {
     if (text.includes(IGNORE_MARK) || lines[index - 1]?.includes(IGNORE_MARK)) return;
     for (const pattern of [HEX, COLOR_FUNCTION]) {
       for (const m of text.matchAll(pattern)) {
+        if (pattern === HEX && ISSUE_REF.test(text.slice(0, m.index + 1))) continue;
+        // Só dígitos ("#111") entre parênteses ou num comentário é número de issue ("(#111)", "issues #115 e #116").
+        if (pattern === HEX && /^#\d+$/.test(m[0]) && (text[m.index - 1] === '(' || /^\s*(?:\/\/|\/?\*)/.test(text))) continue;
         found.push({ line: index + 1, column: m.index + 1, match: m[0], text: text.trim() });
       }
     }

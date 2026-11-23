@@ -43,7 +43,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={push}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 top-3 z-[60] flex flex-col items-center gap-2 px-4 md:top-auto md:bottom-6 md:items-end md:pr-6" aria-live="polite" role="status" data-toast-region>
+      <div className="pointer-events-none fixed inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-[60] flex flex-col items-center gap-2 px-4 md:top-auto md:bottom-6 md:items-end md:pr-6" aria-live="polite" role="status" data-toast-region>
         {items.map((t) => {
           const tone = t.tone ?? 'info';
           const Icon = toneIcon[tone];
@@ -54,7 +54,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 <p className="font-semibold">{t.title}</p>
                 {t.description && <p className="mt-0.5">{t.description}</p>}
               </div>
-              <button type="button" aria-label="Fechar aviso" onClick={() => dismiss(t.id)} className="flex size-8 shrink-0 items-center justify-center rounded-md hover:bg-surface/60">
+              <button type="button" aria-label="Fechar aviso" onClick={() => dismiss(t.id)} className="-my-1.5 -mr-2 flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-surface/60 md:m-0 md:size-8">
                 <X className="size-4" aria-hidden />
               </button>
             </div>

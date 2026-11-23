@@ -62,6 +62,7 @@ export const keys = {
   admin: {
     all: ['admin'] as const,
     stats: (params?: Params) => ['admin', 'stats', params ?? {}] as const,
+    metrics: (params?: Params) => ['admin', 'metrics', params ?? {}] as const,
     users: (params?: Params) => ['admin', 'users', params ?? {}] as const,
     user: (id: string) => ['admin', 'user', id] as const,
     admins: ['admin', 'admins'] as const,
@@ -75,9 +76,28 @@ export const keys = {
     flags: ['admin', 'flags'] as const,
     health: ['admin', 'health'] as const,
     announcements: ['admin', 'announcements'] as const,
+    fraudAlerts: (params?: Params) => ['admin', 'fraud-alerts', params ?? {}] as const,
   },
   site: { settings: ['site', 'settings'] as const, banner: ['site', 'banner'] as const, flags: ['site', 'flags'] as const },
+  seasons: {
+    all: ['seasons'] as const,
+    list: (game?: string) => ['seasons', 'list', game ?? ''] as const,
+    ranking: (slug: string, params?: Params) => ['seasons', 'ranking', slug, params ?? {}] as const,
+    userRating: (nickname: string) => ['seasons', 'rating', 'user', nickname.toLowerCase()] as const,
+    teamRating: (id: string) => ['seasons', 'rating', 'team', id] as const,
+  },
+  leagues: {
+    all: ['leagues'] as const,
+    list: (game?: string) => ['leagues', 'list', game ?? ''] as const,
+    detail: (slug: string) => ['leagues', 'detail', slug] as const,
+    mine: ['leagues', 'mine'] as const,
+  },
   twoFactor: ['two-factor'] as const,
   loginMethods: ['login-methods'] as const,
   deviceSessions: ['device-sessions'] as const,
+  // Pós-lançamento (issues 121 e 125)
+  discord: { link: (tournamentId: string) => ['discord', 'link', tournamentId] as const },
+  chat: { match: (matchId: string) => ['chat', matchId] as const },
+  calendar: { mine: ['calendar', 'mine'] as const, tournament: (idOrSlug: string) => ['calendar', 'tournament', idOrSlug] as const },
+  privacy: { deletion: ['privacy', 'deletion'] as const, exports: ['privacy', 'exports'] as const },
 };

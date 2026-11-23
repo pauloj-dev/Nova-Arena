@@ -3,6 +3,8 @@
 import { cn } from '@nova/ui';
 import { MoreHorizontal, type LucideIcon } from 'lucide-react';
 import { DropdownMenu } from 'radix-ui';
+import { useT } from '@/shared/i18n/react';
+import { adminCommonMessages } from './messages';
 
 export interface RowMenuItem {
   label: string;
@@ -16,6 +18,7 @@ export interface RowMenuItem {
 
 /** Menu "Ações" de uma linha de tabela (teclado e leitor de tela pelo Radix). */
 export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] }) {
+  const t = useT(adminCommonMessages, 'RowMenu');
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
@@ -25,7 +28,7 @@ export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] 
           className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-sm font-semibold text-text hover:bg-surface-2 md:min-h-8"
         >
           <MoreHorizontal className="size-4" aria-hidden />
-          Ações
+          {t('acoes')}
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
@@ -36,7 +39,7 @@ export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] 
               disabled={item.disabled}
               onSelect={item.onSelect}
               className={cn(
-                'flex min-h-11 cursor-pointer flex-col justify-center rounded-md px-3 py-1.5 text-sm outline-none data-[highlighted]:bg-neutral-soft data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60',
+                'flex min-h-11 cursor-pointer flex-col justify-center rounded-md px-3 py-1.5 text-sm outline-none data-[highlighted]:bg-neutral-soft data-[highlighted]:outline-2 data-[highlighted]:-outline-offset-2 data-[highlighted]:outline-accent data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60',
                 item.danger && 'text-danger',
               )}
             >

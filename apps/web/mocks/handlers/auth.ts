@@ -1,10 +1,10 @@
 /** Módulo `auth` da API simulada: cadastro, login, sessão, verificação de e-mail e recuperação de senha. */
 import { http } from 'msw';
-import { ChangeEmailInput, ChangePasswordInput, describeDevice, ForgotPasswordInput, LoginInput, OAuthProviderName, RegisterInput, ResetPasswordInput, SetPasswordInput, VerifyEmailInput, weakPasswordReason } from '@nova/schemas';
+import { ChangeEmailInput, ChangePasswordInput, describeDevice, ForgotPasswordInput, LoginInput, OAuthProviderName, RegisterInput, ResetPasswordInput, SetPasswordInput, TwoFactorVerifyInput, VerifyEmailInput, weakPasswordReason } from '@nova/schemas';
 import { db, nowIso, save, setSessionUserId, uid, type DbUser } from '../db';
 import { badRequest, body, conflict, currentUser, handle, HttpProblem, json, noContent, notFound, requireUser, url } from '../http';
 import { toMe } from '../views';
-import { isFlagEnabled } from './admin-settings';
+import { clearTwoFactorLogin, isFlagEnabled, pendingTwoFactorLogin, startTwoFactorLogin, verifyTwoFactorLogin } from './admin-settings';
 
 export const moduleName = 'auth';
 
@@ -95,6 +95,28 @@ export const handlers = [
       // Mesma mensagem para e-mail inexistente e senha errada: não revela quem tem conta.
       if (!user || user.password !== input.password) throw new HttpProblem(401, 'E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
       loginGuard(user);
+      // 2FA ativo (issue #95): a senha só leva ao passo do código, como na API real.
+      if (user.twoFactorEnabled) {
+        startTwoFactorLogin(user);
+        return json({ twoFactorRequired: true }, 202);
+      }
+      user.lastSeenAt = nowIso();
+      save();
+      setSessionUserId(user.id);
+      return json(toMe(user));
+    }),
+  ),
+
+  /** Segundo passo do login: o código do aplicativo ou um de recuperação. */
+  http.post(
+    url('/auth/2fa/verify'),
+    handle(async ({ request }) => {
+      const user = pendingTwoFactorLogin();
+      if (!user) throw new HttpProblem(401, 'O tempo para informar o código acabou. Entre de novo com e-mail e senha.', 'TWO_FACTOR_CHALLENGE_EXPIRED');
+      loginGuard(user);
+      const { code } = await body(request, TwoFactorVerifyInput);
+      if (!(await verifyTwoFactorLogin(user, code))) throw new HttpProblem(400, 'Código incorreto ou vencido. Confira o aplicativo e tente de novo.', 'INVALID_CODE', { code: 'Código incorreto ou vencido.' });
+      clearTwoFactorLogin();
       user.lastSeenAt = nowIso();
       save();
       setSessionUserId(user.id);

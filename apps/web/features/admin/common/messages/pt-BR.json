@@ -1,0 +1,41 @@
+{
+  "papeis": {
+    "SUPER_ADMIN": "Super Admin",
+    "ADMIN": "Administrador",
+    "ORGANIZER": "Organizador",
+    "PARTICIPANT": "Participante"
+  },
+  "statusConta": {
+    "ACTIVE": "Ativo",
+    "SUSPENDED": "Suspenso",
+    "BANNED": "Banido",
+    "MERGED": "Mesclado",
+    "DELETED": "Excluído"
+  },
+  "Pager": {
+    "rotulo": "Paginação",
+    "pagina": "Página {page} de {pageCount}",
+    "total": " · {total} no total",
+    "anterior": "Anterior",
+    "proxima": "Próxima"
+  },
+  "ReasonModal": {
+    "motivo": "Motivo",
+    "opcional": "{rotulo} (opcional)",
+    "informeMotivo": "Informe o motivo",
+    "minimo": "Escreva pelo menos {min} caracteres",
+    "voltar": "Voltar"
+  },
+  "RowMenu": {
+    "acoes": "Ações"
+  },
+  "UserBits": {
+    "organizadorVerificado": "Organizador verificado"
+  },
+  "UserPicker": {
+    "trocar": "Trocar",
+    "dica": "Digite pelo menos 2 letras do apelido ou do e-mail.",
+    "nenhuma": "Nenhuma conta ativa encontrada com “{termo}”.",
+    "resultados": "Resultados para {rotulo}"
+  }
+}

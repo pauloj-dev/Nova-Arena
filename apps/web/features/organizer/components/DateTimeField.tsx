@@ -2,7 +2,9 @@
 
 import { Input } from '@nova/ui';
 import type { ReactNode } from 'react';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime, isoToLocalInput, localInputToIso, timeZoneLabel, userTimeZone } from '@/shared/lib/datetime';
+import { messages } from '../messages';
 
 interface DateTimeFieldProps {
   label: ReactNode;
@@ -22,6 +24,7 @@ interface DateTimeFieldProps {
  * O fuso aparece sempre ao lado do campo (PRD §22, risco R8).
  */
 export function DateTimeField({ label, value, onChange, error, hint, required, disabled, id }: DateTimeFieldProps) {
+  const t = useT(messages, 'DateTimeField');
   const zone = userTimeZone();
   const zoneLabel = timeZoneLabel(zone, value ? new Date(value) : undefined);
   return (
@@ -39,7 +42,7 @@ export function DateTimeField({ label, value, onChange, error, hint, required, d
       hint={
         <>
           {hint ? `${hint} ` : ''}
-          {value ? `Fica assim para quem vê: ${formatDateTime(value, { timeZone: zone })}.` : `Digite no ${zoneLabel}.`}
+          {value ? t('previa', { data: formatDateTime(value, { timeZone: zone }) }) : t('digiteNoFuso', { fuso: zoneLabel })}
         </>
       }
       value={value ? isoToLocalInput(value, zone) : ''}

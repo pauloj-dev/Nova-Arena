@@ -17,6 +17,8 @@ import type { Queue } from './jobs';
 import type { TournamentAccess } from './auth/rbac';
 import type { Mailer } from './mail';
 import type { RateLimiter } from './security';
+import type { Realtime } from './realtime';
+import type { PushSender } from './modules/push/sender';
 
 /** Verificação de uma dependência (banco, Redis, QStash): devolve ok ou lança com o motivo. */
 export type DependencyCheck = (env: Env) => Promise<'ok' | 'not_configured'>;
@@ -43,8 +45,17 @@ export interface Dependencies {
   cache: (env: Env) => Cache;
   /** Fila de jobs agendados (padrão: QStash; sem ele, só log e o Cron cobre). */
   queue: (env: Env, log: Logger) => Queue;
+  /** Tempo real (padrão: Ably pela API REST; sem chave, só log). Publique depois do commit (`publish` de `notify.ts`). */
+  realtime: (env: Env, log: Logger) => Realtime;
+  /** Web Push no PWA (padrão: `web-push` com as chaves VAPID; sem elas, só log). Issue #109. */
+  push: (env: Env, log: Logger) => PushSender;
   /** Avisa as páginas públicas em cache (ISR) que os dados mudaram. Padrão: nada (fora do Next). */
   revalidate: (tags: string[]) => void;
+  /**
+   * Erro inesperado (500) de rota ou job para o monitoramento de erros (issue #116). Padrão: nada; a rota do Next
+   * liga o Sentry quando há `SENTRY_DSN`. Nunca lança.
+   */
+  reportError: (error: unknown, context: Record<string, string | number | null>) => void;
 }
 
 /** Sessão da requisição, carregada sob demanda por `currentUser(c)`. */

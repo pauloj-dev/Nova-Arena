@@ -85,6 +85,7 @@ import {
 import { notify } from '../notify';
 import { followersOf } from './notifications';
 import { toRegistration } from '../views';
+import { entrantRatings } from '../seasons';
 
 export const moduleName = 'competition';
 
@@ -325,6 +326,11 @@ export const handlers = [
       } else {
         if (!['REGISTRATION_CLOSED', 'CHECK_IN', 'IN_PROGRESS'].includes(tournament.status)) throw conflict('Feche as inscrições antes de gerar a chave.', 'REGISTRATION_STILL_OPEN');
         entrants = entrantsFrom(confirmedRegistrations(tournament.id));
+        // Seeding por ranking (#120): na primeira fase, o rating da temporada atual do jogo, quando houver.
+        if (input.seeding === 'RANKED') {
+          const ratings = entrantRatings(tournament.gameId, entrants.map((e) => e.id));
+          entrants = entrants.map((e) => (ratings.has(e.id) ? { ...e, rating: ratings.get(e.id) as number } : e));
+        }
       }
       if (entrants.length < 2) throw conflict('São necessários pelo menos 2 participantes confirmados.', 'NOT_ENOUGH_ENTRANTS');
 

@@ -144,9 +144,25 @@ Excluir a conta **anonimiza**, não apaga o histórico:
 
 | Dado | Tratamento |
 |---|---|
-| `User` | `status = DELETED`; e-mail, nick, avatar, bio, redes e data de nascimento substituídos por valores anônimos (`jogador-removido-<hash>`). |
+| `User` | `status = DELETED` e `deletedAt`; e-mail, nick, avatar, bio, redes, país, fuso e data de nascimento substituídos por valores anônimos: apelido `removido-<8 hex>` (17 caracteres, cabe no limite de 20 do apelido) e e-mail `removido-…@conta-excluida.invalid`. Senha apagada. |
 | Sessões, OAuth, 2FA, tokens, `GameAccount`, preferências, notificações, `Follow` | Apagados. |
 | Arquivos no Blob (avatar, provas enviadas por ele) | Apagados, exceto provas de disputas resolvidas, mantidas pelo prazo de retenção. |
 | Inscrições, partidas, resultados, classificações | Mantidos, apontando para o usuário anonimizado. |
 | `AuditLog`, `ResultEvent` | Mantidos sem alteração (base legal: obrigação de registro e prevenção a fraude). Guardam só o `actorId`, que passa a apontar para o usuário anonimizado. |
 | `Team` em que era capitão | Capitania passa ao membro mais antigo; sem membros, o squad é arquivado. |
+| Papéis, pedidos de organizador, limites, equipe de campeonatos, exportações (`DataExport`) | Papéis de Admin/organizador revogados (o gatilho audita); o resto apagado. Fica só `PARTICIPANT`. |
+| `ProductEvent`, `Report` feito por ele, `Sanction` recebida, `Achievement` | Mantidos, apontando para a conta anonimizada (sem dado de contato). |
+
+Implementação: `anonymizeAccount` em `packages/api/src/privacy.ts` (uma transação, com o registro `ACCOUNT_DELETED`
+na auditoria) e `DELETE /me` em `modules/privacy`. Bloqueios antes de excluir: campeonato em andamento organizado pela
+pessoa, inscrição aberta em campeonato que não terminou e ser o único Super Admin (`GET /me/deletion`).
+
+## Antifraude e LGPD (R2)
+
+| Entidade | Para quê |
+|---|---|
+| `FraudAlert` | Fila de alertas antifraude (#114): `kind` (`MULTI_ACCOUNT_IP`, `MULTI_ACCOUNT_DEVICE`, `DUPLICATE_GAME_ID`, `MASS_ADMIN_ACTION`), `status`, `severity`, `dedupeKey` (um alerta aberto por chave; a repetição soma `occurrences`), contas envolvidas, Admin que disparou e a decisão. |
+| `DataExport` | Exportação LGPD gerada em job (#115): arquivo no Blob privado, só o dono baixa, vale 7 dias (a limpeza diária apaga). |
+| `Session.deviceId` | Aparelho (cookie `na_dev`, UUID aleatório) para o alerta de várias contas no mesmo aparelho. |
+| `GameAccount.externalKey` | ID do jogador normalizado (primeiro campo do jogo) para o alerta de ID repetido. |
+| `User.guardianConsentAt` | Menor de 18 anos: quando declarou a autorização do responsável no cadastro. |

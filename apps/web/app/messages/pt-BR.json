@@ -1,0 +1,181 @@
+{
+  "metadata": {
+    "titulo": "Nova Arena — campeonatos de eSports mobile",
+    "tituloModelo": "%s · Nova Arena",
+    "descricao": "Crie, organize e acompanhe campeonatos de Free Fire, Clash Royale, 8 Ball Pool, eFootball e outros jogos.",
+    "nomeApp": "Nova Arena"
+  },
+  "RootLayout": {
+    "pularConteudo": "Pular para o conteúdo"
+  },
+  "GlobalError": {
+    "titulo": "Algo deu errado por aqui",
+    "descricao": "Não foi você: tivemos um problema ao montar esta página."
+  },
+  "NotFound": {
+    "titulo": "Página não encontrada",
+    "descricao": "O endereço pode ter mudado ou o campeonato pode ter sido arquivado.",
+    "verCampeonatos": "Ver campeonatos",
+    "irParaInicio": "Ir para o início"
+  },
+  "manifest": {
+    "nome": "Nova Arena — campeonatos de eSports mobile",
+    "nomeCurto": "Nova Arena",
+    "descricao": "Crie, organize e acompanhe campeonatos de Free Fire, Clash Royale, 8 Ball Pool, eFootball e outros jogos.",
+    "atalhos": {
+      "campeonatos": "Campeonatos",
+      "campeonatosCurto": "Campeonatos",
+      "meusCampeonatos": "Meus campeonatos",
+      "meusCampeonatosCurto": "Meus",
+      "notificacoes": "Notificações",
+      "notificacoesCurto": "Avisos"
+    }
+  },
+  "SemConexao": {
+    "tituloPagina": "Sem conexão",
+    "titulo": "Você está sem internet",
+    "texto": "Assim que a conexão voltar, a Nova Arena carrega de novo. Tabelas, partidas e a sua conta só aparecem com internet, para estarem sempre atualizadas.",
+    "dicaRede": "Confira o Wi-Fi ou os dados móveis.",
+    "dicaPartida": "Em partida marcada, avise a organização pelo grupo do campeonato se a queda for longa."
+  },
+  "carregando": {
+    "auth": {
+      "cadastro": "o cadastro",
+      "confirmarEmail": "a confirmação de e-mail",
+      "conviteDetalhe": "o convite",
+      "entrar": "a tela de entrar",
+      "recuperarSenha": "a recuperação de senha",
+      "redefinirSenha": "a nova senha",
+      "verificarEmail": "a confirmação de e-mail"
+    },
+    "site": {
+      "ajuda": "a central de ajuda",
+      "arteDoCampeonato": "a arte do resultado",
+      "campeonato": "o campeonato",
+      "campeonatos": "os campeonatos",
+      "contato": "o contato",
+      "disputasDetalhe": "a disputa",
+      "jogosDetalhe": "o jogo",
+      "jogos": "os jogos",
+      "ligasDetalhe": "a liga",
+      "ligas": "as ligas",
+      "inicio": "a página inicial",
+      "manutencao": "a situação do serviço",
+      "minhaContaCampeonatos": "os seus campeonatos",
+      "minhaContaDenuncias": "as suas denúncias",
+      "minhaConta": "a sua conta",
+      "minhaContaNotificacoes": "as preferências de notificação",
+      "minhaContaSeguranca": "a segurança da conta",
+      "minhaContaSquadsDetalhe": "o squad",
+      "minhaContaSquads": "os seus squads",
+      "notificacoes": "as notificações",
+      "privacidade": "a Política de Privacidade",
+      "ranking": "o ranking",
+      "squadsConviteDetalhe": "o convite do squad",
+      "termos": "os Termos de Uso",
+      "perfil": "o perfil"
+    },
+    "admin": {
+      "administradores": "os administradores",
+      "auditoria": "a auditoria",
+      "campeonatos": "os campeonatos",
+      "comunicados": "os comunicados",
+      "configuracoes": "as configurações",
+      "jogosDetalhe": "o jogo",
+      "jogos": "os jogos e regras",
+      "jogosNovo": "o novo jogo",
+      "inicio": "o dashboard",
+      "moderacao": "a moderação",
+      "organizadores": "os organizadores",
+      "saude": "a saúde do sistema",
+      "temporadas": "as temporadas",
+      "usuariosDetalhe": "o usuário",
+      "usuarios": "os usuários"
+    },
+    "organizador": {
+      "campeonatosDetalheEditar": "o assistente do campeonato",
+      "campeonatosDetalhe": "a gestão do campeonato",
+      "campeonatos": "os seus campeonatos",
+      "ligasDetalhe": "a liga",
+      "ligas": "suas ligas",
+      "ligasNova": "o formulário",
+      "inicio": "o painel do organizador",
+      "modelos": "os modelos",
+      "novo": "o assistente de criação"
+    }
+  },
+  "paginas": {
+    "ajuda": {
+      "titulo": "Central de ajuda",
+      "descricao": "Como se inscrever, fazer check-in, o que é W.O., como contestar um resultado e como virar organizador na Nova Arena."
+    },
+    "contato": {
+      "titulo": "Contato",
+      "descricao": "Fale com o suporte da Nova Arena."
+    },
+    "manutencao": {
+      "titulo": "Manutenção",
+      "descricao": "Manutenções programadas e situação do serviço da Nova Arena."
+    },
+    "campeonatos": {
+      "titulo": "Campeonatos",
+      "descricao": "Campeonatos de Free Fire, Clash Royale, 8 Ball Pool e eFootball com inscrições abertas, ao vivo e encerrados.",
+      "carregando": "Carregando campeonatos"
+    },
+    "ranking": {
+      "carregando": "Carregando ranking"
+    },
+    "campeonato": {
+      "tituloPadrao": "Campeonato",
+      "carregando": "Carregando campeonato"
+    },
+    "perfil": {
+      "tituloPadrao": "Perfil",
+      "descricao": "Perfil de {nick} na Nova Arena: campeonatos, squads e resultados.",
+      "tituloCompartilhado": "{nick} · Nova Arena"
+    }
+  },
+  "ImagemDoCampeonato": {
+    "alt": "Campeonato na Nova Arena",
+    "marca": "NOVA ARENA",
+    "tituloPadrao": "Campeonato de eSports mobile",
+    "subtituloPadrao": "Free Fire · Clash Royale · 8 Ball Pool · eFootball",
+    "detalhesPadrao": "Inscreva-se, monte seu squad e acompanhe as partidas",
+    "comeca": "Começa {data}",
+    "vagas": "{ocupadas}/{total} vagas"
+  },
+  "ArteImagem": {
+    "formatoInvalido": "Formato inválido: use paisagem ou quadrada.",
+    "soEncerrado": "Arte disponível só para campeonato encerrado."
+  },
+  "Admin": {
+    "titulo": "Administração",
+    "area": "de administração",
+    "nav": {
+      "dashboard": "Dashboard",
+      "usuarios": "Usuários",
+      "administradores": "Administradores",
+      "organizadores": "Organizadores",
+      "campeonatos": "Campeonatos",
+      "jogos": "Jogos e regras",
+      "temporadas": "Temporadas",
+      "moderacao": "Moderação",
+      "auditoria": "Auditoria",
+      "comunicados": "Comunicados",
+      "configuracoes": "Configurações",
+      "saude": "Saúde do sistema"
+    }
+  },
+  "Organizador": {
+    "titulo": "Organização",
+    "area": "de organização",
+    "nav": {
+      "painel": "Meu painel",
+      "campeonatos": "Meus campeonatos",
+      "criar": "Criar campeonato",
+      "modelos": "Modelos",
+      "ligas": "Ligas",
+      "voltarAoSite": "Voltar ao site"
+    }
+  }
+}

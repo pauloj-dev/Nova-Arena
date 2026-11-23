@@ -10,86 +10,97 @@ import { z } from 'zod';
 import { errorMessage } from '@/shared/api/client';
 import { useExportRegistrations, useReviewRegistration } from '@/shared/api/hooks/organizer';
 import { useTournamentRegistrations } from '@/shared/api/hooks/tournaments';
+import { getT } from '@/shared/i18n/core';
+import { useT } from '@/shared/i18n/react';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { confirmedMembers, registrationKind } from '../lib/csv';
 import { downloadFile } from '../lib/download';
 import { WithdrawDialog } from '../operation/WithdrawDialog';
 import { ImportCsvDialog } from './ImportCsvDialog';
+import { messages } from './messages';
 
 type Filter = 'all' | 'confirmed' | 'pending' | 'waitlist' | 'out';
-const FILTERS: { id: Filter; label: string; statuses: RegistrationStatus[] | null }[] = [
-  { id: 'all', label: 'Todas', statuses: null },
-  { id: 'confirmed', label: 'Confirmadas', statuses: ['CONFIRMED'] },
-  { id: 'pending', label: 'Aguardando', statuses: ['PENDING_APPROVAL', 'PENDING_MEMBERS'] },
-  { id: 'waitlist', label: 'Lista de espera', statuses: ['WAITLIST'] },
-  { id: 'out', label: 'Recusadas e removidas', statuses: ['REJECTED', 'CANCELLED', 'WITHDRAWN', 'DISQUALIFIED'] },
+const FILTERS: { id: Filter; statuses: RegistrationStatus[] | null }[] = [
+  { id: 'all', statuses: null },
+  { id: 'confirmed', statuses: ['CONFIRMED'] },
+  { id: 'pending', statuses: ['PENDING_APPROVAL', 'PENDING_MEMBERS'] },
+  { id: 'waitlist', statuses: ['WAITLIST'] },
+  { id: 'out', statuses: ['REJECTED', 'CANCELLED', 'WITHDRAWN', 'DISQUALIFIED'] },
 ];
 const STATUS_ORDER: RegistrationStatus[] = ['PENDING_APPROVAL', 'PENDING_MEMBERS', 'CONFIRMED', 'WAITLIST', 'REJECTED', 'CANCELLED', 'WITHDRAWN', 'DISQUALIFIED'];
 const BEFORE_START = ['PUBLISHED', 'REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'CHECK_IN'];
 const STARTED = ['IN_PROGRESS', 'PAUSED'];
 
-const ReasonInput = z.object({ reason: z.string().trim().min(3, 'Informe o motivo (pelo menos 3 letras)').max(300, 'Use no máximo 300 caracteres') });
-type ReasonForm = z.infer<typeof ReasonInput>;
+/** Validação do motivo; as mensagens vêm do catálogo, por isso o schema é montado na hora. */
+function reasonInput() {
+  const t = getT(messages, 'RegistrationReasonDialog');
+  return z.object({ reason: z.string().trim().min(3, t('motivoMinimo')).max(300, t('motivoMaximo')) });
+}
+type ReasonForm = z.infer<ReturnType<typeof reasonInput>>;
 
 type Action = { kind: 'reject' | 'remove' | 'replace' | 'withdraw'; registration: Registration } | null;
 
 function ReasonDialog({ action, loading, onClose, onSubmit }: { action: Exclude<Action, null>; loading: boolean; onClose: () => void; onSubmit: (reason: string) => void }) {
-  const form = useForm<ReasonForm>({ resolver: zodResolver(ReasonInput), defaultValues: { reason: '' } });
+  const t = useT(messages, 'RegistrationReasonDialog');
+  const [schema] = useState(reasonInput);
+  const form = useForm<ReasonForm>({ resolver: zodResolver(schema), defaultValues: { reason: '' } });
   const name = action.registration.displayName;
   const isReject = action.kind === 'reject';
-  const verb = isReject ? 'Recusar' : 'Remover';
+  const acao = isReject ? 'reject' : 'remove';
+  const reasonField = form.register('reason');
   return (
     <Modal
       open
       onOpenChange={(open) => !open && onClose()}
-      title={`${verb} ${name}?`}
+      title={t('titulo', { acao, nome: name })}
       description={
         isReject
-          ? 'A inscrição é recusada e a pessoa fica sabendo o motivo.'
-          : 'A vaga é liberada e, se houver lista de espera, o primeiro da fila assume.'
+          ? t('descricaoRecusar')
+          : t('descricaoRemover')
       }
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Voltar
+            {t('voltar')}
           </Button>
           <Button variant="danger" type="submit" form="motivo-inscricao" loading={loading}>
-            {verb} inscrição
+            {t('confirmar', { acao })}
           </Button>
         </>
       }
     >
       <form id="motivo-inscricao" noValidate onSubmit={(event) => void form.handleSubmit(({ reason }) => onSubmit(reason))(event)}>
-        <Textarea label="Motivo" required rows={3} maxLength={300} autoFocus hint="Quem se inscreveu vê este texto." error={form.formState.errors.reason?.message} {...form.register('reason')} />
+        <Textarea label={t('motivo')} required rows={3} maxLength={300} autoFocus hint={t('motivoDica')} error={form.formState.errors.reason?.message} {...reasonField} />
       </form>
     </Modal>
   );
 }
 
 function ReplaceDialog({ action, waitlist, loading, onClose, onSubmit }: { action: Exclude<Action, null>; waitlist: Registration[]; loading: boolean; onClose: () => void; onSubmit: (withRegistrationId: string) => void }) {
+  const t = useT(messages, 'RegistrationReplaceDialog');
   const [chosen, setChosen] = useState(waitlist[0]?.id ?? '');
   return (
     <Modal
       open
       onOpenChange={(open) => !open && onClose()}
-      title={`Substituir ${action.registration.displayName}`}
-      description="Quem você escolher sai da lista de espera e assume a vaga. A inscrição substituída é cancelada."
+      title={t('titulo', { nome: action.registration.displayName })}
+      description={t('descricao')}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Voltar
+            {t('voltar')}
           </Button>
           <Button loading={loading} disabled={!chosen} onClick={() => onSubmit(chosen)}>
-            Substituir
+            {t('substituir')}
           </Button>
         </>
       }
     >
       <Select
-        label="Quem entra no lugar"
+        label={t('quemEntra')}
         value={chosen}
         onChange={(e) => setChosen(e.target.value)}
-        options={waitlist.map((r) => ({ value: r.id, label: `${r.waitlistPosition ?? '–'}º da fila · ${r.displayName}${r.tag ? ` [${r.tag}]` : ''}` }))}
+        options={waitlist.map((r) => ({ value: r.id, label: r.tag ? t('opcaoComTag', { posicao: r.waitlistPosition ?? '–', nome: r.displayName, tag: r.tag }) : t('opcao', { posicao: r.waitlistPosition ?? '–', nome: r.displayName }) }))}
       />
     </Modal>
   );
@@ -97,19 +108,21 @@ function ReplaceDialog({ action, waitlist, loading, onClose, onSubmit }: { actio
 
 function Counter({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-3">
-      <dd className="tabular text-2xl font-bold text-text">{value}</dd>
-      <dt className="text-sm text-muted">{label}</dt>
-      {hint && <p className="text-xs text-muted">{hint}</p>}
+    // Leitor de tela: rótulo, número e detalhe (dt antes dos dd); na tela o número vem em cima.
+    <div className="flex flex-col rounded-lg border border-border bg-surface p-3">
+      <dt className="order-2 text-sm text-muted">{label}</dt>
+      <dd className="order-1 tabular text-2xl font-bold text-text">{value}</dd>
+      {hint && <dd className="order-3 text-xs text-muted">{hint}</dd>}
     </div>
   );
 }
 
 /** Aba Inscrições (issue #30): lista, filtros, contadores, aprovar/recusar/remover/substituir, lista de espera e CSV. */
-export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTournamentDetail }) {
-  const query = useTournamentRegistrations(t.id, 'all');
-  const review = useReviewRegistration(t.id);
-  const exporter = useExportRegistrations(t.id);
+export function RegistrationsTab({ tournament }: { tournament: OrganizerTournamentDetail }) {
+  const t = useT(messages, 'RegistrationsTab');
+  const query = useTournamentRegistrations(tournament.id, 'all');
+  const review = useReviewRegistration(tournament.id);
+  const exporter = useExportRegistrations(tournament.id);
   const { success, error } = useToast();
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<SortState | null>(null);
@@ -118,10 +131,10 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
   const [importOpen, setImportOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  const isModerator = t.access === 'MODERATOR';
-  const beforeStart = BEFORE_START.includes(t.status);
-  const started = STARTED.includes(t.status);
-  const isTeam = t.participantType === 'TEAM';
+  const isModerator = tournament.access === 'MODERATOR';
+  const beforeStart = BEFORE_START.includes(tournament.status);
+  const started = STARTED.includes(tournament.status);
+  const isTeam = tournament.participantType === 'TEAM';
   const all = useMemo(() => query.data ?? [], [query.data]);
   const waitlist = useMemo(() => all.filter((r) => r.status === 'WAITLIST').sort((a, b) => (a.waitlistPosition ?? 0) - (b.waitlistPosition ?? 0)), [all]);
   const count = (...statuses: RegistrationStatus[]) => all.filter((r) => statuses.includes(r.status)).length;
@@ -142,7 +155,7 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
   function notifyPromoted(promoted: Registration[]) {
     if (promoted.length === 0) return undefined;
     const names = promoted.map((p) => p.displayName).join(', ');
-    return promoted.length === 1 ? `${names} saiu da lista de espera e ficou com a vaga.` : `Saíram da lista de espera: ${names}.`;
+    return promoted.length === 1 ? t('promovido', { nomes: names }) : t('promovidos', { nomes: names });
   }
 
   function run(registration: Registration, input: Parameters<typeof review.mutate>[0]['input'], done: string) {
@@ -154,7 +167,7 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
           setAction(null);
           setSelected((list) => list.filter((id) => id !== registration.id));
         },
-        onError: (e) => error('Não foi possível concluir', errorMessage(e)),
+        onError: (e) => error(t('erroConcluir'), errorMessage(e)),
       },
     );
   }
@@ -175,19 +188,19 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
     }
     setBulkBusy(false);
     setSelected([]);
-    if (ok > 0) success(ok === 1 ? '1 inscrição aprovada' : `${ok} inscrições aprovadas`);
-    if (failed) error('Nem todas foram aprovadas', failed);
+    if (ok > 0) success(t('aprovadas', { count: ok }));
+    if (failed) error(t('erroAprovarTodas'), failed);
   }
 
-  if (t.status === 'DRAFT') {
-    return <EmptyState icon={<ClipboardList className="size-7" />} title="As inscrições começam depois de publicar" description="Enquanto o campeonato é um rascunho, ninguém consegue se inscrever." />;
+  if (tournament.status === 'DRAFT') {
+    return <EmptyState icon={<ClipboardList className="size-7" />} title={t('rascunhoTitulo')} description={t('rascunhoDescricao')} />;
   }
   if (!query.data && query.error) return <ErrorState description={errorMessage(query.error)} onRetry={() => void query.refetch()} />;
 
   const columns: Column<Registration>[] = [
     {
       id: 'name',
-      header: isTeam ? 'Squad' : 'Jogador',
+      header: t('colunaNome', { tipo: isTeam ? 'team' : 'solo' }),
       primary: true,
       sortable: true,
       cell: (r) => (
@@ -197,53 +210,53 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
         </span>
       ),
     },
-    { id: 'kind', header: 'Tipo', cell: (r) => registrationKind(r) },
+    { id: 'kind', header: t('colunaTipo'), cell: (r) => registrationKind(r) },
     {
       id: 'status',
-      header: 'Status',
+      header: t('colunaStatus'),
       sortable: true,
       cell: (r) => (
         <span className="flex flex-col items-start gap-1">
-          <StatusPill status={r.status === 'CANCELLED' ? 'CANCELLED' : r.status} label={r.status === 'CANCELLED' ? 'Removida' : r.status === 'WAITLIST' && r.waitlistPosition ? `Lista de espera · ${r.waitlistPosition}º` : undefined} />
-          {r.statusReason && <span className="text-xs whitespace-normal text-muted">Motivo: {r.statusReason}</span>}
+          <StatusPill status={r.status === 'CANCELLED' ? 'CANCELLED' : r.status} label={r.status === 'CANCELLED' ? t('removida') : r.status === 'WAITLIST' && r.waitlistPosition ? t('listaEsperaPosicao', { posicao: r.waitlistPosition }) : undefined} />
+          {r.statusReason && <span className="text-xs whitespace-normal text-muted">{t('motivo', { motivo: r.statusReason })}</span>}
         </span>
       ),
     },
-    { id: 'members', header: 'Membros confirmados', cell: (r) => (r.teamId ? `${confirmedMembers(r)} de ${r.requiredMembers}` : '—') },
-    { id: 'date', header: 'Inscrição em', sortable: true, cell: (r) => formatDateTime(r.createdAt, { withZone: false }) },
+    { id: 'members', header: t('colunaMembros'), cell: (r) => (r.teamId ? t('membros', { confirmados: confirmedMembers(r), exigidos: r.requiredMembers }) : '—') },
+    { id: 'date', header: t('colunaData'), sortable: true, cell: (r) => formatDateTime(r.createdAt, { withZone: false }) },
   ];
 
   function rowActions(r: Registration) {
     const buttons = [];
     if (beforeStart && r.status === 'PENDING_APPROVAL') {
       buttons.push(
-        <Button key="approve" size="sm" loading={review.isPending && review.variables?.registrationId === r.id} iconLeft={<Check className="size-4" aria-hidden />} aria-label={`Aprovar ${r.displayName}`} onClick={() => run(r, { action: 'approve' }, `${r.displayName} aprovado`)}>
-          Aprovar
+        <Button key="approve" size="sm" loading={review.isPending && review.variables?.registrationId === r.id} iconLeft={<Check className="size-4" aria-hidden />} aria-label={t('aprovarRotulo', { nome: r.displayName })} onClick={() => run(r, { action: 'approve' }, t('aprovado', { nome: r.displayName }))}>
+          {t('aprovar')}
         </Button>,
-        <Button key="reject" size="sm" variant="secondary" iconLeft={<X className="size-4" aria-hidden />} aria-label={`Recusar ${r.displayName}`} onClick={() => setAction({ kind: 'reject', registration: r })}>
-          Recusar
+        <Button key="reject" size="sm" variant="secondary" iconLeft={<X className="size-4" aria-hidden />} aria-label={t('recusarRotulo', { nome: r.displayName })} onClick={() => setAction({ kind: 'reject', registration: r })}>
+          {t('recusar')}
         </Button>,
       );
     }
     if (!isModerator && beforeStart && r.status === 'CONFIRMED' && waitlist.length > 0) {
       buttons.push(
-        <Button key="replace" size="sm" variant="secondary" iconLeft={<Replace className="size-4" aria-hidden />} aria-label={`Substituir ${r.displayName}`} onClick={() => setAction({ kind: 'replace', registration: r })}>
-          Substituir
+        <Button key="replace" size="sm" variant="secondary" iconLeft={<Replace className="size-4" aria-hidden />} aria-label={t('substituirRotulo', { nome: r.displayName })} onClick={() => setAction({ kind: 'replace', registration: r })}>
+          {t('substituir')}
         </Button>,
       );
     }
     if (!isModerator && beforeStart && (r.status === 'CONFIRMED' || r.status === 'PENDING_MEMBERS' || r.status === 'WAITLIST')) {
       buttons.push(
-        <Button key="remove" size="sm" variant="ghost" iconLeft={<UserMinus className="size-4" aria-hidden />} aria-label={`Remover ${r.displayName}`} onClick={() => setAction({ kind: 'remove', registration: r })}>
-          Remover
+        <Button key="remove" size="sm" variant="ghost" iconLeft={<UserMinus className="size-4" aria-hidden />} aria-label={t('removerRotulo', { nome: r.displayName })} onClick={() => setAction({ kind: 'remove', registration: r })}>
+          {t('remover')}
         </Button>,
       );
     }
     // Com o campeonato em andamento a saída é desistência ou desclassificação, com motivo (RN-06). Moderador não desclassifica.
     if (!isModerator && started && r.status === 'CONFIRMED') {
       buttons.push(
-        <Button key="withdraw" size="sm" variant="ghost" iconLeft={<UserMinus className="size-4" aria-hidden />} aria-label={`Desclassificar ou registrar desistência de ${r.displayName}`} onClick={() => setAction({ kind: 'withdraw', registration: r })}>
-          Desclassificar
+        <Button key="withdraw" size="sm" variant="ghost" iconLeft={<UserMinus className="size-4" aria-hidden />} aria-label={t('desclassificarRotulo', { nome: r.displayName })} onClick={() => setAction({ kind: 'withdraw', registration: r })}>
+          {t('desclassificar')}
         </Button>,
       );
     }
@@ -252,28 +265,28 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
 
   return (
     <div className="flex flex-col gap-5">
-      <dl className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="Resumo das inscrições">
-        <Counter label="Confirmadas" value={String(count('CONFIRMED'))} />
-        <Counter label="Aguardando" value={String(count('PENDING_APPROVAL', 'PENDING_MEMBERS'))} hint={`${count('PENDING_APPROVAL')} aprovação · ${count('PENDING_MEMBERS')} membros`} />
-        <Counter label="Lista de espera" value={String(waitlist.length)} hint={t.waitlistEnabled ? undefined : 'Desligada'} />
-        <Counter label="Vagas ocupadas" value={`${count('CONFIRMED', 'PENDING_APPROVAL', 'PENDING_MEMBERS')}/${t.maxParticipants}`} />
+      <dl className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label={t('resumo')}>
+        <Counter label={t('confirmadas')} value={String(count('CONFIRMED'))} />
+        <Counter label={t('aguardando')} value={String(count('PENDING_APPROVAL', 'PENDING_MEMBERS'))} hint={t('aguardandoDica', { aprovacao: count('PENDING_APPROVAL'), membros: count('PENDING_MEMBERS') })} />
+        <Counter label={t('listaEspera')} value={String(waitlist.length)} hint={tournament.waitlistEnabled ? undefined : t('desligada')} />
+        <Counter label={t('vagasOcupadas')} value={`${count('CONFIRMED', 'PENDING_APPROVAL', 'PENDING_MEMBERS')}/${tournament.maxParticipants}`} />
       </dl>
 
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <Select
           className="md:w-64"
-          label="Mostrar"
+          label={t('mostrar')}
           value={filter}
           onChange={(e) => {
             setFilter(e.target.value as Filter);
             setSelected([]);
           }}
-          options={FILTERS.map((f) => ({ value: f.id, label: `${f.label} (${f.statuses ? count(...f.statuses) : all.length})` }))}
+          options={FILTERS.map((f) => ({ value: f.id, label: t(`filtros.${f.id}`, { count: f.statuses ? count(...f.statuses) : all.length }) }))}
         />
         <div className="flex flex-wrap gap-2">
           {!isModerator && beforeStart && (
             <Button variant="secondary" iconLeft={<FileUp className="size-4" aria-hidden />} onClick={() => setImportOpen(true)}>
-              Importar CSV
+              {t('importarCsv')}
             </Button>
           )}
           <Button
@@ -285,44 +298,44 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
               exporter.mutate(undefined, {
                 onSuccess: ({ blob, filename }) => {
                   downloadFile(blob, filename);
-                  success('Exportação pronta', 'O arquivo abre direto no Excel.');
+                  success(t('exportacaoPronta'), t('exportacaoDescricao'));
                 },
-                onError: (e) => error('Não foi possível exportar', errorMessage(e)),
+                onError: (e) => error(t('erroExportar'), errorMessage(e)),
               })
             }
           >
-            Exportar CSV
+            {t('exportarCsv')}
           </Button>
         </div>
       </div>
 
       {started && !isModerator && (
         <p className="rounded-md bg-info-soft px-3 py-2 text-sm text-info-soft-text" data-testid="started-note">
-          Com a fase em andamento não dá mais para substituir nem remover inscritos: a substituição vale até a chave ser confirmada. Para tirar alguém, registre a desistência ou desclassifique, com motivo.
+          {t('emAndamento')}
         </p>
       )}
 
       <DataTable
-        caption={`Inscrições de ${t.name}`}
+        caption={t('legenda', { nome: tournament.name })}
         columns={columns}
         rows={rows}
         getRowId={(r) => r.id}
         loading={query.isPending}
         sort={sort}
         onSortChange={setSort}
-        selected={beforeStart && t.manualApproval ? selected : undefined}
-        onSelectedChange={beforeStart && t.manualApproval ? setSelected : undefined}
+        selected={beforeStart && tournament.manualApproval ? selected : undefined}
+        onSelectedChange={beforeStart && tournament.manualApproval ? setSelected : undefined}
         bulkActions={
           <Button size="sm" loading={bulkBusy} disabled={selectedPending.length === 0} iconLeft={<Check className="size-4" aria-hidden />} onClick={() => void approveSelected()}>
-            {selectedPending.length === 0 ? 'Nenhuma aguardando aprovação' : selectedPending.length === 1 ? 'Aprovar 1 selecionada' : `Aprovar ${selectedPending.length} selecionadas`}
+            {t('aprovarSelecionadas', { count: selectedPending.length })}
           </Button>
         }
         rowActions={rowActions}
         empty={
           <EmptyState
             icon={<ClipboardList className="size-7" />}
-            title={filter === 'all' ? 'Ninguém se inscreveu ainda' : 'Nenhuma inscrição neste filtro'}
-            description={filter === 'all' ? 'Compartilhe o link da página pública. Quem se inscrever aparece aqui.' : 'Troque o filtro para ver as outras inscrições.'}
+            title={filter === 'all' ? t('vazioTitulo') : t('filtroVazioTitulo')}
+            description={filter === 'all' ? t('vazioDescricao') : t('filtroVazioDescricao')}
           />
         }
       />
@@ -330,11 +343,11 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
       {waitlist.length > 0 && (
         <Card className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg">Lista de espera</h2>
-            <Badge tone="info">{waitlist.length} na fila</Badge>
+            <h2 className="text-lg">{t('listaEspera')}</h2>
+            <Badge tone="info">{t('naFila', { count: waitlist.length })}</Badge>
           </div>
-          <p className="text-sm text-muted">Quando uma vaga é liberada, o primeiro da fila assume sozinho{t.manualApproval ? ' (e entra aguardando a sua aprovação)' : ''}.</p>
-          <ol className="flex flex-col gap-2" aria-label="Lista de espera, em ordem">
+          <p className="text-sm text-muted">{t('esperaExplicacao', { manual: tournament.manualApproval ? 'sim' : 'nao' })}</p>
+          <ol className="flex flex-col gap-2" aria-label={t('listaEsperaOrdem')}>
             {waitlist.map((r) => (
               <li key={r.id} className="flex items-center gap-3 rounded-md border border-border p-3 text-sm">
                 <span className="tabular flex size-7 shrink-0 items-center justify-center rounded-full bg-info-soft font-bold text-info-soft-text">{r.waitlistPosition}</span>
@@ -342,7 +355,7 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
                   <span className="font-semibold text-text">{r.displayName}</span>
                   {r.tag && <span className="tabular text-xs text-muted"> [{r.tag}]</span>}
                 </span>
-                <span className="shrink-0 text-xs text-muted">desde {formatDateTime(r.createdAt, { withZone: false })}</span>
+                <span className="shrink-0 text-xs text-muted">{t('desde', { data: formatDateTime(r.createdAt, { withZone: false }) })}</span>
               </li>
             ))}
           </ol>
@@ -356,7 +369,7 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
           loading={review.isPending}
           onClose={() => setAction(null)}
           onSubmit={(reason) =>
-            run(action.registration, { action: action.kind === 'reject' ? 'reject' : 'remove', reason }, action.kind === 'reject' ? `Inscrição de ${action.registration.displayName} recusada` : `${action.registration.displayName} removido`)
+            run(action.registration, { action: action.kind === 'reject' ? 'reject' : 'remove', reason }, action.kind === 'reject' ? t('recusada', { nome: action.registration.displayName }) : t('removido', { nome: action.registration.displayName }))
           }
         />
       )}
@@ -367,11 +380,11 @@ export function RegistrationsTab({ tournament: t }: { tournament: OrganizerTourn
           waitlist={waitlist}
           loading={review.isPending}
           onClose={() => setAction(null)}
-          onSubmit={(withRegistrationId) => run(action.registration, { action: 'replace', withRegistrationId }, `${action.registration.displayName} foi substituído`)}
+          onSubmit={(withRegistrationId) => run(action.registration, { action: 'replace', withRegistrationId }, t('substituido', { nome: action.registration.displayName }))}
         />
       )}
-      {action?.kind === 'withdraw' && <WithdrawDialog key={action.registration.id} tournament={t} registration={action.registration} onClose={() => setAction(null)} />}
-      <ImportCsvDialog tournamentId={t.id} isTeam={isTeam} open={importOpen} onOpenChange={setImportOpen} />
+      {action?.kind === 'withdraw' && <WithdrawDialog key={action.registration.id} tournament={tournament} registration={action.registration} onClose={() => setAction(null)} />}
+      <ImportCsvDialog tournamentId={tournament.id} isTeam={isTeam} open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }

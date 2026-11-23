@@ -4,9 +4,11 @@ import type { Game, GameMode, StageInput } from '@nova/schemas';
 import { Button, EmptyState, Modal } from '@nova/ui';
 import { ListTree, Plus, Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useT } from '@/shared/i18n/react';
 import { newStageKey, withStageKeys, type StageDraft } from '../lib/draft';
 import { defaultStage, normalizeStages, suggestedFormat, suggestedStages } from '../lib/formats';
 import { computeStageFlow, validateStages } from '../validation';
+import { messages } from './messages';
 import { moveItem, SortableList, useSortableRow } from './Sortable';
 import { StageCard, type StageCardProps } from './StageCard';
 
@@ -27,20 +29,20 @@ function SortableStage(props: Omit<StageCardProps<StageDraft>, 'sortable'>) {
   return <StageCard {...props} sortable={sortable} />;
 }
 
-const stageName = (stage: StageInput, index: number) => stage.name.trim() || `Fase ${index + 1}`;
-
 /**
  * Linha do tempo de fases (issue #23): arrastar e soltar ou botões para reordenar, adicionar,
  * duplicar e remover. A validação entre fases aparece na fase e no campo certos, enquanto se edita.
  */
 export function StageBuilder({ value, onChange, game, mode, maxParticipants, userId, lockedStageIds = [] }: StageBuilderProps) {
+  const t = useT(messages, 'StageBuilder');
+  const stageName = (stage: StageInput, index: number) => stage.name.trim() || t('faseNome', { n: index + 1 });
   const [expandedKey, setExpandedKey] = useState<string | null>(() => value[0]?.key ?? null);
   const [removing, setRemoving] = useState<string | null>(null);
   const issues = useMemo(() => validateStages(value, { maxParticipants, game, mode }), [value, maxParticipants, game, mode]);
   const flow = useMemo(() => computeStageFlow(value, maxParticipants), [value, maxParticipants]);
 
   if (!game || !mode) {
-    return <EmptyState icon={<ListTree className="size-7" />} title="Escolha o jogo e o modo primeiro" description="Os formatos de fase disponíveis dependem do modo do jogo. Volte ao passo Jogo e modo." />;
+    return <EmptyState icon={<ListTree className="size-7" />} title={t('escolhaJogoTitulo')} description={t('escolhaJogoDescricao')} />;
   }
 
   const commit = (stages: StageDraft[]) => onChange(normalizeStages(stages));
@@ -49,7 +51,7 @@ export function StageBuilder({ value, onChange, game, mode, maxParticipants, use
   function add() {
     if (!game || !mode) return;
     const stage: StageDraft = { ...defaultStage(suggestedFormat(game, mode), { game, mode, userId }, { isLast: true, seeding: value.length === 0 ? 'RANDOM' : 'RANKED' }), key: newStageKey() };
-    if (value.length > 0) stage.name = `Fase ${value.length + 1}`;
+    if (value.length > 0) stage.name = t('faseNome', { n: value.length + 1 });
     commit([...value, stage]);
     setExpandedKey(stage.key);
   }
@@ -61,7 +63,7 @@ export function StageBuilder({ value, onChange, game, mode, maxParticipants, use
   function duplicate(index: number) {
     const source = value[index];
     if (!source) return;
-    const copy: StageDraft = { ...source, id: undefined, key: newStageKey(), name: `${stageName(source, index)} (cópia)`.slice(0, 60) };
+    const copy: StageDraft = { ...source, id: undefined, key: newStageKey(), name: t('copia', { nome: stageName(source, index) }).slice(0, 60) };
     commit([...value.slice(0, index + 1), copy, ...value.slice(index + 1)]);
     setExpandedKey(copy.key);
   }
@@ -80,15 +82,15 @@ export function StageBuilder({ value, onChange, game, mode, maxParticipants, use
     return (
       <EmptyState
         icon={<ListTree className="size-7" />}
-        title="Nenhuma fase ainda"
-        description={`Todo campeonato precisa de pelo menos uma fase. Comece pela sugestão para ${game.name} · ${mode.name} ou monte do seu jeito.`}
+        title={t('nenhumaFaseTitulo')}
+        description={t('nenhumaFaseDescricao', { jogo: game.name, modo: mode.name })}
         action={
           <div className="flex flex-wrap justify-center gap-2">
             <Button iconLeft={<Sparkles className="size-4" aria-hidden />} onClick={applySuggestion}>
-              Usar a sugestão
+              {t('usarSugestao')}
             </Button>
             <Button variant="secondary" iconLeft={<Plus className="size-4" aria-hidden />} onClick={add}>
-              Adicionar fase
+              {t('adicionarFase')}
             </Button>
           </div>
         }
@@ -99,11 +101,10 @@ export function StageBuilder({ value, onChange, game, mode, maxParticipants, use
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted" role="status">
-        {value.length} {value.length === 1 ? 'fase' : 'fases'} ·{' '}
-        {issues.length === 0 ? 'configuração válida para as vagas do campeonato.' : `${issues.length} ${issues.length === 1 ? 'pendência' : 'pendências'} para resolver.`}
+        {t('resumo', { count: value.length, pendencias: issues.length })}
       </p>
       <SortableList ids={value.map((s) => s.key)} labelOf={(key) => stageName(value.find((s) => s.key === key) ?? value[0]!, value.findIndex((s) => s.key === key))} onMove={move}>
-        <ol className="flex flex-col gap-3" aria-label="Fases do campeonato, em ordem">
+        <ol className="flex flex-col gap-3" aria-label={t('fasesAria')}>
           {value.map((stage, index) => (
             <SortableStage
               key={stage.key}
@@ -129,7 +130,7 @@ export function StageBuilder({ value, onChange, game, mode, maxParticipants, use
       </SortableList>
       <div>
         <Button variant="secondary" iconLeft={<Plus className="size-4" aria-hidden />} onClick={add}>
-          Adicionar fase
+          {t('adicionarFase')}
         </Button>
       </div>
 
@@ -137,12 +138,12 @@ export function StageBuilder({ value, onChange, game, mode, maxParticipants, use
         open={removingStage !== undefined}
         onOpenChange={(open) => !open && setRemoving(null)}
         size="sm"
-        title="Remover esta fase?"
-        description={removingStage ? `"${stageName(removingStage, removingIndex)}" sai do campeonato com toda a configuração dela.` : undefined}
+        title={t('removerTitulo')}
+        description={removingStage ? t('removerDescricao', { nome: stageName(removingStage, removingIndex) }) : undefined}
         footer={
           <>
             <Button variant="secondary" onClick={() => setRemoving(null)}>
-              Voltar
+              {t('voltar')}
             </Button>
             <Button
               variant="danger"
@@ -151,7 +152,7 @@ export function StageBuilder({ value, onChange, game, mode, maxParticipants, use
                 setRemoving(null);
               }}
             >
-              Remover fase
+              {t('removerFase')}
             </Button>
           </>
         }

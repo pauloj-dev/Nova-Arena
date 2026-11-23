@@ -1,0 +1,92 @@
+{
+  "AdminDashboard": {
+    "titulo": "Dashboard",
+    "descricao": "Como a Nova Arena está agora: pessoas, campeonatos, partidas e o que espera uma decisão sua.",
+    "intervalo": "Intervalo dos gráficos",
+    "dias": "{n} dias",
+    "indicadores": "Indicadores",
+    "verCampeonatos": "Ver campeonatos",
+    "abrirModeracao": "Abrir a moderação",
+    "validadasSemana": "Partidas validadas na semana",
+    "validadasSemanaDica": "de {count, plural, =1 {# partida} other {# partidas}} na semana",
+    "usuariosAtivos": "Usuários ativos",
+    "usuariosAtivosDica": "de {count, plural, =1 {# conta} other {# contas}} · últimos 30 dias",
+    "verUsuarios": "Ver usuários",
+    "campeonatosAtivos": "Campeonatos ativos",
+    "campeonatosAtivosDica": "{count, plural, =1 {# encerrado} other {# encerrados}}",
+    "partidasSemana": "Partidas na semana",
+    "partidasSemanaDica": "marcadas ou concluídas em 7 dias",
+    "disputas": "Disputas abertas",
+    "disputasDica": "resultados contestados",
+    "denuncias": "Denúncias abertas",
+    "denunciasDica": "esperando análise",
+    "pedidos": "Pedidos de organizador",
+    "pedidosDica": "na fila",
+    "verPedidos": "Ver a fila de pedidos",
+    "taxaWo": "Taxa de W.O.",
+    "taxaWoDica": "disputas: {taxa} das partidas · últimos {dias} dias",
+    "verAuditoria": "Ver a auditoria",
+    "northStar": "Partidas validadas na semana é o indicador principal da Nova Arena: mostra campeonatos acontecendo, gente comparecendo e resultado conferido.",
+    "carregando": "Carregando…",
+    "dia": "Dia",
+    "cadastros": {
+      "titulo": "Novos cadastros",
+      "resumo": "{count, plural, =1 {# cadastro} other {# cadastros}} nos últimos {dias} dias",
+      "serie": "Cadastros",
+      "grafico": "Gráfico de área: novos cadastros por dia nos últimos {dias} dias. Total: {total}.",
+      "vazio": "Nenhum cadastro nos últimos {dias} dias. Aumente o intervalo para ver mais.",
+      "carregando": "Carregando os cadastros…"
+    },
+    "validadas": {
+      "titulo": "Partidas validadas",
+      "resumo": "{count, plural, =1 {# partida validada} other {# partidas validadas}} nos últimos {dias} dias",
+      "serie": "Partidas validadas",
+      "grafico": "Gráfico de barras: partidas com resultado validado por dia nos últimos {dias} dias. Total: {total}.",
+      "vazio": "Nenhuma partida validada nos últimos {dias} dias.",
+      "carregando": "Carregando as partidas…"
+    },
+    "porJogo": {
+      "titulo": "Campeonatos por jogo",
+      "resumo": "{count, plural, =1 {# campeonato publicado} other {# campeonatos publicados}} até hoje, em {jogos, plural, =1 {# jogo} other {# jogos}}",
+      "grafico": "Gráfico de barras: campeonatos por jogo. {lista}.",
+      "item": "{jogo}: {n}",
+      "vazio": "Nenhum campeonato publicado ainda.",
+      "carregando": "Carregando os campeonatos…",
+      "jogo": "Jogo",
+      "campeonatos": "Campeonatos"
+    },
+    "ultimasAcoes": "Últimas ações",
+    "ultimasAcoesRotulo": "Últimas ações registradas na auditoria",
+    "nenhumaAcao": "Nenhuma ação registrada ainda. Convites, sanções, trocas de responsável e mudanças de configuração aparecem aqui."
+  },
+  "ChartCard": {
+    "verTabela": "Ver em tabela",
+    "legendaTabela": "{titulo}: os números do gráfico"
+  },
+  "KpiCard": {
+    "carregando": "{rotulo}: carregando. {atalho}",
+    "rotulo": "{rotulo}: {valor}{temDica, select, sim {, {dica}} other {}}{atencao, select, sim {. Pede atenção} other {}}. {atalho}",
+    "pedeAtencao": "Pede atenção"
+  },
+  "charts": {
+    "campeonatos": "Campeonatos"
+  },
+  "ProductMetricsSection": {
+    "minutos": "{valor} min",
+    "segundos": "{valor} s",
+    "status": {
+      "ok": "Dentro da meta",
+      "attention": "Fora da meta",
+      "no_data": "Sem dados no período"
+    },
+    "meta": "meta {alvo}",
+    "casos": "{count, plural, =1 {# caso} other {# casos}}",
+    "okrs": "Metas do produto (OKRs)",
+    "heart": "Experiência (HEART)",
+    "titulo": "Metas do produto",
+    "northStar": "North Star: {count, plural, =1 {# partida validada} other {# partidas validadas}} nos últimos 7 dias ({anterior} nos 7 anteriores)",
+    "falhou": "Não foi possível carregar as metas do produto agora. Elas são calculadas pela API da Nova Arena a partir dos campeonatos, da auditoria e das pesquisas.",
+    "tentarDeNovo": "Tentar de novo",
+    "carregando": "Carregando as metas do produto"
+  }
+}

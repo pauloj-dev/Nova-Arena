@@ -8,8 +8,10 @@ import { useId, useRef, useState, type ChangeEvent } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useCreateTeam, useUpdateTeam } from '@/shared/api/hooks/teams';
+import { useT } from '@/shared/i18n/react';
 import { fileToLogoDataUrl } from './lib/logoImage';
 import { LOGO_ACCEPT } from './lib/rules';
+import { messages } from './messages';
 import { TeamLogo } from './TeamLogo';
 
 interface TeamFormModalProps {
@@ -22,12 +24,13 @@ interface TeamFormModalProps {
 
 /** Criar ou editar squad: nome, tag e logo opcional. */
 export function TeamFormModal({ open, onOpenChange, team, onSaved }: TeamFormModalProps) {
+  const t = useT(messages, 'TeamFormModal');
   return (
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title={team ? 'Editar squad' : 'Criar squad'}
-      description={team ? 'Mude o nome, a tag ou a logo do squad.' : 'Você vira o capitão e depois convida os outros jogadores.'}
+      title={team ? t('tituloEditar') : t('tituloCriar')}
+      description={team ? t('descricaoEditar') : t('descricaoCriar')}
       size="sm"
     >
       {/* O formulário só existe com o modal aberto: cada abertura começa dos dados atuais. */}
@@ -45,6 +48,7 @@ function TeamForm({ team, onCancel, onSaved }: { team?: Team; onCancel: () => vo
   const logoErrorId = useId();
   const [logoError, setLogoError] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
+  const t = useT(messages, 'TeamForm');
 
   const {
     control,
@@ -69,7 +73,7 @@ function TeamForm({ team, onCancel, onSaved }: { team?: Team; onCancel: () => vo
     try {
       setValue('logoUrl', await fileToLogoDataUrl(file), { shouldDirty: true });
     } catch (problem) {
-      setLogoError(problem instanceof Error ? problem.message : 'Não foi possível ler esta imagem.');
+      setLogoError(problem instanceof Error ? problem.message : t('erroLerImagem'));
     } finally {
       setReading(false);
     }
@@ -79,7 +83,7 @@ function TeamForm({ team, onCancel, onSaved }: { team?: Team; onCancel: () => vo
     const input: TeamInput = { name: values.name.trim(), tag: values.tag.trim().toUpperCase(), logoUrl: values.logoUrl ?? null };
     const options = {
       onSuccess: (saved: Team) => {
-        success(team ? 'Squad atualizado' : `${saved.name} criado`, team ? undefined : 'Agora convide os jogadores do seu time.');
+        success(team ? t('atualizado') : t('criado', { nome: saved.name }), team ? undefined : t('criadoDescricao'));
         onSaved?.(saved);
         onCancel();
       },
@@ -97,19 +101,22 @@ function TeamForm({ team, onCancel, onSaved }: { team?: Team; onCancel: () => vo
             onField = true;
           }
         }
-        error(team ? 'Não foi possível salvar o squad' : 'Não foi possível criar o squad', onField ? 'Confira os campos destacados.' : errorMessage(e));
+        error(team ? t('erroSalvar') : t('erroCriar'), onField ? t('confiraCampos') : errorMessage(e));
       },
     };
     if (team) update.mutate(input, options);
     else create.mutate(input, options);
   });
 
+  const nameField = register('name');
+  const tagField = register('tag');
+
   return (
     <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
-      <Input label="Nome do squad" autoComplete="off" maxLength={30} required error={errors.name?.message} {...register('name')} />
+      <Input label={t('nome')} autoComplete="off" maxLength={30} required error={errors.name?.message} {...nameField} />
       <Input
-        label="Tag"
-        hint="De 2 a 5 letras ou números. Aparece ao lado do nome nas tabelas."
+        label={t('tag')}
+        hint={t('tagDica')}
         autoComplete="off"
         autoCapitalize="characters"
         spellCheck={false}
@@ -117,7 +124,7 @@ function TeamForm({ team, onCancel, onSaved }: { team?: Team; onCancel: () => vo
         required
         inputClassName="uppercase"
         error={errors.tag?.message}
-        {...register('tag')}
+        {...tagField}
       />
 
       <Controller
@@ -125,16 +132,16 @@ function TeamForm({ team, onCancel, onSaved }: { team?: Team; onCancel: () => vo
         name="logoUrl"
         render={({ field }) => (
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-text">Logo (opcional)</span>
+            <span className="text-sm font-medium text-text">{t('logo')}</span>
             <div className="flex flex-wrap items-center gap-3">
               <TeamLogo tag={(tag || '?').toUpperCase()} logoUrl={field.value ?? null} size="lg" />
-              <input ref={fileRef} type="file" accept={LOGO_ACCEPT} className="sr-only" tabIndex={-1} aria-label="Arquivo da logo do squad" aria-describedby={logoError ? logoErrorId : undefined} onChange={(e) => void onPickLogo(e)} />
+              <input ref={fileRef} type="file" accept={LOGO_ACCEPT} className="sr-only" tabIndex={-1} aria-label={t('arquivoLogo')} aria-describedby={logoError ? logoErrorId : undefined} onChange={(e) => void onPickLogo(e)} />
               <Button variant="secondary" size="sm" loading={reading} iconLeft={<ImagePlus className="size-4" aria-hidden />} onClick={() => fileRef.current?.click()}>
-                {field.value ? 'Trocar imagem' : 'Escolher imagem'}
+                {field.value ? t('trocarImagem') : t('escolherImagem')}
               </Button>
               {field.value && (
                 <Button variant="ghost" size="sm" iconLeft={<Trash2 className="size-4" aria-hidden />} onClick={() => field.onChange(null)}>
-                  Remover
+                  {t('remover')}
                 </Button>
               )}
             </div>
@@ -143,7 +150,7 @@ function TeamForm({ team, onCancel, onSaved }: { team?: Team; onCancel: () => vo
                 {logoError}
               </p>
             ) : (
-              <p className="text-xs text-muted">PNG, JPG, WebP ou GIF de até 5 MB. A imagem é cortada em quadrado.</p>
+              <p className="text-xs text-muted">{t('logoDica')}</p>
             )}
           </div>
         )}
@@ -151,10 +158,10 @@ function TeamForm({ team, onCancel, onSaved }: { team?: Team; onCancel: () => vo
 
       <div className="flex flex-col-reverse gap-2 pt-2 md:flex-row md:justify-end">
         <Button variant="secondary" onClick={onCancel} disabled={saving}>
-          Cancelar
+          {t('cancelar')}
         </Button>
         <Button type="submit" loading={saving}>
-          {team ? 'Salvar' : 'Criar squad'}
+          {team ? t('salvar') : t('criarSquad')}
         </Button>
       </div>
     </form>
