@@ -70,7 +70,9 @@ export function SiteShell({ children }: { children: ReactNode }) {
       </header>
 
       <UnreadAnnouncer />
-      <div className="flex-1">{children}</div>
+      {/* No mínimo a altura da tela (#111, CLS): o rodapé sempre começa abaixo da dobra. Sem isso, quando os esqueletos
+          dão lugar a uma lista mais curta, o rodapé sobe para dentro da tela e o Lighthouse conta como deslocamento. */}
+      <div className="min-h-dvh flex-1">{children}</div>
 
       <SiteFooter />
 

@@ -43,7 +43,8 @@ function Hero({ tournament, loading }: { tournament: TournamentSummary | undefin
     : null;
   return (
     <section aria-labelledby="hero-title" className="bg-hero text-white">
-      <div className={cn(container, 'flex flex-col gap-4 py-8 md:flex-row md:items-end md:justify-between md:gap-8 md:py-12')}>
+      {/* Altura mínima do conteúdo típico (título em 2 linhas), para o esqueleto e o campeonato ocuparem o mesmo espaço (#111, CLS). */}
+      <div className={cn(container, 'flex min-h-[23.5rem] flex-col gap-4 py-8 md:min-h-[19.5rem] md:flex-row md:items-end md:justify-between md:gap-8 md:py-12 lg:min-h-[16rem]')}>
         {loading ? (
           <div role="status" aria-label={t('carregando')} className="flex w-full flex-col gap-3">
             <Skeleton className="h-5 w-40 opacity-40" />
@@ -155,7 +156,9 @@ interface ShowcaseProps {
 function Showcase({ id, title, query, exclude, moreHref, moreLabel, hideWhenEmpty, empty }: ShowcaseProps) {
   const t = useT(messages, 'Showcase');
   const items = (query.data?.items ?? []).filter((t) => t.id !== exclude);
-  if (hideWhenEmpty && !query.isPending && !query.isError && items.length === 0) return null;
+  // Vitrine opcional (a dos destaques): só aparece quando tem o que mostrar. Sem esqueleto enquanto carrega, porque no caso
+  // comum ela fica vazia (o 1º destaque já está no topo) e o espaço reservado sumiria, puxando a página (#111, CLS).
+  if (hideWhenEmpty && (query.isPending || (!query.isError && items.length === 0))) return null;
   return (
     <section aria-labelledby={id} className={cn(container, 'flex flex-col gap-4')}>
       <div className="flex flex-wrap items-center justify-between gap-2">
