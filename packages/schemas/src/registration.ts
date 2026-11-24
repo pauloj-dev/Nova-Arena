@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Id, IsoDateTime } from './common';
+import { EventConflict } from './event';
 import { TournamentSummary } from './tournament';
 
 export const RegistrationStatus = z.enum(['PENDING_MEMBERS', 'PENDING_APPROVAL', 'CONFIRMED', 'WAITLIST', 'REJECTED', 'CANCELLED', 'WITHDRAWN', 'DISQUALIFIED']);
@@ -89,6 +90,8 @@ export const WAITLIST_RESERVATION_HOURS = 24;
 export const RegistrationEligibility = z.object({
   /** Dono ou equipe do campeonato: não pode se inscrever nele (PRD §6, nota ³). */
   isOrganizer: z.boolean(),
+  /** Evento com regra "um só campeonato" (ADR-0005): o outro campeonato do evento em que a pessoa já está. */
+  eventConflict: EventConflict.nullable().optional(),
 });
 export type RegistrationEligibility = z.infer<typeof RegistrationEligibility>;
 

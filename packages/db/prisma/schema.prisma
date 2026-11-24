@@ -200,6 +200,12 @@ enum FollowTarget {
   GAME
 }
 
+/// Regra de participação de um evento (ADR-0005): um só campeonato por jogador ou vários.
+enum EventParticipationRule {
+  SINGLE
+  MULTIPLE
+}
+
 enum ResultEventType {
   ENTERED
   CORRECTED
@@ -252,6 +258,7 @@ model User {
   teamMemberships      TeamMember[]
   captainOf            Team[]                 @relation("TeamCaptain")
   ownedTournaments     Tournament[]           @relation("TournamentOwner")
+  ownedEvents          Event[]                @relation("EventOwner")
   staffOf              TournamentStaff[]
   registrations        Registration[]
   registrationMembers  RegistrationMember[]
@@ -541,6 +548,8 @@ model Tournament {
   checkInConfig        Json             @default("{}")
   rosterLockAt         DateTime?        @db.Timestamptz(3)
   featured             Boolean          @default(false)
+  /// Evento que agrupa o campeonato (ADR-0005). Nulo = campeonato avulso.
+  eventId              String?          @db.Uuid
   /// Passo do assistente de criação (rascunho).
   draftStep            Int?
   /// Motivo da última pausa ou cancelamento.
@@ -557,13 +566,35 @@ model Tournament {
   announcements Announcement[]
   podium        TournamentPodium?
   leagueEntry   LeagueTournament?
+  event         Event?            @relation(fields: [eventId], references: [id], onDelete: SetNull)
   discordLink   DiscordLink?
 
   @@index([status, startsAt])
   @@index([gameId, status])
   @@index([ownerId])
   @@index([featured])
+  @@index([eventId])
   @@map("tournaments")
+}
+
+/// Evento (ADR-0005): agrupa vários campeonatos de um organizador. A regra diz se cada jogador pode jogar um só
+/// campeonato do evento (`SINGLE`) ou vários (`MULTIPLE`).
+model Event {
+  id                String                 @id @default(uuid()) @db.Uuid
+  slug              String                 @unique
+  name              String
+  description       String                 @default("")
+  bannerUrl         String?
+  ownerId           String                 @db.Uuid
+  participationRule EventParticipationRule @default(MULTIPLE)
+  createdAt         DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime               @updatedAt @db.Timestamptz(3)
+
+  owner       User         @relation("EventOwner", fields: [ownerId], references: [id])
+  tournaments Tournament[]
+
+  @@index([ownerId])
+  @@map("events")
 }
 
 model TournamentStaff {

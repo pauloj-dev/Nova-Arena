@@ -318,6 +318,15 @@ const MATRIX: Row[] = [
   r('POST /organizer/leagues/:id/tournaments', MANAGE, ({ ids }) => `/organizer/leagues/${ids.league}/tournaments`),
   r('DELETE /organizer/leagues/:id/tournaments/:tournamentId', MANAGE, ({ ids }) => `/organizer/leagues/${ids.league}/tournaments/${ids.tournament}`),
   r('DELETE /organizer/leagues/:id', MANAGE, ({ ids }) => `/organizer/leagues/${ids.spareLeague}`, 'liga separada: a dona apaga na 1ª chamada, as seguintes dão 404'),
+  // Eventos (ADR-0005)
+  r('GET /events/:slug', PUBLIC, ({ ids }) => `/events/${ids.eventSlug}`),
+  r('GET /organizer/events', ORGANIZER_AREA),
+  r('POST /organizer/events', ORGANIZER_AREA),
+  r('GET /organizer/events/:id', MANAGE, ({ ids }) => `/organizer/events/${ids.event}`, 'evento: o dono ou um Admin'),
+  r('PATCH /organizer/events/:id', MANAGE, ({ ids }) => `/organizer/events/${ids.event}`, 'evento: o dono ou um Admin (o 2FA só é exigido no painel)'),
+  r('POST /organizer/events/:id/tournaments', MANAGE, ({ ids }) => `/organizer/events/${ids.event}/tournaments`),
+  r('DELETE /organizer/events/:id/tournaments/:tournamentId', MANAGE, ({ ids }) => `/organizer/events/${ids.event}/tournaments/${ids.tournament}`),
+  r('DELETE /organizer/events/:id', MANAGE, ({ ids }) => `/organizer/events/${ids.spareEvent}`, 'evento separado: o dono apaga na 1ª chamada, as seguintes dão 404'),
   r('GET /tournaments/:id/discord', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/discord`, 'vincular o canal do Discord: quem gerencia o campeonato'),
   r('POST /tournaments/:id/discord/code', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/discord/code`, 'sem bot configurado: 503 depois da permissão'),
   r('POST /tournaments/:id/discord/test', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/discord/test`),
@@ -443,6 +452,10 @@ describe.skipIf(!url)('matriz RBAC completa (PRD §6) — toda rota × 8 perfis'
     const leagueData = (suffix: string) => ({ slug: `rf-liga-${suffix}-${h.stamp}`, name: `Liga RF ${suffix}`, gameId: game.id, ownerId: orgA.id, startsAt: new Date(Date.now() - 86_400_000), endsAt: new Date(Date.now() + 30 * 86_400_000), placementPoints: [10, 6, 4] });
     const league = await db.league.create({ data: leagueData('a') });
     Object.assign(ids, { league: league.id, leagueSlug: league.slug, spareLeague: (await db.league.create({ data: leagueData('b') })).id });
+    // Evento com um campeonato publicado (a página pública só existe assim) e um evento vazio para excluir.
+    const event = await db.event.create({ data: { slug: `rf-evento-${h.stamp}`, name: 'Evento RF', ownerId: orgA.id } });
+    await db.tournament.update({ where: { id: open.id }, data: { eventId: event.id } });
+    Object.assign(ids, { event: event.id, eventSlug: event.slug, spareEvent: (await db.event.create({ data: { slug: `rf-evento-b-${h.stamp}`, name: 'Evento RF B', ownerId: orgA.id } })).id });
   });
 
   afterAll(async () => {

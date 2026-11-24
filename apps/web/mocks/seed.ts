@@ -298,6 +298,7 @@ export function buildSeed(): Db {
   const tournaments: DbTournament[] = [
     tournament('tn_copa_ff', base, {
       slug: 'copa-nova-ff-squad',
+      eventId: 'ev_festival_ff',
       name: 'Copa Nova FF — Squad',
       gameId: 'g_freefire',
       gameModeId: 'm_ff_squad',
@@ -360,6 +361,7 @@ export function buildSeed(): Db {
     }),
     tournament('tn_ff_solo', base, {
       slug: 'ff-solo-rush',
+      eventId: 'ev_festival_ff',
       name: 'FF Solo Rush',
       gameId: 'g_freefire',
       gameModeId: 'm_ff_solo',

@@ -337,7 +337,7 @@ test.describe('página do campeonato', () => {
     await expect(header.getByText('Organizador verificado')).toBeVisible();
     await expect(header.getByText(/horário de Brasília/).first()).toBeVisible();
     await expect(header.getByRole('progressbar', { name: 'Vagas preenchidas' })).toHaveAttribute('aria-valuenow', '12');
-    await expect(header.getByRole('link', { name: 'Free Fire' })).toHaveAttribute('href', '/jogos/free-fire');
+    await expect(header.getByRole('link', { name: 'Free Fire', exact: true })).toHaveAttribute('href', '/jogos/free-fire');
 
     // Só as abas da F1: nada de aba vazia para o que entra na F2.
     const tabs = page.getByRole('tablist', { name: 'Seções do campeonato' });

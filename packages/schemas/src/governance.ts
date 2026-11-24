@@ -197,6 +197,7 @@ export const AUDIT_ACTIONS = {
   TWO_FACTOR_CHANGED: 'Verificação em duas etapas alterada',
   SEASON_CHANGED: 'Temporada do ranking criada ou alterada',
   LEAGUE_CHANGED: 'Liga criada ou alterada',
+  EVENT_CHANGED: 'Evento criado ou alterado',
   FRAUD_ALERT_REVIEWED: 'Alerta antifraude analisado',
   ACCOUNT_DELETED: 'Conta excluída a pedido (LGPD)',
 } as const satisfies Record<string, string>;

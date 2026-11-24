@@ -1,0 +1,93 @@
+{
+  "regra": {
+    "SINGLE": "Cada jogador pode participar de um só campeonato deste evento.",
+    "MULTIPLE": "Você pode participar de vários campeonatos deste evento.",
+    "curta": {
+      "SINGLE": "Um campeonato por jogador",
+      "MULTIPLE": "Vários campeonatos por jogador"
+    }
+  },
+  "EventForm": {
+    "nome": "Nome do evento",
+    "nomePlaceholder": "Ex.: Festival de Verão Nova Arena",
+    "descricao": "Descrição",
+    "descricaoDica": "Opcional. Conte o que é o evento e quando acontece.",
+    "regra": "Quem pode participar de quê",
+    "regraDica": "Você pode mudar depois, desde que ninguém já esteja inscrito em mais de um campeonato do evento.",
+    "unicaTitulo": "Um só campeonato por jogador",
+    "unicaDescricao": "Quem se inscreve em um campeonato do evento não consegue se inscrever em outro dele. Bom para dividir os jogadores entre modalidades.",
+    "variasTitulo": "Vários campeonatos por jogador",
+    "variasDescricao": "Cada jogador pode se inscrever em quantos campeonatos do evento quiser.",
+    "erros": {
+      "nome": "Dê um nome ao evento (de 3 a 80 caracteres)"
+    }
+  },
+  "EventCard": {
+    "campeonatos": "{count, plural, =0 {Nenhum campeonato ainda} =1 {1 campeonato} other {# campeonatos}}"
+  },
+  "OrganizerEventsPage": {
+    "titulo": "Eventos",
+    "descricao": "Um evento junta vários campeonatos seus numa página só, com uma regra de participação.",
+    "criarEvento": "Criar evento",
+    "carregando": "Carregando seus eventos",
+    "erro": "Não foi possível carregar seus eventos",
+    "vazioTitulo": "Você ainda não tem eventos",
+    "vazioDescricao": "Crie um evento para reunir campeonatos (por exemplo, um em squad e outro solo) e decidir se cada jogador participa de um só ou de vários.",
+    "criarPrimeiro": "Criar o primeiro evento"
+  },
+  "NewEventPage": {
+    "titulo": "Criar evento",
+    "descricao": "Dê um nome, explique o evento e escolha a regra de participação. Os campeonatos entram depois.",
+    "enviar": "Criar evento",
+    "criado": "Evento criado",
+    "criadoDescricao": "Agora crie ou adicione os campeonatos do evento.",
+    "erroCriar": "Não foi possível criar o evento"
+  },
+  "ManageEventPage": {
+    "carregando": "Carregando o evento",
+    "erro": "Não foi possível carregar o evento",
+    "naoEncontradoTitulo": "Evento não encontrado",
+    "naoEncontradoDescricao": "Ele pode ter sido excluído, ou você não organiza este evento.",
+    "voltar": "Voltar para os eventos",
+    "verPaginaPublica": "Ver página pública",
+    "paginaPublicaDica": "A página pública aparece quando algum campeonato do evento for publicado.",
+    "excluirEvento": "Excluir evento",
+    "dados": "Dados e regra",
+    "salvar": "Salvar alterações",
+    "atualizado": "Evento atualizado",
+    "erroSalvar": "Não foi possível salvar o evento",
+    "confirmarTitulo": "Excluir este evento?",
+    "confirmarDescricao": "Os campeonatos continuam existindo, só deixam de fazer parte do evento. Só dá para excluir enquanto nenhum campeonato dele foi publicado.",
+    "excluido": "Evento excluído",
+    "erroExcluir": "Não foi possível excluir o evento"
+  },
+  "EventTournaments": {
+    "titulo": "Campeonatos do evento",
+    "criarNoEvento": "Criar campeonato neste evento",
+    "adicionarExistente": "Adicionar campeonato existente",
+    "escolha": "Escolha um campeonato",
+    "candidatos": "Seus campeonatos que ainda não estão em nenhum evento e não começaram.",
+    "semCandidatos": "Nenhum campeonato seu está livre para entrar no evento.",
+    "adicionar": "Adicionar",
+    "adicionado": "Campeonato adicionado ao evento",
+    "erroAdicionar": "Não foi possível adicionar o campeonato",
+    "retirar": "Tirar do evento <sr>o campeonato {nome}</sr>",
+    "retirado": "Campeonato tirado do evento",
+    "erroRetirar": "Não foi possível tirar o campeonato do evento",
+    "vazioTitulo": "Nenhum campeonato no evento",
+    "vazioDescricao": "Crie um campeonato já dentro do evento ou adicione um que você já tem.",
+    "semData": "Sem data definida"
+  },
+  "EventPage": {
+    "carregando": "Carregando o evento",
+    "erro": "Não foi possível carregar o evento",
+    "naoEncontradoTitulo": "Evento não encontrado",
+    "naoEncontradoDescricao": "O link pode estar errado, ou os campeonatos deste evento ainda não foram publicados.",
+    "organizacao": "Organização: <link>{nome}</link>",
+    "campeonatos": "Campeonatos",
+    "evento": "Evento"
+  },
+  "TournamentEventNote": {
+    "parteDe": "Faz parte do evento <link>{nome}</link>"
+  }
+}

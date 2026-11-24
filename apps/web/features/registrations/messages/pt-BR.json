@@ -135,6 +135,8 @@
     "entrarParaInscrever": "Entrar para se inscrever",
     "criarConta": "Criar conta",
     "ofertaFila": "Você pode entrar na lista de espera. Hoje você seria o <b>{posicao}º da fila</b>; se alguém cancelar, a vaga passa para o primeiro, automaticamente.",
-    "titulo": "Inscrição"
+    "titulo": "Inscrição",
+    "eventoTitulo": "Você já está em outro campeonato deste evento",
+    "eventoTexto": "Você está inscrito no campeonato <link>{campeonato}</link> do evento {evento}. Neste evento cada jogador participa de um só campeonato."
   }
 }

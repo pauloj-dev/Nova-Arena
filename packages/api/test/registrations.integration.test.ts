@@ -122,8 +122,8 @@ describe.skipIf(!url)('inscrições (Postgres)', () => {
   it('organizador não se inscreve; inscrições fechadas, sem fila ou recusado: 409', async () => {
     const t = await tournament(soloGame, { max: 1, type: 'SOLO', waitlistEnabled: false });
     expect(code((await register('dono', t.id)).data)).toBe('OWN_TOURNAMENT');
-    expect((await call('dono', `/tournaments/${t.id}/registration-eligibility`)).data).toEqual({ isOrganizer: true });
-    expect((await call('e', `/tournaments/${t.id}/registration-eligibility`)).data).toEqual({ isOrganizer: false });
+    expect((await call('dono', `/tournaments/${t.id}/registration-eligibility`)).data).toEqual({ isOrganizer: true, eventConflict: null });
+    expect((await call('e', `/tournaments/${t.id}/registration-eligibility`)).data).toEqual({ isOrganizer: false, eventConflict: null });
     await register('e', t.id);
     expect(code((await register('f', t.id)).data)).toBe('TOURNAMENT_FULL');
 

@@ -28,6 +28,7 @@ import { checkOrganizerLimits, countActiveTournaments, isGameAllowed, type Organ
 import { sanitizeTournamentHtml } from '@/features/organizer/lib/sanitize-html';
 import { validateDraft, type DraftForValidation, type DraftIssue } from '@/features/organizer/validation';
 import { audit } from '../audit';
+import { assertEventAssignable } from '../events';
 import { getRun, newRun, putRun, removeRun, toEngineConfig } from '../competition';
 import { collection, db, nowIso, save, uid, uniqueSlug, type DbTemplate, type DbTournament, type DbUser } from '../db';
 import {
@@ -85,7 +86,7 @@ function waitlistCount(tournamentId: string): number {
 }
 
 function toOrganizerTournament(t: DbTournament, access: TournamentAccess): OrganizerTournament {
-  return { ...toTournamentSummary(t), access, draftStep: t.draftStep, pendingApprovals: pendingApprovals(t.id), waitlistCount: waitlistCount(t.id), stageCount: t.stages.length };
+  return { ...toTournamentSummary(t), access, draftStep: t.draftStep, pendingApprovals: pendingApprovals(t.id), waitlistCount: waitlistCount(t.id), stageCount: t.stages.length, eventId: t.eventId ?? null };
 }
 
 export function toOrganizerDetail(t: DbTournament, access: TournamentAccess): OrganizerTournamentDetail {
@@ -266,7 +267,19 @@ function applyDraft(t: DbTournament, raw: TournamentDraftInput): void {
   if (input.rosterLockAt !== undefined) t.rosterLockAt = input.rosterLockAt;
   if (input.stages !== undefined) t.stages = buildStages(t, input.stages);
   if (input.draftStep !== undefined && t.status === 'DRAFT') t.draftStep = input.draftStep;
+  // Quem chama já conferiu o evento (`assertEventAssignable`).
+  if (input.eventId !== undefined) t.eventId = input.eventId;
   t.updatedAt = nowIso();
+}
+
+function sameEvent(user: DbUser, eventId: string | null): boolean {
+  if (!eventId) return false;
+  try {
+    assertEventAssignable(user, null, eventId);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function newTournament(owner: DbUser, name: string, gameId: string, gameModeId: string): DbTournament {
@@ -462,6 +475,7 @@ export const handlers = [
       const fallback = merged.gameId ? null : defaultGameFor(user);
       const gameId = merged.gameId ?? fallback?.game.id ?? '';
       const gameModeId = merged.gameModeId ?? db().games.find((g) => g.id === gameId)?.modes[0]?.id ?? '';
+      if (merged.eventId) assertEventAssignable(user, null, merged.eventId);
       const t = newTournament(user, merged.name?.trim() || UNNAMED, gameId, gameModeId);
       applyDraft(t, { ...merged, gameId: undefined, gameModeId: undefined, name: undefined });
       db().tournaments.push(t);
@@ -477,6 +491,7 @@ export const handlers = [
       const { access } = requireTournamentAccess(t);
       const input = await body(request, TournamentDraftInput);
       if (READ_ONLY.includes(t.status)) throw conflict('Este campeonato já foi encerrado e não pode mais ser editado.', 'TOURNAMENT_READ_ONLY');
+      if (input.eventId !== undefined) assertEventAssignable(requireUser(), t, input.eventId);
 
       if (t.status === 'DRAFT') {
         applyDraft(t, input);
@@ -650,6 +665,8 @@ export const handlers = [
         registrationClosesAt: future(source.registrationClosesAt),
         startsAt: future(source.startsAt),
         rosterLockAt: future(source.rosterLockAt),
+        // A cópia fica no mesmo evento quando quem duplica também organiza o evento.
+        eventId: sameEvent(user, source.eventId ?? null) ? (source.eventId ?? null) : null,
       } satisfies Partial<DbTournament>);
       t.stages = buildStages(t, [...source.stages].sort((a, b) => a.order - b.order).map((s) => ({ ...toStageInput(s), id: undefined })));
       db().tournaments.push(t);

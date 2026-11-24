@@ -117,6 +117,14 @@ export type CheckInConfig = z.infer<typeof CheckInConfig>;
 
 export const ParticipantType = z.enum(['SOLO', 'TEAM']);
 
+// ── Evento (ADR-0005) ────────────────────────────────────────────────
+/** `SINGLE`: cada jogador participa de um só campeonato do evento. `MULTIPLE`: pode participar de vários. */
+export const EventParticipationRule = z.enum(['SINGLE', 'MULTIPLE']);
+export type EventParticipationRule = z.infer<typeof EventParticipationRule>;
+/** O evento de um campeonato, como aparece na página dele. */
+export const TournamentEventRef = z.object({ id: Id, slug: Slug, name: z.string(), participationRule: EventParticipationRule });
+export type TournamentEventRef = z.infer<typeof TournamentEventRef>;
+
 const tournamentBase = {
   id: Id,
   slug: Slug,
@@ -166,6 +174,8 @@ export const Tournament = TournamentSummary.extend({
   /** Passo do assistente em que o rascunho parou (0 a 6). */
   draftStep: z.number().int().min(0).max(6),
   waitlistCount: z.number().int(),
+  /** Evento que agrupa o campeonato (ADR-0005). Nulo ou ausente = campeonato avulso. */
+  event: TournamentEventRef.nullable().optional(),
 });
 export type Tournament = z.infer<typeof Tournament>;
 
@@ -198,6 +208,8 @@ export const TournamentDraftInput = z.object({
   waitlistEnabled: z.boolean().optional(),
   checkIn: CheckInConfig.optional(),
   rosterLockAt: IsoDateTime.nullable().optional(),
+  /** Evento do campeonato (ADR-0005); `null` tira o campeonato do evento. */
+  eventId: Id.nullable().optional(),
   stages: z.array(StageInput).optional(),
   draftStep: z.number().int().min(0).max(6).optional(),
 });
@@ -266,6 +278,8 @@ export const OrganizerTournament = TournamentSummary.extend({
   pendingApprovals: z.number().int(),
   waitlistCount: z.number().int(),
   stageCount: z.number().int(),
+  /** Evento do campeonato (ADR-0005), quando houver. */
+  eventId: Id.nullable().optional(),
 });
 export type OrganizerTournament = z.infer<typeof OrganizerTournament>;
 
