@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { OrganizerTournamentDetail, Registration, RegistrationStatus } from '@nova/schemas';
 import { Badge, Button, Card, DataTable, EmptyState, ErrorState, Modal, Select, StatusPill, Textarea, useToast, type Column, type SortState } from '@nova/ui';
-import { Check, ClipboardList, Download, FileUp, Replace, UserMinus, X } from 'lucide-react';
+import { Check, ClipboardList, Download, FileUp, Replace, UserMinus, Users, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -11,12 +11,14 @@ import { errorMessage } from '@/shared/api/client';
 import { useExportRegistrations, useReviewRegistration } from '@/shared/api/hooks/organizer';
 import { useTournamentRegistrations } from '@/shared/api/hooks/tournaments';
 import { getT } from '@/shared/i18n/core';
+import { canStaffEditRoster } from '@/features/registrations/lib/rules';
 import { useT } from '@/shared/i18n/react';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { confirmedMembers, registrationKind } from '../lib/csv';
 import { downloadFile } from '../lib/download';
 import { WithdrawDialog } from '../operation/WithdrawDialog';
 import { ImportCsvDialog } from './ImportCsvDialog';
+import { RosterDialog } from './RosterDialog';
 import { messages } from './messages';
 
 type Filter = 'all' | 'confirmed' | 'pending' | 'waitlist' | 'out';
@@ -30,6 +32,8 @@ const FILTERS: { id: Filter; statuses: RegistrationStatus[] | null }[] = [
 const STATUS_ORDER: RegistrationStatus[] = ['PENDING_APPROVAL', 'PENDING_MEMBERS', 'CONFIRMED', 'WAITLIST', 'REJECTED', 'CANCELLED', 'WITHDRAWN', 'DISQUALIFIED'];
 const BEFORE_START = ['PUBLISHED', 'REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'CHECK_IN'];
 const STARTED = ['IN_PROGRESS', 'PAUSED'];
+/** Inscrições cujo elenco a organização ainda troca (PRD §12.1). */
+const ROSTER_STATUSES: RegistrationStatus[] = ['CONFIRMED', 'PENDING_MEMBERS', 'PENDING_APPROVAL', 'WAITLIST'];
 
 /** Validação do motivo; as mensagens vêm do catálogo, por isso o schema é montado na hora. */
 function reasonInput() {
@@ -38,7 +42,7 @@ function reasonInput() {
 }
 type ReasonForm = z.infer<ReturnType<typeof reasonInput>>;
 
-type Action = { kind: 'reject' | 'remove' | 'replace' | 'withdraw'; registration: Registration } | null;
+type Action = { kind: 'reject' | 'remove' | 'replace' | 'withdraw' | 'roster'; registration: Registration } | null;
 
 function ReasonDialog({ action, loading, onClose, onSubmit }: { action: Exclude<Action, null>; loading: boolean; onClose: () => void; onSubmit: (reason: string) => void }) {
   const t = useT(messages, 'RegistrationReasonDialog');
@@ -228,6 +232,14 @@ export function RegistrationsTab({ tournament }: { tournament: OrganizerTourname
 
   function rowActions(r: Registration) {
     const buttons = [];
+    // Elenco do squad: trocar, tirar e remanejar jogadores (também com o campeonato em andamento).
+    if (!isModerator && r.teamId && ROSTER_STATUSES.includes(r.status) && canStaffEditRoster(tournament.status)) {
+      buttons.push(
+        <Button key="roster" size="sm" variant="secondary" iconLeft={<Users className="size-4" aria-hidden />} aria-label={t('elencoRotulo', { nome: r.displayName })} onClick={() => setAction({ kind: 'roster', registration: r })}>
+          {t('elenco')}
+        </Button>,
+      );
+    }
     if (beforeStart && r.status === 'PENDING_APPROVAL') {
       buttons.push(
         <Button key="approve" size="sm" loading={review.isPending && review.variables?.registrationId === r.id} iconLeft={<Check className="size-4" aria-hidden />} aria-label={t('aprovarRotulo', { nome: r.displayName })} onClick={() => run(r, { action: 'approve' }, t('aprovado', { nome: r.displayName }))}>
@@ -381,6 +393,16 @@ export function RegistrationsTab({ tournament }: { tournament: OrganizerTourname
           loading={review.isPending}
           onClose={() => setAction(null)}
           onSubmit={(withRegistrationId) => run(action.registration, { action: 'replace', withRegistrationId }, t('substituido', { nome: action.registration.displayName }))}
+        />
+      )}
+      {action?.kind === 'roster' && (
+        <RosterDialog
+          key={action.registration.id}
+          tournament={tournament}
+          // A versão mais nova da inscrição (a lista é recarregada a cada troca).
+          registration={all.find((x) => x.id === action.registration.id) ?? action.registration}
+          others={all.filter((x) => x.id !== action.registration.id && x.teamId !== null && ROSTER_STATUSES.includes(x.status))}
+          onClose={() => setAction(null)}
         />
       )}
       {action?.kind === 'withdraw' && <WithdrawDialog key={action.registration.id} tournament={tournament} registration={action.registration} onClose={() => setAction(null)} />}

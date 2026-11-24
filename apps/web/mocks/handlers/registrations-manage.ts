@@ -10,6 +10,7 @@ import { promoteFromWaitlist, promotionFor, type WaitlistContext, type WaitlistR
 import { collection, db, nowIso, save, uid, type DbRegistration, type DbTournament } from '../db';
 import { body, conflict, findTournament, forbidden, handle, json, notFound, param, requireTournamentAccess, url } from '../http';
 import { takenSlots, toRegistration } from '../views';
+import { notifyConfirmed } from '../roster';
 import { settleWaitlist } from '../waitlist';
 
 export const moduleName = 'registrations-manage';
@@ -134,6 +135,9 @@ export const handlers = [
 
       const promoted = input.action === 'approve' ? [] : promoteWaitlist(t);
       save();
+      // Aprovada, substituta que entrou e quem subiu da fila: "Inscrição confirmada" (só quem ficou confirmado).
+      const substitute = input.action === 'replace' ? db().registrations.find((x) => x.id === input.withRegistrationId) : undefined;
+      notifyConfirmed([...promoted, ...(input.action === 'approve' ? [r] : []), ...(substitute ? [substitute] : [])]);
       const result: ReviewRegistrationResult = { registration: toRegistration(r), promoted: promoted.map(toRegistration) };
       return json(result);
     }),

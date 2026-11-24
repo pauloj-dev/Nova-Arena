@@ -2,7 +2,8 @@
 
 import { RegisterInTournamentInput, type Game, type Registration, type Tournament } from '@nova/schemas';
 import { Button, Checkbox, ErrorState, Select, Skeleton, useToast } from '@nova/ui';
-import { Plus, Users } from 'lucide-react';
+import { Plus, RefreshCw, Users } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { TeamFormModal } from '@/features/teams/TeamFormModal';
@@ -14,6 +15,9 @@ import { useT } from '@/shared/i18n/react';
 import { GameAccountWarning } from './GameAccountWarning';
 import { checkSquadSize, squadSizeMessage } from './lib/rules';
 import { messages } from './messages';
+
+// O painel de convite (apelido e link) só carrega quando o squad escolhido ainda não tem gente suficiente.
+const InvitePanel = dynamic(() => import('@/features/teams/InvitePanel').then((m) => m.InvitePanel), { loading: () => <Skeleton className="h-24 w-full" /> });
 
 interface RegisterFormProps {
   tournament: Tournament;
@@ -128,6 +132,19 @@ export function RegisterForm({ tournament, game, viewerId, waitlistPosition, mis
                   {t('abrirSquad')}
                 </Link>
               </p>
+            )}
+            {selected && mode && selected.members.length < mode.teamSize && (
+              // Próximo passo ali mesmo: chamar os jogadores sem sair da página do campeonato.
+              <section aria-labelledby={`chamar-${selected.id}`} className="flex flex-col gap-3 rounded-md border border-border p-3" data-testid="invite-from-registration">
+                <h3 id={`chamar-${selected.id}`} className="text-base font-bold">
+                  {t('chamarJogadores')}
+                </h3>
+                <p className="text-sm text-muted">{t('chamarJogadoresDescricao')}</p>
+                <InvitePanel team={selected} />
+                <Button variant="secondary" size="sm" className="self-start" iconLeft={<RefreshCw className="size-4" aria-hidden />} loading={teams.isFetching} onClick={() => void teams.refetch()}>
+                  {t('atualizarSquad')}
+                </Button>
+              </section>
             )}
             <Button variant="ghost" size="sm" className="self-start" iconLeft={<Plus className="size-4" aria-hidden />} onClick={() => setCreating(true)}>
               {t('criarSquadNovo')}
