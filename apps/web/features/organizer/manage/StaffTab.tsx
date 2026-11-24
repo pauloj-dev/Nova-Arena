@@ -12,6 +12,7 @@ import { useT } from '@/shared/i18n/react';
 import { formatDate } from '@/shared/lib/datetime';
 import { permissionsOf } from '../operation/stageUtils';
 import { messages } from './messages';
+import { StaffInviteLinks } from './StaffInviteLinks';
 
 /** Chave das mensagens de cada papel (rótulo e descrição em `StaffTab.papeis`). */
 const ROLE_KEY = { CO_ORGANIZER: 'coOrganizador', MODERATOR: 'moderador' } as const satisfies Record<StaffRole, string>;
@@ -125,6 +126,7 @@ export function StaffTab({ tournament }: { tournament: OrganizerTournamentDetail
             </form>
           </Card>
         )}
+        {canEdit && <StaffInviteLinks tournamentId={tournament.id} roleOptions={roleOptions} />}
         {!perms.isOwner && <p className="text-sm text-muted">{t('soResponsavel')}</p>}
       </div>
 

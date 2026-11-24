@@ -48,6 +48,9 @@ describe('regras do campeonato', () => {
     expect(canTransition('IN_PROGRESS', 'CANCELLED')).toBe(false);
     expect(canTransition('PAUSED', 'CANCELLED')).toBe(true);
     expect(canTransition('ARCHIVED', 'DRAFT')).toBe(false);
+    // RN-16: reabrir as inscrições (a API confere que nenhuma chave foi confirmada).
+    expect(canTransition('REGISTRATION_CLOSED', 'REGISTRATION_OPEN')).toBe(true);
+    expect(canTransition('IN_PROGRESS', 'REGISTRATION_OPEN')).toBe(false);
   });
 
   it('limite do organizador (RN-10): 3 simultâneos; Admin não tem limite', () => {

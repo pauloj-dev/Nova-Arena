@@ -128,6 +128,25 @@ export const messages = {
       title: 'Você agora é responsável por um campeonato',
       body: (tournament: string, previousOwner: string) => `${tournament}: ${previousOwner} deixou a organização e você, como co-organizador mais antigo, assumiu.`,
     },
+    /** Equipe do evento (ORG-10): quem entra, muda de papel ou sai é avisado; quem convidou por link sabe quando alguém entrou. */
+    staff: {
+      added: {
+        title: (tournament: string) => `Você entrou na equipe de ${tournament}`,
+        body: (by: string, role: string) => `${by} adicionou você como ${role}.`,
+      },
+      joinedByLink: {
+        title: (nickname: string) => `${nickname} entrou na equipe`,
+        body: (tournament: string, role: string) => `Aceitou o seu link de convite e agora é ${role} de ${tournament}.`,
+      },
+      roleChanged: {
+        title: (tournament: string) => `Seu papel em ${tournament} mudou`,
+        body: (role: string) => `Agora você é ${role} deste campeonato.`,
+      },
+      removed: {
+        title: (tournament: string) => `Você saiu da equipe de ${tournament}`,
+        body: (by: string) => `${by} removeu você da equipe do evento.`,
+      },
+    },
     /** RN-09: aviso aos admins com o que aconteceu com cada campeonato em curso. */
     orphans: {
       title: (paused: number) => (paused > 0 ? `${paused} campeonato(s) sem responsável` : 'Responsável de campeonato trocado'),

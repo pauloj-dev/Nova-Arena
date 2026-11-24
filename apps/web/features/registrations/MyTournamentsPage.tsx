@@ -14,6 +14,7 @@ import { useSession } from '@/shared/session/useSession';
 import { isCurrentEntry } from './lib/rules';
 import { messages } from './messages';
 import { RegistrationEntryCard } from './RegistrationEntryCard';
+import { StaffTournamentsSection } from './StaffTournamentsSection';
 
 function Explore() {
   const t = useT(messages, 'MyTournamentsPage');
@@ -98,6 +99,7 @@ export function MyTournamentsPage() {
           ]}
         />
       )}
+      <StaffTournamentsSection enabled={Boolean(user)} />
     </PageContainer>
   );
 }

@@ -206,5 +206,57 @@
     "aceitar": "Aceitar convite",
     "entrouComo": "Você entrou como <strong>{nick}</strong>.",
     "agoraNao": "Agora não"
+  },
+  "StaffInviteScreen": {
+    "papel": {
+      "CO_ORGANIZER": {
+        "nome": "co-organizador",
+        "pode": "Co-organizadores editam o campeonato, geram a chave, avançam fases, enviam comunicados e lançam resultados. Só não cancelam o campeonato nem mudam a equipe."
+      },
+      "MODERATOR": {
+        "nome": "moderador",
+        "pode": "Moderadores ajudam no dia do evento: agendam partidas, lançam e validam resultados e aprovam ou recusam inscrições."
+      }
+    },
+    "titulo": "Convite para a equipe do campeonato",
+    "convidouVoce": "{quem} convidou você para ser {papel} de {campeonato}.",
+    "campeonato": "<strong>{nome}</strong> · {jogo}",
+    "convidadoPor": "Convidado por <strong>{quem}</strong>",
+    "validoAte": "Válido até {data}",
+    "naoDaParaJogar": "Quem faz parte da equipe não pode se inscrever neste campeonato.",
+    "carregando": "Carregando convite",
+    "naoEncontradoTitulo": "Convite não encontrado",
+    "naoEncontradoDescricao": "Este link de convite não existe. Confira se o endereço foi copiado inteiro ou peça um novo a quem convidou você.",
+    "erroTitulo": "Não foi possível carregar o convite",
+    "tentarNovamente": "Tentar novamente",
+    "invalido": {
+      "EXPIRED": {
+        "titulo": "Este convite expirou",
+        "descricao": "O prazo para aceitar terminou. Peça um link novo a quem convidou você."
+      },
+      "REVOKED": {
+        "titulo": "Este convite foi cancelado",
+        "descricao": "Quem criou o link cancelou o convite. Se foi engano, peça um link novo."
+      },
+      "EXHAUSTED": {
+        "titulo": "Este convite já foi usado",
+        "descricao": "O link atingiu o número máximo de usos. Peça um link novo a quem convidou você."
+      }
+    },
+    "eraConvite": "Era um convite de {quem} para a equipe de {campeonato}. Ninguém entrou na equipe por ele.",
+    "irInicio": "Ir para o início",
+    "verCampeonato": "Ver o campeonato",
+    "paraAceitar": "Para aceitar, entre na sua conta ou crie uma. Depois você volta direto para este convite.",
+    "entrar": "Entrar",
+    "criarConta": "Criar conta",
+    "confirmeEmail": "Confirme seu e-mail antes de aceitar o convite. Enviamos um link para <strong>{email}</strong>.",
+    "confirmarEmail": "Confirmar meu e-mail",
+    "aceitar": "Aceitar e entrar na equipe",
+    "aceitoTitulo": "Você entrou na equipe",
+    "aceitoDescricao": "Agora você é {papel} de {campeonato}.",
+    "levando": "Levando você para a gestão do campeonato…",
+    "abrirGestao": "Abrir a gestão do campeonato",
+    "entrouComo": "Você entrou como <strong>{nick}</strong>.",
+    "agoraNao": "Agora não"
   }
 }

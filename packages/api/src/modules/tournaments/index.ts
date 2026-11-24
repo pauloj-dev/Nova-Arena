@@ -22,6 +22,7 @@ import {
   CreateTournamentInput,
   CustomScoringModelInput,
   isGameAllowed,
+  OpenRegistrationInput,
   OrganizerTournament,
   OrganizerTournamentDetail,
   PauseTournamentInput,
@@ -45,7 +46,7 @@ import {
 } from '@nova/schemas';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { body, respond, type AppContext, type AppEnv } from '../../context';
+import { body, optionalBody, respond, type AppContext, type AppEnv } from '../../context';
 import { badRequest, conflict, forbidden, HttpProblem, notFound } from '../../errors';
 import { assertTournamentAccess, currentRoles, isAdmin, ORGANIZER_AREA_ROLES, assertRole, type TournamentAccessLevel } from '../../auth/rbac';
 import { requireSession } from '../../auth/session';
@@ -53,13 +54,15 @@ import { clientIp } from '../../security';
 import { revalidateTournaments } from '../../revalidate';
 import { scheduleRegistrationWindow } from '../../jobs/registration';
 import { gameInclude, toGame } from '../games';
+import { messages } from '../../messages/pt-BR';
+import { notify } from '../../notify';
 import { accessRole, checkInOf, countsOf, toOrganizerDetail, toOrganizerTournament, toStage, tournamentInclude, type TournamentRow } from './views';
 
 export const UNNAMED_TOURNAMENT = 'Campeonato sem nome';
 const READ_ONLY: TournamentStatus[] = ['FINISHED', 'ARCHIVED', 'CANCELLED'];
 const STARTED: TournamentStatus[] = ['IN_PROGRESS', 'PAUSED'];
-const CLOSED_FOR_STAFF: TournamentStatus[] = ['CANCELLED', 'ARCHIVED'];
-const ROLE_LABEL = { CO_ORGANIZER: 'co-organizador', MODERATOR: 'moderador' } as const;
+export const CLOSED_FOR_STAFF: TournamentStatus[] = ['CANCELLED', 'ARCHIVED'];
+export const ROLE_LABEL = { CO_ORGANIZER: 'co-organizador', MODERATOR: 'moderador' } as const;
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -87,7 +90,7 @@ const date = (v: string | null | undefined) => (v ? new Date(v) : null);
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-async function loadTournament(db: Db, idOrSlug: string): Promise<TournamentRow> {
+export async function loadTournament(db: Db, idOrSlug: string): Promise<TournamentRow> {
   const t = await db.tournament.findUnique({ where: isUuid(idOrSlug) ? { id: idOrSlug } : { slug: idOrSlug }, include: tournamentInclude });
   if (!t) throw notFound('Campeonato');
   return t;
@@ -99,13 +102,13 @@ async function accessTo(c: AppContext, t: { id: string }, level: TournamentAcces
 }
 
 /** Publicar, cancelar, excluir e montar a equipe são do responsável (ou do Admin). */
-async function ownerAccess(c: AppContext, t: { id: string }, what: string): Promise<TournamentAccessRole> {
+export async function ownerAccess(c: AppContext, t: { id: string }, what: string): Promise<TournamentAccessRole> {
   const access = await accessTo(c, t);
   if (access === 'CO_ORGANIZER') throw forbidden(`Só quem é responsável pelo campeonato pode ${what}.`);
   return access;
 }
 
-async function auditCtx(c: AppContext) {
+export async function auditCtx(c: AppContext) {
   const session = await requireSession(c);
   return { actorId: session.userId, ip: clientIp(c.req.raw.headers), userAgent: c.req.header('user-agent') ?? null };
 }
@@ -548,12 +551,34 @@ tournaments.post('/tournaments/:id/open-registration', async (c) => {
   const db = c.get('deps').db();
   const t = await loadTournament(db, c.req.param('id'));
   const access = await accessTo(c, t);
-  if (!canTransition(t.status, 'REGISTRATION_OPEN')) throw conflict('As inscrições só podem ser abertas em um campeonato publicado que ainda não abriu.', 'INVALID_TRANSITION');
-  const now = c.get('deps').now();
-  if (t.registrationClosesAt !== null && t.registrationClosesAt.getTime() <= now.getTime()) {
-    throw conflict('O prazo de inscrição já passou. Ajuste a data de fechamento antes de abrir.', 'REGISTRATION_DEADLINE_PASSED');
+  const input = await optionalBody(c, OpenRegistrationInput);
+  if (!canTransition(t.status, 'REGISTRATION_OPEN')) {
+    throw conflict('As inscrições só podem ser abertas em um campeonato publicado ou com as inscrições encerradas.', 'INVALID_TRANSITION');
   }
-  await changeStatus(c, t, 'REGISTRATION_OPEN', { registrationOpensAt: now }, null);
+  // RN-16: reabrir vale enquanto nenhuma chave foi confirmada (uma prévia gerada fica e é sorteada de novo depois).
+  const reopening = t.status === 'REGISTRATION_CLOSED';
+  if (reopening && (await db.stage.count({ where: { tournamentId: t.id, confirmedAt: { not: null } } })) > 0) {
+    throw conflict('A chave já foi confirmada: não dá mais para reabrir as inscrições.', 'BRACKET_CONFIRMED');
+  }
+  const now = c.get('deps').now();
+  const closesAt = input.registrationClosesAt ? new Date(input.registrationClosesAt) : t.registrationClosesAt;
+  if (input.registrationClosesAt && closesAt) {
+    if (closesAt.getTime() <= now.getTime()) throw badRequest('Confira os campos destacados.', 'VALIDATION', { registrationClosesAt: 'Escolha uma data no futuro.' });
+    if (t.startsAt && closesAt.getTime() > t.startsAt.getTime()) {
+      throw badRequest('Confira os campos destacados.', 'VALIDATION', { registrationClosesAt: 'As inscrições precisam fechar antes do início do campeonato.' });
+    }
+  }
+  if (closesAt !== null && closesAt.getTime() <= now.getTime()) {
+    throw conflict(
+      reopening ? 'O prazo de inscrição já passou. Informe a nova data de fechamento para reabrir as inscrições.' : 'O prazo de inscrição já passou. Ajuste a data de fechamento antes de abrir.',
+      'REGISTRATION_DEADLINE_PASSED',
+    );
+  }
+  await changeStatus(c, t, 'REGISTRATION_OPEN', { ...(reopening ? {} : { registrationOpensAt: now }), ...(input.registrationClosesAt ? { registrationClosesAt: closesAt } : {}) }, reopening ? 'Inscrições reabertas' : null);
+  // O fechamento automático segue a data (nova ou antiga). Falha na fila não desfaz a abertura: o Cron cobre.
+  await scheduleRegistrationWindow(c.get('deps').queue(c.get('env'), c.get('log')), { id: t.id, registrationOpensAt: null, registrationClosesAt: closesAt }, now).catch((error: unknown) =>
+    c.get('log').warn('não foi possível agendar o fechamento das inscrições; o Cron cobre', { tournamentId: t.id, error: String(error) }),
+  );
   return detail(c, db, t.id, access);
 });
 
@@ -642,9 +667,33 @@ tournaments.post('/tournaments/:id/duplicate', async (c) => {
 });
 
 // ── Equipe do evento (ORG-10) ──
+export type StaffCandidateBlock = 'USER_NOT_ACTIVE' | 'ALREADY_OWNER' | 'ALREADY_STAFF' | 'STAFF_IS_REGISTERED';
+
+/**
+ * Quem pode entrar na equipe do evento, por apelido ou por link: conta ativa, não é o responsável, ainda não é da
+ * equipe e não está inscrito (PRD §6, nota ³: quem organiza não joga o próprio campeonato — e quem joga não organiza).
+ */
+export async function staffCandidateBlock(db: Db, t: { id: string; ownerId: string }, target: { id: string; status: string }): Promise<StaffCandidateBlock | null> {
+  if (target.status !== 'ACTIVE') return 'USER_NOT_ACTIVE';
+  if (target.id === t.ownerId) return 'ALREADY_OWNER';
+  if (await db.tournamentStaff.findUnique({ where: { tournamentId_userId: { tournamentId: t.id, userId: target.id } } })) return 'ALREADY_STAFF';
+  const registered = await db.registration.count({
+    where: { tournamentId: t.id, status: { in: ['PENDING_MEMBERS', 'PENDING_APPROVAL', 'CONFIRMED', 'WAITLIST'] }, OR: [{ userId: target.id }, { members: { some: { userId: target.id } } }] },
+  });
+  return registered > 0 ? 'STAFF_IS_REGISTERED' : null;
+}
+
+/** Mensagem de cada bloqueio, falando da pessoa adicionada pelo apelido. */
+const STAFF_BLOCK_MESSAGE: Record<StaffCandidateBlock, (nick: string) => string> = {
+  USER_NOT_ACTIVE: (nick) => `${nick} está com a conta suspensa ou banida e não pode entrar na equipe.`,
+  ALREADY_OWNER: (nick) => `${nick} já é responsável por este campeonato.`,
+  ALREADY_STAFF: (nick) => `${nick} já faz parte da equipe do evento.`,
+  STAFF_IS_REGISTERED: (nick) => `${nick} está inscrito neste campeonato. Quem joga não pode fazer parte da equipe do evento.`,
+};
+
 type StaffRow = { userId: string; role: 'CO_ORGANIZER' | 'MODERATOR'; createdAt: Date; user: { nickname: string; avatarUrl: string | null } };
-const toStaff = (s: StaffRow): TournamentStaff => ({ userId: s.userId, nickname: s.user.nickname, avatarUrl: s.user.avatarUrl, role: s.role, addedAt: s.createdAt.toISOString() });
-const staffUser = { user: { select: { nickname: true, avatarUrl: true } } } as const;
+export const toStaff = (s: StaffRow): TournamentStaff => ({ userId: s.userId, nickname: s.user.nickname, avatarUrl: s.user.avatarUrl, role: s.role, addedAt: s.createdAt.toISOString() });
+export const staffUser = { user: { select: { nickname: true, avatarUrl: true } } } as const;
 
 tournaments.get('/tournaments/:id/staff', async (c) => {
   const db = c.get('deps').db();
@@ -663,14 +712,8 @@ tournaments.post('/tournaments/:id/staff', async (c) => {
 
   const target = await db.user.findUnique({ where: { nicknameKey: input.nickname.replace(/^@/, '').toLowerCase() } });
   if (!target || target.status === 'DELETED' || target.status === 'MERGED') throw new HttpProblem(404, 'Não encontramos ninguém com este apelido.', 'USER_NOT_FOUND', { nickname: 'Não encontramos ninguém com este apelido' });
-  if (target.status !== 'ACTIVE') throw conflict(`${target.nickname} está com a conta suspensa ou banida e não pode entrar na equipe.`, 'USER_NOT_ACTIVE');
-  if (target.id === t.ownerId) throw conflict(`${target.nickname} já é responsável por este campeonato.`, 'ALREADY_OWNER');
-  if (await db.tournamentStaff.findUnique({ where: { tournamentId_userId: { tournamentId: t.id, userId: target.id } } })) throw conflict(`${target.nickname} já faz parte da equipe do evento.`, 'ALREADY_STAFF');
-  // PRD §6, nota ³: quem organiza não joga o próprio campeonato — e quem joga não organiza.
-  const registered = await db.registration.count({
-    where: { tournamentId: t.id, status: { in: ['PENDING_MEMBERS', 'PENDING_APPROVAL', 'CONFIRMED', 'WAITLIST'] }, OR: [{ userId: target.id }, { members: { some: { userId: target.id } } }] },
-  });
-  if (registered > 0) throw conflict(`${target.nickname} está inscrito neste campeonato. Quem joga não pode fazer parte da equipe do evento.`, 'STAFF_IS_REGISTERED');
+  const block = await staffCandidateBlock(db, t, target);
+  if (block) throw conflict(STAFF_BLOCK_MESSAGE[block](target.nickname), block);
 
   const ctx = await auditCtx(c);
   const entry = await withAudit(db, ctx, async (tx) => {
@@ -678,8 +721,14 @@ tournaments.post('/tournaments/:id/staff', async (c) => {
     await audited(tx, { action: 'STAFF_CHANGED', entityType: 'Tournament', entityId: t.id, entityLabel: t.name, tournamentId: t.id, after: { adicionou: target.nickname, papel: ROLE_LABEL[input.role] } });
     return created;
   });
+  const by = (await nicknameOf(db, ctx.actorId)) ?? 'A organização';
+  await notify(c, [target.id], { type: 'ANNOUNCEMENT', title: messages.tournaments.staff.added.title(t.name), body: messages.tournaments.staff.added.body(by, ROLE_LABEL[input.role]), link: `/organizador/campeonatos/${t.id}` });
   return respond(c, TournamentStaff, toStaff(entry), 201);
 });
+
+async function nicknameOf(db: Db, userId: string): Promise<string | null> {
+  return (await db.user.findUnique({ where: { id: userId }, select: { nickname: true } }))?.nickname ?? null;
+}
 
 async function staffEntry(db: Db, tournamentId: string, userId: string) {
   const entry = isUuid(userId) ? await db.tournamentStaff.findUnique({ where: { tournamentId_userId: { tournamentId, userId } }, include: staffUser }) : null;
@@ -699,6 +748,7 @@ tournaments.patch('/tournaments/:id/staff/:userId', async (c) => {
     await audited(tx, { action: 'STAFF_CHANGED', entityType: 'Tournament', entityId: t.id, entityLabel: t.name, tournamentId: t.id, before: { membro: entry.user.nickname, papel: ROLE_LABEL[entry.role] }, after: { membro: entry.user.nickname, papel: ROLE_LABEL[input.role] } });
     return saved;
   });
+  await notify(c, [entry.userId], { type: 'ANNOUNCEMENT', title: messages.tournaments.staff.roleChanged.title(t.name), body: messages.tournaments.staff.roleChanged.body(ROLE_LABEL[input.role]), link: `/organizador/campeonatos/${t.id}` });
   return respond(c, TournamentStaff, toStaff(updated));
 });
 
@@ -707,9 +757,11 @@ tournaments.delete('/tournaments/:id/staff/:userId', async (c) => {
   const t = await loadTournament(db, c.req.param('id'));
   await ownerAccess(c, t, 'mudar a equipe do evento');
   const entry = await staffEntry(db, t.id, c.req.param('userId'));
-  await withAudit(db, await auditCtx(c), async (tx) => {
+  const ctx = await auditCtx(c);
+  await withAudit(db, ctx, async (tx) => {
     await tx.tournamentStaff.delete({ where: { tournamentId_userId: { tournamentId: t.id, userId: entry.userId } } });
     await audited(tx, { action: 'STAFF_CHANGED', entityType: 'Tournament', entityId: t.id, entityLabel: t.name, tournamentId: t.id, before: { membro: entry.user.nickname, papel: ROLE_LABEL[entry.role] }, after: { removeu: entry.user.nickname } });
   });
+  await notify(c, [entry.userId], { type: 'ANNOUNCEMENT', title: messages.tournaments.staff.removed.title(t.name), body: messages.tournaments.staff.removed.body((await nicknameOf(db, ctx.actorId)) ?? 'A organização'), link: `/c/${t.slug}` });
   return c.body(null, 204);
 });

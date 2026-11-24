@@ -260,7 +260,40 @@
     "voltar": "Voltar",
     "saiu": "{nome} saiu da equipe",
     "erroRemover": "Não foi possível remover",
-    "removerDaEquipe": "Remover da equipe"
+    "removerDaEquipe": "Remover da equipe",
+    "link": {
+      "titulo": "Convidar por link",
+      "descricao": "Gere um link e mande para quem vai ajudar (WhatsApp, Discord…). Quem abrir, entrar na conta e aceitar passa a fazer parte da equipe com o papel escolhido.",
+      "papel": "Papel",
+      "validade": "Validade",
+      "validades": {
+        "1h": "1 hora",
+        "24h": "24 horas",
+        "7d": "7 dias"
+      },
+      "usos": "Quantas pessoas podem usar",
+      "usosOpcao": "{count, plural, =1 {1 pessoa} other {# pessoas}}",
+      "gerar": "Gerar link",
+      "gerado": "Link criado",
+      "geradoDescricao": "Copie agora: por segurança, o link completo só aparece uma vez.",
+      "seuLink": "Link do convite",
+      "seuLinkDica": "Mostrado só agora. Se perder, revogue e gere outro.",
+      "copiar": "Copiar link",
+      "copiado": "Link copiado",
+      "erroCopiar": "Não foi possível copiar",
+      "erroCopiarDescricao": "Selecione o link no campo e copie manualmente.",
+      "erroGerar": "Não foi possível gerar o link",
+      "ativos": "Links ativos",
+      "carregando": "Carregando os links",
+      "nenhumAtivo": "Nenhum link ativo no momento.",
+      "papelUsos": "{papel, select, CO_ORGANIZER {Co-organizador} other {Moderador}} · {usados} de {total} {total, plural, =1 {uso} other {usos}}",
+      "valeAte": "Vale até {data}",
+      "revogar": "Revogar",
+      "revogarRotulo": "Revogar o link de {papel, select, CO_ORGANIZER {co-organizador} other {moderador}} que vale até {data}",
+      "revogado": "Link revogado",
+      "revogadoDescricao": "Quem ainda não usou o link não consegue mais entrar por ele.",
+      "erroRevogar": "Não foi possível revogar"
+    }
   },
   "RegistrationReasonDialog": {
     "motivoMinimo": "Informe o motivo (pelo menos 3 letras)",
@@ -492,6 +525,15 @@
     "voltar": "Voltar",
     "arquivado": "Campeonato arquivado",
     "erroArquivar": "Não foi possível arquivar",
-    "arquivarConfirmar": "Arquivar campeonato"
+    "arquivarConfirmar": "Arquivar campeonato",
+    "reabrir": "Reabrir inscrições",
+    "reabrirTitulo": "Reabrir as inscrições?",
+    "reabrirDescricao": "Use quando faltar gente ou alguém desistir: o campeonato volta a aceitar inscrições até a nova data de fechamento. Se a chave já foi gerada como prévia, gere de novo depois de fechar, para incluir quem entrou.",
+    "novoFechamento": "Novo fechamento das inscrições",
+    "novoFechamentoDica": "No futuro e antes do início do campeonato.",
+    "novoFechamentoObrigatorio": "Escolha quando as inscrições vão fechar.",
+    "reabertas": "Inscrições reabertas",
+    "reabertasDescricao": "Quem estava na lista de espera continua na fila, na mesma ordem.",
+    "erroReabrir": "Não foi possível reabrir as inscrições"
   }
 }

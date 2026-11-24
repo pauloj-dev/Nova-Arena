@@ -17,12 +17,15 @@ export const TournamentStatus = z.enum([
 ]);
 export type TournamentStatus = z.infer<typeof TournamentStatus>;
 
-/** Transições válidas do ciclo de vida (PRD §8.3). */
+/**
+ * Transições válidas do ciclo de vida (PRD §8.3). `REGISTRATION_CLOSED → REGISTRATION_OPEN` é reabrir as inscrições
+ * (RN-16): só enquanto nenhuma chave foi confirmada — a API confere as fases.
+ */
 export const TOURNAMENT_TRANSITIONS: Record<TournamentStatus, TournamentStatus[]> = {
   DRAFT: ['PUBLISHED', 'CANCELLED'],
   PUBLISHED: ['REGISTRATION_OPEN', 'CANCELLED'],
   REGISTRATION_OPEN: ['REGISTRATION_CLOSED', 'CANCELLED'],
-  REGISTRATION_CLOSED: ['CHECK_IN', 'IN_PROGRESS', 'CANCELLED'],
+  REGISTRATION_CLOSED: ['REGISTRATION_OPEN', 'CHECK_IN', 'IN_PROGRESS', 'CANCELLED'],
   CHECK_IN: ['IN_PROGRESS', 'CANCELLED'],
   IN_PROGRESS: ['PAUSED', 'FINISHED'],
   PAUSED: ['IN_PROGRESS', 'CANCELLED'],
@@ -245,6 +248,63 @@ export const AnnouncementInput = Announcement.pick({ title: true, body: true }).
 export const StaffRole = z.enum(['CO_ORGANIZER', 'MODERATOR']);
 export const TournamentStaff = z.object({ userId: Id, nickname: z.string(), avatarUrl: z.string().nullable(), role: StaffRole, addedAt: IsoDateTime });
 export type TournamentStaff = z.infer<typeof TournamentStaff>;
+
+// ── Convite por link para a equipe do evento ─────────────────────────
+/** Estado de um convite por link: vale, venceu, foi cancelado ou já foi usado todas as vezes. */
+export const StaffInviteState = z.enum(['VALID', 'EXPIRED', 'REVOKED', 'EXHAUSTED']);
+export type StaffInviteState = z.infer<typeof StaffInviteState>;
+
+/** Criar um link para entrar na equipe de um campeonato. Validade e usos como o convite de papel (US-ADM-02). */
+export const CreateStaffInviteInput = z.object({
+  role: StaffRole,
+  validity: z.enum(['1h', '24h', '7d']),
+  maxUses: z.number().int().min(1, 'Mínimo de 1 uso').max(10, 'Máximo de 10 usos'),
+});
+export type CreateStaffInviteInput = z.infer<typeof CreateStaffInviteInput>;
+
+export const TournamentStaffInvite = z.object({
+  id: Id,
+  tournamentId: Id,
+  role: StaffRole,
+  /** Link completo. Só vem na resposta da criação: o servidor guarda apenas o hash do token. */
+  link: z.string().nullable(),
+  maxUses: z.number().int(),
+  uses: z.number().int(),
+  state: StaffInviteState,
+  createdByNickname: z.string(),
+  createdAt: IsoDateTime,
+  expiresAt: IsoDateTime,
+});
+export type TournamentStaffInvite = z.infer<typeof TournamentStaffInvite>;
+
+/** Prévia pública do link (a tela mostra antes do login). */
+export const StaffInvitePreview = z.object({
+  tournament: z.object({ id: Id, slug: z.string(), name: z.string(), gameName: z.string() }),
+  role: StaffRole,
+  state: StaffInviteState,
+  invitedBy: z.string(),
+  expiresAt: IsoDateTime,
+});
+export type StaffInvitePreview = z.infer<typeof StaffInvitePreview>;
+
+export const AcceptStaffInviteResponse = z.object({ tournamentId: Id, slug: z.string(), role: StaffRole });
+export type AcceptStaffInviteResponse = z.infer<typeof AcceptStaffInviteResponse>;
+
+/** Campeonato em que a pessoa faz parte da equipe (co-organizadora ou moderadora), para achar a gestão dele. */
+export const MyStaffTournament = z.object({
+  id: Id,
+  slug: z.string(),
+  name: z.string(),
+  status: TournamentStatus,
+  gameName: z.string(),
+  startsAt: IsoDateTime.nullable(),
+  role: StaffRole,
+});
+export type MyStaffTournament = z.infer<typeof MyStaffTournament>;
+
+/** Abrir (ou reabrir) as inscrições. Reabrir pede a nova data de fechamento quando a antiga já passou (RN-16). */
+export const OpenRegistrationInput = z.object({ registrationClosesAt: IsoDateTime.optional() });
+export type OpenRegistrationInput = z.infer<typeof OpenRegistrationInput>;
 
 /** Papel de quem está vendo naquele campeonato (para mostrar "Gerenciar campeonato"). Nulo = visitante ou participante. */
 export const TournamentAccessLevel = z.enum(['OWNER', 'CO_ORGANIZER', 'MODERATOR', 'ADMIN']);
