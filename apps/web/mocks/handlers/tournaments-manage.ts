@@ -11,6 +11,7 @@ import {
   canTransition,
   CreateTournamentInput,
   CustomScoringModelInput,
+  OpenRegistrationInput,
   SaveTemplateInput,
   TournamentDraftInput,
   type Announcement,
@@ -569,16 +570,34 @@ export const handlers = [
 
   http.post(
     url('/tournaments/:id/open-registration'),
-    handle(({ params }) => {
+    handle(async ({ request, params }) => {
       const t = findTournament(param(params, 'id'));
       const { access } = requireTournamentAccess(t);
-      if (!canTransition(t.status, 'REGISTRATION_OPEN')) throw conflict('As inscrições só podem ser abertas em um campeonato publicado que ainda não abriu.', 'INVALID_TRANSITION');
+      const text = await request.text();
+      const parsed = OpenRegistrationInput.safeParse(text.trim() === '' ? {} : (JSON.parse(text) as unknown));
+      if (!parsed.success) throw badRequest('Confira os campos destacados.', 'VALIDATION', { registrationClosesAt: 'Data inválida' });
+      const input = parsed.data;
+      if (!canTransition(t.status, 'REGISTRATION_OPEN')) throw conflict('As inscrições só podem ser abertas em um campeonato publicado ou com as inscrições encerradas.', 'INVALID_TRANSITION');
+      // RN-16: reabrir vale enquanto nenhuma chave foi confirmada (a prévia fica e é sorteada de novo depois).
+      const reopening = t.status === 'REGISTRATION_CLOSED';
+      if (reopening && t.stages.some((s) => getRun(s.id)?.confirmed)) throw conflict('A chave já foi confirmada: não dá mais para reabrir as inscrições.', 'BRACKET_CONFIRMED');
       const now = new Date();
-      if (t.registrationClosesAt !== null && new Date(t.registrationClosesAt).getTime() <= now.getTime()) {
-        throw conflict('O prazo de inscrição já passou. Ajuste a data de fechamento antes de abrir.', 'REGISTRATION_DEADLINE_PASSED');
+      const closesAt = input.registrationClosesAt ?? t.registrationClosesAt;
+      if (input.registrationClosesAt) {
+        if (new Date(input.registrationClosesAt).getTime() <= now.getTime()) throw badRequest('Confira os campos destacados.', 'VALIDATION', { registrationClosesAt: 'Escolha uma data no futuro.' });
+        if (t.startsAt && new Date(input.registrationClosesAt).getTime() > new Date(t.startsAt).getTime()) {
+          throw badRequest('Confira os campos destacados.', 'VALIDATION', { registrationClosesAt: 'As inscrições precisam fechar antes do início do campeonato.' });
+        }
+      }
+      if (closesAt !== null && new Date(closesAt).getTime() <= now.getTime()) {
+        throw conflict(
+          reopening ? 'O prazo de inscrição já passou. Informe a nova data de fechamento para reabrir as inscrições.' : 'O prazo de inscrição já passou. Ajuste a data de fechamento antes de abrir.',
+          'REGISTRATION_DEADLINE_PASSED',
+        );
       }
       t.status = 'REGISTRATION_OPEN';
-      t.registrationOpensAt = now.toISOString();
+      if (!reopening) t.registrationOpensAt = now.toISOString();
+      if (input.registrationClosesAt) t.registrationClosesAt = input.registrationClosesAt;
       t.updatedAt = now.toISOString();
       save();
       return json(toOrganizerDetail(t, access));

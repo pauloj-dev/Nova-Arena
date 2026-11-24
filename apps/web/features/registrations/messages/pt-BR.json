@@ -136,5 +136,15 @@
     "criarConta": "Criar conta",
     "ofertaFila": "Você pode entrar na lista de espera. Hoje você seria o <b>{posicao}º da fila</b>; se alguém cancelar, a vaga passa para o primeiro, automaticamente.",
     "titulo": "Inscrição"
+  },
+  "StaffTournaments": {
+    "titulo": "Campeonatos que eu ajudo a organizar",
+    "descricao": "Você faz parte da equipe destes campeonatos. Abra a gestão para lançar resultados, cuidar das inscrições e do dia do evento.",
+    "papel": "{papel, select, CO_ORGANIZER {Co-organizador} other {Moderador}}",
+    "gerenciar": "Gerenciar",
+    "gerenciarRotulo": "Gerenciar {nome}",
+    "inicio": "Começa em {data}",
+    "semData": "Sem data de início",
+    "erro": "Não foi possível carregar os campeonatos que você ajuda a organizar"
   }
 }

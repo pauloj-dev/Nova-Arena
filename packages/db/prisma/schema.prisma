@@ -552,6 +552,7 @@ model Tournament {
   gameMode      GameMode          @relation(fields: [gameModeId], references: [id])
   owner         User              @relation("TournamentOwner", fields: [ownerId], references: [id])
   staff         TournamentStaff[]
+  staffInvites  TournamentStaffInvite[]
   stages        Stage[]
   registrations Registration[]
   announcements Announcement[]
@@ -579,6 +580,26 @@ model TournamentStaff {
   @@id([tournamentId, userId])
   @@index([userId])
   @@map("tournament_staff")
+}
+
+/// Convite por link para a equipe de um campeonato (co-organizador ou moderador). O banco guarda só o hash do token;
+/// o link existe apenas na resposta da criação. O limite de usos vale sob concorrência (UPDATE condicional).
+model TournamentStaffInvite {
+  id           String    @id @default(uuid()) @db.Uuid
+  tournamentId String    @db.Uuid
+  role         StaffRole
+  tokenHash    String    @unique
+  maxUses      Int       @default(1)
+  uses         Int       @default(0)
+  expiresAt    DateTime  @db.Timestamptz(3)
+  revokedAt    DateTime? @db.Timestamptz(3)
+  createdById  String    @db.Uuid
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@index([tournamentId])
+  @@map("tournament_staff_invites")
 }
 
 model TournamentTemplate {

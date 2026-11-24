@@ -51,6 +51,7 @@ export const TELAS: Tela[] = [
   { nome: 'confirmar-email', path: '/confirmar-email?token=token-de-exemplo', area: 'publica' },
   { nome: 'convite-papel', path: '/convite/convite-organizador-valido', area: 'publica' },
   { nome: 'convite-squad', path: '/squads/convite/ALFA42', area: 'publica' },
+  { nome: 'convite-equipe', path: '/equipe/convite/convite-equipe-valido', area: 'publica' },
 
   // Participante
   { nome: 'minha-conta', path: '/minha-conta', area: 'participante', como: 'u_bianca', principal: true },

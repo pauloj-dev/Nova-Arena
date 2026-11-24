@@ -115,7 +115,7 @@
       "DRAFT": "Ainda é um rascunho: só você e a sua equipe enxergam. Termine o assistente e publique.",
       "PUBLISHED": "Publicado e visível na vitrine. As inscrições abrem na data marcada — ou agora, se você quiser.",
       "REGISTRATION_OPEN": "As inscrições estão abertas. Elas fecham sozinhas no prazo, ou você pode encerrar antes.",
-      "REGISTRATION_CLOSED": "As inscrições foram encerradas. O próximo passo é gerar a chave da primeira fase, na aba Fases e chave.",
+      "REGISTRATION_CLOSED": "As inscrições foram encerradas. O próximo passo é gerar a chave da primeira fase, na aba Fases e chave. Faltou gente ou alguém desistiu? Dá para reabrir as inscrições enquanto a chave não for confirmada.",
       "CHECK_IN": "Check-in aberto: os inscritos estão confirmando presença.",
       "IN_PROGRESS": "O campeonato está em andamento. Agende as partidas e lance os resultados; a tabela se atualiza sozinha.",
       "PAUSED": "O campeonato está pausado: ninguém lança resultado até você retomar.",
@@ -327,11 +327,26 @@
     "cancelarDe": "Cancelar {nome}",
     "cancelar": "Cancelar",
     "vazio": {
-      "all": { "titulo": "Você ainda não tem campeonatos", "descricao": "Crie o primeiro em poucos minutos: o assistente sugere tudo, das vagas ao regulamento." },
-      "draft": { "titulo": "Nenhum rascunho", "descricao": "Tudo o que você começou já foi publicado ou excluído." },
-      "active": { "titulo": "Nenhum campeonato ativo", "descricao": "Publique um rascunho para ele aparecer na vitrine e receber inscrições." },
-      "finished": { "titulo": "Nenhum campeonato encerrado", "descricao": "Os campeonatos finalizados e arquivados aparecem aqui." },
-      "cancelled": { "titulo": "Nenhum campeonato cancelado", "descricao": "Que continue assim." }
+      "all": {
+        "titulo": "Você ainda não tem campeonatos",
+        "descricao": "Crie o primeiro em poucos minutos: o assistente sugere tudo, das vagas ao regulamento."
+      },
+      "draft": {
+        "titulo": "Nenhum rascunho",
+        "descricao": "Tudo o que você começou já foi publicado ou excluído."
+      },
+      "active": {
+        "titulo": "Nenhum campeonato ativo",
+        "descricao": "Publique um rascunho para ele aparecer na vitrine e receber inscrições."
+      },
+      "finished": {
+        "titulo": "Nenhum campeonato encerrado",
+        "descricao": "Os campeonatos finalizados e arquivados aparecem aqui."
+      },
+      "cancelled": {
+        "titulo": "Nenhum campeonato cancelado",
+        "descricao": "Que continue assim."
+      }
     },
     "criarCampeonato": "Criar campeonato",
     "titulo": "Meus campeonatos",

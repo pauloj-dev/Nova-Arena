@@ -96,6 +96,7 @@ const MATRIX: Row[] = [
   r('GET /teams/:id', PUBLIC, ({ ids }) => `/teams/${ids.team}`),
   r('GET /team-invites/:code', PUBLIC, ({ ids }) => `/team-invites/${ids.teamInviteCode}`),
   r('GET /role-invites/:token', PUBLIC, () => '/role-invites/convite-que-nao-existe-123456'),
+  r('GET /staff-invites/:token', PUBLIC, () => '/staff-invites/convite-que-nao-existe-123456', 'prévia do link da equipe do campeonato (antes do login)'),
   r('GET /site/banner', PUBLIC),
   r('GET /site/flags', PUBLIC),
   r('GET /site/settings', PUBLIC),
@@ -125,6 +126,7 @@ const MATRIX: Row[] = [
     'GET /me/registrations',
     'GET /me/reports',
     'GET /me/sessions',
+    'GET /me/staff-tournaments',
     'GET /me/team-invites',
     'GET /notifications',
     'GET /notifications/unread-count',
@@ -160,6 +162,7 @@ const MATRIX: Row[] = [
   r('POST /team-invites/:code/accept', AUTH, ({ ids }) => `/team-invites/${ids.teamInviteCode}/accept`),
   { ...r('POST /team-invites/:code/decline', OWN, ({ ids }) => `/team-invites/${ids.personalInviteCode}/decline`, 'recusar: só quem foi convidado pelo apelido (código errado conta no limite de 10/min)'), limited: true },
   r('POST /role-invites/:token/accept', AUTH, () => '/role-invites/convite-que-nao-existe-123456/accept'),
+  r('POST /staff-invites/:token/accept', AUTH, () => '/staff-invites/convite-que-nao-existe-123456/accept', 'entrar na equipe do campeonato pelo link: o próprio link é a permissão'),
   r('GET /files/:id', except(OWN, { admin: 'allow', superAdmin: 'allow', adminSem2fa: 'allow' }), ({ ids }) => `/files/${ids.upload}`, 'prova privada: quem enviou, o staff do campeonato (quando anexada) e a moderação da plataforma; sem Blob no teste: 503'),
 
   // ── Recursos da participante ─────────────────────────────────────
@@ -214,6 +217,8 @@ const MATRIX: Row[] = [
       ['POST /tournaments/:id/resume', 'tournaments'],
       ['POST /tournaments/:id/publish', 'tournaments'],
       ['POST /tournaments/:id/staff', 'tournaments'],
+      ['GET /tournaments/:id/staff-invites', 'tournaments'],
+      ['POST /tournaments/:id/staff-invites', 'tournaments'],
       ['GET /tournaments/:id/podium-suggestion', 'tournaments'],
       ['POST /tournaments/:id/registrations/import', 'tournaments'],
     ] as const
@@ -221,6 +226,7 @@ const MATRIX: Row[] = [
   r('GET /tournaments/:id/audit-logs', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/audit-logs`, 'PRD §6: logs só dos próprios campeonatos (moderador não)'),
   r('PATCH /tournaments/:id/staff/:userId', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/staff/${ids.moderador}`),
   r('DELETE /tournaments/:id/staff/:userId', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/staff/${ids.nobody}`),
+  r('DELETE /tournaments/:id/staff-invites/:inviteId', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/staff-invites/${ids.nobody}`, 'revogar o link da equipe: só o responsável (convite inexistente: 404)'),
   r('POST /tournaments/:id/announcements', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/announcements`),
   r('DELETE /announcements/:id', MANAGE, ({ ids }) => `/announcements/${ids.announcement}`),
   r('POST /stages/:id/generate', MANAGE, ({ ids }) => `/stages/${ids.stage}/generate`, 'gerar/regerar chave: não é do moderador'),
