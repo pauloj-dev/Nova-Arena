@@ -70,12 +70,15 @@
     "entrarListaEspera": "Entrar na lista de espera",
     "inscreverSquad": "Inscrever squad",
     "inscreverSe": "Inscrever-se",
-    "depoisDaInscricao": "Depois da inscrição, cada jogador confirma a participação. A inscrição vale quando {tamanho} confirmarem."
+    "depoisDaInscricao": "Depois da inscrição, cada jogador recebe um aviso para confirmar a participação. A inscrição vale quando {tamanho} confirmarem.",
+    "chamarJogadores": "Chame os jogadores agora",
+    "chamarJogadoresDescricao": "Mande o link de convite no grupo do time. Quando eles entrarem no squad, é só atualizar e inscrever.",
+    "atualizarSquad": "Já entraram? Atualizar o squad"
   },
   "MyRegistrationCard": {
     "status": {
       "confirmada": "{quem, select, squad {O squad está confirmado no campeonato.} other {Você está confirmado no campeonato.}}",
-      "elencoIncompleto": "O elenco ficou com menos de {minimo} jogadores. Cancele a inscrição e inscreva o squad de novo quando ele estiver completo.",
+      "elencoIncompleto": "O elenco ficou com menos de {minimo} jogadores. O capitão pode escalar outro membro do squad ou chamar alguém pelo link de convite: quem entrar no squad já entra no elenco.",
       "aguardaConfirmacoes": "A inscrição vale quando {minimo} jogadores confirmarem. {count, plural, =1 {Falta 1 membro confirmar} other {Faltam {count} membros confirmarem}}.",
       "aguardaAprovacao": "A inscrição está completa e aguarda a aprovação da organização.",
       "listaEspera": "{quem, select, squad {O squad} other {Você}} está na lista de espera. Se abrir uma vaga, a entrada é automática, na ordem da fila.",
@@ -107,7 +110,13 @@
     "soCapitaoCancela": "Só o capitão pode cancelar a inscrição do squad.",
     "verOutros": "Ver outros campeonatos",
     "voltar": "Voltar",
-    "sairDaLista": "Sair da lista"
+    "sairDaLista": "Sair da lista",
+    "trocarElencoAte": "O capitão pode trocar o elenco até {data}. Depois disso, só a organização.",
+    "trocarElencoSemData": "O capitão pode trocar o elenco até o campeonato começar.",
+    "tirar": "Tirar",
+    "tirarRotulo": "Tirar {nome} do elenco",
+    "tirou": "{nome} saiu do elenco",
+    "erroElenco": "Não foi possível mudar o elenco"
   },
   "RegistrationPanel": {
     "carregando": "Carregando a inscrição",
@@ -146,5 +155,19 @@
     "inicio": "Começa em {data}",
     "semData": "Sem data de início",
     "erro": "Não foi possível carregar os campeonatos que você ajuda a organizar"
+  },
+  "CaptainRoster": {
+    "titulo": "Escalar membros do squad",
+    "descricao": "Membros do squad que ainda não estão no elenco deste campeonato. Quem você escalar recebe um aviso para confirmar.",
+    "escalar": "Escalar",
+    "escalarRotulo": "Escalar {nome}",
+    "escalou": "{nome} entrou no elenco",
+    "escalouDescricao": "Ele recebeu um aviso para confirmar a participação.",
+    "erroEscalar": "Não foi possível escalar",
+    "todosNoElenco": "Todos os membros do squad já estão no elenco.",
+    "elencoCheio": "O elenco está completo: {limite} jogadores, contando reservas.",
+    "chamarMais": "Chamar mais jogadores para o squad",
+    "carregando": "Carregando o squad",
+    "erroCarregar": "Não foi possível carregar o squad"
   }
 }

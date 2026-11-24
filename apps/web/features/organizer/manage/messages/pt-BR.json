@@ -376,7 +376,9 @@
     "desde": "desde {data}",
     "recusada": "Inscrição de {nome} recusada",
     "removido": "{nome} removido",
-    "substituido": "{nome} foi substituído"
+    "substituido": "{nome} foi substituído",
+    "elenco": "Elenco",
+    "elencoRotulo": "Editar o elenco do {nome}"
   },
   "StageSeedInfo": {
     "distribuicao": "Distribuição: <strong>{tipo}</strong>",
@@ -535,5 +537,30 @@
     "reabertas": "Inscrições reabertas",
     "reabertasDescricao": "Quem estava na lista de espera continua na fila, na mesma ordem.",
     "erroReabrir": "Não foi possível reabrir as inscrições"
+  },
+  "RosterDialog": {
+    "titulo": "Elenco do {nome}",
+    "descricao": "Troque, tire ou remaneje jogadores entre squads. Quem você escalar entra já confirmado e recebe um aviso.",
+    "emAndamento": "Com o campeonato em andamento, a troca não muda o status da inscrição.",
+    "contagem": "{count, plural, =1 {1 jogador} other {{count} jogadores}} de {limite} (contando reservas)",
+    "tirar": "Tirar",
+    "tirarRotulo": "Tirar {nome} do elenco",
+    "mover": "Mover",
+    "moverRotulo": "Mover {nome} para outro squad",
+    "moverPara": "Mover {nome} para",
+    "escolhaSquad": "Escolha o squad",
+    "confirmarMover": "Mover jogador",
+    "cancelar": "Cancelar",
+    "semOutrosSquads": "Não há outro squad ativo neste campeonato para receber o jogador.",
+    "escalarTitulo": "Escalar um jogador",
+    "apelido": "Apelido do jogador",
+    "apelidoPlaceholder": "Ex.: KauePro1",
+    "apelidoObrigatorio": "Informe o apelido do jogador.",
+    "escalar": "Escalar",
+    "escalou": "{nome} entrou no elenco",
+    "tirou": "{nome} saiu do elenco",
+    "moveu": "{nome} foi para o {squad}",
+    "erro": "Não foi possível mudar o elenco",
+    "fechar": "Fechar"
   }
 }

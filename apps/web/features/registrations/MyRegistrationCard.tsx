@@ -2,17 +2,22 @@
 
 import type { Registration, Tournament } from '@nova/schemas';
 import { Button, Modal, StatusPill, useToast } from '@nova/ui';
+import { UserMinus } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useState } from 'react';
 import { errorMessage } from '@/shared/api/client';
-import { useCancelRegistration, useConfirmRegistration, useDeclineRegistration } from '@/shared/api/hooks/registrations';
+import { useCancelRegistration, useConfirmRegistration, useDeclineRegistration, useRemoveRosterMember } from '@/shared/api/hooks/registrations';
 import { getT } from '@/shared/i18n/core';
 import { useT } from '@/shared/i18n/react';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { GameAccountWarning } from './GameAccountWarning';
-import { canCancelRegistration, missingConfirmations } from './lib/rules';
+import { canCancelRegistration, canCaptainEditRoster, missingConfirmations } from './lib/rules';
 import { messages } from './messages';
 import { RegistrationMembers } from './RegistrationMembers';
+
+// Só o capitão, com o elenco ainda aberto, escala membros: fora do JS de quem só acompanha.
+const CaptainRoster = dynamic(() => import('./CaptainRoster').then((m) => m.CaptainRoster));
 
 interface MyRegistrationCardProps {
   tournament: Tournament;
@@ -55,6 +60,7 @@ export function MyRegistrationCard({ tournament, registration: r, viewerId }: My
   const confirm = useConfirmRegistration();
   const decline = useDeclineRegistration();
   const cancel = useCancelRegistration();
+  const remove = useRemoveRosterMember();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   // A hora é lida uma vez ao montar: o prazo que vale é o da API.
   const [now] = useState(() => new Date());
@@ -67,6 +73,9 @@ export function MyRegistrationCard({ tournament, registration: r, viewerId }: My
   const needsMyConfirmation = active && isTeam && me !== undefined && me.confirmedAt === null;
   const missingMyAccount = me !== undefined && !me.hasGameAccount;
   const cancellable = canCancelRegistration(tournament, now);
+  // Trava de elenco (PRD §12.1): até ela o capitão troca membros; depois, só a organização.
+  const rosterOpen = active && isTeam && canCaptainEditRoster({ status: tournament.status, rosterLockAt: tournament.rosterLockAt }, now);
+  const editsRoster = rosterOpen && Boolean(me?.isCaptain);
 
   function onConfirm() {
     confirm.mutate(r.id, {
@@ -79,6 +88,15 @@ export function MyRegistrationCard({ tournament, registration: r, viewerId }: My
       onSuccess: () => success(t('recusou'), t('recusouDescricao')),
       onError: (e) => error(t('erroRecusar'), errorMessage(e)),
     });
+  }
+  function onRemove(userId: string, nickname: string) {
+    remove.mutate(
+      { registrationId: r.id, userId },
+      {
+        onSuccess: () => success(t('tirou', { nome: nickname })),
+        onError: (e) => error(t('erroElenco'), errorMessage(e)),
+      },
+    );
   }
   function onCancel() {
     cancel.mutate(r.id, {
@@ -97,6 +115,22 @@ export function MyRegistrationCard({ tournament, registration: r, viewerId }: My
 
   return (
     <div className="flex flex-col gap-4">
+      {needsMyConfirmation && (
+        <div className="flex flex-col gap-2 rounded-md border border-warning bg-warning-soft p-3 text-warning-soft-text" data-testid="confirm-participation">
+          <p className="text-sm font-semibold">{t('voceVaiJogar')}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button loading={confirm.isPending} disabled={missingMyAccount || decline.isPending} onClick={onConfirm}>
+              {t('confirmarParticipacao')}
+            </Button>
+            {!me?.isCaptain && (
+              <Button variant="secondary" loading={decline.isPending} disabled={confirm.isPending} onClick={onDecline}>
+                {t('recusar')}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <StatusPill status={r.status} />
@@ -115,25 +149,34 @@ export function MyRegistrationCard({ tournament, registration: r, viewerId }: My
         )}
       </div>
 
-      {isTeam && r.members.length > 0 && <RegistrationMembers registration={r} viewerId={viewerId} />}
+      {isTeam && r.members.length > 0 && (
+        <RegistrationMembers
+          registration={r}
+          viewerId={viewerId}
+          actions={
+            editsRoster
+              ? (m) =>
+                  m.isCaptain ? null : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      iconLeft={<UserMinus className="size-4" aria-hidden />}
+                      aria-label={t('tirarRotulo', { nome: m.nickname })}
+                      loading={remove.isPending && remove.variables?.userId === m.userId}
+                      disabled={remove.isPending}
+                      onClick={() => onRemove(m.userId, m.nickname)}
+                    >
+                      {t('tirar')}
+                    </Button>
+                  )
+              : undefined
+          }
+        />
+      )}
+      {rosterOpen && <p className="text-xs text-muted">{tournament.rosterLockAt ? t('trocarElencoAte', { data: formatDateTime(tournament.rosterLockAt) }) : t('trocarElencoSemData')}</p>}
+      {editsRoster && <CaptainRoster tournament={tournament} registration={r} />}
 
       {active && missingMyAccount && <GameAccountWarning gameName={tournament.gameName} context="confirm" />}
-
-      {needsMyConfirmation && (
-        <div className="flex flex-col gap-2 rounded-md border border-border bg-surface-2 p-3">
-          <p className="text-sm font-semibold">{t('voceVaiJogar')}</p>
-          <div className="flex flex-wrap gap-2">
-            <Button loading={confirm.isPending} disabled={missingMyAccount || decline.isPending} onClick={onConfirm}>
-              {t('confirmarParticipacao')}
-            </Button>
-            {!me?.isCaptain && (
-              <Button variant="secondary" loading={decline.isPending} disabled={confirm.isPending} onClick={onDecline}>
-                {t('recusar')}
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
 
       {active && isOwner && (
         <div className="flex flex-col gap-2 border-t border-border pt-4">

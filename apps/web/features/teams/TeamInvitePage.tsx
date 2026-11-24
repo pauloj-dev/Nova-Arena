@@ -1,10 +1,11 @@
 'use client';
 
-import type { TeamInvitePreview } from '@nova/schemas';
+import type { AcceptTeamInviteResult, TeamInvitePreview } from '@nova/schemas';
 import { Button, Card, EmptyState, ErrorState, Skeleton, StatusPill, useToast } from '@nova/ui';
-import { Clock, MailX, ShieldAlert, Users } from 'lucide-react';
+import { CheckCircle2, Clock, Hourglass, MailX, ShieldAlert, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { useAcceptTeamInvite, useDeclineTeamInvite, useTeamInvitePreview } from '@/shared/api/hooks/teams';
 import { PageContainer } from '@/shared/layout/AreaShell';
@@ -82,12 +83,15 @@ function InviteCard({ invite }: { invite: TeamInvitePreview }) {
   const blocked = inviteStateMessage(invite.state);
   const next = encodeURIComponent(invitePath(invite.code));
   const directedToMe = Boolean(user) && invite.invitedNickname !== null && !invite.viewerIsNotInvitee;
+  const [joined, setJoined] = useState<AcceptTeamInviteResult | null>(null);
 
   function onAccept() {
     accept.mutate(invite.code, {
-      onSuccess: (joined) => {
-        success(t('entrou', { nome: joined.name }));
-        router.push(`/minha-conta/squads/${joined.id}`);
+      onSuccess: (result) => {
+        success(t('entrou', { nome: result.name }));
+        // Entrou também no elenco de algum campeonato: mostra onde (e o que falta) antes de seguir.
+        if (result.rosters.length > 0) setJoined(result);
+        else router.push(`/minha-conta/squads/${result.id}`);
       },
       onError: (e) => error(t('erroAceitar'), errorMessage(e)),
     });
@@ -109,6 +113,8 @@ function InviteCard({ invite }: { invite: TeamInvitePreview }) {
     time: team.name,
     b: (chunks) => <strong>{chunks}</strong>,
   });
+
+  if (joined) return <JoinedRosters result={joined} />;
 
   return (
     <Card className="flex flex-col gap-5">
@@ -190,6 +196,32 @@ function InviteCard({ invite }: { invite: TeamInvitePreview }) {
           )}
         </>
       )}
+    </Card>
+  );
+}
+
+/** Depois de aceitar: os campeonatos em que o jogador já entrou no elenco do squad (e se falta confirmar). */
+function JoinedRosters({ result }: { result: AcceptTeamInviteResult }) {
+  const t = useT(messages, 'InviteCard');
+  return (
+    <Card className="flex flex-col gap-4" data-testid="joined-rosters">
+      <h2 className="text-lg">{t('elencoTitulo')}</h2>
+      <ul className="flex flex-col gap-3">
+        {result.rosters.map((r) => (
+          <li key={r.registrationId} className="flex flex-col gap-2 rounded-md border border-border p-3">
+            <p className="flex items-start gap-2 text-sm text-text">
+              {r.confirmed ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary-text" aria-hidden /> : <Hourglass className="mt-0.5 size-4 shrink-0 text-warning-soft-text" aria-hidden />}
+              <span>{t.rich(r.confirmed ? 'elencoConfirmado' : 'elencoPendente', { time: result.name, campeonato: r.tournamentName, b: (chunks) => <strong>{chunks}</strong> })}</span>
+            </p>
+            <Button asChild size="sm" variant={r.confirmed ? 'secondary' : 'primary'} className="self-start">
+              <Link href={`/c/${r.tournamentSlug}`}>{r.confirmed ? t('verCampeonato') : t('confirmarParticipacao')}</Link>
+            </Button>
+          </li>
+        ))}
+      </ul>
+      <Button asChild variant="ghost" className="self-start">
+        <Link href={`/minha-conta/squads/${result.id}`}>{t('abrirSquad')}</Link>
+      </Button>
     </Card>
   );
 }

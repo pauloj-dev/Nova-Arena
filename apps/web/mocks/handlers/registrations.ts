@@ -5,7 +5,7 @@
  * `features/registrations/lib/rules.ts`; aqui ficam permissão, leitura e gravação.
  */
 import { http } from 'msw';
-import { ACTIVE_REGISTRATION_STATUSES, RegisterInTournamentInput, type GameMode, type MyTournamentEntry, type RegistrationEligibility, type TournamentStatus } from '@nova/schemas';
+import { ACTIVE_REGISTRATION_STATUSES, AddRosterMemberInput, MoveRosterMemberInput, RegisterInTournamentInput, type GameMode, type MyTournamentEntry, type RegistrationEligibility, type TournamentStatus } from '@nova/schemas';
 import {
   canCancelRegistration,
   checkSquadSize,
@@ -21,6 +21,7 @@ import { applyDueWalkovers } from './competition';
 import { db, nowIso, save, uid, type DbRegistration, type DbTeam, type DbTournament, type DbUser } from '../db';
 import { badRequest, conflict, body, currentUser, findTournament, forbidden, handle, HttpProblem, json, noContent, notFound, param, requireUser, url } from '../http';
 import { findUser, takenSlots, toRegistration, toTournamentSummary } from '../views';
+import { addMember, moveMember, notifyConfirmed, notifyToConfirm, removeMember, rosterActor } from '../roster';
 import { settleWaitlist } from '../waitlist';
 
 export const moduleName = 'registrations';
@@ -259,8 +260,10 @@ export const handlers = [
       };
       d.registrations.push(registration);
       follow(user.id, t.id);
-      // Ponto de extensão (F2): notificar os membros ("Confirme sua participação") e, com aprovação manual, a organização.
       save();
+      // PRD §12.2: o elenco recebe "Confirme sua participação"; vaga garantida recebe "Inscrição confirmada".
+      if (team) notifyToConfirm(registration);
+      notifyConfirmed([registration]);
       return json(toRegistration(registration), 201);
     }),
   ),
@@ -286,6 +289,7 @@ export const handlers = [
           r.status = next;
           // O squad completou dentro do prazo: a vaga deixa de ser só uma reserva.
           r.reservedUntil = null;
+          notifyConfirmed([r]);
         }
         follow(user.id, t.id);
         save();
@@ -331,6 +335,45 @@ export const handlers = [
       save();
       settleWaitlist(t);
       return noContent();
+    }),
+  ),
+
+  // ── Elenco do squad (trava de elenco, PRD §12.1) ───────────────────
+  /** Escalar: o capitão escolhe um membro do squad; a organização, qualquer jogador (já confirmado). */
+  http.post(
+    url('/registrations/:id/members'),
+    handle(async ({ params, request }) => {
+      const { registration: r, tournament: t } = findRegistration(param(params, 'id'));
+      const actor = rosterActor(r, t);
+      const input = await body(request, AddRosterMemberInput);
+      addMember(actor, t, r, input);
+      return json({ registrations: [toRegistration(r)] });
+    }),
+  ),
+
+  /** Tirar do elenco: o capitão (até a trava, nunca a si mesmo) ou a organização (até o fim). */
+  http.delete(
+    url('/registrations/:id/members/:userId'),
+    handle(({ params }) => {
+      const { registration: r, tournament: t } = findRegistration(param(params, 'id'));
+      removeMember(rosterActor(r, t), t, r, param(params, 'userId'));
+      return json({ registrations: [toRegistration(r)] });
+    }),
+  ),
+
+  /** Remanejar (só a organização): tira o jogador de um squad e escala em outro do mesmo campeonato. */
+  http.post(
+    url('/registrations/:id/members/:userId/move'),
+    handle(async ({ params, request }) => {
+      const { registration: from, tournament: t } = findRegistration(param(params, 'id'));
+      const actor = rosterActor(from, t);
+      if (actor.asCaptain) throw forbidden('Só a organização deste campeonato pode fazer isso.');
+      const { toRegistrationId } = await body(request, MoveRosterMemberInput);
+      if (toRegistrationId === from.id) throw badRequest('Escolha outro squad para o jogador.', 'SAME_REGISTRATION', { toRegistrationId: 'Escolha outro squad.' });
+      const to = db().registrations.find((x) => x.id === toRegistrationId && x.tournamentId === t.id);
+      if (!to) throw notFound('Inscrição');
+      moveMember(actor, t, from, to, param(params, 'userId'));
+      return json({ registrations: [toRegistration(from), toRegistration(to)] });
     }),
   ),
 ];

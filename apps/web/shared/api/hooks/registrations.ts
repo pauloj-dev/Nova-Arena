@@ -1,6 +1,6 @@
 'use client';
 
-import { MyTournamentEntry, Registration, RegistrationEligibility, type RegisterInTournamentInput } from '@nova/schemas';
+import { MyTournamentEntry, Registration, RegistrationEligibility, RosterChangeResult, type AddRosterMemberInput, type RegisterInTournamentInput } from '@nova/schemas';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { api } from '../client';
@@ -77,6 +77,36 @@ export function useCancelRegistration() {
   const invalidate = useInvalidateRegistrations();
   return useMutation({
     mutationFn: (registrationId: string) => api.delete<void>(`/registrations/${registrationId}`),
+    onSuccess: () => invalidate(),
+  });
+}
+
+// ── Elenco do squad (trava de elenco, PRD §12.1) ─────────────────────
+
+/** Escalar no elenco: o capitão escolhe um membro do squad; a organização, qualquer jogador (apelido ou id). */
+export function useAddRosterMember() {
+  const invalidate = useInvalidateRegistrations();
+  return useMutation({
+    mutationFn: ({ registrationId, input }: { registrationId: string; input: AddRosterMemberInput }) => api.post(`/registrations/${registrationId}/members`, input, { schema: RosterChangeResult }),
+    onSuccess: () => invalidate(),
+  });
+}
+
+/** Tirar do elenco (o capitão até a trava de elenco; a organização até o fim do campeonato). */
+export function useRemoveRosterMember() {
+  const invalidate = useInvalidateRegistrations();
+  return useMutation({
+    mutationFn: ({ registrationId, userId }: { registrationId: string; userId: string }) => api.delete(`/registrations/${registrationId}/members/${userId}`, { schema: RosterChangeResult }),
+    onSuccess: () => invalidate(),
+  });
+}
+
+/** Remanejar (só a organização): o jogador sai de um squad e entra em outro do mesmo campeonato. */
+export function useMoveRosterMember() {
+  const invalidate = useInvalidateRegistrations();
+  return useMutation({
+    mutationFn: ({ registrationId, userId, toRegistrationId }: { registrationId: string; userId: string; toRegistrationId: string }) =>
+      api.post(`/registrations/${registrationId}/members/${userId}/move`, { toRegistrationId }, { schema: RosterChangeResult }),
     onSuccess: () => invalidate(),
   });
 }
