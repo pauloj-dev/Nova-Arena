@@ -27,6 +27,8 @@ erDiagram
     GAME ||--o{ GAME_MODE : oferece
     GAME ||--o{ SCORING_MODEL : define
     GAME ||--o{ TOURNAMENT : base
+    USER ||--o{ EVENT : organiza
+    EVENT |o--o{ TOURNAMENT : agrupa
     TOURNAMENT ||--o{ TOURNAMENT_STAFF : tem
     TOURNAMENT ||--o{ STAGE : composto
     TOURNAMENT ||--o{ REGISTRATION : recebe
@@ -65,6 +67,7 @@ erDiagram
 | `ReportStatus` | `OPEN`, `IN_REVIEW`, `ACTIONED`, `DISMISSED` |
 | `SanctionType` | `WARNING`, `SUSPENSION`, `BAN` |
 | `RequestStatus` | `PENDING`, `APPROVED`, `REJECTED` |
+| `EventParticipationRule` | `SINGLE`, `MULTIPLE` |
 | `NotificationType` | `REGISTRATION_CONFIRMED`, `TEAM_INVITE`, `CHECKIN_OPEN`, `MATCH_SOON`, `RESULT_POSTED`, `QUALIFIED`, `ELIMINATED`, `ANNOUNCEMENT`, `ORGANIZER_REQUEST_RESULT`, `DISPUTE_UPDATE`, `SANCTION` |
 
 ## Conta e acesso
@@ -95,7 +98,8 @@ erDiagram
 
 | Entidade | Campos principais | Observações |
 |---|---|---|
-| `Tournament` | `slug` (único), `gameId`, `gameModeId`, `ownerId`, `name`, `description` (rich-text sanitizado), `rules`, `prize`, `bannerUrl?`, `streamUrls[]`, `status`, `participantType` (`SOLO`/`TEAM`), `maxParticipants`, `registrationOpensAt`, `registrationClosesAt`, `startsAt`, `manualApproval`, `waitlistEnabled`, `checkInConfig` (jsonb: `opensMinutesBefore`, `closesMinutesBefore`, `requireAllMembers`), `rosterLockAt?`, `featured`, `draftStep?` | `draftStep` guarda o passo do assistente. |
+| `Tournament` | `slug` (único), `gameId`, `gameModeId`, `ownerId`, `name`, `description` (rich-text sanitizado), `rules`, `prize`, `bannerUrl?`, `streamUrls[]`, `status`, `participantType` (`SOLO`/`TEAM`), `maxParticipants`, `registrationOpensAt`, `registrationClosesAt`, `startsAt`, `manualApproval`, `waitlistEnabled`, `checkInConfig` (jsonb: `opensMinutesBefore`, `closesMinutesBefore`, `requireAllMembers`), `rosterLockAt?`, `featured`, `eventId?`, `draftStep?` | `draftStep` guarda o passo do assistente. `eventId` nulo = campeonato avulso. |
+| `Event` | `slug` (único), `name`, `description`, `bannerUrl?`, `ownerId`, `participationRule` (`SINGLE`/`MULTIPLE`, padrão `MULTIPLE`) | Agrupa campeonatos de um organizador (ADR-0005). `SINGLE`: cada jogador em um só campeonato do evento (inscrição ativa solo ou membro confirmado de squad). Excluir o evento deixa os campeonatos avulsos. |
 | `TournamentStaff` | `tournamentId`, `userId`, `role`, `addedBy` | Único por (`tournamentId`, `userId`). |
 | `TournamentStaffInvite` | `tournamentId`, `role`, `tokenHash`, `maxUses`, `uses`, `expiresAt`, `revokedAt?`, `createdBy` | Convite por link para a equipe de um campeonato (co-organizador ou moderador). Só o hash do token fica no banco; o uso é contado num `UPDATE` condicional (limite sob concorrência). Quem aceita entra com `addedBy` = quem criou o link. |
 | `TournamentTemplate` | `ownerId?`, `name`, `gameId`, `gameModeId`, `payload` (jsonb: fases, inscrições, pontuação) | `ownerId` nulo = modelo da plataforma. |

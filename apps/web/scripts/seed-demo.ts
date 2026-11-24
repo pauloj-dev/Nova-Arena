@@ -14,6 +14,7 @@ import { parseEnv } from '@nova/api';
 import { seedDemo, type DemoReport } from '@nova/api/demo';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { demoEvents } from '../mocks/event-store';
 import { DEMO_NOTIFICATIONS } from '../mocks/handlers/notifications';
 import { buildSeed } from '../mocks/seed';
 
@@ -110,7 +111,9 @@ async function main(): Promise<void> {
       await resetDatabase(db);
       console.log('Banco zerado.');
     }
-    const data = buildSeed();
+    const seed = buildSeed();
+    // Eventos (ADR-0005): na API simulada eles nascem na primeira leitura; aqui vão junto com os campeonatos.
+    const data = { ...seed, events: demoEvents(seed.tournaments) };
     const applied = await seedDemo(db, env, data, {
       password,
       totpSecret: env.TWO_FACTOR_ENCRYPTION_KEY ? process.env.SEED_DEMO_TOTP_SECRET : undefined,

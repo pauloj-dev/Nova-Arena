@@ -96,6 +96,8 @@ function NewTournamentInner() {
     const fromUrl = params.get('modelo');
     return fromUrl ? { kind: 'template', id: fromUrl } : null;
   });
+  // `?evento=<id>` (vindo da página do evento): o campeonato já nasce dentro do evento.
+  const eventId = params.get('evento') ?? undefined;
   const [generation, setGeneration] = useState(0);
   const [seenPath, setSeenPath] = useState(pathname);
   // Quando o rascunho é criado, o endereço vira o de edição sem trocar de tela. Se a pessoa voltar
@@ -121,7 +123,7 @@ function NewTournamentInner() {
   if (!start) {
     return <StartScreen games={games.data} templates={templates.data} templatesError={templates.data ? null : templates.error} onRetry={() => void templates.refetch()} onStart={setChoice} />;
   }
-  if (start.kind === 'blank') return <WizardForm key={`novo-${generation}`} games={games.data} userId={user.id} />;
+  if (start.kind === 'blank') return <WizardForm key={`novo-${generation}`} games={games.data} userId={user.id} eventId={eventId} />;
 
   if (!templates.data) {
     if (templates.error) {
@@ -145,7 +147,7 @@ function NewTournamentInner() {
       </PageContainer>
     );
   }
-  return <WizardForm key={`modelo-${template.id}-${generation}`} games={games.data} userId={user.id} template={template} />;
+  return <WizardForm key={`modelo-${template.id}-${generation}`} games={games.data} userId={user.id} template={template} eventId={eventId} />;
 }
 
 /** `/organizador/novo`: tela inicial ("do zero" ou modelo) e, depois da escolha, o assistente. */

@@ -1,6 +1,6 @@
 'use client';
 
-import { FileStack, Home, LayoutDashboard, ListOrdered, PlusCircle, Trophy } from 'lucide-react';
+import { CalendarHeart, FileStack, Home, LayoutDashboard, ListOrdered, PlusCircle, Trophy } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useMemo } from 'react';
 import { appMessages } from '@/app/messages';
@@ -21,6 +21,7 @@ export default function OrganizerLayout({ children }: { children: React.ReactNod
       { href: '/organizador', label: t('nav.painel'), icon: LayoutDashboard, exact: true },
       { href: '/organizador/campeonatos', label: t('nav.campeonatos'), icon: Trophy },
       { href: '/organizador/novo', label: t('nav.criar'), icon: PlusCircle },
+      { href: '/organizador/eventos', label: t('nav.eventos'), icon: CalendarHeart },
       { href: '/organizador/modelos', label: t('nav.modelos'), icon: FileStack },
       { href: '/organizador/ligas', label: t('nav.ligas'), icon: ListOrdered },
     ],

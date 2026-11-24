@@ -25,6 +25,7 @@ import {
   type TournamentStatus,
 } from '@nova/schemas';
 import { Hono } from 'hono';
+import { assertEventExclusivity } from '../events/rules';
 import { assertTournamentAccess } from '../../auth/rbac';
 import { requireSession } from '../../auth/session';
 import { body, respond, type AppContext, type AppEnv } from '../../context';
@@ -58,6 +59,8 @@ export async function assertRosterEligibility(tx: Tx, t: { id: string; ownerId: 
   // PRD §6, nota ³: quem organiza não joga o próprio campeonato.
   const staff = userIds.includes(t.ownerId) ? t.ownerId : (await tx.tournamentStaff.findFirst({ where: { tournamentId: t.id, userId: { in: userIds } }, select: { userId: true } }))?.userId;
   if (staff) throw conflict(`${nick(staff)} faz parte da organização deste campeonato e não pode jogar nele.`, 'PLAYER_IS_STAFF');
+  // Evento com a regra "um campeonato só" (ADR-0005): quem já joga outro campeonato do evento não entra no elenco.
+  await assertEventExclusivity(tx, t.id, userIds);
 }
 
 // ── Avisos ───────────────────────────────────────────────────────────

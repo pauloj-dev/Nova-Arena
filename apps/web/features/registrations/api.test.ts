@@ -383,13 +383,13 @@ describe('minhas inscrições', () => {
 
   it('GET /tournaments/:id/registration-eligibility diz quem é da organização', async () => {
     as('u_camila');
-    expect((await call('GET', '/tournaments/tn_copa_ff/registration-eligibility')).data).toEqual({ isOrganizer: true });
+    expect((await call('GET', '/tournaments/tn_copa_ff/registration-eligibility')).data).toEqual({ isOrganizer: true, eventConflict: null });
     as('u_p06');
-    expect((await call('GET', '/tournaments/tn_copa_ff/registration-eligibility')).data).toEqual({ isOrganizer: true });
+    expect((await call('GET', '/tournaments/tn_copa_ff/registration-eligibility')).data).toEqual({ isOrganizer: true, eventConflict: null });
     as('u_ana'); // Admin que não é da equipe do campeonato pode se inscrever
-    expect((await call('GET', '/tournaments/tn_copa_ff/registration-eligibility')).data).toEqual({ isOrganizer: false });
+    expect((await call('GET', '/tournaments/tn_copa_ff/registration-eligibility')).data).toEqual({ isOrganizer: false, eventConflict: null });
     as(null);
-    expect((await call('GET', '/tournaments/tn_copa_ff/registration-eligibility')).data).toEqual({ isOrganizer: false });
+    expect((await call('GET', '/tournaments/tn_copa_ff/registration-eligibility')).data).toEqual({ isOrganizer: false, eventConflict: null });
   });
 
   it('GET /me/registrations exige login, lista ativas primeiro e traz a próxima partida e a colocação final (F2)', async () => {

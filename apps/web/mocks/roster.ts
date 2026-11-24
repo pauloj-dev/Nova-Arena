@@ -14,6 +14,7 @@ import {
   type RosterJoin,
   type TournamentStatus,
 } from '@nova/schemas';
+import { assertEventExclusivity } from './events';
 import { db, nowIso, save, type DbRegistration, type DbTournament, type DbUser } from './db';
 import { conflict, HttpProblem, notFound, requireUser, tournamentAccess } from './http';
 import { notify } from './notify';
@@ -61,6 +62,8 @@ function assertEligible(t: DbTournament, user: DbUser): void {
   if (t.ownerId === user.id || db().staff.some((s) => s.tournamentId === t.id && s.userId === user.id)) {
     throw conflict(`${user.nickname} faz parte da organização deste campeonato e não pode jogar nele.`, 'PLAYER_IS_STAFF');
   }
+  // Evento com a regra "um campeonato só" (ADR-0005).
+  assertEventExclusivity(t, [user.id]);
 }
 
 function addToRoster(t: DbTournament, r: DbRegistration, user: DbUser, opts: { confirmed: boolean; preferSub?: boolean }): void {

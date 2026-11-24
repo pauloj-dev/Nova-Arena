@@ -47,6 +47,7 @@ import { replaceEntrantInPreview } from '../../competition/maintenance';
 import { revalidateTournaments } from '../../revalidate';
 import { checkInOf, countsOf, toTournamentSummary, tournamentInclude } from '../tournaments/views';
 import { notifyConfirmed, notifyToConfirm, roster } from './roster';
+import { assertEventExclusivity, eventConflictFor } from '../events/rules';
 import { LOCKED_TX, lockTournament, registrationIdsOfUser, registrationInclude, releaseMembers, settleWaitlist, takenSlots, toRegistration, toRegistrations, tournamentForRegistration, type TournamentForRegistration, type Tx } from './core';
 
 /** Estados em que um membro ainda pode confirmar ou recusar a participação. */
@@ -191,7 +192,12 @@ registrations.get('/tournaments/:id/my-registration', async (c) => {
 registrations.get('/tournaments/:id/registration-eligibility', async (c) => {
   const t = await visibleTournament(c, c.req.param('id'));
   const session = await currentSession(c);
-  return respond(c, RegistrationEligibility, { isOrganizer: session !== null && (await isOrganizerOf(c, session.userId, t)) });
+  if (!session) return respond(c, RegistrationEligibility, { isOrganizer: false, eventConflict: null });
+  return respond(c, RegistrationEligibility, {
+    isOrganizer: await isOrganizerOf(c, session.userId, t),
+    // Evento "um só campeonato" (ADR-0005): avisa antes do clique.
+    eventConflict: await eventConflictFor(c.get('deps').db(), t.id, session.userId),
+  });
 });
 
 /** Inscritos visíveis ao público: confirmados e aguardando. Lista de espera e recusados só para a organização (`scope=all`). */
@@ -261,6 +267,9 @@ registrations.post('/tournaments/:id/registrations', async (c) => {
         team = found;
       }
 
+      // Evento "um só campeonato" (ADR-0005): ninguém do elenco pode estar em outro campeonato do evento.
+      await assertEventExclusivity(tx, t.id, team ? team.members.map((m) => m.userId) : [userId], userId);
+
       // Solo: o ID do jogo é obrigatório já na inscrição. Squad: o capitão conta como confirmado, então vale para ele também.
       if (!(await hasGameAccount(tx, userId, t))) throw assertGameAccountMessage(t);
 
@@ -327,6 +336,8 @@ registrations.post('/registrations/:id/confirm', async (c) => {
     if (!(await hasGameAccount(tx, session.userId, t))) throw assertGameAccountMessage(t);
     const promoted = await settleWaitlist(tx, t, now);
     if (member.confirmedAt !== null) return promoted;
+    // Confirmar é ocupar o lugar no elenco: vale a regra do evento (ADR-0005).
+    await assertEventExclusivity(tx, t.id, [session.userId], session.userId);
     await tx.registrationMember.update({ where: { id: member.id }, data: { confirmedAt: now } });
     const current = await tx.registration.findUniqueOrThrow({ where: { id: r.id }, select: { status: true, members: { select: { confirmedAt: true } } } });
     const next = statusAfterMemberConfirmation(current.status, { manualApproval: t.manualApproval, confirmedMembers: current.members.filter((m) => m.confirmedAt).length, requiredMembers: t.gameMode.teamSize });

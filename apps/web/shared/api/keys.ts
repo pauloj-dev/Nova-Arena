@@ -96,6 +96,13 @@ export const keys = {
     detail: (slug: string) => ['leagues', 'detail', slug] as const,
     mine: ['leagues', 'mine'] as const,
   },
+  /** Eventos (ADR-0005). */
+  events: {
+    all: ['events'] as const,
+    detail: (slug: string) => ['events', 'detail', slug] as const,
+    mine: ['events', 'mine'] as const,
+    manage: (id: string) => ['events', 'manage', id] as const,
+  },
   twoFactor: ['two-factor'] as const,
   loginMethods: ['login-methods'] as const,
   deviceSessions: ['device-sessions'] as const,

@@ -56,6 +56,7 @@ import { scheduleRegistrationWindow } from '../../jobs/registration';
 import { gameInclude, toGame } from '../games';
 import { messages } from '../../messages/pt-BR';
 import { notify } from '../../notify';
+import { assertEventAssignable } from '../events/rules';
 import { accessRole, checkInOf, countsOf, toOrganizerDetail, toOrganizerTournament, toStage, tournamentInclude, type TournamentRow } from './views';
 
 export const UNNAMED_TOURNAMENT = 'Campeonato sem nome';
@@ -255,6 +256,8 @@ async function applyDraft(tx: Prisma.TransactionClient, t: TournamentRow, raw: T
   if (input.checkIn !== undefined) data.checkInConfig = input.checkIn;
   if (input.rosterLockAt !== undefined) data.rosterLockAt = date(input.rosterLockAt);
   if (input.draftStep !== undefined && t.status === 'DRAFT') data.draftStep = input.draftStep;
+  // Quem chama já conferiu o evento (`assertEventAssignable`).
+  if (input.eventId !== undefined) data.eventId = input.eventId;
 
   await tx.tournament.update({ where: { id: t.id }, data });
   if (input.stages !== undefined) await writeStages(tx, t, input.stages);
@@ -441,6 +444,7 @@ tournaments.post('/tournaments', async (c) => {
   // Jogo desativado não entra em campeonato novo (#74).
   const game = await db.game.findUnique({ where: { id: gameId }, select: { active: true } });
   if (game && !game.active) throw badRequest('Confira os campos destacados.', 'VALIDATION', { gameId: 'Este jogo está desativado no catálogo.' });
+  if (merged.eventId) await assertEventAssignable(c, db, null, merged.eventId);
 
   const created = await db.$transaction(async (tx) => {
     const t = await createTournament(tx, session.userId, merged.name?.trim() || UNNAMED_TOURNAMENT, gameId, gameModeId);
@@ -456,6 +460,7 @@ tournaments.patch('/tournaments/:id', async (c) => {
   const access = await accessTo(c, t);
   const input = await body(c, TournamentDraftInput);
   if (READ_ONLY.includes(t.status)) throw conflict('Este campeonato já foi encerrado e não pode mais ser editado.', 'TOURNAMENT_READ_ONLY');
+  if (input.eventId !== undefined) await assertEventAssignable(c, db, t, input.eventId);
 
   if (t.status === 'DRAFT') {
     await db.$transaction((tx) => applyDraft(tx, t, input));
@@ -644,8 +649,11 @@ tournaments.post('/tournaments/:id/duplicate', async (c) => {
   const future = (d: Date | null) => (d !== null && d.getTime() > now ? d : null);
   const base = source.name === UNNAMED_TOURNAMENT ? UNNAMED_TOURNAMENT : `Cópia de ${source.name}`.slice(0, 80);
   const draft = toDraft(source);
+  // A cópia fica no mesmo evento quando quem duplica também organiza o evento.
+  const sameEvent = source.eventId !== null && (await assertEventAssignable(c, db, null, source.eventId).then(() => true, () => false));
   const id = await db.$transaction(async (tx) => {
     const t = await createTournament(tx, session.userId, base, source.gameId, source.gameModeId, {
+      eventId: sameEvent ? source.eventId : null,
       maxParticipants: source.maxParticipants,
       description: source.description,
       rules: source.rules,

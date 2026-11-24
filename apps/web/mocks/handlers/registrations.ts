@@ -23,6 +23,7 @@ import { badRequest, conflict, body, currentUser, findTournament, forbidden, han
 import { findUser, takenSlots, toRegistration, toTournamentSummary } from '../views';
 import { addMember, moveMember, notifyConfirmed, notifyToConfirm, removeMember, rosterActor } from '../roster';
 import { settleWaitlist } from '../waitlist';
+import { assertEventExclusivity, eventConflictFor } from '../events';
 
 export const moduleName = 'registrations';
 
@@ -176,7 +177,8 @@ export const handlers = [
     handle(({ params }) => {
       const t = visibleTournament(param(params, 'id'));
       const user = currentUser();
-      const eligibility: RegistrationEligibility = { isOrganizer: user !== null && isOrganizerOf(user, t) };
+      // Evento "um só campeonato" (ADR-0005): avisa antes do clique.
+      const eligibility: RegistrationEligibility = { isOrganizer: user !== null && isOrganizerOf(user, t), eventConflict: user ? eventConflictFor(t, user.id) : null };
       return json(eligibility);
     }),
   ),
@@ -227,6 +229,9 @@ export const handlers = [
           throw conflict(`${who} neste campeonato${where ? ` pelo squad ${where}` : ''}. Um jogador não pode estar em dois squads no mesmo campeonato.`, 'PLAYER_IN_OTHER_TEAM');
         }
       }
+
+      // Evento "um só campeonato" (ADR-0005): ninguém do elenco pode estar em outro campeonato do evento.
+      assertEventExclusivity(t, team ? team.members.map((m) => m.userId) : [user.id], user.id);
 
       // Solo: o ID do jogo é obrigatório já na inscrição. Squad: o capitão conta como confirmado, então vale para ele também.
       assertGameAccount(user, t);
@@ -282,6 +287,8 @@ export const handlers = [
 
       settleWaitlist(t);
       if (member.confirmedAt === null) {
+        // Confirmar é ocupar o lugar no elenco: vale a regra do evento (ADR-0005).
+        assertEventExclusivity(t, [user.id], user.id);
         member.confirmedAt = nowIso();
         const { mode } = gameAndMode(t);
         const next = statusAfterMemberConfirmation(r.status, { manualApproval: t.manualApproval, confirmedMembers: confirmedCount(r), requiredMembers: mode.teamSize });

@@ -58,6 +58,8 @@ interface DemoTournament {
   id: string;
   slug: string;
   name: string;
+  /** Evento do campeonato (ADR-0005). */
+  eventId?: string | null;
   gameId: string;
   gameModeId: string;
   ownerId: string;
@@ -85,7 +87,12 @@ interface DemoTournament {
 interface DemoTeam { id: string; name: string; tag: string; logoUrl: string | null; captainId: string; members: { userId: string; role: 'CAPTAIN' | 'MEMBER'; isSub: boolean; joinedAt: Iso }[]; createdAt: Iso }
 interface DemoRegistration { id: string; tournamentId: string; userId: string | null; teamId: string | null; importedName: string | null; importedTag: string | null; status: 'PENDING_MEMBERS' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'WAITLIST' | 'REJECTED' | 'CANCELLED' | 'WITHDRAWN' | 'DISQUALIFIED'; seed: number | null; statusReason: string | null; members: { userId: string; isSub: boolean; confirmedAt: Iso | null }[]; reservedUntil: Iso | null; createdAt: Iso }
 
+/** Evento que agrupa campeonatos (ADR-0005). */
+export interface DemoEvent { id: string; slug: string; name: string; description: string; bannerUrl: string | null; ownerId: string; participationRule: 'SINGLE' | 'MULTIPLE'; createdAt: Iso }
+
 export interface DemoData {
+  /** Eventos (ADR-0005); os campeonatos apontam para eles por `eventId`. */
+  events?: DemoEvent[];
   users: DemoUser[];
   games: DemoGame[];
   tournaments: DemoTournament[];
@@ -188,6 +195,7 @@ export async function seedDemo(db: PrismaClient, env: Env, data: DemoData, opts:
     g.modes.forEach((m) => add(m.id));
     g.scoringModels.forEach((s) => add(s.id));
   });
+  data.events?.forEach((e) => add(e.id));
   data.tournaments.forEach((t) => {
     add(t.id);
     t.stages.forEach((s) => add(s.id));
@@ -271,6 +279,12 @@ export async function seedDemo(db: PrismaClient, env: Env, data: DemoData, opts:
     skipDuplicates: true,
   });
 
+  // ── Eventos (ADR-0005), antes dos campeonatos que apontam para eles ─
+  await db.event.createMany({
+    data: (data.events ?? []).map((e) => ({ id: id(e.id), slug: e.slug, name: e.name, description: e.description, bannerUrl: e.bannerUrl, ownerId: id(e.ownerId), participationRule: e.participationRule, createdAt: new Date(e.createdAt) })),
+    skipDuplicates: true,
+  });
+
   // ── Campeonatos, fases e inscrições ──────────────────────────────
   for (const t of data.tournaments) {
     await db.tournament.create({
@@ -297,6 +311,7 @@ export async function seedDemo(db: PrismaClient, env: Env, data: DemoData, opts:
         checkInConfig: json(t.checkIn),
         rosterLockAt: date(t.rosterLockAt),
         featured: t.featured,
+        eventId: opt(t.eventId),
         draftStep: t.status === 'DRAFT' ? t.draftStep : null,
         createdAt: new Date(t.createdAt),
         stages: {
