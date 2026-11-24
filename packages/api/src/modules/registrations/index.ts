@@ -46,6 +46,7 @@ import { listMatches } from '../../competition/bracket';
 import { replaceEntrantInPreview } from '../../competition/maintenance';
 import { revalidateTournaments } from '../../revalidate';
 import { checkInOf, countsOf, toTournamentSummary, tournamentInclude } from '../tournaments/views';
+import { notifyConfirmed, notifyToConfirm, roster } from './roster';
 import { LOCKED_TX, lockTournament, registrationIdsOfUser, registrationInclude, releaseMembers, settleWaitlist, takenSlots, toRegistration, toRegistrations, tournamentForRegistration, type TournamentForRegistration, type Tx } from './core';
 
 /** Estados em que um membro ainda pode confirmar ou recusar a participação. */
@@ -220,6 +221,7 @@ registrations.post('/tournaments/:id/registrations', async (c) => {
   if (await isOrganizerOf(c, userId, tView)) throw new HttpProblem(403, 'Você faz parte da organização deste campeonato, então não pode se inscrever nele.', 'OWN_TOURNAMENT');
   const db = c.get('deps').db();
   const now = c.get('deps').now();
+  const promoted: string[] = [];
 
   const id = await db
     .$transaction(async (tx) => {
@@ -262,7 +264,7 @@ registrations.post('/tournaments/:id/registrations', async (c) => {
       // Solo: o ID do jogo é obrigatório já na inscrição. Squad: o capitão conta como confirmado, então vale para ele também.
       if (!(await hasGameAccount(tx, userId, t))) throw assertGameAccountMessage(t);
 
-      await settleWaitlist(tx, t, now);
+      promoted.push(...(await settleWaitlist(tx, t, now)));
       const status = initialRegistrationStatus({
         freeSlots: t.maxParticipants - (await takenSlots(tx, t.id)),
         waitlistEnabled: t.waitlistEnabled,
@@ -296,7 +298,11 @@ registrations.post('/tournaments/:id/registrations', async (c) => {
       throw error;
     });
   revalidateTournaments(c);
-  return respond(c, Registration, await toRegistration(db, tView, id), 201);
+  const view = await toRegistration(db, tView, id);
+  // PRD §12.2: o elenco recebe "Confirme sua participação"; vaga garantida recebe "Inscrição confirmada".
+  if (view.teamId) await notifyToConfirm(c, id);
+  await notifyConfirmed(c, [...promoted, id]);
+  return respond(c, Registration, view, 201);
 });
 
 async function findRegistration(c: AppContext, id: string) {
@@ -316,18 +322,20 @@ registrations.post('/registrations/:id/confirm', async (c) => {
   if (!CONFIRMATION_STATUSES.includes(r.tournament.status)) throw conflict('O campeonato já começou: não dá mais para confirmar participação.', 'CONFIRMATION_CLOSED');
   const db = c.get('deps').db();
   const now = c.get('deps').now();
-  await db.$transaction(async (tx) => {
+  const confirmedNow = await db.$transaction(async (tx) => {
     const t = await lockTournament(tx, r.tournamentId);
     if (!(await hasGameAccount(tx, session.userId, t))) throw assertGameAccountMessage(t);
-    await settleWaitlist(tx, t, now);
-    if (member.confirmedAt !== null) return;
+    const promoted = await settleWaitlist(tx, t, now);
+    if (member.confirmedAt !== null) return promoted;
     await tx.registrationMember.update({ where: { id: member.id }, data: { confirmedAt: now } });
     const current = await tx.registration.findUniqueOrThrow({ where: { id: r.id }, select: { status: true, members: { select: { confirmedAt: true } } } });
     const next = statusAfterMemberConfirmation(current.status, { manualApproval: t.manualApproval, confirmedMembers: current.members.filter((m) => m.confirmedAt).length, requiredMembers: t.gameMode.teamSize });
     // O squad completou dentro do prazo: a vaga deixa de ser só uma reserva.
     if (next !== current.status) await tx.registration.update({ where: { id: r.id }, data: { status: next, reservedUntil: null } });
+    return next !== current.status && next === 'CONFIRMED' ? [...promoted, r.id] : promoted;
   }, LOCKED_TX);
   revalidateTournaments(c);
+  await notifyConfirmed(c, confirmedNow);
   return respond(c, Registration, await toRegistration(db, r.tournament, r.id));
 });
 
@@ -357,16 +365,17 @@ registrations.delete('/registrations/:id', async (c) => {
     throw conflict('O prazo para cancelar a inscrição já passou. Para desistir agora, fale com a organização do campeonato.', 'CANCELLATION_CLOSED');
   }
   const now = c.get('deps').now();
-  await c
+  const promoted = await c
     .get('deps')
     .db()
     .$transaction(async (tx) => {
       const t = await lockTournament(tx, r.tournamentId);
       await tx.registration.update({ where: { id: r.id }, data: { status: 'CANCELLED', reservedUntil: null } });
       await releaseMembers(tx, r.id);
-      await settleWaitlist(tx, t, now);
+      return settleWaitlist(tx, t, now);
     }, LOCKED_TX);
   revalidateTournaments(c);
+  await notifyConfirmed(c, promoted);
   return c.body(null, 204);
 });
 
@@ -443,6 +452,8 @@ registrations.patch('/registrations/:id', async (c) => {
   const t = r.tournament;
   const rows = await db.registration.findMany({ where: { id: { in: [r.id, ...promoted] } }, include: registrationInclude });
   const views = await toRegistrations(db, t, rows);
+  // Aprovada, substituta que entrou e quem subiu da fila: "Inscrição confirmada" (só quem ficou confirmado).
+  await notifyConfirmed(c, [...promoted, ...(input.action === 'approve' ? [r.id] : []), ...(input.action === 'replace' ? [input.withRegistrationId] : [])]);
   return respond(c, ReviewRegistrationResult, { registration: views.find((v) => v.id === r.id) as Registration, promoted: views.filter((v) => promoted.includes(v.id)) });
 });
 
@@ -547,3 +558,6 @@ registrations.get('/tournaments/:id/registrations.csv', async (c) => {
   });
 });
 
+
+// Elenco do squad: escalar, tirar e remanejar (`roster.ts`).
+registrations.route('/', roster);

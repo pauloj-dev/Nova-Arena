@@ -93,6 +93,48 @@ export function statusAfterMemberConfirmation(
   return statusWithSlot({ ...input, isTeam: true });
 }
 
+// ── Elenco (trava de elenco, PRD §12.1) ──────────────────────────────
+
+/** Estados em que o capitão ainda mexe no elenco (os mesmos da confirmação dos membros), até a trava de elenco. */
+const CAPTAIN_ROSTER_STATUSES: TournamentStatus[] = ['PUBLISHED', 'REGISTRATION_OPEN', 'REGISTRATION_CLOSED'];
+/** Depois do fim (ou sem o campeonato no ar), ninguém mexe mais no elenco. */
+const ROSTER_CLOSED_STATUSES: TournamentStatus[] = ['DRAFT', 'FINISHED', 'ARCHIVED', 'CANCELLED'];
+
+/** Máximo de jogadores no elenco: titulares + reservas do modo. */
+export function rosterLimit(mode: ModeSize): number {
+  return mode.teamSize + mode.maxSubs;
+}
+
+/** O capitão troca membros até a trava de elenco (sem trava marcada, até o campeonato começar). */
+export function canCaptainEditRoster(t: { status: TournamentStatus; rosterLockAt: string | null }, now: Date = new Date()): boolean {
+  if (!CAPTAIN_ROSTER_STATUSES.includes(t.status)) return false;
+  return t.rosterLockAt === null || now.getTime() < Date.parse(t.rosterLockAt);
+}
+
+/** A organização troca e remaneja membros enquanto o campeonato não terminou (também com a fase em andamento). */
+export function canStaffEditRoster(status: TournamentStatus): boolean {
+  return !ROSTER_CLOSED_STATUSES.includes(status);
+}
+
+/**
+ * Status depois de uma troca no elenco **antes de o campeonato começar** (quem chama só usa nos estados de
+ * confirmação; depois disso o status não muda por causa do elenco).
+ * - "Aguardando membros" que completou o mínimo de confirmados avança (como na confirmação).
+ * - Confirmada ou aguardando aprovação que ficou sem o mínimo volta para "Aguardando membros" (continua com a vaga);
+ *   com aprovação manual, ao completar de novo ela volta para a fila de aprovação.
+ * - Lista de espera e inscrições encerradas não mudam.
+ */
+export function statusAfterRosterChange(current: RegistrationStatus, input: Pick<InitialStatusInput, 'manualApproval' | 'confirmedMembers' | 'requiredMembers'>): RegistrationStatus {
+  if (current === 'PENDING_MEMBERS') return statusWithSlot({ ...input, isTeam: true });
+  if ((current === 'CONFIRMED' || current === 'PENDING_APPROVAL') && input.confirmedMembers < input.requiredMembers) return 'PENDING_MEMBERS';
+  return current;
+}
+
+/** O squad ainda espera jogadores neste campeonato: cabe mais gente no elenco e faltam confirmados. */
+export function rosterNeedsPlayers(r: { members: number; confirmedMembers: number }, mode: ModeSize): boolean {
+  return r.members < rosterLimit(mode) && r.confirmedMembers < mode.teamSize;
+}
+
 // ── Lista de espera (RN-12) ──────────────────────────────────────────
 export interface WaitlistEntry {
   id: string;

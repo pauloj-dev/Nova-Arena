@@ -181,6 +181,7 @@ export const AUDIT_ACTIONS = {
   RESULT_CORRECTED: 'Resultado corrigido',
   WALKOVER_APPLIED: 'W.O. aplicado',
   REGISTRATION_REVIEWED: 'Inscrição analisada',
+  ROSTER_CHANGED: 'Elenco do squad alterado',
   ENTRANT_WITHDRAWN: 'Desistência registrada',
   ENTRANT_DISQUALIFIED: 'Participante desclassificado',
   DISPUTE_RESOLVED: 'Disputa resolvida',
