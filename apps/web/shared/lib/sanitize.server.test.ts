@@ -4,7 +4,7 @@
  * HTML da página (#111). Mesmas garantias do navegador, e a mesma saída nos casos comuns (sem divergência na hidratação).
  */
 import { describe, expect, it } from 'vitest';
-import { sanitizeRichText } from './sanitize';
+import { richTextToPlain, sanitizeRichText } from './sanitize';
 
 describe('sanitizeRichText no servidor', () => {
   it('não depende do DOM', () => {
@@ -27,5 +27,17 @@ describe('sanitizeRichText no servidor', () => {
   });
   it('remove style e class', () => {
     expect(sanitizeRichText('<p style="position:fixed" class="x">a</p>')).toBe('<p>a</p>');
+  });
+});
+
+describe('richTextToPlain no servidor', () => {
+  it('devolve o texto, igual ao navegador (a página decide "tem descrição?" com ele)', () => {
+    expect(richTextToPlain('<p>A <strong>Nova&nbsp;Arena</strong> &amp; amigos</p><ul><li>Regra</li></ul>')).toBe('A Nova Arena & amigos Regra');
+  });
+  it('HTML sem texto continua vazio', () => {
+    expect(richTextToPlain('<p><br></p><p> </p>')).toBe('');
+  });
+  it('não devolve o conteúdo de script', () => {
+    expect(richTextToPlain('<script>alert(1)</script><p>ok</p>')).toBe('ok');
   });
 });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Id, IsoDateTime } from './common';
+import { EventConflict } from './event';
 import { TournamentSummary } from './tournament';
 
 export const RegistrationStatus = z.enum(['PENDING_MEMBERS', 'PENDING_APPROVAL', 'CONFIRMED', 'WAITLIST', 'REJECTED', 'CANCELLED', 'WITHDRAWN', 'DISQUALIFIED']);
@@ -89,6 +90,8 @@ export const WAITLIST_RESERVATION_HOURS = 24;
 export const RegistrationEligibility = z.object({
   /** Dono ou equipe do campeonato: não pode se inscrever nele (PRD §6, nota ³). */
   isOrganizer: z.boolean(),
+  /** Evento com regra "um só campeonato" (ADR-0005): o outro campeonato do evento em que a pessoa já está. */
+  eventConflict: EventConflict.nullable().optional(),
 });
 export type RegistrationEligibility = z.infer<typeof RegistrationEligibility>;
 
@@ -97,3 +100,22 @@ export const ReviewRegistrationResult = z.object({ registration: Registration, p
 export type ReviewRegistrationResult = z.infer<typeof ReviewRegistrationResult>;
 export type ImportRegistrationsInput = z.infer<typeof ImportRegistrationsInput>;
 export type ImportRegistrationsResult = z.infer<typeof ImportRegistrationsResult>;
+
+// ── Elenco da inscrição de squad (trava de elenco, PRD §12.1) ────────
+
+/**
+ * Escalar alguém no elenco da inscrição. O capitão escolhe um membro do squad (`userId`); a organização pode
+ * escalar qualquer jogador, pelo apelido ou pelo id.
+ */
+export const AddRosterMemberInput = z
+  .object({ userId: Id.optional(), nickname: z.string().trim().min(1, 'Informe o apelido do jogador').max(40).optional() })
+  .refine((v) => Boolean(v.userId ?? v.nickname), { message: 'Informe quem vai entrar no elenco', path: ['nickname'] });
+export type AddRosterMemberInput = z.infer<typeof AddRosterMemberInput>;
+
+/** Remanejar (só a organização): o jogador sai do elenco desta inscrição e entra no de outro squad do mesmo campeonato. */
+export const MoveRosterMemberInput = z.object({ toRegistrationId: Id });
+export type MoveRosterMemberInput = z.infer<typeof MoveRosterMemberInput>;
+
+/** Resposta da troca de elenco: as inscrições que mudaram (a de origem e, ao remanejar, a de destino). */
+export const RosterChangeResult = z.object({ registrations: z.array(Registration) });
+export type RosterChangeResult = z.infer<typeof RosterChangeResult>;

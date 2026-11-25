@@ -292,12 +292,20 @@ test.describe('inscrições', () => {
     await expect(panel(page).getByTestId('registration-status-text')).toContainText('na 1ª posição');
   });
 
-  test('falta de ID do jogo mostra o aviso com o caminho para resolver', async ({ page }) => {
+  test('falta de ID do jogo: informa ali mesmo e segue para a inscrição, sem sair da página', async ({ page }) => {
     // A Bianca não tem ID de Free Fire no seed.
     await visitAs(page, 'u_bianca', COPA_FF);
     await expect(panel(page).getByText('Falta o seu ID de Free Fire.')).toBeVisible();
-    await expect(panel(page).getByRole('link', { name: 'Informar meu ID de Free Fire' })).toHaveAttribute('href', '/minha-conta');
     await expect(panel(page).getByRole('button', { name: 'Inscrever squad' })).toHaveCount(0);
+    await panel(page).getByLabel('ID Free Fire').fill('12');
+    await panel(page).getByLabel('Nick no jogo').fill('Bianca');
+    await panel(page).getByRole('button', { name: 'Salvar meu ID de Free Fire' }).click();
+    await expect(panel(page).getByLabel('ID Free Fire')).toHaveAttribute('aria-invalid', 'true');
+    await panel(page).getByLabel('ID Free Fire').fill('12345678');
+    await panel(page).getByRole('button', { name: 'Salvar meu ID de Free Fire' }).click();
+    await expect(page).toHaveURL(/\/c\/copa-nova-ff-squad/);
+    await expect(panel(page).getByText('Falta o seu ID de Free Fire.')).toHaveCount(0);
+    await expect(panel(page).getByRole('button', { name: 'Inscrever squad' })).toBeVisible();
   });
 
   test('organizadora não se inscreve no próprio campeonato', async ({ page }) => {

@@ -97,6 +97,25 @@ export async function body<T>(c: AppContext, schema: ZodType<T>): Promise<T> {
   return parsed.data;
 }
 
+/** Como `body`, mas o corpo é opcional: requisição sem corpo vale como `{}`. */
+export async function optionalBody<T>(c: AppContext, schema: ZodType<T>): Promise<T> {
+  const text = await c.req.text();
+  if (text.trim() === '') {
+    const parsed = schema.safeParse({});
+    if (!parsed.success) throw badRequest('Confira os campos destacados.', 'VALIDATION', fieldErrors(parsed.error));
+    return parsed.data;
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    throw badRequest('Corpo da requisição inválido.', 'INVALID_BODY');
+  }
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) throw badRequest('Confira os campos destacados.', 'VALIDATION', fieldErrors(parsed.error));
+  return parsed.data;
+}
+
 /**
  * Responde validando pelo contrato (plano §4.3: 100% dos endpoints). Resposta fora do contrato vira 500
  * `CONTRACT_VIOLATION` — e quebra o teste de integração da rota — em vez de chegar torta na tela.

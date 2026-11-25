@@ -12,8 +12,10 @@ import { useMyTeams } from '@/shared/api/hooks/teams';
 import { getT } from '@/shared/i18n/core';
 import { useT } from '@/shared/i18n/react';
 import { GameAccountWarning } from './GameAccountWarning';
-import { checkSquadSize, squadSizeMessage } from './lib/rules';
+import { checkSquadSize, squadRegistrationBlock, squadSizeMessage } from './lib/rules';
 import { messages } from './messages';
+
+// O painel de convite (apelido e link) só carrega quando o squad escolhido ainda não tem gente suficiente.
 
 interface RegisterFormProps {
   tournament: Tournament;
@@ -30,7 +32,8 @@ function successMessage(r: Registration): [string, string | undefined] {
     case 'WAITLIST':
       return [t('listaEspera'), r.waitlistPosition ? t('listaEsperaPosicao', { posicao: r.waitlistPosition }) : undefined];
     case 'PENDING_MEMBERS':
-      return [t('squadInscrito'), t('squadInscritoDescricao')];
+      // RN-17: squad incompleto inscrito, com a vaga guardada até completar.
+      return r.reservedUntil ? [t('squadIncompleto'), t('squadIncompletoDescricao')] : [t('squadInscrito'), t('squadInscritoDescricao')];
     case 'PENDING_APPROVAL':
       return [t('enviada'), t('enviadaDescricao')];
     default:
@@ -56,7 +59,10 @@ export function RegisterForm({ tournament, game, viewerId, waitlistPosition, mis
   // Com um squad só, ele já vem escolhido.
   const selectedId = teamId || (captained.length === 1 ? (captained[0]?.id ?? '') : '');
   const selected = captained.find((t) => t.id === selectedId);
-  const sizeProblem = selected && mode ? squadSizeMessage(checkSquadSize(selected.members.length, mode), mode) : null;
+  const sizeCheck = selected && mode ? checkSquadSize(selected.members.length, mode) : null;
+  // RN-17: squad incompleto se inscreve (vaga guardada); só o excesso de jogadores impede.
+  const sizeProblem = sizeCheck && mode && squadRegistrationBlock(sizeCheck) ? squadSizeMessage(sizeCheck, mode) : null;
+  const incomplete = Boolean(selected && mode && selected.members.length < mode.teamSize);
   const onWaitlist = waitlistPosition !== null;
 
   function onSubmit(e: FormEvent) {
@@ -81,7 +87,7 @@ export function RegisterForm({ tournament, game, viewerId, waitlistPosition, mis
     });
   }
 
-  if (missingGameAccount) return <GameAccountWarning gameName={game.name} context="register" />;
+  if (missingGameAccount) return <GameAccountWarning gameId={game.id} gameName={game.name} context="register" />;
 
   const acceptLabel = t.rich('aceite', {
     link: (chunks) => (
@@ -129,6 +135,12 @@ export function RegisterForm({ tournament, game, viewerId, waitlistPosition, mis
                 </Link>
               </p>
             )}
+            {selected && mode && incomplete && !onWaitlist && (
+              <p className="flex items-start gap-2 rounded-md border border-accent bg-accent-soft p-3 text-sm text-accent-soft-text" data-testid="squad-incompleto">
+                <Users className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span>{t('incompleto', { count: selected.members.length, tamanho: mode.teamSize })}</span>
+              </p>
+            )}
             <Button variant="ghost" size="sm" className="self-start" iconLeft={<Plus className="size-4" aria-hidden />} onClick={() => setCreating(true)}>
               {t('criarSquadNovo')}
             </Button>
@@ -147,11 +159,7 @@ export function RegisterForm({ tournament, game, viewerId, waitlistPosition, mis
       {problem && (
         <div role="alert" className="flex flex-col gap-3 rounded-md border border-danger bg-danger-soft p-3 text-sm text-danger-soft-text" data-testid="registration-error">
           <p>{problem.message}</p>
-          {problem.needsGameAccount && (
-            <Button asChild variant="secondary" size="sm" className="self-start">
-              <Link href="/minha-conta">{t('informarId', { jogo: game.name })}</Link>
-            </Button>
-          )}
+          {problem.needsGameAccount && <GameAccountWarning gameId={game.id} gameName={game.name} context="register" />}
         </div>
       )}
 

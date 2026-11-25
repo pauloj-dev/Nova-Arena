@@ -10,6 +10,7 @@
  */
 import type { Prisma, PrismaClient } from '@nova/db';
 import {
+  AcceptTeamInviteResult,
   ACTIVE_REGISTRATION_STATUSES,
   ENDED_TOURNAMENT_STATUSES,
   InviteCandidate,
@@ -35,6 +36,9 @@ import { body, respond, type AppContext, type AppEnv } from '../../context';
 import { badRequest, conflict, forbidden, HttpProblem, notFound } from '../../errors';
 import { currentSession, requireSession } from '../../auth/session';
 import { clientIp, enforceLimit, type RateRule } from '../../security';
+import { messages } from '../../messages/pt-BR';
+import { notify } from '../../notify';
+import { joinOpenRosters } from '../registrations/roster';
 
 /** Convites pendentes por squad: evita que um capitão gere códigos sem parar. */
 const MAX_PENDING_INVITES = 20;
@@ -298,6 +302,10 @@ teams.post('/teams/:id/invites', async (c) => {
   }
   const invite = await db.teamInvite.create({ data: { teamId: team.id, invitedUserId, code: await newCode(db), createdById: userId, expiresAt: new Date(inviteExpiry(now)) } });
   const [view] = await toInvites(db, [invite], team);
+  if (invitedUserId) {
+    const captain = team.members.find((m) => m.userId === userId)?.user.nickname ?? 'O capitão';
+    await notify(c, [invitedUserId], { type: 'TEAM_INVITE', title: messages.teams.invite.title(team.name), body: messages.teams.invite.body(captain), link: `/squads/convite/${invite.code}` });
+  }
   return respond(c, TeamInvite, view as TeamInvite, 201);
 });
 
@@ -362,7 +370,11 @@ teams.post('/team-invites/:code/accept', async (c) => {
     if (isUniqueViolation(error)) throw conflict(`Você já faz parte do ${team.name}.`, 'ALREADY_MEMBER');
     throw error;
   }
-  return respond(c, Team, await toTeam(db, await findTeam(db, team.id), session.userId));
+  // Um passo só: o squad que espera jogadores num campeonato já ganha o novo membro no elenco.
+  const rosters = await joinOpenRosters(c, session.userId, team.id);
+  const me = await db.user.findUnique({ where: { id: session.userId }, select: { nickname: true } });
+  await notify(c, [team.captainId], { type: 'TEAM_INVITE', title: messages.teams.joined.title(team.name), body: messages.teams.joined.body(me?.nickname ?? 'Um jogador'), link: `/minha-conta/squads/${team.id}` });
+  return respond(c, AcceptTeamInviteResult, { ...(await toTeam(db, await findTeam(db, team.id), session.userId)), rosters });
 });
 
 teams.post('/team-invites/:code/decline', async (c) => {

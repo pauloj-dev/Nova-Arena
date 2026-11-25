@@ -6,6 +6,7 @@ import { CalendarClock, CalendarDays, Compass, Settings, User, Users } from 'luc
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { TournamentEventNote } from '@/features/events/EventRule';
 import { MatchViewerProvider, type MatchViewer } from '@/features/matches/viewer';
 import { VerifiedBadge } from '@/features/profile/VerifiedBadge';
 import { RegistrationPanel } from '@/features/registrations/RegistrationPanel';
@@ -166,6 +167,7 @@ function Header({ tournament, canManage }: { tournament: Tournament; canManage: 
             <span>{organizedBy}</span>
             {tournament.organizer.verifiedOrganizer && <VerifiedBadge />}
           </p>
+          {tournament.event && <TournamentEventNote event={tournament.event} />}
         </div>
 
         <dl className="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">

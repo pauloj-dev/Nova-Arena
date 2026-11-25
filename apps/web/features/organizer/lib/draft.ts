@@ -38,6 +38,8 @@ export interface WizardValues {
   checkIn: CheckInConfig;
   rosterLockAt: string | null;
   stages: StageDraft[];
+  /** Evento do campeonato (ADR-0005). Nulo = avulso; ausente = não mexe. */
+  eventId?: string | null;
 }
 
 /** Nome que a API dá ao rascunho criado sem nome. Para o assistente, é o mesmo que "ainda sem nome". */
@@ -117,6 +119,7 @@ export function tournamentToValues(t: Tournament): WizardValues {
     waitlistEnabled: t.waitlistEnabled,
     checkIn: t.checkIn,
     rosterLockAt: t.rosterLockAt,
+    eventId: t.event?.id ?? null,
     stages: [...t.stages]
       .sort((a, b) => a.order - b.order)
       .map((s) => ({ key: newStageKey(), id: s.id, name: s.name, format: s.format, scoringModelId: s.scoringModelId, config: s.config, qualification: s.qualification, tiebreakers: s.tiebreakers, seeding: s.seeding })),
@@ -170,6 +173,7 @@ export function toDraftPayload(values: WizardValues, draftStep: number): Tournam
     rosterLockAt: values.rosterLockAt,
     draftStep: Math.min(6, Math.max(0, Math.trunc(draftStep))),
   };
+  if (values.eventId !== undefined) payload.eventId = values.eventId;
   if (isValidName(values.name)) payload.name = values.name.trim();
   if (values.gameId) payload.gameId = values.gameId;
   if (values.gameModeId) payload.gameModeId = values.gameModeId;

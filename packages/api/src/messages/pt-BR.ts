@@ -128,11 +128,70 @@ export const messages = {
       title: 'Você agora é responsável por um campeonato',
       body: (tournament: string, previousOwner: string) => `${tournament}: ${previousOwner} deixou a organização e você, como co-organizador mais antigo, assumiu.`,
     },
+    /** Equipe do evento (ORG-10): quem entra, muda de papel ou sai é avisado; quem convidou por link sabe quando alguém entrou. */
+    staff: {
+      added: {
+        title: (tournament: string) => `Você entrou na equipe de ${tournament}`,
+        body: (by: string, role: string) => `${by} adicionou você como ${role}.`,
+      },
+      joinedByLink: {
+        title: (nickname: string) => `${nickname} entrou na equipe`,
+        body: (tournament: string, role: string) => `Aceitou o seu link de convite e agora é ${role} de ${tournament}.`,
+      },
+      roleChanged: {
+        title: (tournament: string) => `Seu papel em ${tournament} mudou`,
+        body: (role: string) => `Agora você é ${role} deste campeonato.`,
+      },
+      removed: {
+        title: (tournament: string) => `Você saiu da equipe de ${tournament}`,
+        body: (by: string) => `${by} removeu você da equipe do evento.`,
+      },
+    },
     /** RN-09: aviso aos admins com o que aconteceu com cada campeonato em curso. */
     orphans: {
       title: (paused: number) => (paused > 0 ? `${paused} campeonato(s) sem responsável` : 'Responsável de campeonato trocado'),
       body: (previousOwner: string, outcomes: readonly OrphanOutcomeText[]) =>
         `${previousOwner} deixou de organizar ${outcomes.length} campeonato(s) em curso: ${outcomes.map((o) => (o.outcome === 'PAUSED' ? `${o.name} (pausado)` : `${o.name} (assumido por ${o.newOwnerNickname})`)).join('; ')}.`,
+    },
+  },
+
+  /** Inscrição, elenco e convite de squad (PRD §12.2). */
+  registrations: {
+    confirmParticipation: {
+      title: (tournament: string) => `Confirme sua participação em ${tournament}`,
+      body: (team: string) => `O ${team} se inscreveu e você está no elenco. Confirme na página do campeonato para garantir a vaga do squad.`,
+    },
+    confirmedSolo: {
+      title: 'Inscrição confirmada',
+      body: (tournament: string) => `Sua vaga em ${tournament} está garantida.`,
+    },
+    confirmedTeam: {
+      title: 'Inscrição confirmada',
+      body: (team: string, tournament: string) => `O ${team} está confirmado em ${tournament}.`,
+    },
+    rosterAdded: {
+      title: (team: string) => `Você entrou no elenco do ${team}`,
+      body: (tournament: string, confirmed: boolean) =>
+        confirmed ? `A organização escalou você em ${tournament}. Sua participação já está confirmada.` : `Você foi escalado em ${tournament}. Confirme sua participação na página do campeonato.`,
+    },
+    rosterRemoved: {
+      title: (team: string) => `Você saiu do elenco do ${team}`,
+      body: (tournament: string) => `Você não está mais no elenco do squad em ${tournament}.`,
+    },
+    rosterMoved: {
+      title: (team: string) => `Você foi remanejado para o ${team}`,
+      body: (from: string, tournament: string) => `A organização de ${tournament} tirou você do ${from} e escalou no novo squad.`,
+    },
+  },
+
+  teams: {
+    invite: {
+      title: (team: string) => `Convite para o ${team}`,
+      body: (captain: string) => `${captain} chamou você para o squad. O convite vale por 72 horas.`,
+    },
+    joined: {
+      title: (team: string) => `Novo jogador no ${team}`,
+      body: (nickname: string) => `${nickname} entrou no squad pelo seu convite.`,
     },
   },
 

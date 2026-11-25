@@ -21,6 +21,7 @@ import { Confetti } from '../operation/Confetti';
 import { FinishDialog } from '../operation/FinishDialog';
 import { ReasonDialog } from '../operation/ReasonDialog';
 import { messages } from './messages';
+import { ReopenRegistrationDialog } from './ReopenRegistrationDialog';
 
 /** `side`: na coluna estreita ao lado, rótulo e valor dividem a linha sem largura fixa (não vaza do cartão). */
 function Row({ label, children, side = false }: { label: string; children: ReactNode; side?: boolean }) {
@@ -64,7 +65,7 @@ export function SummaryTab({ tournament, onGoToStages, onFinished, celebrate = f
   const archive = useArchiveTournament();
   const finished = tournament.status === 'FINISHED' || tournament.status === 'ARCHIVED';
   const podium = usePodium(finished ? tournament.id : undefined);
-  const [dialog, setDialog] = useState<'cancel' | 'delete' | 'template' | 'pause' | 'resume' | 'finish' | 'archive' | null>(null);
+  const [dialog, setDialog] = useState<'cancel' | 'delete' | 'template' | 'pause' | 'resume' | 'finish' | 'archive' | 'reopen' | null>(null);
 
   const isDraft = tournament.status === 'DRAFT';
   const isModerator = tournament.access === 'MODERATOR';
@@ -115,7 +116,12 @@ export function SummaryTab({ tournament, onGoToStages, onFinished, celebrate = f
                   </Link>
                 </Button>
               )}
-              {actions.includes('open-registration') && (
+              {actions.includes('open-registration') && tournament.status === 'REGISTRATION_CLOSED' && (
+                <Button variant="secondary" iconLeft={<DoorOpen className="size-4" aria-hidden />} onClick={() => setDialog('reopen')}>
+                  {t('reabrir')}
+                </Button>
+              )}
+              {actions.includes('open-registration') && tournament.status !== 'REGISTRATION_CLOSED' && (
                 <Button
                   loading={open.isPending}
                   iconLeft={<DoorOpen className="size-4" aria-hidden />}
@@ -287,6 +293,7 @@ export function SummaryTab({ tournament, onGoToStages, onFinished, celebrate = f
         </Card>
       </div>
 
+      <ReopenRegistrationDialog tournament={tournament} open={dialog === 'reopen'} onOpenChange={(o) => !o && setDialog(null)} />
       <ReasonDialog
         open={dialog === 'pause'}
         onOpenChange={(o) => !o && setDialog(null)}

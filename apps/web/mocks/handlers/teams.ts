@@ -19,6 +19,8 @@ import { ENDED_TOURNAMENT_STATUSES } from '@/features/registrations/lib/rules';
 import { AttemptLimiter, inviteExpiry, inviteState, inviteStateMessage, normalizeInviteCode, validateLogoDataUrl } from '@/features/teams/lib/rules';
 import { db, getSessionUserId, inviteCode, nowIso, save, uid, type DbTeam, type DbTeamInvite, type DbUser } from '../db';
 import { badRequest, body, conflict, currentUser, forbidden, handle, HttpProblem, json, noContent, notFound, param, query, requireUser, url } from '../http';
+import { notify } from '../notify';
+import { joinOpenRosters } from '../roster';
 import { findUser, toTeam, toTeamInvite } from '../views';
 
 export const moduleName = 'teams';
@@ -291,6 +293,7 @@ export const handlers = [
       const invite: DbTeamInvite = { id: uid('ti'), teamId: team.id, invitedUserId, code: newCode(), status: 'PENDING', invitedById: user.id, expiresAt: inviteExpiry(), createdAt: nowIso() };
       d.teamInvites.push(invite);
       save();
+      if (invitedUserId) notify([invitedUserId], 'TEAM_INVITE', `Convite para o ${team.name}`, `${user.nickname} chamou você para o squad. O convite vale por 72 horas.`, `/squads/convite/${invite.code}`);
       return json(toTeamInvite(invite), 201);
     }),
   ),
@@ -352,7 +355,10 @@ export const handlers = [
         if (i.teamId === team.id && i.invitedUserId === user.id && i.status === 'PENDING') i.status = 'ACCEPTED';
       }
       save();
-      return json(teamView(team, user));
+      // Um passo só: o squad que espera jogadores num campeonato já ganha o novo membro no elenco.
+      const rosters = joinOpenRosters(user, team.id);
+      notify([team.captainId], 'TEAM_INVITE', `Novo jogador no ${team.name}`, `${user.nickname} entrou no squad pelo seu convite.`, `/minha-conta/squads/${team.id}`);
+      return json({ ...teamView(team, user), rosters });
     }),
   ),
 

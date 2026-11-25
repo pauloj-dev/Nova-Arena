@@ -7,7 +7,8 @@ describe('ações do ciclo de vida por estado (PRD §8.3)', () => {
     expect(lifecycleActions('DRAFT')).toEqual([]);
     expect(lifecycleActions('PUBLISHED')).toEqual(['open-registration', 'cancel']);
     expect(lifecycleActions('REGISTRATION_OPEN')).toEqual(['close-registration', 'cancel']);
-    expect(lifecycleActions('REGISTRATION_CLOSED')).toEqual(['start', 'cancel']);
+    // RN-16: com as inscrições encerradas dá para reabrir (a API recusa depois de a chave ser confirmada).
+    expect(lifecycleActions('REGISTRATION_CLOSED')).toEqual(['open-registration', 'start', 'cancel']);
     expect(lifecycleActions('CHECK_IN')).toEqual(['start', 'cancel']);
     expect(lifecycleActions('IN_PROGRESS')).toEqual(['pause', 'finish']);
     expect(lifecycleActions('PAUSED')).toEqual(['resume', 'cancel']);

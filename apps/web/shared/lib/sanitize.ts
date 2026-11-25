@@ -22,9 +22,24 @@ export function sanitizeRichText(html: string): string {
   return doc.body.innerHTML;
 }
 
-/** Texto puro a partir do HTML (resumos em cards e metadados). */
+const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', '#39': "'" };
+
+/**
+ * Texto puro a partir do HTML (resumos em cards, metadados e "tem descrição?"). No servidor também: a página do
+ * campeonato decide entre o texto e "Sem descrição" com ele, e uma resposta diferente no servidor quebrava a hidratação.
+ */
 export function richTextToPlain(html: string): string {
-  if (typeof window === 'undefined') return '';
+  if (typeof window === 'undefined') {
+    const text = sanitizeHtmlAllowlist(html)
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (m, code: string) => {
+        const lower = code.toLowerCase();
+        if (lower.startsWith('#x')) return String.fromCodePoint(parseInt(lower.slice(2), 16));
+        if (lower.startsWith('#')) return String.fromCodePoint(parseInt(lower.slice(1), 10));
+        return ENTITIES[lower] ?? m;
+      });
+    return text.replace(/\s+/g, ' ').trim();
+  }
   const doc = new DOMParser().parseFromString(DOMPurify.sanitize(html, { ALLOWED_TAGS: [] }), 'text/html');
   return (doc.body.textContent ?? '').replace(/\s+/g, ' ').trim();
 }

@@ -2,7 +2,7 @@
 
 import type { Tournament } from '@nova/schemas';
 import { Button, Card, ErrorState, Progress, Skeleton } from '@nova/ui';
-import { CalendarClock, Hourglass, Lock, ShieldCheck, XCircle } from 'lucide-react';
+import { CalendarClock, CalendarX2, Hourglass, Lock, ShieldCheck, XCircle } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -158,6 +158,26 @@ export function RegistrationPanel({ tournament }: { tournament: Tournament }) {
         );
         break;
       case 'CAN_REGISTER': {
+        // Evento "um só campeonato" (ADR-0005): avisa antes, em vez de deixar a pessoa bater no erro.
+        const clash = eligibility.data?.eventConflict ?? null;
+        if (clash) {
+          body = (
+            <Notice icon={<CalendarX2 className="size-5" />} title={t('eventoTitulo')}>
+              <span data-testid="conflito-evento">
+                {t.rich('eventoTexto', {
+                  campeonato: clash.tournamentName,
+                  evento: clash.eventName,
+                  link: (chunks) => (
+                    <Link href={`/c/${clash.slug}`} className="font-semibold text-text underline-offset-2 hover:underline">
+                      {chunks}
+                    </Link>
+                  ),
+                })}
+              </span>
+            </Notice>
+          );
+          break;
+        }
         const waitlistOffer = view.waitlistPosition !== null ? t.rich('ofertaFila', { posicao: view.waitlistPosition, b: (chunks) => <strong>{chunks}</strong> }) : null;
         body = user ? (
           <>

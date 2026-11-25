@@ -5,13 +5,15 @@
  * `features/registrations/lib/rules.ts`; aqui ficam permissão, leitura e gravação.
  */
 import { http } from 'msw';
-import { ACTIVE_REGISTRATION_STATUSES, RegisterInTournamentInput, type GameMode, type MyTournamentEntry, type RegistrationEligibility, type TournamentStatus } from '@nova/schemas';
+import { ACTIVE_REGISTRATION_STATUSES, AddRosterMemberInput, MoveRosterMemberInput, RegisterInTournamentInput, type GameMode, type MyTournamentEntry, type RegistrationEligibility, type TournamentStatus } from '@nova/schemas';
 import {
   canCancelRegistration,
   checkSquadSize,
   initialRegistrationStatus,
+  initialReservation,
   isCurrentEntry,
   registrationWindow,
+  squadRegistrationBlock,
   squadSizeMessage,
   statusAfterMemberConfirmation,
 } from '@/features/registrations/lib/rules';
@@ -21,7 +23,9 @@ import { applyDueWalkovers } from './competition';
 import { db, nowIso, save, uid, type DbRegistration, type DbTeam, type DbTournament, type DbUser } from '../db';
 import { badRequest, conflict, body, currentUser, findTournament, forbidden, handle, HttpProblem, json, noContent, notFound, param, requireUser, url } from '../http';
 import { findUser, takenSlots, toRegistration, toTournamentSummary } from '../views';
+import { addMember, moveMember, notifyConfirmed, notifyToConfirm, removeMember, rosterActor } from '../roster';
 import { settleWaitlist } from '../waitlist';
+import { assertEventExclusivity, eventConflictFor } from '../events';
 
 export const moduleName = 'registrations';
 
@@ -175,7 +179,8 @@ export const handlers = [
     handle(({ params }) => {
       const t = visibleTournament(param(params, 'id'));
       const user = currentUser();
-      const eligibility: RegistrationEligibility = { isOrganizer: user !== null && isOrganizerOf(user, t) };
+      // Evento "um só campeonato" (ADR-0005): avisa antes do clique.
+      const eligibility: RegistrationEligibility = { isOrganizer: user !== null && isOrganizerOf(user, t), eventConflict: user ? eventConflictFor(t, user.id) : null };
       return json(eligibility);
     }),
   ),
@@ -215,7 +220,8 @@ export const handlers = [
         if (others.some((r) => isActive(r) && r.teamId === team?.id)) throw conflict(`O ${team.name} já está inscrito neste campeonato.`, 'ALREADY_REGISTERED');
 
         const size = checkSquadSize(team.members.length, mode);
-        if (!size.ok) throw conflict(squadSizeMessage(size, mode) ?? 'O tamanho do squad não serve para este modo.', size.reason === 'TOO_SMALL' ? 'TEAM_TOO_SMALL' : 'TEAM_TOO_BIG');
+        // RN-17: squad incompleto se inscreve com a vaga reservada; só o excesso barra.
+        if (squadRegistrationBlock(size)) throw conflict(squadSizeMessage(size, mode) ?? 'O tamanho do squad não serve para este modo.', 'TEAM_TOO_BIG');
 
         // Exclusividade (PRD §12.1): ninguém joga o mesmo campeonato por dois squads.
         for (const member of team.members) {
@@ -226,6 +232,9 @@ export const handlers = [
           throw conflict(`${who} neste campeonato${where ? ` pelo squad ${where}` : ''}. Um jogador não pode estar em dois squads no mesmo campeonato.`, 'PLAYER_IN_OTHER_TEAM');
         }
       }
+
+      // Evento "um só campeonato" (ADR-0005): ninguém do elenco pode estar em outro campeonato do evento.
+      assertEventExclusivity(t, team ? team.members.map((m) => m.userId) : [user.id], user.id);
 
       // Solo: o ID do jogo é obrigatório já na inscrição. Squad: o capitão conta como confirmado, então vale para ele também.
       assertGameAccount(user, t);
@@ -254,13 +263,15 @@ export const handlers = [
         statusReason: null,
         // Elenco do squad neste campeonato: uma foto dos membros no momento da inscrição.
         members: team ? team.members.map((m) => ({ userId: m.userId, isSub: m.isSub, confirmedAt: m.userId === user.id ? now : null })) : [],
-        reservedUntil: null,
+        reservedUntil: initialReservation({ status, isTeam: team !== undefined, members: team?.members.length ?? 1, teamSize: mode.teamSize, now: new Date(now), registrationClosesAt: t.registrationClosesAt }),
         createdAt: now,
       };
       d.registrations.push(registration);
       follow(user.id, t.id);
-      // Ponto de extensão (F2): notificar os membros ("Confirme sua participação") e, com aprovação manual, a organização.
       save();
+      // PRD §12.2: o elenco recebe "Confirme sua participação"; vaga garantida recebe "Inscrição confirmada".
+      if (team) notifyToConfirm(registration);
+      notifyConfirmed([registration]);
       return json(toRegistration(registration), 201);
     }),
   ),
@@ -279,6 +290,8 @@ export const handlers = [
 
       settleWaitlist(t);
       if (member.confirmedAt === null) {
+        // Confirmar é ocupar o lugar no elenco: vale a regra do evento (ADR-0005).
+        assertEventExclusivity(t, [user.id], user.id);
         member.confirmedAt = nowIso();
         const { mode } = gameAndMode(t);
         const next = statusAfterMemberConfirmation(r.status, { manualApproval: t.manualApproval, confirmedMembers: confirmedCount(r), requiredMembers: mode.teamSize });
@@ -286,6 +299,7 @@ export const handlers = [
           r.status = next;
           // O squad completou dentro do prazo: a vaga deixa de ser só uma reserva.
           r.reservedUntil = null;
+          notifyConfirmed([r]);
         }
         follow(user.id, t.id);
         save();
@@ -331,6 +345,45 @@ export const handlers = [
       save();
       settleWaitlist(t);
       return noContent();
+    }),
+  ),
+
+  // ── Elenco do squad (trava de elenco, PRD §12.1) ───────────────────
+  /** Escalar: o capitão escolhe um membro do squad; a organização, qualquer jogador (já confirmado). */
+  http.post(
+    url('/registrations/:id/members'),
+    handle(async ({ params, request }) => {
+      const { registration: r, tournament: t } = findRegistration(param(params, 'id'));
+      const actor = rosterActor(r, t);
+      const input = await body(request, AddRosterMemberInput);
+      addMember(actor, t, r, input);
+      return json({ registrations: [toRegistration(r)] });
+    }),
+  ),
+
+  /** Tirar do elenco: o capitão (até a trava, nunca a si mesmo) ou a organização (até o fim). */
+  http.delete(
+    url('/registrations/:id/members/:userId'),
+    handle(({ params }) => {
+      const { registration: r, tournament: t } = findRegistration(param(params, 'id'));
+      removeMember(rosterActor(r, t), t, r, param(params, 'userId'));
+      return json({ registrations: [toRegistration(r)] });
+    }),
+  ),
+
+  /** Remanejar (só a organização): tira o jogador de um squad e escala em outro do mesmo campeonato. */
+  http.post(
+    url('/registrations/:id/members/:userId/move'),
+    handle(async ({ params, request }) => {
+      const { registration: from, tournament: t } = findRegistration(param(params, 'id'));
+      const actor = rosterActor(from, t);
+      if (actor.asCaptain) throw forbidden('Só a organização deste campeonato pode fazer isso.');
+      const { toRegistrationId } = await body(request, MoveRosterMemberInput);
+      if (toRegistrationId === from.id) throw badRequest('Escolha outro squad para o jogador.', 'SAME_REGISTRATION', { toRegistrationId: 'Escolha outro squad.' });
+      const to = db().registrations.find((x) => x.id === toRegistrationId && x.tournamentId === t.id);
+      if (!to) throw notFound('Inscrição');
+      moveMember(actor, t, from, to, param(params, 'userId'));
+      return json({ registrations: [toRegistration(from), toRegistration(to)] });
     }),
   ),
 ];

@@ -1,9 +1,15 @@
 {
   "GameAccountWarning": {
     "faltaId": "Falta o seu ID de {jogo}.",
-    "paraInscrever": "A organização precisa dele para montar as partidas. Informe o ID e volte para se inscrever.",
-    "paraConfirmar": "Informe o ID para poder confirmar sua participação.",
-    "informarId": "Informar meu ID de {jogo}"
+    "paraInscrever": "A organização precisa dele para montar as partidas. Informe aqui e siga com a inscrição.",
+    "paraConfirmar": "Informe aqui para poder confirmar sua participação.",
+    "salvar": "Salvar meu ID de {jogo}",
+    "salvo": "ID de {jogo} salvo",
+    "agoraInscreva": "Agora é só se inscrever.",
+    "agoraConfirme": "Agora é só confirmar sua participação.",
+    "erroSalvar": "Não foi possível salvar o ID de {jogo}",
+    "confiraCampos": "Confira os campos destacados.",
+    "ondeMudar": "Você pode mudar depois em Minha conta."
   },
   "RegistrationMembers": {
     "elencoDo": "Elenco do {nome}",
@@ -50,7 +56,9 @@
       "enviada": "Inscrição enviada",
       "enviadaDescricao": "A organização vai analisar e aprovar.",
       "confirmada": "Inscrição confirmada",
-      "confirmadaDescricao": "Boa sorte!"
+      "confirmadaDescricao": "Boa sorte!",
+      "squadIncompleto": "Squad inscrito, vaga guardada",
+      "squadIncompletoDescricao": "Agora mande o link do squad para quem falta: quem entrar já fica confirmado."
     },
     "escolhaSquad": "Escolha o squad que vai jogar.",
     "aceiteObrigatorio": "Para se inscrever, marque que você leu e aceita o regulamento.",
@@ -66,16 +74,16 @@
     "opcaoSquad": "{nome} [{tag}] · {count, plural, =1 {1 jogador} other {{count} jogadores}}",
     "abrirSquad": "Abrir o squad",
     "criarSquadNovo": "Criar um squad novo",
-    "informarId": "Informar meu ID de {jogo}",
     "entrarListaEspera": "Entrar na lista de espera",
     "inscreverSquad": "Inscrever squad",
     "inscreverSe": "Inscrever-se",
-    "depoisDaInscricao": "Depois da inscrição, cada jogador confirma a participação. A inscrição vale quando {tamanho} confirmarem."
+    "depoisDaInscricao": "Quem já está no squad recebe um aviso para confirmar; quem entrar depois pelo link do squad já entra confirmado. A inscrição vale quando {tamanho} confirmarem.",
+    "incompleto": "O squad tem {count, plural, =1 {1 jogador} other {# jogadores}} de {tamanho}. Você já pode inscrever: a vaga fica guardada por 24 horas (ou até o fim das inscrições), e quem entrar pelo link do squad já fica confirmado."
   },
   "MyRegistrationCard": {
     "status": {
       "confirmada": "{quem, select, squad {O squad está confirmado no campeonato.} other {Você está confirmado no campeonato.}}",
-      "elencoIncompleto": "O elenco ficou com menos de {minimo} jogadores. Cancele a inscrição e inscreva o squad de novo quando ele estiver completo.",
+      "elencoIncompleto": "O elenco ficou com menos de {minimo} jogadores. O capitão pode escalar outro membro do squad ou chamar alguém pelo link de convite: quem entrar no squad já entra no elenco.",
       "aguardaConfirmacoes": "A inscrição vale quando {minimo} jogadores confirmarem. {count, plural, =1 {Falta 1 membro confirmar} other {Faltam {count} membros confirmarem}}.",
       "aguardaAprovacao": "A inscrição está completa e aguarda a aprovação da organização.",
       "listaEspera": "{quem, select, squad {O squad} other {Você}} está na lista de espera. Se abrir uma vaga, a entrada é automática, na ordem da fila.",
@@ -107,7 +115,13 @@
     "soCapitaoCancela": "Só o capitão pode cancelar a inscrição do squad.",
     "verOutros": "Ver outros campeonatos",
     "voltar": "Voltar",
-    "sairDaLista": "Sair da lista"
+    "sairDaLista": "Sair da lista",
+    "trocarElencoAte": "O capitão pode trocar o elenco até {data}. Depois disso, só a organização.",
+    "trocarElencoSemData": "O capitão pode trocar o elenco até o campeonato começar.",
+    "tirar": "Tirar",
+    "tirarRotulo": "Tirar {nome} do elenco",
+    "tirou": "{nome} saiu do elenco",
+    "erroElenco": "Não foi possível mudar o elenco"
   },
   "RegistrationPanel": {
     "carregando": "Carregando a inscrição",
@@ -135,6 +149,34 @@
     "entrarParaInscrever": "Entrar para se inscrever",
     "criarConta": "Criar conta",
     "ofertaFila": "Você pode entrar na lista de espera. Hoje você seria o <b>{posicao}º da fila</b>; se alguém cancelar, a vaga passa para o primeiro, automaticamente.",
-    "titulo": "Inscrição"
+    "titulo": "Inscrição",
+    "eventoTitulo": "Você já está em outro campeonato deste evento",
+    "eventoTexto": "Você está inscrito no campeonato <link>{campeonato}</link> do evento {evento}. Neste evento cada jogador participa de um só campeonato."
+  },
+  "StaffTournaments": {
+    "titulo": "Campeonatos que eu ajudo a organizar",
+    "descricao": "Você faz parte da equipe destes campeonatos. Abra a gestão para lançar resultados, cuidar das inscrições e do dia do evento.",
+    "papel": "{papel, select, CO_ORGANIZER {Co-organizador} other {Moderador}}",
+    "gerenciar": "Gerenciar",
+    "gerenciarRotulo": "Gerenciar {nome}",
+    "inicio": "Começa em {data}",
+    "semData": "Sem data de início",
+    "erro": "Não foi possível carregar os campeonatos que você ajuda a organizar"
+  },
+  "CaptainRoster": {
+    "titulo": "Escalar membros do squad",
+    "descricao": "Membros do squad que ainda não estão no elenco deste campeonato. Quem você escalar recebe um aviso para confirmar.",
+    "escalar": "Escalar",
+    "escalarRotulo": "Escalar {nome}",
+    "escalou": "{nome} entrou no elenco",
+    "escalouDescricao": "Ele recebeu um aviso para confirmar a participação.",
+    "erroEscalar": "Não foi possível escalar",
+    "todosNoElenco": "Todos os membros do squad já estão no elenco.",
+    "elencoCheio": "O elenco está completo: {limite} jogadores, contando reservas.",
+    "chamarMais": "Chamar mais jogadores para o squad",
+    "carregando": "Carregando o squad",
+    "erroCarregar": "Não foi possível carregar o squad",
+    "faltamTitulo": "{count, plural, =1 {Falta 1 jogador} other {Faltam # jogadores}}",
+    "faltamDescricao": "Mande o link do squad no grupo do time. Quem entrar já fica confirmado neste campeonato, sem outro passo."
   }
 }

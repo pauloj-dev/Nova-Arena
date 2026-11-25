@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  AcceptTeamInviteResult,
   InviteCandidate,
   Team,
   TeamInvite,
@@ -143,9 +144,11 @@ export function useMyTeamInvites(opts: { enabled?: boolean } = {}) {
 
 export function useAcceptTeamInvite() {
   const invalidate = useInvalidateTeams();
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => api.post(`/team-invites/${encodeURIComponent(code)}/accept`, undefined, { schema: Team }),
-    onSuccess: () => invalidate(),
+    mutationFn: (code: string) => api.post(`/team-invites/${encodeURIComponent(code)}/accept`, undefined, { schema: AcceptTeamInviteResult }),
+    // Quem entra no squad pode entrar também no elenco de inscrições do squad (campeonatos mudam).
+    onSuccess: () => Promise.all([invalidate(), qc.invalidateQueries({ queryKey: keys.tournaments.all })]),
   });
 }
 

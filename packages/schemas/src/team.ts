@@ -103,3 +103,18 @@ export const TeamInvitePreview = z.object({
   viewerIsNotInvitee: z.boolean(),
 });
 export type TeamInvitePreview = z.infer<typeof TeamInvitePreview>;
+
+/** Campeonato em que o jogador entrou no elenco do squad ao aceitar o convite (o squad esperava jogadores). */
+export const RosterJoin = z.object({
+  registrationId: Id,
+  tournamentId: Id,
+  tournamentName: z.string(),
+  tournamentSlug: z.string(),
+  /** Já conta como confirmado; falso quando falta o ID do jogo (aí ele confirma na página do campeonato). */
+  confirmed: z.boolean(),
+});
+export type RosterJoin = z.infer<typeof RosterJoin>;
+
+/** Aceitar convite: o squad e os campeonatos em que o jogador já entrou no elenco. */
+export const AcceptTeamInviteResult = Team.extend({ rosters: z.array(RosterJoin) });
+export type AcceptTeamInviteResult = z.infer<typeof AcceptTeamInviteResult>;

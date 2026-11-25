@@ -89,7 +89,14 @@
     "descricaoHint": "Conte como vai ser: formato, dias de jogo, quem pode participar.",
     "premiacao": "Premiação",
     "premiacaoPlaceholder": "Ex.: 1º lugar: troféu digital e destaque na home. 2º e 3º: medalhas no perfil.",
-    "premiacaoHint": "Texto livre. A Nova Arena não processa pagamentos nesta versão."
+    "premiacaoHint": "Texto livre. A Nova Arena não processa pagamentos nesta versão.",
+    "evento": "Evento",
+    "eventoNenhum": "Nenhum (campeonato avulso)",
+    "eventoAtual": "Evento atual",
+    "eventoHint": "Junte este campeonato a um evento seu, com outros campeonatos. A regra de participação é a do evento.",
+    "eventoTravado": "O campeonato já começou: ele não entra nem sai de um evento.",
+    "eventoUnico": "Neste evento cada jogador participa de um só campeonato.",
+    "eventoVarios": "Neste evento o jogador pode participar de vários campeonatos."
   },
   "RegistrationStep": {
     "vagas": "Vagas",
