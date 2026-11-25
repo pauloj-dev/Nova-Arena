@@ -95,3 +95,31 @@ O Admin é notificado em todos os casos. A troca de responsável é auditada.
 - **Seguir campeonato:** o usuário recebe as notificações públicas do campeonato (comunicados, início, avanço de fase, campeão) e ele aparece em "Seguindo".
 - **Seguir jogo:** o usuário é avisado quando um campeonato novo do jogo abre inscrições.
 - Inscrever-se em um campeonato faz o participante segui-lo automaticamente.
+
+## RN-16 — Reabrir inscrições e equipe por link
+
+**Reabrir inscrições** (quando falta gente ou alguém desiste depois do fechamento):
+
+- Vale de **Inscrições encerradas** para **Inscrições abertas**, pelo responsável, co-organizador ou Admin (moderador não).
+- Só enquanto **nenhuma chave foi confirmada**. Uma prévia de chave já gerada fica como está; depois de fechar de novo, a organização sorteia outra vez para incluir quem entrou.
+- Exige a **nova data de fechamento**, no futuro e antes do início do campeonato (fechar antes da hora grava a data de agora). A data de abertura original não muda.
+- A lista de espera continua na mesma ordem. A reabertura é auditada com o motivo "Inscrições reabertas".
+
+**Convite por link para a equipe do campeonato** (ORG-10):
+
+- O responsável (ou o Admin) gera um link de **co-organizador** ou de **moderador**, com validade de 1 hora, 24 horas ou 7 dias e de 1 a 10 usos. O link completo só aparece na criação; dá para revogar a qualquer momento.
+- Quem abre o link vê o campeonato e o papel antes de entrar na conta. Para aceitar: conta ativa e e-mail confirmado, não ser o responsável, não estar na equipe e **não estar inscrito** no campeonato (PRD §6, nota ³).
+- Link expirado, revogado ou esgotado não muda nada. Quem criou o link é avisado quando alguém entra por ele.
+- Quem entra na equipe sem ter o papel de organizador acha o campeonato em **Minha conta → Meus campeonatos → Campeonatos que eu ajudo a organizar**.
+
+## RN-17 — Squad incompleto na inscrição
+
+Decisão de 25/11/2026, para a inscrição de squad ter um passo só para os jogadores.
+
+- O capitão inscreve o squad **antes de ele completar**. Só o excesso de jogadores (titulares + reservas do modo) barra a inscrição.
+- Com vaga, a inscrição fica **Aguardando membros** com a vaga **reservada por 24 horas** ou até o fechamento das inscrições, o que vier primeiro — a mesma reserva do squad promovido da lista de espera (RN-12). Sem vaga, entra na lista de espera, como qualquer inscrição.
+- Quem entra no squad pelo **link ou código de convite** já cai no elenco da inscrição **confirmado** (se tiver o ID do jogo; senão, entra e confirma depois de informar o ID). Membros que já estavam no squad recebem o aviso "Confirme sua participação", como antes.
+- Ao chegar ao mínimo de confirmados, a inscrição vira **Confirmada** (ou **Aguardando aprovação**, com aprovação manual) e a reserva acaba.
+- Reserva vencida sem completar: a vaga passa para o primeiro da lista de espera e o squad volta ao **fim da fila** (RN-12). Sem ninguém esperando e com as inscrições abertas, ele volta para a vaga com um novo prazo; com as inscrições fechadas, fica na lista de espera.
+- Squad completo que só espera confirmações não tem reserva (comportamento anterior).
+

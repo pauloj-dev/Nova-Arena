@@ -1,8 +1,9 @@
 'use client';
 
 import type { RoleInvite } from '@nova/schemas';
-import { Badge, Button, Card, DataTable, ErrorState, StatusPill, useToast, type Column } from '@nova/ui';
+import { Badge, Button, Card, DataTable, ErrorState, Skeleton, StatusPill, useToast, type Column } from '@nova/ui';
 import { CheckCircle2, Hourglass, Link2Off } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
 import { errorMessage } from '@/shared/api/client';
 import { useCreateRoleInvite, useRevokeRoleInvite, useRoleInvites } from '@/shared/api/hooks/admin';
@@ -10,6 +11,9 @@ import { useT } from '@/shared/i18n/react';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { InviteForm } from './InviteForm';
 import { adminRolesMessages } from './messages';
+
+// Abaixo da lista: desce só quando a tela abre (o teto de JS inicial por rota, #111).
+const StaffInviteCard = dynamic(() => import('./StaffInviteCard').then((m) => m.StaffInviteCard), { loading: () => <Skeleton className="h-48 w-full" /> });
 
 type InvitesT = ReturnType<typeof useT<(typeof adminRolesMessages)['pt-BR'], 'InvitesSection'>>;
 
@@ -53,7 +57,7 @@ function buildColumns(t: InvitesT): Column<RoleInvite>[] {
   ];
 }
 
-/** Convites de Admin e Organizador (PRD §7.3): gerar, acompanhar o estado e revogar. */
+/** Convites (PRD §7.3): Admin e Organizador para a plataforma e a equipe de um campeonato. Gerar, acompanhar e revogar. */
 export function InvitesSection({ defaultRole = 'ADMIN' }: { defaultRole?: 'ADMIN' | 'ORGANIZER' }) {
   const t = useT(adminRolesMessages, 'InvitesSection');
   const columns = useMemo(() => buildColumns(t), [t]);
@@ -106,6 +110,7 @@ export function InvitesSection({ defaultRole = 'ADMIN' }: { defaultRole?: 'ADMIN
         />
       )}
       <p className="text-xs text-muted">{t('linkSoUmaVez')}</p>
+      <StaffInviteCard />
     </section>
   );
 }

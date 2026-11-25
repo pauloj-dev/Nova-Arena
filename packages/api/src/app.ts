@@ -21,6 +21,7 @@ import { memoryCache, upstashCache, type Cache } from './cache';
 import { games } from './modules/games';
 import { tournaments } from './modules/tournaments';
 import { publicTournaments } from './modules/tournaments/public';
+import { staffInvites } from './modules/tournaments/staff-invites';
 import { jobs } from './modules/jobs';
 import { teams } from './modules/teams';
 import { registrations } from './modules/registrations';
@@ -52,6 +53,7 @@ import { reports } from './modules/reports';
 import { site } from './modules/site';
 import { seasons } from './modules/seasons';
 import { leagues } from './modules/seasons/leagues';
+import { events } from './modules/events';
 import { productEvents, trackAdminMutations } from './modules/site/events';
 import { discord } from './modules/discord';
 import { chat } from './modules/chat';
@@ -70,7 +72,7 @@ export const SLOW_WRITE_MS = 600;
  * resultados e histórico (#85, #86), fases (#87, #88), desistência e encerramento (#88, #100), envios e disputas (#90),
  * perfil competitivo (#89).
  */
-const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, jobs, teams, registrations, competition, matches, results, stages, closing, submissions, stats, twoFactor, realtime, notifications, notificationJobs, push, pushJobs, ...adminModules, reports, site, productEvents, seasons, leagues, discord, chat, calendar, fraud, privacy];
+const modules = [health, auth, oauth, account, users, uploads, games, tournaments, publicTournaments, staffInvites, jobs, teams, registrations, competition, matches, results, stages, closing, submissions, stats, twoFactor, realtime, notifications, notificationJobs, push, pushJobs, ...adminModules, reports, site, productEvents, seasons, leagues, events, discord, chat, calendar, fraud, privacy];
 
 export interface CreateAppOptions {
   /** Variáveis já validadas; padrão: as do processo, validadas na primeira requisição. */

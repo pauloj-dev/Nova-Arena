@@ -111,7 +111,12 @@
     "abrirSquad": "Abrir o squad",
     "enviadoPara": "Este convite foi enviado para {nome}. Para entrar no squad com a sua conta, peça ao capitão um convite para o seu apelido ou o link de convite.",
     "aceitarConvite": "Aceitar convite",
-    "recusar": "Recusar"
+    "recusar": "Recusar",
+    "elencoTitulo": "Você já está no elenco",
+    "elencoConfirmado": "Você entrou no elenco do <b>{time}</b> em <b>{campeonato}</b>. Sua participação já está confirmada.",
+    "elencoPendente": "Você entrou no elenco do <b>{time}</b> em <b>{campeonato}</b>. Falta confirmar sua participação.",
+    "verCampeonato": "Ver campeonato",
+    "confirmarParticipacao": "Confirmar participação"
   },
   "InviteByNickname": {
     "enviado": "Convite enviado para {nome}",

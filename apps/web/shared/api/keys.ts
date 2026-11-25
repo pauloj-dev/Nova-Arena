@@ -20,6 +20,9 @@ export const keys = {
     registrations: (id: string, params?: Params) => ['tournaments', 'registrations', id, params ?? {}] as const,
     announcements: (id: string) => ['tournaments', 'announcements', id] as const,
     staff: (id: string) => ['tournaments', 'staff', id] as const,
+    staffInvites: (id: string) => ['tournaments', 'staff', id, 'invites'] as const,
+    /** Campeonatos em que faço parte da equipe (co-organizadora ou moderadora). */
+    staffOf: ['tournaments', 'mine', 'staff'] as const,
     templates: ['tournaments', 'templates'] as const,
     matches: (id: string, params?: Params) => ['tournaments', 'matches', id, params ?? {}] as const,
     access: (id: string) => ['tournaments', 'detail', id, 'access'] as const,
@@ -51,6 +54,7 @@ export const keys = {
   },
   organizerRequest: ['organizer-request'] as const,
   roleInvite: (token: string) => ['role-invite', token] as const,
+  staffInvite: (token: string) => ['staff-invite', token] as const,
   follows: ['follows'] as const,
   notifications: {
     all: ['notifications'] as const,
@@ -91,6 +95,13 @@ export const keys = {
     list: (game?: string) => ['leagues', 'list', game ?? ''] as const,
     detail: (slug: string) => ['leagues', 'detail', slug] as const,
     mine: ['leagues', 'mine'] as const,
+  },
+  /** Eventos (ADR-0005). */
+  events: {
+    all: ['events'] as const,
+    detail: (slug: string) => ['events', 'detail', slug] as const,
+    mine: ['events', 'mine'] as const,
+    manage: (id: string) => ['events', 'manage', id] as const,
   },
   twoFactor: ['two-factor'] as const,
   loginMethods: ['login-methods'] as const,

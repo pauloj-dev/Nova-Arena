@@ -124,8 +124,12 @@ function useLifecycle<TInput extends { id: string }>(path: (input: TInput) => st
 export function usePublishTournament() {
   return useLifecycle<{ id: string }>(({ id }) => `/tournaments/${id}/publish`);
 }
+/** Abre as inscrições. Para reabrir depois de encerradas (RN-16), manda a nova data de fechamento. */
 export function useOpenRegistration() {
-  return useLifecycle<{ id: string }>(({ id }) => `/tournaments/${id}/open-registration`);
+  return useLifecycle<{ id: string; registrationClosesAt?: string }>(
+    ({ id }) => `/tournaments/${id}/open-registration`,
+    ({ registrationClosesAt }) => (registrationClosesAt ? { registrationClosesAt } : undefined),
+  );
 }
 export function useCloseRegistration() {
   return useLifecycle<{ id: string }>(({ id }) => `/tournaments/${id}/close-registration`);

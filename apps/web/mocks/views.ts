@@ -2,6 +2,7 @@
  * Converte os registros internos do banco simulado no formato dos contratos de `@nova/schemas`.
  * Tudo o que sai pela API passa por aqui (é onde e-mail, senha e IDs de jogo deixam de aparecer).
  */
+import { eventRefOf } from './event-store';
 import {
   SLOT_HOLDING_STATUSES,
   type Me,
@@ -73,6 +74,7 @@ export function toTournamentSummary(t: DbTournament): TournamentSummary {
     updatedAt: t.updatedAt,
     gameName: game?.name ?? 'Jogo',
     gameIcon: game?.icon ?? '🎮',
+    gameCoverUrl: game?.coverUrl ?? null,
     modeName: mode?.name ?? '',
     organizerNickname: owner?.nickname ?? 'Organizador',
     organizerVerified: owner?.verifiedOrganizer ?? false,
@@ -98,6 +100,7 @@ export function toTournament(t: DbTournament): Tournament {
     organizer: toPublicUser(owner),
     draftStep: t.draftStep,
     waitlistCount: db().registrations.filter((r) => r.tournamentId === t.id && r.status === 'WAITLIST').length,
+    event: eventRefOf(t),
   };
 }
 

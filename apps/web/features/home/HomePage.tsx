@@ -14,6 +14,7 @@ import { useT } from '@/shared/i18n/react';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { useSession } from '@/shared/session/useSession';
 import { messages } from './messages';
+import { GameIcon } from '@/shared/brand/GameIcon';
 
 const container = 'mx-auto w-full max-w-[1280px] px-4 md:px-6';
 
@@ -64,7 +65,7 @@ function Hero({ tournament, loading }: { tournament: TournamentSummary | undefin
               </h2>
               <div className="flex flex-col gap-1 text-sm md:text-base">
                 <p className="flex items-center gap-2">
-                  <span aria-hidden>{tournament.gameIcon}</span>
+                  <GameIcon icon={tournament.gameIcon} coverUrl={tournament.gameCoverUrl} className="size-6 rounded-sm bg-transparent" px={24} />
                   <span>
                     {tournament.gameName}
                     {tournament.modeName && t('modo', { modo: tournament.modeName })}
@@ -123,7 +124,7 @@ function GameShortcuts() {
         {games.data?.map((g) => (
           <li key={g.id}>
             <Link href={listHref({ game: g.slug })} className={chip}>
-              <span aria-hidden>{g.icon}</span>
+              <GameIcon icon={g.icon} coverUrl={g.coverUrl} className="size-6 rounded-sm bg-transparent" px={24} />
               {g.name}
             </Link>
           </li>

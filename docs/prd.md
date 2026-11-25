@@ -700,7 +700,7 @@ Cada fase usa um **Modelo de Pontuação** (`ScoringModel`): um conjunto de regr
 | Squad persistente | O squad existe fora dos campeonatos (nome, tag, logo) e pode ser reutilizado. |
 | Convites | Por **busca de nick**, **link** ou **código de 6 caracteres**; o convite expira em 72h. |
 | Tamanho | Mínimo/máximo definidos pelo modo do jogo + reservas (ex.: FF Squad = 4 + 1). |
-| Inscrição | Só o Capitão inscreve o squad. A inscrição fica **Pendente** até o mínimo de membros confirmar. |
+| Inscrição | Só o Capitão inscreve o squad, **mesmo incompleto** (RN-17): a vaga fica reservada por 24 h e quem entra pelo link do squad já fica confirmado. A inscrição fica **Pendente** até o mínimo de membros confirmar. |
 | Trava de elenco | O organizador define a data-limite para trocar membros; depois disso, só ele pode substituir. |
 | Exclusividade | Um jogador não pode estar em dois squads **no mesmo campeonato**. |
 | Transferir capitania | O Capitão pode passar o papel a outro membro. |

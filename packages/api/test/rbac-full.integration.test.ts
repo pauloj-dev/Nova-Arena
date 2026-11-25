@@ -96,6 +96,7 @@ const MATRIX: Row[] = [
   r('GET /teams/:id', PUBLIC, ({ ids }) => `/teams/${ids.team}`),
   r('GET /team-invites/:code', PUBLIC, ({ ids }) => `/team-invites/${ids.teamInviteCode}`),
   r('GET /role-invites/:token', PUBLIC, () => '/role-invites/convite-que-nao-existe-123456'),
+  r('GET /staff-invites/:token', PUBLIC, () => '/staff-invites/convite-que-nao-existe-123456', 'prévia do link da equipe do campeonato (antes do login)'),
   r('GET /site/banner', PUBLIC),
   r('GET /site/flags', PUBLIC),
   r('GET /site/settings', PUBLIC),
@@ -125,6 +126,7 @@ const MATRIX: Row[] = [
     'GET /me/registrations',
     'GET /me/reports',
     'GET /me/sessions',
+    'GET /me/staff-tournaments',
     'GET /me/team-invites',
     'GET /notifications',
     'GET /notifications/unread-count',
@@ -160,6 +162,7 @@ const MATRIX: Row[] = [
   r('POST /team-invites/:code/accept', AUTH, ({ ids }) => `/team-invites/${ids.teamInviteCode}/accept`),
   { ...r('POST /team-invites/:code/decline', OWN, ({ ids }) => `/team-invites/${ids.personalInviteCode}/decline`, 'recusar: só quem foi convidado pelo apelido (código errado conta no limite de 10/min)'), limited: true },
   r('POST /role-invites/:token/accept', AUTH, () => '/role-invites/convite-que-nao-existe-123456/accept'),
+  r('POST /staff-invites/:token/accept', AUTH, () => '/staff-invites/convite-que-nao-existe-123456/accept', 'entrar na equipe do campeonato pelo link: o próprio link é a permissão'),
   r('GET /files/:id', except(OWN, { admin: 'allow', superAdmin: 'allow', adminSem2fa: 'allow' }), ({ ids }) => `/files/${ids.upload}`, 'prova privada: quem enviou, o staff do campeonato (quando anexada) e a moderação da plataforma; sem Blob no teste: 503'),
 
   // ── Recursos da participante ─────────────────────────────────────
@@ -172,6 +175,9 @@ const MATRIX: Row[] = [
   r('DELETE /team-invites/:id', OWN, ({ ids }) => `/team-invites/${ids.teamInvite}`, 'quem pode convidar revoga'),
   r('POST /registrations/:id/confirm', OWN, ({ ids }) => `/registrations/${ids.teamRegistration}/confirm`, 'membro do squad confirma a participação'),
   r('POST /registrations/:id/decline', OWN, ({ ids }) => `/registrations/${ids.teamRegistration}/decline`),
+  r('POST /registrations/:id/members', except(MANAGE, { participante: 'allow' }), ({ ids }) => `/registrations/${ids.teamRegistration}/members`, 'escalar no elenco: o capitão (até a trava de elenco) e quem gerencia o campeonato; moderador não'),
+  r('DELETE /registrations/:id/members/:userId', except(MANAGE, { participante: 'allow' }), ({ ids }) => `/registrations/${ids.teamRegistration}/members/00000000-0000-4000-8000-000000000000`, 'tirar do elenco: o capitão (até a trava) e quem gerencia'),
+  r('POST /registrations/:id/members/:userId/move', MANAGE, ({ ids }) => `/registrations/${ids.teamRegistration}/members/00000000-0000-4000-8000-000000000000/move`, 'remanejar entre squads: só quem gerencia o campeonato'),
   r('POST /notifications/:id/read', OWN, ({ ids }) => `/notifications/${ids.notification}/read`),
   r('GET /matches/:id/lobby', except(OWN, { moderador: 'allow', organizadorDono: 'allow', adminSem2fa: 'allow', admin: 'allow', superAdmin: 'allow' }), ({ ids }) => `/matches/${ids.match}/lobby`, 'sala: quem joga a partida e o staff'),
   r('POST /matches/:id/check-in', OWN, ({ ids }) => `/matches/${ids.match}/check-in`, 'só quem joga a partida'),
@@ -214,6 +220,8 @@ const MATRIX: Row[] = [
       ['POST /tournaments/:id/resume', 'tournaments'],
       ['POST /tournaments/:id/publish', 'tournaments'],
       ['POST /tournaments/:id/staff', 'tournaments'],
+      ['GET /tournaments/:id/staff-invites', 'tournaments'],
+      ['POST /tournaments/:id/staff-invites', 'tournaments'],
       ['GET /tournaments/:id/podium-suggestion', 'tournaments'],
       ['POST /tournaments/:id/registrations/import', 'tournaments'],
     ] as const
@@ -221,6 +229,7 @@ const MATRIX: Row[] = [
   r('GET /tournaments/:id/audit-logs', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/audit-logs`, 'PRD §6: logs só dos próprios campeonatos (moderador não)'),
   r('PATCH /tournaments/:id/staff/:userId', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/staff/${ids.moderador}`),
   r('DELETE /tournaments/:id/staff/:userId', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/staff/${ids.nobody}`),
+  r('DELETE /tournaments/:id/staff-invites/:inviteId', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/staff-invites/${ids.nobody}`, 'revogar o link da equipe: só o responsável (convite inexistente: 404)'),
   r('POST /tournaments/:id/announcements', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/announcements`),
   r('DELETE /announcements/:id', MANAGE, ({ ids }) => `/announcements/${ids.announcement}`),
   r('POST /stages/:id/generate', MANAGE, ({ ids }) => `/stages/${ids.stage}/generate`, 'gerar/regerar chave: não é do moderador'),
@@ -318,6 +327,15 @@ const MATRIX: Row[] = [
   r('POST /organizer/leagues/:id/tournaments', MANAGE, ({ ids }) => `/organizer/leagues/${ids.league}/tournaments`),
   r('DELETE /organizer/leagues/:id/tournaments/:tournamentId', MANAGE, ({ ids }) => `/organizer/leagues/${ids.league}/tournaments/${ids.tournament}`),
   r('DELETE /organizer/leagues/:id', MANAGE, ({ ids }) => `/organizer/leagues/${ids.spareLeague}`, 'liga separada: a dona apaga na 1ª chamada, as seguintes dão 404'),
+  // Eventos (ADR-0005)
+  r('GET /events/:slug', PUBLIC, ({ ids }) => `/events/${ids.eventSlug}`),
+  r('GET /organizer/events', ORGANIZER_AREA),
+  r('POST /organizer/events', ORGANIZER_AREA),
+  r('GET /organizer/events/:id', MANAGE, ({ ids }) => `/organizer/events/${ids.event}`, 'evento: o dono ou um Admin'),
+  r('PATCH /organizer/events/:id', MANAGE, ({ ids }) => `/organizer/events/${ids.event}`, 'evento: o dono ou um Admin (o 2FA só é exigido no painel)'),
+  r('POST /organizer/events/:id/tournaments', MANAGE, ({ ids }) => `/organizer/events/${ids.event}/tournaments`),
+  r('DELETE /organizer/events/:id/tournaments/:tournamentId', MANAGE, ({ ids }) => `/organizer/events/${ids.event}/tournaments/${ids.tournament}`),
+  r('DELETE /organizer/events/:id', MANAGE, ({ ids }) => `/organizer/events/${ids.spareEvent}`, 'evento separado: o dono apaga na 1ª chamada, as seguintes dão 404'),
   r('GET /tournaments/:id/discord', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/discord`, 'vincular o canal do Discord: quem gerencia o campeonato'),
   r('POST /tournaments/:id/discord/code', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/discord/code`, 'sem bot configurado: 503 depois da permissão'),
   r('POST /tournaments/:id/discord/test', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/discord/test`),
@@ -443,6 +461,10 @@ describe.skipIf(!url)('matriz RBAC completa (PRD §6) — toda rota × 8 perfis'
     const leagueData = (suffix: string) => ({ slug: `rf-liga-${suffix}-${h.stamp}`, name: `Liga RF ${suffix}`, gameId: game.id, ownerId: orgA.id, startsAt: new Date(Date.now() - 86_400_000), endsAt: new Date(Date.now() + 30 * 86_400_000), placementPoints: [10, 6, 4] });
     const league = await db.league.create({ data: leagueData('a') });
     Object.assign(ids, { league: league.id, leagueSlug: league.slug, spareLeague: (await db.league.create({ data: leagueData('b') })).id });
+    // Evento com um campeonato publicado (a página pública só existe assim) e um evento vazio para excluir.
+    const event = await db.event.create({ data: { slug: `rf-evento-${h.stamp}`, name: 'Evento RF', ownerId: orgA.id } });
+    await db.tournament.update({ where: { id: open.id }, data: { eventId: event.id } });
+    Object.assign(ids, { event: event.id, eventSlug: event.slug, spareEvent: (await db.event.create({ data: { slug: `rf-evento-b-${h.stamp}`, name: 'Evento RF B', ownerId: orgA.id } })).id });
   });
 
   afterAll(async () => {

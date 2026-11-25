@@ -6,6 +6,7 @@ import { CalendarClock, CalendarDays, Compass, Settings, User, Users } from 'luc
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { TournamentEventNote } from '@/features/events/EventRule';
 import { MatchViewerProvider, type MatchViewer } from '@/features/matches/viewer';
 import { VerifiedBadge } from '@/features/profile/VerifiedBadge';
 import { RegistrationPanel } from '@/features/registrations/RegistrationPanel';
@@ -26,6 +27,7 @@ import { messages } from './messages';
 import { ShareButton } from './ShareButton';
 import { slotsText } from './TournamentCard';
 import { AnnouncementsTab, OverviewTab, RegistrationsTab, RulesTab } from './TournamentTabs';
+import { GameIcon } from '@/shared/brand/GameIcon';
 
 // Chave, partidas e resultados (chave, tabela, modal da partida, envio de resultado) só descem quando a aba abre:
 // fora do JS inicial da página pública (#111).
@@ -136,9 +138,7 @@ function Header({ tournament, canManage }: { tournament: Tournament; canManage: 
           // Banner do organizador: otimizado quando vem do Vercel Blob; é o topo da página (candidato a LCP).
           <BlobImage src={tournament.bannerUrl} alt="" sizes="(min-width: 1280px) 1200px, 100vw" className="object-cover" priority />
         )}
-        <span className="relative flex size-14 items-center justify-center rounded-lg border border-border bg-surface text-3xl shadow-md" aria-hidden>
-          {tournament.gameIcon}
-        </span>
+        <GameIcon icon={tournament.gameIcon} coverUrl={tournament.gameCoverUrl} className="size-14 rounded-lg border border-border bg-surface text-3xl shadow-md" px={56} />
       </div>
 
       <div className="flex flex-col gap-4 p-4 md:p-6">
@@ -166,6 +166,7 @@ function Header({ tournament, canManage }: { tournament: Tournament; canManage: 
             <span>{organizedBy}</span>
             {tournament.organizer.verifiedOrganizer && <VerifiedBadge />}
           </p>
+          {tournament.event && <TournamentEventNote event={tournament.event} />}
         </div>
 
         <dl className="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">

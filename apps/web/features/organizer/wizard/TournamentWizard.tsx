@@ -73,6 +73,8 @@ export interface WizardFormProps {
   tournament?: OrganizerTournamentDetail;
   /** Começar a partir de um modelo. */
   template?: TournamentTemplate;
+  /** Campeonato novo já dentro de um evento (`?evento=`, ADR-0005). */
+  eventId?: string;
 }
 
 export function WizardSkeleton() {
@@ -94,7 +96,7 @@ export function WizardSkeleton() {
 }
 
 /** Assistente de criação em 7 passos (issue #22), com rascunho automático. */
-export function WizardForm({ games, userId, tournament, template }: WizardFormProps) {
+export function WizardForm({ games, userId, tournament, template, eventId }: WizardFormProps) {
   const t = useT(messages, 'TournamentWizard');
   const router = useRouter();
   const qc = useQueryClient();
@@ -105,7 +107,8 @@ export function WizardForm({ games, userId, tournament, template }: WizardFormPr
   const [boot] = useState(() => {
     const now = new Date();
     const base = defaultWizardValues(now, selectableGames(games, null));
-    return { now, initial: tournament ? tournamentToValues(tournament) : template ? templateToValues(template, base) : base };
+    const fresh = template ? templateToValues(template, base) : base;
+    return { now, initial: tournament ? tournamentToValues(tournament) : { ...fresh, eventId: eventId ?? null } };
   });
   const form = useForm<WizardValues>({ defaultValues: boot.initial, resolver, mode: 'onChange' });
   const values = useWatch({ control: form.control }) as WizardValues;

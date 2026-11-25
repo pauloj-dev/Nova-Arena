@@ -20,6 +20,7 @@ import * as auth from './auth';
 import * as calendar from './calendar';
 import * as chat from './chat';
 import * as discord from './discord';
+import * as events from './events';
 import * as competition from './competition';
 import * as games from './games';
 import * as gamesAdmin from './games-admin';
@@ -62,6 +63,7 @@ export const modules: MockModule[] = [
   privacy,
   reports,
   seasons,
+  events,
   profileStats,
   users,
   gamesAdmin,
@@ -86,7 +88,9 @@ export const B2_REAL_MODULES = ['competition', 'submissions', 'profile-stats', '
 export const POS_REAL_MODULES = ['seasons', 'discord', 'chat', 'calendar'] as const;
 /** R2 (issues 114 e 115): alertas antifraude e privacidade (LGPD). */
 export const R2_REAL_MODULES = ['admin-fraud', 'privacy'] as const;
-export const REAL_MODULES: readonly string[] = [...B1_REAL_MODULES, ...B2_REAL_MODULES, ...POS_REAL_MODULES, ...R2_REAL_MODULES];
+/** Eventos (ADR-0005). */
+export const EVENT_REAL_MODULES = ['events'] as const;
+export const REAL_MODULES: readonly string[] = [...B1_REAL_MODULES, ...B2_REAL_MODULES, ...POS_REAL_MODULES, ...R2_REAL_MODULES, ...EVENT_REAL_MODULES];
 
 /**
  * Valor de `NEXT_PUBLIC_API_MOCK` para o preview e o staging: só os módulos que ainda não têm API real. Desde a #102

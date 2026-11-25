@@ -37,10 +37,11 @@ export function toPublicUser(u: PublicUserRow): PublicUser {
 }
 
 export const tournamentInclude = {
-  game: { select: { name: true, icon: true } },
+  game: { select: { name: true, icon: true, coverUrl: true } },
   gameMode: { select: { name: true } },
   owner: { include: publicUserInclude },
   stages: { orderBy: { order: 'asc' } },
+  event: { select: { id: true, slug: true, name: true, participationRule: true } },
 } satisfies Prisma.TournamentInclude;
 export type TournamentRow = Prisma.TournamentGetPayload<{ include: typeof tournamentInclude }>;
 type StageRow = TournamentRow['stages'][number];
@@ -111,6 +112,7 @@ export function toTournamentSummary(t: TournamentRow, counts: TournamentCounts =
     updatedAt: t.updatedAt.toISOString(),
     gameName: t.game.name,
     gameIcon: t.game.icon,
+    gameCoverUrl: t.game.coverUrl,
     modeName: t.gameMode.name,
     organizerNickname: t.owner.nickname,
     organizerVerified: t.owner.organizerLimits?.verified ?? false,
@@ -135,6 +137,7 @@ export function toTournament(t: TournamentRow, counts: TournamentCounts = NO_COU
     organizer: toPublicUser(t.owner),
     draftStep: t.draftStep ?? 0,
     waitlistCount: counts.waitlist,
+    event: t.event,
   };
 }
 
@@ -151,5 +154,5 @@ export function toOrganizerDetail(t: TournamentRow, access: TournamentAccessRole
 }
 
 export function toOrganizerTournament(t: TournamentRow, access: TournamentAccessRole, counts: TournamentCounts = NO_COUNTS): OrganizerTournament {
-  return { ...toTournamentSummary(t, counts), access, draftStep: t.draftStep ?? 0, pendingApprovals: counts.pendingApprovals, waitlistCount: counts.waitlist, stageCount: t.stages.length };
+  return { ...toTournamentSummary(t, counts), access, draftStep: t.draftStep ?? 0, pendingApprovals: counts.pendingApprovals, waitlistCount: counts.waitlist, stageCount: t.stages.length, eventId: t.eventId };
 }

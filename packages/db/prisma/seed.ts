@@ -26,7 +26,7 @@ export async function seedCatalog(db: PrismaClient): Promise<void> {
   for (const g of GAMES) {
     const game = await db.game.upsert({
       where: { slug: g.slug },
-      create: { slug: g.slug, name: g.name, icon: g.icon, platform: g.platform, requiredAccountFields: g.requiredAccountFields as object[], extraStatFields: g.extraStatFields as object[] },
+      create: { slug: g.slug, name: g.name, icon: g.icon, coverUrl: g.coverUrl, platform: g.platform, requiredAccountFields: g.requiredAccountFields as object[], extraStatFields: g.extraStatFields as object[] },
       // Catálogo já existente: o seed não sobrescreve o que o Admin editou.
       update: {},
     });

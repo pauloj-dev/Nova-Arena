@@ -71,6 +71,8 @@ export interface DbTournament {
   rosterLockAt: string | null;
   stages: Stage[];
   draftStep: number;
+  /** Evento que agrupa o campeonato (ADR-0005). Ausente ou nulo = avulso. */
+  eventId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -9,21 +9,27 @@ import {
   ACTIVE_REGISTRATION_STATUSES,
   AnnouncementInput,
   canTransition,
+  CreateStaffInviteInput,
   PauseTournamentInput,
   ResumeTournamentInput,
   StaffInput,
   StaffRoleInput,
   StageScoringInput,
+  type AcceptStaffInviteResponse,
   type Announcement,
+  type MyStaffTournament,
+  type StaffInvitePreview,
+  type StaffInviteState,
   type StaffRole,
   type TournamentStaff,
+  type TournamentStaffInvite,
   type TournamentStatus,
 } from '@nova/schemas';
 import { audit } from '../audit';
 import { publish } from '../bus';
 import { buildStandings, findStage, getRun, scoringOf, usersOfRegistration } from '../competition';
-import { db, nowIso, save, uid, type DbStaff, type DbTournament, type DbUser } from '../db';
-import { badRequest, body, conflict, findTournament, forbidden, handle, HttpProblem, json, noContent, notFound, param, requireTournamentAccess, url, type TournamentAccess } from '../http';
+import { collection, db, nowIso, save, uid, type DbStaff, type DbTournament, type DbUser } from '../db';
+import { badRequest, body, conflict, findTournament, forbidden, handle, HttpProblem, json, noContent, notFound, param, requireTournamentAccess, requireUser, url, type TournamentAccess } from '../http';
 import { notify } from '../notify';
 import { findUser } from '../views';
 import { toOrganizerDetail, tournamentPauses } from './tournaments-manage';
@@ -56,6 +62,78 @@ function isRegistered(t: DbTournament, userId: string): boolean {
   return db().registrations.some(
     (r) => r.tournamentId === t.id && ACTIVE_REGISTRATION_STATUSES.includes(r.status) && (r.userId === userId || r.members.some((m) => m.userId === userId)),
   );
+}
+
+// ── Convite por link para a equipe ───────────────────────────────────
+/** No mock o token fica guardado em claro; a API real guarda só o hash. */
+export interface DbStaffInvite {
+  id: string;
+  tournamentId: string;
+  token: string;
+  role: StaffRole;
+  maxUses: number;
+  uses: number;
+  expiresAt: string;
+  revokedAt: string | null;
+  createdById: string;
+  createdAt: string;
+}
+
+/** Um link válido de demonstração: Camila convida um moderador para a Copa Nova FF Squad (`/equipe/convite/convite-equipe-valido`). */
+const staffInvites = () =>
+  collection<DbStaffInvite>('staffInvites', () => [
+    {
+      id: 'si_demo',
+      tournamentId: 'tn_copa_ff',
+      token: 'convite-equipe-valido',
+      role: 'MODERATOR',
+      maxUses: 5,
+      uses: 0,
+      expiresAt: new Date(Date.now() + 30 * 24 * 3600_000).toISOString(),
+      revokedAt: null,
+      createdById: 'u_camila',
+      createdAt: nowIso(),
+    },
+  ]);
+const VALIDITY_MS: Record<CreateStaffInviteInput['validity'], number> = { '1h': 3600_000, '24h': 24 * 3600_000, '7d': 7 * 24 * 3600_000 };
+const INVALID_INVITE: Record<Exclude<StaffInviteState, 'VALID'>, { title: string; code: string }> = {
+  EXPIRED: { title: 'Este convite expirou. Peça um novo link a quem convidou você.', code: 'INVITE_EXPIRED' },
+  REVOKED: { title: 'Este convite foi cancelado por quem o criou.', code: 'INVITE_REVOKED' },
+  EXHAUSTED: { title: 'Este convite já foi usado o número máximo de vezes.', code: 'INVITE_EXHAUSTED' },
+};
+
+function staffInviteState(invite: DbStaffInvite): StaffInviteState {
+  if (invite.revokedAt) return 'REVOKED';
+  if (new Date(invite.expiresAt).getTime() <= Date.now()) return 'EXPIRED';
+  if (invite.uses >= invite.maxUses) return 'EXHAUSTED';
+  return 'VALID';
+}
+
+function toStaffInvite(invite: DbStaffInvite, link: string | null = null): TournamentStaffInvite {
+  return {
+    id: invite.id,
+    tournamentId: invite.tournamentId,
+    role: invite.role,
+    link,
+    maxUses: invite.maxUses,
+    uses: invite.uses,
+    state: staffInviteState(invite),
+    createdByNickname: findUser(invite.createdById)?.nickname ?? 'Nova Arena',
+    createdAt: invite.createdAt,
+    expiresAt: invite.expiresAt,
+  };
+}
+
+function findStaffInvite(token: string): DbStaffInvite {
+  const invite = staffInvites().find((i) => i.token === token);
+  if (!invite) throw notFound('Convite');
+  return invite;
+}
+
+function newToken(): string {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /** Usuários das inscrições confirmadas do campeonato. */
@@ -173,6 +251,123 @@ export const handlers = [
       audit(user, { action: 'STAFF_CHANGED', entityType: 'Tournament', entityId: t.id, entityLabel: t.name, tournamentId: t.id, before: { membro: nickname, papel: ROLE_LABEL[entry.role] }, after: { removeu: nickname } });
       notify([entry.userId], 'ANNOUNCEMENT', `Você saiu da equipe de ${t.name}`, `${user.nickname} removeu você da equipe do evento.`, `/c/${t.slug}`);
       return noContent();
+    }),
+  ),
+
+  // ── Convite por link para a equipe ─────────────────────────────────
+  http.get(
+    url('/tournaments/:id/staff-invites'),
+    handle(({ params }) => {
+      const t = findTournament(param(params, 'id'));
+      requireOwner(t);
+      const list = staffInvites()
+        .filter((i) => i.tournamentId === t.id)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map((i) => toStaffInvite(i));
+      return json(list);
+    }),
+  ),
+
+  http.post(
+    url('/tournaments/:id/staff-invites'),
+    handle(async ({ request, params }) => {
+      const t = findTournament(param(params, 'id'));
+      const { user } = requireOwner(t);
+      const input = await body(request, CreateStaffInviteInput);
+      if (CLOSED.includes(t.status)) throw conflict('Este campeonato já foi encerrado: a equipe do evento não muda mais.', 'TOURNAMENT_READ_ONLY');
+      const now = Date.now();
+      const invite: DbStaffInvite = {
+        id: uid('si'),
+        tournamentId: t.id,
+        token: newToken(),
+        role: input.role,
+        maxUses: input.maxUses,
+        uses: 0,
+        expiresAt: new Date(now + VALIDITY_MS[input.validity]).toISOString(),
+        revokedAt: null,
+        createdById: user.id,
+        createdAt: new Date(now).toISOString(),
+      };
+      staffInvites().push(invite);
+      save();
+      audit(user, { action: 'INVITE_CREATED', entityType: 'TournamentStaffInvite', entityId: invite.id, entityLabel: `${t.name} · convite de ${ROLE_LABEL[input.role]}`, tournamentId: t.id, after: { papel: ROLE_LABEL[input.role], validade: input.validity, usos: input.maxUses } });
+      return json(toStaffInvite(invite, `${new URL(request.url).origin}/equipe/convite/${invite.token}`), 201);
+    }),
+  ),
+
+  http.delete(
+    url('/tournaments/:id/staff-invites/:inviteId'),
+    handle(({ params }) => {
+      const t = findTournament(param(params, 'id'));
+      const { user } = requireOwner(t);
+      const invite = staffInvites().find((i) => i.id === param(params, 'inviteId') && i.tournamentId === t.id);
+      if (!invite) throw notFound('Convite');
+      if (invite.revokedAt) throw conflict('Este convite já foi revogado.', 'INVITE_REVOKED');
+      const before = staffInviteState(invite);
+      invite.revokedAt = nowIso();
+      save();
+      audit(user, { action: 'INVITE_REVOKED', entityType: 'TournamentStaffInvite', entityId: invite.id, entityLabel: `${t.name} · convite de ${ROLE_LABEL[invite.role]}`, tournamentId: t.id, before: { estado: before }, after: { estado: 'REVOKED' } });
+      return json(toStaffInvite(invite));
+    }),
+  ),
+
+  http.get(
+    url('/staff-invites/:token'),
+    handle(({ params }) => {
+      const invite = findStaffInvite(param(params, 'token'));
+      const t = findTournament(invite.tournamentId);
+      const game = db().games.find((g) => g.id === t.gameId);
+      const preview: StaffInvitePreview = {
+        tournament: { id: t.id, slug: t.slug, name: t.name, gameName: game?.name ?? 'Jogo' },
+        role: invite.role,
+        state: staffInviteState(invite),
+        invitedBy: findUser(invite.createdById)?.nickname ?? 'Nova Arena',
+        expiresAt: invite.expiresAt,
+      };
+      return json(preview);
+    }),
+  ),
+
+  http.post(
+    url('/staff-invites/:token/accept'),
+    handle(({ params }) => {
+      const user = requireUser();
+      const invite = findStaffInvite(param(params, 'token'));
+      const state = staffInviteState(invite);
+      if (state !== 'VALID') throw new HttpProblem(410, INVALID_INVITE[state].title, INVALID_INVITE[state].code);
+      const t = findTournament(invite.tournamentId);
+      if (CLOSED.includes(t.status)) throw conflict('Este campeonato já foi encerrado: a equipe do evento não muda mais.', 'TOURNAMENT_READ_ONLY');
+      if (!user.emailVerified) throw new HttpProblem(403, 'Confirme seu e-mail antes de aceitar o convite.', 'EMAIL_NOT_VERIFIED');
+      const d = db();
+      if (user.id === t.ownerId) throw conflict('Você já é responsável por este campeonato.', 'ALREADY_OWNER');
+      if (d.staff.some((s) => s.tournamentId === t.id && s.userId === user.id)) throw conflict('Você já faz parte da equipe deste campeonato.', 'ALREADY_STAFF');
+      if (isRegistered(t, user.id)) throw conflict('Você está inscrito neste campeonato. Quem joga não pode fazer parte da equipe do evento.', 'STAFF_IS_REGISTERED');
+      invite.uses += 1;
+      d.staff.push({ tournamentId: t.id, userId: user.id, role: invite.role, addedAt: nowIso() });
+      save();
+      audit(user, { action: 'STAFF_CHANGED', entityType: 'Tournament', entityId: t.id, entityLabel: t.name, tournamentId: t.id, after: { adicionou: user.nickname, papel: ROLE_LABEL[invite.role], convite: invite.id }, reason: 'Convite da equipe aceito' });
+      notify([invite.createdById], 'ANNOUNCEMENT', `${user.nickname} entrou na equipe`, `Aceitou o seu link de convite e agora é ${ROLE_LABEL[invite.role]} de ${t.name}.`, `/organizador/campeonatos/${t.id}?aba=equipe`);
+      const res: AcceptStaffInviteResponse = { tournamentId: t.id, slug: t.slug, role: invite.role };
+      return json(res);
+    }),
+  ),
+
+  http.get(
+    url('/me/staff-tournaments'),
+    handle(() => {
+      const user = requireUser();
+      const d = db();
+      const list: MyStaffTournament[] = d.staff
+        .filter((s) => s.userId === user.id)
+        .flatMap((s) => {
+          const t = d.tournaments.find((x) => x.id === s.tournamentId);
+          if (!t) return [];
+          const game = d.games.find((g) => g.id === t.gameId);
+          return [{ item: { id: t.id, slug: t.slug, name: t.name, status: t.status, gameName: game?.name ?? 'Jogo', startsAt: t.startsAt, role: s.role }, updatedAt: t.updatedAt }];
+        })
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        .map(({ item }) => item);
+      return json(list);
     }),
   ),
 

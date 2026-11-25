@@ -73,7 +73,8 @@
       "ranking": "o ranking",
       "squadsConviteDetalhe": "o convite do squad",
       "termos": "os Termos de Uso",
-      "perfil": "o perfil"
+      "perfil": "o perfil",
+      "evento": "o evento"
     },
     "admin": {
       "administradores": "os administradores",
@@ -101,7 +102,10 @@
       "ligasNova": "o formulário",
       "inicio": "o painel do organizador",
       "modelos": "os modelos",
-      "novo": "o assistente de criação"
+      "novo": "o assistente de criação",
+      "eventos": "seus eventos",
+      "eventosNovo": "o formulário do evento",
+      "eventosDetalhe": "o evento"
     }
   },
   "paginas": {
@@ -174,6 +178,7 @@
       "campeonatos": "Meus campeonatos",
       "criar": "Criar campeonato",
       "modelos": "Modelos",
+      "eventos": "Eventos",
       "ligas": "Ligas",
       "voltarAoSite": "Voltar ao site"
     }

@@ -6,11 +6,16 @@
  * ficam em `competition.ts`.
  */
 import {
+  AcceptStaffInviteResponse,
   Announcement,
+  MyStaffTournament,
   OrganizerTournamentDetail,
+  StaffInvitePreview,
   Standings,
   TournamentStaff,
+  TournamentStaffInvite,
   type AnnouncementInput,
+  type CreateStaffInviteInput,
   type PauseTournamentInput,
   type ResumeTournamentInput,
   type StaffInput,
@@ -24,6 +29,8 @@ import { keys } from '../keys';
 import { organizerTournamentKey } from './organizer';
 
 const StaffList = z.array(TournamentStaff);
+const StaffInviteList = z.array(TournamentStaffInvite);
+const MyStaffTournaments = z.array(MyStaffTournament);
 
 // ── Equipe do evento ─────────────────────────────────────────────────
 export function useTournamentStaff(tournamentId: string | undefined, enabled = true) {
@@ -56,6 +63,65 @@ export function useRemoveStaff(tournamentId: string) {
   return useMutation({
     mutationFn: (userId: string) => api.delete<void>(`/tournaments/${tournamentId}/staff/${userId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.tournaments.staff(tournamentId) }),
+  });
+}
+
+// ── Convite por link para a equipe ───────────────────────────────────
+/** Links do campeonato (ativos e antigos). Só o responsável (ou o Admin) vê. */
+export function useStaffInvites(tournamentId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: keys.tournaments.staffInvites(tournamentId ?? ''),
+    queryFn: ({ signal }) => api.get(`/tournaments/${tournamentId}/staff-invites`, { schema: StaffInviteList, signal }),
+    enabled: Boolean(tournamentId) && enabled,
+  });
+}
+
+/** Cria o link. O link completo só vem nesta resposta (o servidor guarda o hash do token). */
+export function useCreateStaffInvite(tournamentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateStaffInviteInput) => api.post(`/tournaments/${tournamentId}/staff-invites`, input, { schema: TournamentStaffInvite }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.tournaments.staffInvites(tournamentId) }),
+  });
+}
+
+export function useRevokeStaffInvite(tournamentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) => api.delete(`/tournaments/${tournamentId}/staff-invites/${inviteId}`, { schema: TournamentStaffInvite }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.tournaments.staffInvites(tournamentId) }),
+  });
+}
+
+/** Prévia pública do link (antes do login). */
+export function useStaffInvite(token: string | undefined) {
+  return useQuery({
+    queryKey: keys.staffInvite(token ?? ''),
+    queryFn: ({ signal }) => api.get(`/staff-invites/${encodeURIComponent(token ?? '')}`, { schema: StaffInvitePreview, signal }),
+    enabled: Boolean(token),
+  });
+}
+
+/** Entra na equipe pelo link. Convite inválido volta 410 e não muda nada. */
+export function useAcceptStaffInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) => api.post(`/staff-invites/${encodeURIComponent(token)}/accept`, undefined, { schema: AcceptStaffInviteResponse }),
+    onSuccess: (res, token) => {
+      void qc.invalidateQueries({ queryKey: keys.staffInvite(token) });
+      void qc.invalidateQueries({ queryKey: keys.tournaments.staffOf });
+      void qc.invalidateQueries({ queryKey: keys.tournaments.access(res.tournamentId) });
+      void qc.invalidateQueries({ queryKey: keys.tournaments.access(res.slug) });
+    },
+  });
+}
+
+/** Campeonatos em que faço parte da equipe (inclusive sem o papel de organizador). */
+export function useMyStaffTournaments(enabled = true) {
+  return useQuery({
+    queryKey: keys.tournaments.staffOf,
+    queryFn: ({ signal }) => api.get('/me/staff-tournaments', { schema: MyStaffTournaments, signal }),
+    enabled,
   });
 }
 

@@ -21,7 +21,7 @@ const base: TournamentSummary = {
   createdAt: '2026-11-01T12:00:00.000Z',
   updatedAt: '2026-11-01T12:00:00.000Z',
   gameName: 'Free Fire',
-  gameIcon: '🔥',
+  gameIcon: '🔥', gameCoverUrl: null,
   modeName: 'Squad',
   organizerNickname: 'Camila',
   organizerVerified: true,
