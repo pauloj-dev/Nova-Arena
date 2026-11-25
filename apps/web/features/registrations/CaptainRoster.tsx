@@ -3,6 +3,7 @@
 import type { Registration, Tournament } from '@nova/schemas';
 import { Avatar, Button, ErrorState, Skeleton, useToast } from '@nova/ui';
 import { UserPlus } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { errorMessage } from '@/shared/api/client';
 import { useGame } from '@/shared/api/hooks/games';
@@ -11,6 +12,8 @@ import { useTeam } from '@/shared/api/hooks/teams';
 import { useT } from '@/shared/i18n/react';
 import { rosterLimit } from './lib/rules';
 import { messages } from './messages';
+
+const InvitePanel = dynamic(() => import('@/features/teams/InvitePanel').then((m) => m.InvitePanel), { loading: () => <Skeleton className="h-24 w-full" /> });
 
 /**
  * Capitão escala membros do squad que ainda não estão no elenco deste campeonato (até a trava de elenco).
@@ -25,6 +28,7 @@ export function CaptainRoster({ tournament, registration }: { tournament: Tourna
   const mode = game.data?.modes.find((m) => m.id === tournament.gameModeId);
   const limit = mode ? rosterLimit(mode) : registration.requiredMembers;
   const full = registration.members.length >= limit;
+  const missing = Math.max(0, registration.requiredMembers - registration.members.length);
 
   if (team.isPending || game.isPending) {
     return (
@@ -81,10 +85,23 @@ export function CaptainRoster({ tournament, registration }: { tournament: Tourna
           </ul>
         </>
       )}
-      {!full && (
-        <Button asChild variant="ghost" size="sm" className="self-start">
-          <Link href={`/minha-conta/squads/${registration.teamId ?? ''}`}>{t('chamarMais')}</Link>
-        </Button>
+      {missing > 0 ? (
+        // RN-17: o squad se inscreveu incompleto. O convite fica aqui: quem entra pelo link já cai no elenco, confirmado.
+        <div className="flex flex-col gap-3 rounded-md border border-accent bg-accent-soft p-3" data-testid="faltam-jogadores">
+          <p className="flex flex-col gap-1 text-sm text-accent-soft-text">
+            <strong>{t('faltamTitulo', { count: missing })}</strong>
+            <span>{t('faltamDescricao')}</span>
+          </p>
+          <div className="rounded-md bg-surface p-3">
+            <InvitePanel team={team.data} />
+          </div>
+        </div>
+      ) : (
+        !full && (
+          <Button asChild variant="ghost" size="sm" className="self-start">
+            <Link href={`/minha-conta/squads/${registration.teamId ?? ''}`}>{t('chamarMais')}</Link>
+          </Button>
+        )
       )}
     </section>
   );

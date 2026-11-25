@@ -135,6 +135,25 @@ export function rosterNeedsPlayers(r: { members: number; confirmedMembers: numbe
   return r.members < rosterLimit(mode) && r.confirmedMembers < mode.teamSize;
 }
 
+// ── Squad incompleto na inscrição (RN-17) ────────────────────────────
+/**
+ * O capitão inscreve o squad antes de ele completar: só o excesso de jogadores barra. Os que faltam entram pelo
+ * link de convite do squad e já caem no elenco confirmados (o squad estava esperando jogadores).
+ */
+export function squadRegistrationBlock(check: SquadSizeCheck): 'TOO_BIG' | null {
+  return !check.ok && check.reason === 'TOO_BIG' ? 'TOO_BIG' : null;
+}
+
+/**
+ * Reserva da vaga de quem se inscreve com o squad incompleto: a mesma do squad promovido da lista de espera
+ * (RN-12), 24 h ou o fechamento das inscrições, o que vier primeiro. Se não completar, volta ao fim da fila.
+ * Squad completo (só falta confirmar), solo, lista de espera e aprovação manual não reservam.
+ */
+export function initialReservation(input: { status: RegistrationStatus | 'FULL'; isTeam: boolean; members: number; teamSize: number; now: Date; registrationClosesAt: string | null }): string | null {
+  if (!input.isTeam || input.status !== 'PENDING_MEMBERS' || input.members >= input.teamSize) return null;
+  return reservationDeadline(input.now, input.registrationClosesAt);
+}
+
 // ── Lista de espera (RN-12) ──────────────────────────────────────────
 export interface WaitlistEntry {
   id: string;

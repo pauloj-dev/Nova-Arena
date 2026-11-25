@@ -56,7 +56,9 @@
       "enviada": "Inscrição enviada",
       "enviadaDescricao": "A organização vai analisar e aprovar.",
       "confirmada": "Inscrição confirmada",
-      "confirmadaDescricao": "Boa sorte!"
+      "confirmadaDescricao": "Boa sorte!",
+      "squadIncompleto": "Squad inscrito, vaga guardada",
+      "squadIncompletoDescricao": "Agora mande o link do squad para quem falta: quem entrar já fica confirmado."
     },
     "escolhaSquad": "Escolha o squad que vai jogar.",
     "aceiteObrigatorio": "Para se inscrever, marque que você leu e aceita o regulamento.",
@@ -75,10 +77,8 @@
     "entrarListaEspera": "Entrar na lista de espera",
     "inscreverSquad": "Inscrever squad",
     "inscreverSe": "Inscrever-se",
-    "depoisDaInscricao": "Depois da inscrição, cada jogador recebe um aviso para confirmar a participação. A inscrição vale quando {tamanho} confirmarem.",
-    "chamarJogadores": "Chame os jogadores agora",
-    "chamarJogadoresDescricao": "Mande o link de convite no grupo do time. Quando eles entrarem no squad, é só atualizar e inscrever.",
-    "atualizarSquad": "Já entraram? Atualizar o squad"
+    "depoisDaInscricao": "Quem já está no squad recebe um aviso para confirmar; quem entrar depois pelo link do squad já entra confirmado. A inscrição vale quando {tamanho} confirmarem.",
+    "incompleto": "O squad tem {count, plural, =1 {1 jogador} other {# jogadores}} de {tamanho}. Você já pode inscrever: a vaga fica guardada por 24 horas (ou até o fim das inscrições), e quem entrar pelo link do squad já fica confirmado."
   },
   "MyRegistrationCard": {
     "status": {
@@ -175,6 +175,8 @@
     "elencoCheio": "O elenco está completo: {limite} jogadores, contando reservas.",
     "chamarMais": "Chamar mais jogadores para o squad",
     "carregando": "Carregando o squad",
-    "erroCarregar": "Não foi possível carregar o squad"
+    "erroCarregar": "Não foi possível carregar o squad",
+    "faltamTitulo": "{count, plural, =1 {Falta 1 jogador} other {Faltam # jogadores}}",
+    "faltamDescricao": "Mande o link do squad no grupo do time. Quem entrar já fica confirmado neste campeonato, sem outro passo."
   }
 }

@@ -107,17 +107,27 @@ describe('POST /tournaments/:id/registrations', () => {
     expect(full.detail).toMatch(/vagas .* esgotadas/i);
   });
 
-  it('squad menor que o modo é barrado; maior que titulares + reservas também', async () => {
+  it('squad incompleto se inscreve com a vaga guardada e completa pelo link (RN-17); maior que titulares + reservas é barrado', async () => {
     as('u_lucas');
     mutate((d) => {
       const alfa = d.teams.find((x) => x.id === 't_alfa');
       if (alfa) alfa.members = alfa.members.slice(0, 3);
     });
     const small = await call('POST', '/tournaments/tn_copa_ff/registrations', { ...OK, teamId: 't_alfa' });
-    expect(small.status).toBe(409);
-    expect(small.code).toBe('TEAM_TOO_SMALL');
-    expect(small.detail).toContain('Falta 1');
+    expect(small.status).toBe(201);
+    const reg = small.data as { id: string; status: string; reservedUntil: string | null; members: unknown[] };
+    expect(reg.status).toBe('PENDING_MEMBERS');
+    expect(reg.reservedUntil).not.toBeNull();
+    expect(reg.members).toHaveLength(3);
 
+    // O 4º jogador entra pelo link do squad: cai no elenco já confirmado (se os outros confirmarem, a vaga deixa de ser reserva).
+    as('u_p55');
+    expect((await call('POST', '/team-invites/ALFA42/accept')).status).toBe(200);
+    as('u_lucas');
+    const after = (await call('GET', '/tournaments/tn_copa_ff/my-registration')).data as { members: { userId: string; confirmedAt: string | null }[] };
+    expect(after.members.find((m) => m.userId === 'u_p55')?.confirmedAt).not.toBeNull();
+
+    expect((await call('DELETE', `/registrations/${reg.id}`)).status).toBe(204);
     mutate((d) => {
       const alfa = d.teams.find((x) => x.id === 't_alfa');
       if (alfa) for (const id of ['u_p50', 'u_p51', 'u_p52']) alfa.members.push({ userId: id, role: 'MEMBER', isSub: true, joinedAt: new Date().toISOString() });

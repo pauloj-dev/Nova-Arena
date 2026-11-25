@@ -19,6 +19,7 @@ import {
   ImportRegistrationsInput,
   ImportRegistrationsResult,
   initialRegistrationStatus,
+  initialReservation,
   isCurrentEntry,
   MyTournamentEntry,
   promotionFor,
@@ -30,6 +31,7 @@ import {
   ReviewRegistrationInput,
   ReviewRegistrationResult,
   SLOT_HOLDING_STATUSES,
+  squadRegistrationBlock,
   squadSizeMessage,
   statusAfterMemberConfirmation,
   type RegistrationStatus,
@@ -254,8 +256,9 @@ registrations.post('/tournaments/:id/registrations', async (c) => {
         if (!found || found.archivedAt) throw notFound('Squad');
         if (found.captainId !== userId) throw new HttpProblem(403, 'Só o capitão pode inscrever o squad.', 'NOT_CAPTAIN');
         if (await tx.registration.count({ where: { tournamentId: t.id, teamId: found.id, status: { in: ACTIVE } } })) throw conflict(`O ${found.name} já está inscrito neste campeonato.`, 'ALREADY_REGISTERED');
+        // RN-17: squad incompleto se inscreve (a vaga fica reservada e quem entra pelo link já cai no elenco); só o excesso barra.
         const size = checkSquadSize(found.members.length, t.gameMode);
-        if (!size.ok) throw conflict(squadSizeMessage(size, t.gameMode) ?? 'O tamanho do squad não serve para este modo.', size.reason === 'TOO_SMALL' ? 'TEAM_TOO_SMALL' : 'TEAM_TOO_BIG');
+        if (squadRegistrationBlock(size)) throw conflict(squadSizeMessage(size, t.gameMode) ?? 'O tamanho do squad não serve para este modo.', 'TEAM_TOO_BIG');
         // Exclusividade (PRD §12.1): ninguém joga o mesmo campeonato por dois squads.
         const clash = await tx.registrationMember.findFirst({ where: { tournamentId: t.id, userId: { in: found.members.map((m) => m.userId) } }, include: { registration: { include: { team: { select: { name: true } } } } } });
         if (clash) {
@@ -283,12 +286,13 @@ registrations.post('/tournaments/:id/registrations', async (c) => {
         requiredMembers: t.gameMode.teamSize,
       });
       if (status === 'FULL') throw conflict('As vagas deste campeonato estão esgotadas e ele não tem lista de espera.', 'TOURNAMENT_FULL');
+      const reservedUntil = initialReservation({ status, isTeam: team !== null, members: team?.members.length ?? 1, teamSize: t.gameMode.teamSize, now, registrationClosesAt: iso(t.registrationClosesAt) });
 
       const data = {
         status,
         rulesAcceptedAt: now,
         statusReason: null,
-        reservedUntil: null,
+        reservedUntil: reservedUntil ? new Date(reservedUntil) : null,
         seed: null,
         createdAt: now,
         ...(team ? { members: { create: team.members.map((m) => ({ tournamentId: t.id, userId: m.userId, isSub: m.isSub, isCaptain: m.userId === userId, confirmedAt: m.userId === userId ? now : null })) } } : {}),

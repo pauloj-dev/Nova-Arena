@@ -2,8 +2,7 @@
 
 import { RegisterInTournamentInput, type Game, type Registration, type Tournament } from '@nova/schemas';
 import { Button, Checkbox, ErrorState, Select, Skeleton, useToast } from '@nova/ui';
-import { Plus, RefreshCw, Users } from 'lucide-react';
-import dynamic from 'next/dynamic';
+import { Plus, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { TeamFormModal } from '@/features/teams/TeamFormModal';
@@ -13,11 +12,10 @@ import { useMyTeams } from '@/shared/api/hooks/teams';
 import { getT } from '@/shared/i18n/core';
 import { useT } from '@/shared/i18n/react';
 import { GameAccountWarning } from './GameAccountWarning';
-import { checkSquadSize, squadSizeMessage } from './lib/rules';
+import { checkSquadSize, squadRegistrationBlock, squadSizeMessage } from './lib/rules';
 import { messages } from './messages';
 
 // O painel de convite (apelido e link) só carrega quando o squad escolhido ainda não tem gente suficiente.
-const InvitePanel = dynamic(() => import('@/features/teams/InvitePanel').then((m) => m.InvitePanel), { loading: () => <Skeleton className="h-24 w-full" /> });
 
 interface RegisterFormProps {
   tournament: Tournament;
@@ -34,7 +32,8 @@ function successMessage(r: Registration): [string, string | undefined] {
     case 'WAITLIST':
       return [t('listaEspera'), r.waitlistPosition ? t('listaEsperaPosicao', { posicao: r.waitlistPosition }) : undefined];
     case 'PENDING_MEMBERS':
-      return [t('squadInscrito'), t('squadInscritoDescricao')];
+      // RN-17: squad incompleto inscrito, com a vaga guardada até completar.
+      return r.reservedUntil ? [t('squadIncompleto'), t('squadIncompletoDescricao')] : [t('squadInscrito'), t('squadInscritoDescricao')];
     case 'PENDING_APPROVAL':
       return [t('enviada'), t('enviadaDescricao')];
     default:
@@ -60,7 +59,10 @@ export function RegisterForm({ tournament, game, viewerId, waitlistPosition, mis
   // Com um squad só, ele já vem escolhido.
   const selectedId = teamId || (captained.length === 1 ? (captained[0]?.id ?? '') : '');
   const selected = captained.find((t) => t.id === selectedId);
-  const sizeProblem = selected && mode ? squadSizeMessage(checkSquadSize(selected.members.length, mode), mode) : null;
+  const sizeCheck = selected && mode ? checkSquadSize(selected.members.length, mode) : null;
+  // RN-17: squad incompleto se inscreve (vaga guardada); só o excesso de jogadores impede.
+  const sizeProblem = sizeCheck && mode && squadRegistrationBlock(sizeCheck) ? squadSizeMessage(sizeCheck, mode) : null;
+  const incomplete = Boolean(selected && mode && selected.members.length < mode.teamSize);
   const onWaitlist = waitlistPosition !== null;
 
   function onSubmit(e: FormEvent) {
@@ -133,18 +135,11 @@ export function RegisterForm({ tournament, game, viewerId, waitlistPosition, mis
                 </Link>
               </p>
             )}
-            {selected && mode && selected.members.length < mode.teamSize && (
-              // Próximo passo ali mesmo: chamar os jogadores sem sair da página do campeonato.
-              <section aria-labelledby={`chamar-${selected.id}`} className="flex flex-col gap-3 rounded-md border border-border p-3" data-testid="invite-from-registration">
-                <h3 id={`chamar-${selected.id}`} className="text-base font-bold">
-                  {t('chamarJogadores')}
-                </h3>
-                <p className="text-sm text-muted">{t('chamarJogadoresDescricao')}</p>
-                <InvitePanel team={selected} />
-                <Button variant="secondary" size="sm" className="self-start" iconLeft={<RefreshCw className="size-4" aria-hidden />} loading={teams.isFetching} onClick={() => void teams.refetch()}>
-                  {t('atualizarSquad')}
-                </Button>
-              </section>
+            {selected && mode && incomplete && !onWaitlist && (
+              <p className="flex items-start gap-2 rounded-md border border-accent bg-accent-soft p-3 text-sm text-accent-soft-text" data-testid="squad-incompleto">
+                <Users className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span>{t('incompleto', { count: selected.members.length, tamanho: mode.teamSize })}</span>
+              </p>
             )}
             <Button variant="ghost" size="sm" className="self-start" iconLeft={<Plus className="size-4" aria-hidden />} onClick={() => setCreating(true)}>
               {t('criarSquadNovo')}

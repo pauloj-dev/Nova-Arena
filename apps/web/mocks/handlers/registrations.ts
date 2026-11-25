@@ -10,8 +10,10 @@ import {
   canCancelRegistration,
   checkSquadSize,
   initialRegistrationStatus,
+  initialReservation,
   isCurrentEntry,
   registrationWindow,
+  squadRegistrationBlock,
   squadSizeMessage,
   statusAfterMemberConfirmation,
 } from '@/features/registrations/lib/rules';
@@ -218,7 +220,8 @@ export const handlers = [
         if (others.some((r) => isActive(r) && r.teamId === team?.id)) throw conflict(`O ${team.name} já está inscrito neste campeonato.`, 'ALREADY_REGISTERED');
 
         const size = checkSquadSize(team.members.length, mode);
-        if (!size.ok) throw conflict(squadSizeMessage(size, mode) ?? 'O tamanho do squad não serve para este modo.', size.reason === 'TOO_SMALL' ? 'TEAM_TOO_SMALL' : 'TEAM_TOO_BIG');
+        // RN-17: squad incompleto se inscreve com a vaga reservada; só o excesso barra.
+        if (squadRegistrationBlock(size)) throw conflict(squadSizeMessage(size, mode) ?? 'O tamanho do squad não serve para este modo.', 'TEAM_TOO_BIG');
 
         // Exclusividade (PRD §12.1): ninguém joga o mesmo campeonato por dois squads.
         for (const member of team.members) {
@@ -260,7 +263,7 @@ export const handlers = [
         statusReason: null,
         // Elenco do squad neste campeonato: uma foto dos membros no momento da inscrição.
         members: team ? team.members.map((m) => ({ userId: m.userId, isSub: m.isSub, confirmedAt: m.userId === user.id ? now : null })) : [],
-        reservedUntil: null,
+        reservedUntil: initialReservation({ status, isTeam: team !== undefined, members: team?.members.length ?? 1, teamSize: mode.teamSize, now: new Date(now), registrationClosesAt: t.registrationClosesAt }),
         createdAt: now,
       };
       d.registrations.push(registration);

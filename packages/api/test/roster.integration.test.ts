@@ -123,7 +123,7 @@ describe.skipIf(!url)('elenco e avisos da inscrição (Postgres)', () => {
   it('sem o ID do jogo, entra no elenco pendente e recebe o aviso para confirmar; squad que não espera ninguém não muda', async () => {
     const t = await tournament();
     const sq = await team('d', []);
-    // Squad de 1 num modo 2x2: o capitão não consegue inscrever. Monta a inscrição direto, como um squad que perdeu gente.
+    // Squad que perdeu gente depois de inscrito (sem reserva de vaga): monta a inscrição direto.
     const reg = await db.registration.create({ data: { tournamentId: t.id, teamId: sq.id, status: 'PENDING_MEMBERS', members: { create: { tournamentId: t.id, userId: id('d'), isCaptain: true, confirmedAt: new Date() } } } });
     const link = TeamInvite.parse((await call('d', `/teams/${sq.id}/invites`, { method: 'POST', body: { kind: 'link' } })).data);
     const joined = AcceptTeamInviteResult.parse((await call('semid', `/team-invites/${link.code}/accept`, { method: 'POST' })).data);
@@ -220,5 +220,54 @@ describe.skipIf(!url)('elenco e avisos da inscrição (Postgres)', () => {
     const t = await db.tournament.create({ data: { slug: `copa-ro-solo-${stamp}`, name: 'Copa Solo Elenco', gameId: solo.id, gameModeId: solo.modes[0]?.id ?? '', ownerId: id('dono'), status: 'REGISTRATION_OPEN', participantType: 'SOLO', maxParticipants: 4 } });
     expect((await call('i', `/tournaments/${t.id}/registrations`, { method: 'POST', body: { acceptRules: true } })).status).toBe(201);
     expect((await notes('i', 'REGISTRATION_CONFIRMED')).at(-1)).toMatchObject({ body: 'Sua vaga em Copa Solo Elenco está garantida.', link: `/c/${t.slug}` });
+  });
+
+  // ── RN-17: squad incompleto se inscreve ──────────────────────────────
+  it('capitão inscreve o squad incompleto: a vaga fica guardada por 24 h e quem entra pelo link completa', async () => {
+    await makeUsers(['inc1', 'inc2']);
+    for (const k of ['inc1', 'inc2']) await account(k);
+    const t = await tournament();
+    const sq = await team('inc1', []);
+    const before = Date.now();
+    const reg = await register('inc1', t.id, sq.id);
+    expect(reg.status).toBe('PENDING_MEMBERS');
+    expect(reg.members.map((m) => m.userId)).toEqual([id('inc1')]);
+    const reserved = Date.parse(reg.reservedUntil ?? '');
+    expect(reserved - before).toBeGreaterThan(23.9 * 3600_000);
+    expect(reserved - before).toBeLessThan(24.1 * 3600_000);
+
+    const link = TeamInvite.parse((await call('inc1', `/teams/${sq.id}/invites`, { method: 'POST', body: { kind: 'link' } })).data);
+    const joined = AcceptTeamInviteResult.parse((await call('inc2', `/team-invites/${link.code}/accept`, { method: 'POST' })).data);
+    expect(joined.rosters.map((r) => r.confirmed)).toEqual([true]);
+    const after = await mine('inc1', t.id);
+    expect(after.status).toBe('CONFIRMED');
+    expect(after.reservedUntil).toBeNull();
+  });
+
+  it('reserva do squad incompleto vencida: a vaga passa para a lista de espera e o squad volta ao fim da fila', async () => {
+    await makeUsers(['inc3', 'inc4', 'inc5']);
+    for (const k of ['inc3', 'inc4', 'inc5']) await account(k);
+    const t = await tournament({ max: 1 });
+    const alone = await register('inc3', t.id, (await team('inc3', [])).id);
+    expect(alone.status).toBe('PENDING_MEMBERS');
+    const waiting = await register('inc4', t.id, (await team('inc4', ['inc5'])).id);
+    expect(waiting.status).toBe('WAITLIST');
+
+    await db.registration.update({ where: { id: alone.id }, data: { reservedUntil: new Date(Date.now() - 1000) } });
+    // Qualquer movimento na inscrição acerta a fila antes (e o cron faz o mesmo).
+    expect((await call('inc5', `/registrations/${waiting.id}/confirm`, { method: 'POST' })).status).toBe(200);
+    expect((await mine('inc4', t.id)).status).toBe('CONFIRMED');
+    const back = await mine('inc3', t.id);
+    expect(back.status).toBe('WAITLIST');
+    expect(back.reservedUntil).toBeNull();
+  });
+
+  it('squad com jogadores demais continua barrado', async () => {
+    await makeUsers(['big1', 'big2', 'big3', 'big4']);
+    for (const k of ['big1', 'big2', 'big3', 'big4']) await account(k);
+    const t = await tournament();
+    const res = await call('big1', `/tournaments/${t.id}/registrations`, { method: 'POST', body: { acceptRules: true, teamId: (await team('big1', ['big2', 'big3', 'big4'])).id } });
+    expect(res.status).toBe(409);
+    expect(code(res.data)).toBe('TEAM_TOO_BIG');
   });
 });

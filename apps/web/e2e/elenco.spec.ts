@@ -90,4 +90,24 @@ test.describe('elenco do squad', () => {
     await waitForApp(page);
     await expect(panel(page).getByRole('list', { name: 'Elenco do Squad Alfa' }).getByRole('listitem').filter({ hasText: '(você)' })).toContainText('Confirmou');
   });
+
+  test('capitão inscreve o squad incompleto e chama os jogadores ali mesmo (RN-17)', async ({ page }) => {
+    // KaueZz55 não tem squad: cria um no próprio campeonato e inscreve só com ele.
+    await visitAs(page, 'u_p55', COPA_FF);
+    await panel(page).getByRole('button', { name: 'Criar um squad novo' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Criar squad' });
+    await dialog.getByLabel('Nome do squad').fill('Squad Pressa');
+    await dialog.getByLabel('Tag').fill('PRS');
+    await dialog.getByRole('button', { name: 'Criar squad' }).click();
+    await expect(panel(page).getByTestId('squad-incompleto')).toContainText('O squad tem 1 jogador de 4. Você já pode inscrever');
+    await panel(page).getByRole('checkbox', { name: /Li e aceito o regulamento/ }).check();
+    await panel(page).getByRole('button', { name: 'Inscrever squad' }).click();
+    await expect(panel(page).getByText('Aguardando membros')).toBeVisible();
+    await expect(panel(page).getByText(/A vaga está reservada para o squad até/)).toBeVisible();
+    const faltam = panel(page).getByTestId('faltam-jogadores');
+    await expect(faltam).toContainText('Faltam 3 jogadores');
+    await expect(faltam).toContainText('Quem entrar já fica confirmado neste campeonato');
+    await expectNoHorizontalScroll(page);
+  });
 });
+
