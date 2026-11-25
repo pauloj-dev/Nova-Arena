@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "pnpm --filter @nova/db db:deploy && next build",
+    "build": "pnpm --filter @nova/db db:generate && pnpm --filter @nova/db db:deploy && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit && tsc --noEmit -p sw/tsconfig.json",
