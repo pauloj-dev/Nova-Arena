@@ -27,6 +27,7 @@ import { messages } from './messages';
 import { ShareButton } from './ShareButton';
 import { slotsText } from './TournamentCard';
 import { AnnouncementsTab, OverviewTab, RegistrationsTab, RulesTab } from './TournamentTabs';
+import { GameIcon } from '@/shared/brand/GameIcon';
 
 // Chave, partidas e resultados (chave, tabela, modal da partida, envio de resultado) só descem quando a aba abre:
 // fora do JS inicial da página pública (#111).
@@ -137,9 +138,7 @@ function Header({ tournament, canManage }: { tournament: Tournament; canManage: 
           // Banner do organizador: otimizado quando vem do Vercel Blob; é o topo da página (candidato a LCP).
           <BlobImage src={tournament.bannerUrl} alt="" sizes="(min-width: 1280px) 1200px, 100vw" className="object-cover" priority />
         )}
-        <span className="relative flex size-14 items-center justify-center rounded-lg border border-border bg-surface text-3xl shadow-md" aria-hidden>
-          {tournament.gameIcon}
-        </span>
+        <GameIcon icon={tournament.gameIcon} coverUrl={tournament.gameCoverUrl} className="size-14 rounded-lg border border-border bg-surface text-3xl shadow-md" px={56} />
       </div>
 
       <div className="flex flex-col gap-4 p-4 md:p-6">

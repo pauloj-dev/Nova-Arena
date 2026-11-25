@@ -6,6 +6,7 @@ import { VerifiedBadge } from '@/features/profile/VerifiedBadge';
 import { getT } from '@/shared/i18n/core';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { messages } from './messages';
+import { GameIcon } from '@/shared/brand/GameIcon';
 
 /** "36 vagas livres", "Última vaga", "Vagas esgotadas". */
 export function slotsText(taken: number, max: number): string {
@@ -37,9 +38,7 @@ export function TournamentCard({ tournament, headingLevel: Heading = 'h3', class
       )}
     >
       <div className="flex min-w-0 items-center gap-2">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent-soft text-xl" aria-hidden>
-          {tournament.gameIcon}
-        </span>
+        <GameIcon icon={tournament.gameIcon} coverUrl={tournament.gameCoverUrl} className="size-10 rounded-md text-xl" px={40} />
         <div className="min-w-0 text-sm">
           <p className="truncate font-semibold text-text">{tournament.gameName}</p>
           <p className="flex items-center gap-1 text-muted">

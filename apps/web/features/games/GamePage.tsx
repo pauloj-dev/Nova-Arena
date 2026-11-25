@@ -13,6 +13,7 @@ import { useT } from '@/shared/i18n/react';
 import { PageContainer } from '@/shared/layout/AreaShell';
 import { messages } from './messages';
 import { defaultScoringModels, matchTypeText, scoringLines, teamSizeText } from './scoringText';
+import { GameIcon } from '@/shared/brand/GameIcon';
 
 function NotFound() {
   const t = useT(messages, 'NotFound');
@@ -118,9 +119,7 @@ export function GamePage({ slug }: { slug: string }) {
     <PageContainer>
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex min-w-0 items-center gap-4">
-          <span className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-4xl" aria-hidden>
-            {g.icon}
-          </span>
+          <GameIcon icon={g.icon} coverUrl={g.coverUrl} className="size-16 rounded-lg text-4xl" px={64} priority />
           <div className="min-w-0">
             <h1 className="text-xl break-words md:text-2xl">{g.name}</h1>
             <p className="text-sm text-muted">{t('plataforma', { plataforma: g.platform })}</p>

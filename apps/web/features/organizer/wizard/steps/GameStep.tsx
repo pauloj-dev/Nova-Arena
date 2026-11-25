@@ -9,6 +9,7 @@ import { MATCH_TYPE_LABEL } from '../../lib/labels';
 import { IssueList } from '../../stage-builder/IssueList';
 import { useWizard } from '../context';
 import { messages } from '../messages';
+import { GameIcon } from '@/shared/brand/GameIcon';
 
 interface GameStepProps {
   onSelect: (game: Game, mode: GameMode) => void;
@@ -63,9 +64,7 @@ export function GameStep({ onSelect }: GameStepProps) {
                     if (first) onSelect(g, first);
                   }}
                 />
-                <span className="text-2xl" aria-hidden>
-                  {g.icon}
-                </span>
+                <GameIcon icon={g.icon} coverUrl={g.coverUrl} className="size-10 rounded-md text-2xl" px={40} />
                 <span className="flex min-w-0 flex-col">
                   <span className="font-semibold text-text">{g.name}</span>
                   <span className="text-xs text-muted">{g.platform}</span>

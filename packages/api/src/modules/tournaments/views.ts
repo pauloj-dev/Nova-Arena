@@ -37,7 +37,7 @@ export function toPublicUser(u: PublicUserRow): PublicUser {
 }
 
 export const tournamentInclude = {
-  game: { select: { name: true, icon: true } },
+  game: { select: { name: true, icon: true, coverUrl: true } },
   gameMode: { select: { name: true } },
   owner: { include: publicUserInclude },
   stages: { orderBy: { order: 'asc' } },
@@ -112,6 +112,7 @@ export function toTournamentSummary(t: TournamentRow, counts: TournamentCounts =
     updatedAt: t.updatedAt.toISOString(),
     gameName: t.game.name,
     gameIcon: t.game.icon,
+    gameCoverUrl: t.game.coverUrl,
     modeName: t.gameMode.name,
     organizerNickname: t.owner.nickname,
     organizerVerified: t.owner.organizerLimits?.verified ?? false,

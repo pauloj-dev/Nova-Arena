@@ -152,6 +152,8 @@ export const TournamentSummary = z.object({
   ...tournamentBase,
   gameName: z.string(),
   gameIcon: z.string(),
+  /** Imagem do jogo no catálogo (nula: só o emoji). */
+  gameCoverUrl: z.string().nullable(),
   modeName: z.string(),
   organizerNickname: z.string(),
   organizerVerified: z.boolean(),

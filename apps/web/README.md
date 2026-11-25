@@ -193,3 +193,20 @@ Bot do Discord e chat por partida: `docs/notificacoes.md`. Módulos simulados no
 - **Fila pendente:** aparece em "Resultados pendentes de envio", na aba Partidas e resultados. O envio é sozinho quando a conexão volta, ou pelo botão.
 - **Conflito:** se outra pessoa já lançou o resultado, a API responde `CORRECTION_REASON_REQUIRED`. A tela mostra "Outra pessoa já lançou o resultado desta partida", com "Ver resultado atual" e "Descartar".
 - **Limitação:** a prova em imagem não sobe sem rede. O lançamento offline leva só os números.
+
+## Imagens dos jogos
+
+`public/jogos/<slug>.webp` (160 × 160 px) é a imagem de cada jogo do catálogo (`Game.coverUrl`, preenchida pela
+migration `20261125120000_imagens_dos_jogos` e pelos seeds). Só identificam o jogo ao lado do nome; a plataforma é
+independente e não afiliada às editoras (rodapé). Origem:
+
+| Jogo | Origem |
+|---|---|
+| Free Fire | Logotipo do site oficial (ff.garena.com), sobre fundo escuro |
+| Clash Royale | Ícone do app na App Store (Supercell) |
+| 8 Ball Pool | Ícone do app na App Store (Miniclip) |
+| eFootball | Emblema do Wikimedia Commons (`EFootball logo.svg`, domínio público), nas cores da marca |
+
+O ícone atual do Free Fire na loja é de uma parceria com outra marca e o do eFootball mostra atletas reais: por isso
+os dois usam o logotipo. Se uma editora pedir a troca ou a retirada, basta trocar o arquivo (ou limpar a imagem no
+Admin › Jogos: sem imagem, volta o emoji).
