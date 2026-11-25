@@ -49,6 +49,9 @@ export function normalizeGuests(members: GuestMemberInput[] | undefined): GuestR
   return (members ?? []).map((m) => ({ name: m.name.trim(), gameId: m.gameId?.trim() || null, isSub: m.isSub ?? false }));
 }
 
+const takenMessage = (gameId: string, squad: string | null) =>
+  `O ID no jogo "${gameId}" já está no elenco do ${squad ?? 'outro squad'} neste campeonato. Um jogador não pode estar em dois squads no mesmo campeonato.`;
+
 /** Outro squad ativo do campeonato que já tem um destes IDs no jogo (um jogador não joga por dois squads). */
 async function takenGameIdProblem(tx: Tx, tournamentId: string, guests: GuestRow[], exceptRegistrationId?: string): Promise<string | null> {
   const ids = guests.map((g) => g.gameId).filter((id): id is string => id !== null);
@@ -62,8 +65,14 @@ async function takenGameIdProblem(tx: Tx, tournamentId: string, guests: GuestRow
     },
     select: { gameId: true, registration: { select: { displayName: true } } },
   });
-  if (!taken) return null;
-  return `O ID no jogo "${taken.gameId ?? ''}" já está no elenco do ${taken.registration.displayName ?? 'outro squad'} neste campeonato. Um jogador não pode estar em dois squads no mesmo campeonato.`;
+  return taken ? takenMessage(taken.gameId ?? '', taken.registration.displayName) : null;
+}
+
+/** O elenco cabe no campeonato? Só as regras que não dependem dos outros squads (modo e repetidos no próprio elenco). */
+function ownRosterProblem(t: TournamentForRegistration, guests: GuestRow[]): string | null {
+  if (guests.length === 0) return null;
+  if (t.participantType !== 'TEAM') return 'Este campeonato é individual: o inscrito não tem elenco.';
+  return guestRosterProblem(guests, t.gameMode);
 }
 
 /**
@@ -71,9 +80,35 @@ async function takenGameIdProblem(tx: Tx, tournamentId: string, guests: GuestRow
  * nomes e IDs repetidos e o mesmo ID em outro squad. Devolve a mensagem do problema, ou `null`.
  */
 export async function guestsProblem(tx: Tx, t: TournamentForRegistration, guests: GuestRow[], exceptRegistrationId?: string): Promise<string | null> {
-  if (guests.length === 0) return null;
-  if (t.participantType !== 'TEAM') return 'Este campeonato é individual: o inscrito não tem elenco.';
-  return guestRosterProblem(guests, t.gameMode) ?? (await takenGameIdProblem(tx, t.id, guests, exceptRegistrationId));
+  return ownRosterProblem(t, guests) ?? (await takenGameIdProblem(tx, t.id, guests, exceptRegistrationId));
+}
+
+/**
+ * A mesma conferência para a importação de uma planilha inteira: os IDs no jogo já usados no campeonato são lidos
+ * **uma vez** e guardados na memória, em vez de uma consulta por linha (a importação roda com a trava do campeonato
+ * e aceita até 1.024 linhas). `check` confere um elenco; `add` registra os IDs do elenco que acabou de entrar.
+ */
+export async function importRosterChecker(tx: Tx, t: TournamentForRegistration) {
+  const rows = await tx.registrationGuest.findMany({
+    where: { tournamentId: t.id, gameId: { not: null }, registration: { status: { in: ACTIVE_REGISTRATION_STATUSES } } },
+    select: { gameId: true, registration: { select: { displayName: true } } },
+  });
+  const taken = new Map<string, { gameId: string; squad: string | null }>();
+  for (const row of rows) if (row.gameId) taken.set(guestKey(row.gameId), { gameId: row.gameId, squad: row.registration.displayName });
+  return {
+    check(guests: GuestRow[]): string | null {
+      const own = ownRosterProblem(t, guests);
+      if (own) return own;
+      for (const g of guests) {
+        const hit = g.gameId ? taken.get(guestKey(g.gameId)) : undefined;
+        if (hit) return takenMessage(hit.gameId, hit.squad);
+      }
+      return null;
+    },
+    add(squad: string, guests: GuestRow[]): void {
+      for (const g of guests) if (g.gameId) taken.set(guestKey(g.gameId), { gameId: g.gameId, squad });
+    },
+  };
 }
 
 /** Cria a inscrição sem conta (planilha ou cadastro manual) com o elenco, se vier. Devolve o id. */

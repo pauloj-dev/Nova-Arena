@@ -5,7 +5,7 @@ import { Badge, Button, Checkbox, Input, Modal, useToast } from '@nova/ui';
 import { Pencil, UserMinus, UserPlus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { errorMessage } from '@/shared/api/client';
-import { useAddGuest, useRemoveGuest, useUpdateGuest } from '@/shared/api/hooks/organizer';
+import { useAddGuest, useRemoveGuest, useUpdateGuest } from '@/shared/api/hooks/organizer-guests';
 import { useT } from '@/shared/i18n/react';
 import { messages } from './messages';
 

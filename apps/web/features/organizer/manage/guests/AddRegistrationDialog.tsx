@@ -5,7 +5,7 @@ import { Button, Input, Modal, useToast } from '@nova/ui';
 import { AlertCircle, UserPlus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { ApiError, errorMessage } from '@/shared/api/client';
-import { useAddManualRegistration } from '@/shared/api/hooks/organizer';
+import { useAddManualRegistration } from '@/shared/api/hooks/organizer-guests';
 import { useT } from '@/shared/i18n/react';
 import { messages } from './messages';
 

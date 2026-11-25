@@ -20,7 +20,7 @@ const state = vi.hoisted(() => ({
   remove: null as unknown as ReturnType<typeof mutation>,
 }));
 
-vi.mock('@/shared/api/hooks/organizer', () => ({
+vi.mock('@/shared/api/hooks/organizer-guests', () => ({
   useAddManualRegistration: () => state.manual,
   useAddGuest: () => state.add,
   useUpdateGuest: () => state.update,

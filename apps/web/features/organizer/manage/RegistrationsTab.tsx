@@ -3,6 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { OrganizerTournamentDetail, Registration, RegistrationStatus } from '@nova/schemas';
 import { Badge, Button, Card, DataTable, EmptyState, ErrorState, Modal, Select, StatusPill, Textarea, useToast, type Column, type SortState } from '@nova/ui';
+import dynamic from 'next/dynamic';
 import { Check, ClipboardList, Download, FileUp, Replace, UserMinus, UserPlus, Users, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -18,11 +19,13 @@ import { formatDateTime } from '@/shared/lib/datetime';
 import { confirmedMembers, registrationKind } from '../lib/csv';
 import { downloadFile } from '../lib/download';
 import { WithdrawDialog } from '../operation/WithdrawDialog';
-import { AddRegistrationDialog } from './AddRegistrationDialog';
-import { GuestRosterDialog } from './GuestRosterDialog';
 import { ImportCsvDialog } from './ImportCsvDialog';
 import { RosterDialog } from './RosterDialog';
 import { messages } from './messages';
+
+// Inscrito avulso e elenco sem conta (RN-18): só baixam quando a organização abre uma das duas telas.
+const AddRegistrationDialog = dynamic(() => import('./guests/AddRegistrationDialog').then((m) => m.AddRegistrationDialog));
+const GuestRosterDialog = dynamic(() => import('./guests/GuestRosterDialog').then((m) => m.GuestRosterDialog));
 
 type Filter = 'all' | 'confirmed' | 'pending' | 'waitlist' | 'out';
 const FILTERS: { id: Filter; statuses: RegistrationStatus[] | null }[] = [
@@ -447,7 +450,7 @@ export function RegistrationsTab({ tournament }: { tournament: OrganizerTourname
         />
       )}
       <ImportCsvDialog tournamentId={tournament.id} isTeam={isTeam} roster={roster} open={importOpen} onOpenChange={setImportOpen} />
-      <AddRegistrationDialog key={roster ? `${roster.teamSize}-${roster.maxSubs}` : 'solo'} tournamentId={tournament.id} isTeam={isTeam} roster={roster} open={addOpen} onOpenChange={setAddOpen} />
+      {addOpen && <AddRegistrationDialog tournamentId={tournament.id} isTeam={isTeam} roster={roster} open onOpenChange={setAddOpen} />}
     </div>
   );
 }

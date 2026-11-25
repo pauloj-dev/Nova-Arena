@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { canCaptainEditRoster, canStaffEditRoster, guestKey, guestRosterProblem, rosterLimit, rosterNeedsPlayers, statusAfterRosterChange } from '../src/rules/registrations';
+import { guestKey, guestRosterProblem } from '../src/rules/guests';
+import { canCaptainEditRoster, canStaffEditRoster, rosterLimit, rosterNeedsPlayers, statusAfterRosterChange } from '../src/rules/registrations';
 
 const mode = { teamSize: 4, maxSubs: 1 };
 const now = new Date('2026-11-24T12:00:00Z');

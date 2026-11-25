@@ -48,7 +48,7 @@ import { listMatches } from '../../competition/bracket';
 import { replaceEntrantInPreview } from '../../competition/maintenance';
 import { revalidateTournaments } from '../../revalidate';
 import { checkInOf, countsOf, toTournamentSummary, tournamentInclude } from '../tournaments/views';
-import { createStaffRegistration, guests, guestsProblem, normalizeGuests } from './guests';
+import { createStaffRegistration, guests, importRosterChecker, normalizeGuests } from './guests';
 import { notifyConfirmed, notifyToConfirm, roster } from './roster';
 import { assertEventExclusivity, eventConflictFor } from '../events/rules';
 import { LOCKED_TX, lockTournament, registrationIdsOfUser, registrationInclude, releaseMembers, settleWaitlist, takenSlots, toRegistration, toRegistrations, tournamentForRegistration, type TournamentForRegistration, type Tx } from './core';
@@ -493,6 +493,8 @@ registrations.post('/tournaments/:id/registrations/import', async (c) => {
     const names = new Set(active.map((r) => (r.displayName ?? r.team?.name ?? r.user?.nickname ?? '').trim().toLowerCase()));
     const out: ImportRegistrationsResult = { created: 0, waitlisted: 0, skipped: [] };
     let taken = await takenSlots(tx, t.id);
+    // IDs no jogo já usados no campeonato, lidos uma vez só (RN-18).
+    const rosters = await importRosterChecker(tx, t);
     for (const [index, row] of rows.entries()) {
       const line = index + 1;
       const name = row.name.trim();
@@ -512,13 +514,14 @@ registrations.post('/tournaments/:id/registrations/import', async (c) => {
       }
       // Elenco da linha (RN-18): fora do modo, repetido ou com ID que já joga por outro squad, a linha fica de fora.
       const roster = normalizeGuests(row.members);
-      const rosterProblem = await guestsProblem(tx, t, roster);
+      const rosterProblem = rosters.check(roster);
       if (rosterProblem) {
         out.skipped.push({ row: line, reason: rosterProblem });
         continue;
       }
       // Um milissegundo por linha preserva a ordem do arquivo na lista de espera.
       await createStaffRegistration(tx, t, { ...row, name }, roster, { status: hasSlot ? 'CONFIRMED' : 'WAITLIST', createdAt: new Date(now.getTime() + index) });
+      rosters.add(name, roster);
       names.add(key);
       if (hasSlot) {
         taken += 1;

@@ -5,22 +5,17 @@ import {
   OrganizerTournament,
   OrganizerTournamentDetail,
   Problem,
-  Registration,
   ReviewRegistrationResult,
-  RosterChangeResult,
   ScoringModel,
   TournamentTemplate,
   type CancelTournamentInput,
   type CreateTournamentInput,
   type CustomScoringModelInput,
   type Game,
-  type GuestMemberInput,
   type ImportRegistrationsInput,
-  type ManualRegistrationInput,
   type ReviewRegistrationInput,
   type SaveTemplateInput,
   type TournamentDraftInput,
-  type UpdateGuestMemberInput,
 } from '@nova/schemas';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -189,7 +184,8 @@ export function useSaveCustomScoringModel() {
 
 // ── Inscrições (issue #30) ───────────────────────────────────────────
 
-function invalidateRegistrations(qc: QueryClient, tournamentId: string) {
+/** Depois de mudar inscrições: a lista do campeonato e tudo o que mostra vagas e inscritos. */
+export function invalidateRegistrations(qc: QueryClient, tournamentId: string) {
   return Promise.all([
     qc.invalidateQueries({ queryKey: keys.tournaments.registrations(tournamentId) }),
     qc.invalidateQueries({ queryKey: keys.tournaments.mine('organizer') }),
@@ -213,43 +209,6 @@ export function useImportRegistrations(tournamentId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: ImportRegistrationsInput) => api.post(`/tournaments/${tournamentId}/registrations/import`, input, { schema: ImportRegistrationsResult }),
-    onSuccess: () => invalidateRegistrations(qc, tournamentId),
-  });
-}
-
-/** Inscrito avulso (RN-18): a organização cadastra um jogador ou squad sem conta, sem planilha. */
-export function useAddManualRegistration(tournamentId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: ManualRegistrationInput) => api.post(`/tournaments/${tournamentId}/registrations/manual`, input, { schema: Registration }),
-    onSuccess: () => invalidateRegistrations(qc, tournamentId),
-  });
-}
-
-/** Elenco sem conta (RN-18): colocar um jogador no elenco de uma inscrição criada pela organização. */
-export function useAddGuest(tournamentId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ registrationId, input }: { registrationId: string; input: GuestMemberInput }) => api.post(`/registrations/${registrationId}/guests`, input, { schema: RosterChangeResult }),
-    onSuccess: () => invalidateRegistrations(qc, tournamentId),
-  });
-}
-
-/** Elenco sem conta (RN-18): corrigir nome, ID no jogo ou titular/reserva. */
-export function useUpdateGuest(tournamentId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ registrationId, guestId, input }: { registrationId: string; guestId: string; input: UpdateGuestMemberInput }) =>
-      api.patch(`/registrations/${registrationId}/guests/${guestId}`, input, { schema: RosterChangeResult }),
-    onSuccess: () => invalidateRegistrations(qc, tournamentId),
-  });
-}
-
-/** Elenco sem conta (RN-18): tirar um jogador. */
-export function useRemoveGuest(tournamentId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ registrationId, guestId }: { registrationId: string; guestId: string }) => api.delete(`/registrations/${registrationId}/guests/${guestId}`, { schema: RosterChangeResult }),
     onSuccess: () => invalidateRegistrations(qc, tournamentId),
   });
 }

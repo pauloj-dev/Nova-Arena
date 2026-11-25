@@ -9,7 +9,7 @@ import { useImportRegistrations } from '@/shared/api/hooks/organizer';
 import { useT } from '@/shared/i18n/react';
 import { importableRows, parseRegistrationsCsv, registrationsCsvTemplate, type ParsedImport } from '../lib/csv';
 import { downloadFile } from '../lib/download';
-import { messages } from './messages';
+import { messages } from './guests/messages';
 
 interface ImportCsvDialogProps {
   tournamentId: string;
