@@ -83,11 +83,13 @@ export function MyRegistrationCard({ tournament, registration: r, viewerId }: My
       onError: (e) => error(t('erroConfirmar'), errorMessage(e)),
     });
   }
+  // Recusar e cancelar tiram este cartão da tela (a inscrição deixa de ser minha) assim que a lista recarrega. O
+  // `onSuccess` de `mutate` é descartado quando o componente já saiu; a promessa de `mutateAsync` não: o aviso sempre aparece.
   function onDecline() {
-    decline.mutate(r.id, {
-      onSuccess: () => success(t('recusou'), t('recusouDescricao')),
-      onError: (e) => error(t('erroRecusar'), errorMessage(e)),
-    });
+    decline.mutateAsync(r.id).then(
+      () => success(t('recusou'), t('recusouDescricao')),
+      (e: unknown) => error(t('erroRecusar'), errorMessage(e)),
+    );
   }
   function onRemove(userId: string, nickname: string) {
     remove.mutate(
@@ -99,13 +101,14 @@ export function MyRegistrationCard({ tournament, registration: r, viewerId }: My
     );
   }
   function onCancel() {
-    cancel.mutate(r.id, {
-      onSuccess: () => {
+    const leavingWaitlist = r.status === 'WAITLIST';
+    cancel.mutateAsync(r.id).then(
+      () => {
         setConfirmingCancel(false);
-        success(r.status === 'WAITLIST' ? t('saiuListaEspera') : t('cancelada'));
+        success(leavingWaitlist ? t('saiuListaEspera') : t('cancelada'));
       },
-      onError: (e) => error(t('erroCancelar'), errorMessage(e)),
-    });
+      (e: unknown) => error(t('erroCancelar'), errorMessage(e)),
+    );
   }
 
   const cancelText =
@@ -176,7 +179,7 @@ export function MyRegistrationCard({ tournament, registration: r, viewerId }: My
       {rosterOpen && <p className="text-xs text-muted">{tournament.rosterLockAt ? t('trocarElencoAte', { data: formatDateTime(tournament.rosterLockAt) }) : t('trocarElencoSemData')}</p>}
       {editsRoster && <CaptainRoster tournament={tournament} registration={r} />}
 
-      {active && missingMyAccount && <GameAccountWarning gameName={tournament.gameName} context="confirm" />}
+      {active && missingMyAccount && <GameAccountWarning gameId={tournament.gameId} gameName={tournament.gameName} context="confirm" />}
 
       {active && isOwner && (
         <div className="flex flex-col gap-2 border-t border-border pt-4">

@@ -1,9 +1,15 @@
 {
   "GameAccountWarning": {
     "faltaId": "Falta o seu ID de {jogo}.",
-    "paraInscrever": "A organização precisa dele para montar as partidas. Informe o ID e volte para se inscrever.",
-    "paraConfirmar": "Informe o ID para poder confirmar sua participação.",
-    "informarId": "Informar meu ID de {jogo}"
+    "paraInscrever": "A organização precisa dele para montar as partidas. Informe aqui e siga com a inscrição.",
+    "paraConfirmar": "Informe aqui para poder confirmar sua participação.",
+    "salvar": "Salvar meu ID de {jogo}",
+    "salvo": "ID de {jogo} salvo",
+    "agoraInscreva": "Agora é só se inscrever.",
+    "agoraConfirme": "Agora é só confirmar sua participação.",
+    "erroSalvar": "Não foi possível salvar o ID de {jogo}",
+    "confiraCampos": "Confira os campos destacados.",
+    "ondeMudar": "Você pode mudar depois em Minha conta."
   },
   "RegistrationMembers": {
     "elencoDo": "Elenco do {nome}",
@@ -66,7 +72,6 @@
     "opcaoSquad": "{nome} [{tag}] · {count, plural, =1 {1 jogador} other {{count} jogadores}}",
     "abrirSquad": "Abrir o squad",
     "criarSquadNovo": "Criar um squad novo",
-    "informarId": "Informar meu ID de {jogo}",
     "entrarListaEspera": "Entrar na lista de espera",
     "inscreverSquad": "Inscrever squad",
     "inscreverSe": "Inscrever-se",

@@ -85,7 +85,7 @@ export function RegisterForm({ tournament, game, viewerId, waitlistPosition, mis
     });
   }
 
-  if (missingGameAccount) return <GameAccountWarning gameName={game.name} context="register" />;
+  if (missingGameAccount) return <GameAccountWarning gameId={game.id} gameName={game.name} context="register" />;
 
   const acceptLabel = t.rich('aceite', {
     link: (chunks) => (
@@ -164,11 +164,7 @@ export function RegisterForm({ tournament, game, viewerId, waitlistPosition, mis
       {problem && (
         <div role="alert" className="flex flex-col gap-3 rounded-md border border-danger bg-danger-soft p-3 text-sm text-danger-soft-text" data-testid="registration-error">
           <p>{problem.message}</p>
-          {problem.needsGameAccount && (
-            <Button asChild variant="secondary" size="sm" className="self-start">
-              <Link href="/minha-conta">{t('informarId', { jogo: game.name })}</Link>
-            </Button>
-          )}
+          {problem.needsGameAccount && <GameAccountWarning gameId={game.id} gameName={game.name} context="register" />}
         </div>
       )}
 

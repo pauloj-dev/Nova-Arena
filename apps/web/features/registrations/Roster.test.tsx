@@ -12,7 +12,7 @@ import { MyRegistrationCard } from './MyRegistrationCard';
 vi.setConfig({ testTimeout: 30_000 });
 
 type Opts = { onSuccess?: (v: never) => void; onError?: (e: unknown) => void };
-const mutation = () => ({ mutate: vi.fn((_v: unknown, _o?: Opts): void => undefined), isPending: false, variables: undefined });
+const mutation = () => ({ mutate: vi.fn<(v: unknown, o?: Opts) => void>(), isPending: false, variables: undefined });
 const state = vi.hoisted(() => ({
   add: null as unknown as ReturnType<typeof mutation>,
   remove: null as unknown as ReturnType<typeof mutation>,

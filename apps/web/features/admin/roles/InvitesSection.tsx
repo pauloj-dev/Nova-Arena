@@ -9,6 +9,7 @@ import { useCreateRoleInvite, useRevokeRoleInvite, useRoleInvites } from '@/shar
 import { useT } from '@/shared/i18n/react';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { InviteForm } from './InviteForm';
+import { StaffInviteCard } from './StaffInviteCard';
 import { adminRolesMessages } from './messages';
 
 type InvitesT = ReturnType<typeof useT<(typeof adminRolesMessages)['pt-BR'], 'InvitesSection'>>;
@@ -53,7 +54,7 @@ function buildColumns(t: InvitesT): Column<RoleInvite>[] {
   ];
 }
 
-/** Convites de Admin e Organizador (PRD §7.3): gerar, acompanhar o estado e revogar. */
+/** Convites (PRD §7.3): Admin e Organizador para a plataforma e a equipe de um campeonato. Gerar, acompanhar e revogar. */
 export function InvitesSection({ defaultRole = 'ADMIN' }: { defaultRole?: 'ADMIN' | 'ORGANIZER' }) {
   const t = useT(adminRolesMessages, 'InvitesSection');
   const columns = useMemo(() => buildColumns(t), [t]);
@@ -106,6 +107,7 @@ export function InvitesSection({ defaultRole = 'ADMIN' }: { defaultRole?: 'ADMIN
         />
       )}
       <p className="text-xs text-muted">{t('linkSoUmaVez')}</p>
+      <StaffInviteCard />
     </section>
   );
 }
