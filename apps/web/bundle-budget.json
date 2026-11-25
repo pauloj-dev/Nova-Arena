@@ -13,7 +13,7 @@
     "/admin/jogos/[id]": 345,
     "/admin/jogos/novo": 315,
     "/admin/moderacao": 320,
-    "/admin/organizadores": 320,
+    "/admin/organizadores": 325,
     "/admin/saude": 290,
     "/admin/temporadas": 315,
     "/admin/usuarios": 315,

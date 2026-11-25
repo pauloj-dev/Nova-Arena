@@ -26,6 +26,8 @@ export interface SeedGame {
   slug: string;
   name: string;
   icon: string;
+  /** Imagem do jogo (`apps/web/public/jogos/<slug>.webp`). */
+  coverUrl: string;
   platform: string;
   requiredAccountFields: unknown[];
   extraStatFields: unknown[];
@@ -41,6 +43,7 @@ export const GAMES: SeedGame[] = [
     slug: 'free-fire',
     name: 'Free Fire',
     icon: '🔥',
+    coverUrl: '/jogos/free-fire.webp',
     platform: 'Mobile',
     requiredAccountFields: [
       { key: 'playerId', label: 'ID Free Fire', placeholder: 'Ex.: 1234567890', pattern: '^[0-9]{6,12}$' },
@@ -90,6 +93,7 @@ export const GAMES: SeedGame[] = [
     slug: 'clash-royale',
     name: 'Clash Royale',
     icon: '👑',
+    coverUrl: '/jogos/clash-royale.webp',
     platform: 'Mobile',
     requiredAccountFields: [{ key: 'playerTag', label: 'Tag do jogador', placeholder: 'Ex.: #2PP0LYQ', pattern: '^#?[0-9A-Z]{4,12}$' }],
     extraStatFields: [],
@@ -126,6 +130,7 @@ export const GAMES: SeedGame[] = [
     slug: '8-ball-pool',
     name: '8 Ball Pool',
     icon: '🎱',
+    coverUrl: '/jogos/8-ball-pool.webp',
     platform: 'Mobile',
     requiredAccountFields: [{ key: 'uniqueId', label: 'ID único', placeholder: 'Ex.: 123-456-789-0' }],
     extraStatFields: [],
@@ -148,6 +153,7 @@ export const GAMES: SeedGame[] = [
     slug: 'efootball',
     name: 'eFootball',
     icon: '⚽',
+    coverUrl: '/jogos/efootball.webp',
     platform: 'Mobile e console',
     requiredAccountFields: [{ key: 'ownerId', label: 'ID do proprietário', placeholder: 'Ex.: ABCD-123-456-789' }],
     extraStatFields: [{ key: 'penalties', label: 'Pênaltis', when: 'tiebreak' }],

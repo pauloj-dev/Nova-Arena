@@ -7,6 +7,7 @@ import { getT } from '@/shared/i18n/core';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { registrationPendencies } from './lib/rules';
 import { messages } from './messages';
+import { GameIcon } from '@/shared/brand/GameIcon';
 
 /** Uma inscrição minha: campeonato, data com fuso, status, próxima partida e o que falta resolver. Usado na home e em "Meus campeonatos". */
 export function RegistrationEntryCard({ entry, viewerId }: { entry: MyTournamentEntry; viewerId: string | null }) {
@@ -17,9 +18,7 @@ export function RegistrationEntryCard({ entry, viewerId }: { entry: MyTournament
   return (
     <Card interactive padding="sm" className="relative flex h-full flex-col gap-3">
       <div className="flex items-start gap-3">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-md bg-neutral-soft text-xl" aria-hidden>
-          {tournament.gameIcon}
-        </span>
+        <GameIcon icon={tournament.gameIcon} coverUrl={tournament.gameCoverUrl} className="size-11 rounded-md bg-neutral-soft text-xl" px={44} />
         <div className="min-w-0 flex-1">
           <h3 className="text-base">
             {/* O link cobre o cartão inteiro; o nome acessível é o do campeonato. */}

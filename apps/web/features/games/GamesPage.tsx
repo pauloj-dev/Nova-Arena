@@ -8,6 +8,7 @@ import { useGames } from '@/shared/api/hooks/games';
 import { useT } from '@/shared/i18n/react';
 import { PageContainer } from '@/shared/layout/AreaShell';
 import { messages } from './messages';
+import { GameIcon } from '@/shared/brand/GameIcon';
 
 /** `/jogos`: grade dos jogos ativos do catálogo. */
 export function GamesPage() {
@@ -47,9 +48,7 @@ export function GamesPage() {
             <li key={g.id}>
               <Link href={`/jogos/${g.slug}`} className="group block h-full rounded-lg">
                 <Card interactive className="flex h-full flex-col gap-3">
-                  <span className="flex size-14 items-center justify-center rounded-lg bg-accent-soft text-3xl" aria-hidden>
-                    {g.icon}
-                  </span>
+                  <GameIcon icon={g.icon} coverUrl={g.coverUrl} className="size-14 rounded-lg text-3xl" px={56} />
                   <div className="min-w-0">
                     <h2 className="text-lg group-hover:text-primary-text">{g.name}</h2>
                     <p className="text-sm text-muted">{g.platform}</p>

@@ -69,7 +69,7 @@ const timeFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo'
 /** Campeonato com o que o resumo público e as inscrições precisam. */
 const summaryAndRegistration = {
   ...tournamentInclude,
-  game: { select: { id: true, name: true, icon: true, requiredAccountFields: true } },
+  game: { select: { id: true, name: true, icon: true, coverUrl: true, requiredAccountFields: true } },
   gameMode: { select: { name: true, teamSize: true, maxSubs: true } },
 } satisfies Prisma.TournamentInclude;
 

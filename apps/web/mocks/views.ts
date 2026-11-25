@@ -74,6 +74,7 @@ export function toTournamentSummary(t: DbTournament): TournamentSummary {
     updatedAt: t.updatedAt,
     gameName: game?.name ?? 'Jogo',
     gameIcon: game?.icon ?? '🎮',
+    gameCoverUrl: game?.coverUrl ?? null,
     modeName: mode?.name ?? '',
     organizerNickname: owner?.nickname ?? 'Organizador',
     organizerVerified: owner?.verifiedOrganizer ?? false,
