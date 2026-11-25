@@ -6,7 +6,7 @@
  * - Toda mudança de vaga numa transação com `SELECT … FOR UPDATE` no campeonato (`core.ts`).
  * - Lista de espera com promoção automática no cancelamento, na recusa e na remoção.
  * - Organizador (dono ou equipe) não se inscreve no próprio campeonato.
- * - Organização: aprovar, recusar, remover, substituir; importar CSV; exportar CSV em streaming.
+ * - Organização: aprovar, recusar, remover, substituir; importar CSV (com elenco, RN-18); exportar CSV em streaming.
  *
  * Diferenças registradas: próxima partida e colocação em "Meus campeonatos" chegam com as partidas (B2);
  * desistência e desclassificação com o campeonato em andamento, na #100; avisos por notificação, na #98.
@@ -48,6 +48,7 @@ import { listMatches } from '../../competition/bracket';
 import { replaceEntrantInPreview } from '../../competition/maintenance';
 import { revalidateTournaments } from '../../revalidate';
 import { checkInOf, countsOf, toTournamentSummary, tournamentInclude } from '../tournaments/views';
+import { createStaffRegistration, guests, guestsProblem, normalizeGuests } from './guests';
 import { notifyConfirmed, notifyToConfirm, roster } from './roster';
 import { assertEventExclusivity, eventConflictFor } from '../events/rules';
 import { LOCKED_TX, lockTournament, registrationIdsOfUser, registrationInclude, releaseMembers, settleWaitlist, takenSlots, toRegistration, toRegistrations, tournamentForRegistration, type TournamentForRegistration, type Tx } from './core';
@@ -218,7 +219,8 @@ registrations.get('/tournaments/:id/registrations', async (c) => {
     include: registrationInclude,
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });
-  return respond(c, z.array(Registration), await toRegistrations(db, t, rows));
+  // O ID no jogo dos jogadores sem conta só aparece para a organização (RN-18).
+  return respond(c, z.array(Registration), await toRegistrations(db, t, rows, { guestIds: staff }));
 });
 
 registrations.post('/tournaments/:id/registrations', async (c) => {
@@ -508,18 +510,15 @@ registrations.post('/tournaments/:id/registrations/import', async (c) => {
         out.skipped.push({ row: line, reason: 'As vagas acabaram e a lista de espera está desligada.' });
         continue;
       }
-      await tx.registration.create({
-        data: {
-          tournamentId: t.id,
-          displayName: name,
-          tag: row.tag?.trim() ? row.tag.trim().toUpperCase() : null,
-          importedContact: row.contact?.trim() || null,
-          importedGameId: row.gameId?.trim() || null,
-          status: hasSlot ? 'CONFIRMED' : 'WAITLIST',
-          // Um milissegundo por linha preserva a ordem do arquivo na lista de espera.
-          createdAt: new Date(now.getTime() + index),
-        },
-      });
+      // Elenco da linha (RN-18): fora do modo, repetido ou com ID que já joga por outro squad, a linha fica de fora.
+      const roster = normalizeGuests(row.members);
+      const rosterProblem = await guestsProblem(tx, t, roster);
+      if (rosterProblem) {
+        out.skipped.push({ row: line, reason: rosterProblem });
+        continue;
+      }
+      // Um milissegundo por linha preserva a ordem do arquivo na lista de espera.
+      await createStaffRegistration(tx, t, { ...row, name }, roster, { status: hasSlot ? 'CONFIRMED' : 'WAITLIST', createdAt: new Date(now.getTime() + index) });
       names.add(key);
       if (hasSlot) {
         taken += 1;
@@ -553,7 +552,7 @@ registrations.get('/tournaments/:id/registrations.csv', async (c) => {
           for (;;) {
             const rows = await db.registration.findMany({ where: { tournamentId: t.id, status }, include: registrationInclude, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: PAGE, ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}) });
             if (rows.length === 0) break;
-            const views = await toRegistrations(db, t, rows);
+            const views = await toRegistrations(db, t, rows, { guestIds: true });
             const extra = new Map(rows.map((r) => [r.id, r]));
             const body = registrationsToCsv(views.map((v) => ({ ...v, contact: extra.get(v.id)?.importedContact ?? null, gameAccountId: extra.get(v.id)?.importedGameId ?? null })));
             // Tira o BOM e o cabeçalho que `registrationsToCsv` coloca em cada lote.
@@ -576,3 +575,5 @@ registrations.get('/tournaments/:id/registrations.csv', async (c) => {
 
 // Elenco do squad: escalar, tirar e remanejar (`roster.ts`).
 registrations.route('/', roster);
+// Inscrito avulso e elenco sem conta, montados pela organização (`guests.ts`, RN-18).
+registrations.route('/', guests);

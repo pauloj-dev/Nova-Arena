@@ -142,7 +142,17 @@ export function toTeam(t: DbTeam): Team {
   };
 }
 
+/** Inscrição para o público: sem o ID no jogo dos jogadores sem conta (RN-18). */
 export function toRegistration(r: DbRegistration): Registration {
+  return registrationView(r, false);
+}
+
+/** Inscrição para a organização do campeonato: com o ID no jogo dos jogadores sem conta. */
+export function toStaffRegistration(r: DbRegistration): Registration {
+  return registrationView(r, true);
+}
+
+function registrationView(r: DbRegistration, guestIds: boolean): Registration {
   const d = db();
   const tournament = d.tournaments.find((t) => t.id === r.tournamentId);
   const game = d.games.find((g) => g.id === tournament?.gameId);
@@ -185,6 +195,8 @@ export function toRegistration(r: DbRegistration): Registration {
     waitlistPosition: position,
     statusReason: r.statusReason,
     members,
+    // Titulares primeiro, na ordem em que entraram.
+    guests: [...(r.guests ?? [])].sort((a, b) => Number(a.isSub) - Number(b.isSub)).map((g) => ({ id: g.id, name: g.name, gameId: guestIds ? g.gameId : null, isSub: g.isSub })),
     requiredMembers: mode?.teamSize ?? 1,
     reservedUntil: r.reservedUntil,
     createdAt: r.createdAt,

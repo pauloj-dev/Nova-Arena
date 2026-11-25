@@ -3,11 +3,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { OrganizerTournamentDetail, Registration, RegistrationStatus } from '@nova/schemas';
 import { Badge, Button, Card, DataTable, EmptyState, ErrorState, Modal, Select, StatusPill, Textarea, useToast, type Column, type SortState } from '@nova/ui';
-import { Check, ClipboardList, Download, FileUp, Replace, UserMinus, Users, X } from 'lucide-react';
+import { Check, ClipboardList, Download, FileUp, Replace, UserMinus, UserPlus, Users, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { errorMessage } from '@/shared/api/client';
+import { useGame } from '@/shared/api/hooks/games';
 import { useExportRegistrations, useReviewRegistration } from '@/shared/api/hooks/organizer';
 import { useTournamentRegistrations } from '@/shared/api/hooks/tournaments';
 import { getT } from '@/shared/i18n/core';
@@ -17,6 +18,8 @@ import { formatDateTime } from '@/shared/lib/datetime';
 import { confirmedMembers, registrationKind } from '../lib/csv';
 import { downloadFile } from '../lib/download';
 import { WithdrawDialog } from '../operation/WithdrawDialog';
+import { AddRegistrationDialog } from './AddRegistrationDialog';
+import { GuestRosterDialog } from './GuestRosterDialog';
 import { ImportCsvDialog } from './ImportCsvDialog';
 import { RosterDialog } from './RosterDialog';
 import { messages } from './messages';
@@ -42,7 +45,7 @@ function reasonInput() {
 }
 type ReasonForm = z.infer<ReturnType<typeof reasonInput>>;
 
-type Action = { kind: 'reject' | 'remove' | 'replace' | 'withdraw' | 'roster'; registration: Registration } | null;
+type Action = { kind: 'reject' | 'remove' | 'replace' | 'withdraw' | 'roster' | 'guests'; registration: Registration } | null;
 
 function ReasonDialog({ action, loading, onClose, onSubmit }: { action: Exclude<Action, null>; loading: boolean; onClose: () => void; onSubmit: (reason: string) => void }) {
   const t = useT(messages, 'RegistrationReasonDialog');
@@ -133,12 +136,19 @@ export function RegistrationsTab({ tournament }: { tournament: OrganizerTourname
   const [selected, setSelected] = useState<string[]>([]);
   const [action, setAction] = useState<Action>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const isModerator = tournament.access === 'MODERATOR';
   const beforeStart = BEFORE_START.includes(tournament.status);
   const started = STARTED.includes(tournament.status);
   const isTeam = tournament.participantType === 'TEAM';
+  // Titulares e reservas do modo: definem o elenco sem conta e as colunas de elenco da planilha (RN-18).
+  const game = useGame(isTeam ? tournament.gameId : undefined);
+  const mode = game.data?.modes.find((m) => m.id === tournament.gameModeId);
+  const roster = isTeam && mode ? { teamSize: mode.teamSize, maxSubs: mode.maxSubs } : null;
+  /** Em campeonato por squad, o formulário e a planilha esperam o modo carregar para saber o tamanho do elenco. */
+  const rosterReady = !isTeam || roster !== null;
   const all = useMemo(() => query.data ?? [], [query.data]);
   const waitlist = useMemo(() => all.filter((r) => r.status === 'WAITLIST').sort((a, b) => (a.waitlistPosition ?? 0) - (b.waitlistPosition ?? 0)), [all]);
   const count = (...statuses: RegistrationStatus[]) => all.filter((r) => statuses.includes(r.status)).length;
@@ -201,6 +211,9 @@ export function RegistrationsTab({ tournament }: { tournament: OrganizerTourname
   }
   if (!query.data && query.error) return <ErrorState description={errorMessage(query.error)} onRetry={() => void query.refetch()} />;
 
+  /** Squad criado pela organização (planilha ou cadastro manual): o elenco é de jogadores sem conta. */
+  const isStaffSquad = (r: Registration) => isTeam && r.teamId === null && r.userId === null;
+
   const columns: Column<Registration>[] = [
     {
       id: 'name',
@@ -226,12 +239,24 @@ export function RegistrationsTab({ tournament }: { tournament: OrganizerTourname
         </span>
       ),
     },
-    { id: 'members', header: t('colunaMembros'), cell: (r) => (r.teamId ? t('membros', { confirmados: confirmedMembers(r), exigidos: r.requiredMembers }) : '—') },
+    {
+      id: 'members',
+      header: t('colunaMembros'),
+      // Squad sem conta (RN-18): não há confirmação; conta os titulares que a organização colocou.
+      cell: (r) => (r.teamId ? t('membros', { confirmados: confirmedMembers(r), exigidos: r.requiredMembers }) : isStaffSquad(r) ? t('jogadoresSemConta', { titulares: r.guests.filter((g) => !g.isSub).length, exigidos: r.requiredMembers }) : '—'),
+    },
     { id: 'date', header: t('colunaData'), sortable: true, cell: (r) => formatDateTime(r.createdAt, { withZone: false }) },
   ];
 
   function rowActions(r: Registration) {
     const buttons = [];
+    if (!isModerator && isStaffSquad(r) && ROSTER_STATUSES.includes(r.status) && canStaffEditRoster(tournament.status)) {
+      buttons.push(
+        <Button key="guests" size="sm" variant="secondary" iconLeft={<Users className="size-4" aria-hidden />} aria-label={t('elencoRotulo', { nome: r.displayName })} onClick={() => setAction({ kind: 'guests', registration: r })}>
+          {t('elenco')}
+        </Button>,
+      );
+    }
     // Elenco do squad: trocar, tirar e remanejar jogadores (também com o campeonato em andamento).
     if (!isModerator && r.teamId && ROSTER_STATUSES.includes(r.status) && canStaffEditRoster(tournament.status)) {
       buttons.push(
@@ -297,9 +322,14 @@ export function RegistrationsTab({ tournament }: { tournament: OrganizerTourname
         />
         <div className="flex flex-wrap gap-2">
           {!isModerator && beforeStart && (
-            <Button variant="secondary" iconLeft={<FileUp className="size-4" aria-hidden />} onClick={() => setImportOpen(true)}>
-              {t('importarCsv')}
-            </Button>
+            <>
+              <Button variant="secondary" disabled={!rosterReady} iconLeft={<UserPlus className="size-4" aria-hidden />} onClick={() => setAddOpen(true)}>
+                {t('adicionarInscrito')}
+              </Button>
+              <Button variant="secondary" disabled={!rosterReady} iconLeft={<FileUp className="size-4" aria-hidden />} onClick={() => setImportOpen(true)}>
+                {t('importarCsv')}
+              </Button>
+            </>
           )}
           <Button
             variant="secondary"
@@ -406,7 +436,18 @@ export function RegistrationsTab({ tournament }: { tournament: OrganizerTourname
         />
       )}
       {action?.kind === 'withdraw' && <WithdrawDialog key={action.registration.id} tournament={tournament} registration={action.registration} onClose={() => setAction(null)} />}
-      <ImportCsvDialog tournamentId={tournament.id} isTeam={isTeam} open={importOpen} onOpenChange={setImportOpen} />
+      {action?.kind === 'guests' && (
+        <GuestRosterDialog
+          key={action.registration.id}
+          tournament={tournament}
+          // A versão mais nova da inscrição (a lista é recarregada a cada troca).
+          registration={all.find((x) => x.id === action.registration.id) ?? action.registration}
+          roster={roster}
+          onClose={() => setAction(null)}
+        />
+      )}
+      <ImportCsvDialog tournamentId={tournament.id} isTeam={isTeam} roster={roster} open={importOpen} onOpenChange={setImportOpen} />
+      <AddRegistrationDialog key={roster ? `${roster.teamSize}-${roster.maxSubs}` : 'solo'} tournamentId={tournament.id} isTeam={isTeam} roster={roster} open={addOpen} onOpenChange={setAddOpen} />
     </div>
   );
 }

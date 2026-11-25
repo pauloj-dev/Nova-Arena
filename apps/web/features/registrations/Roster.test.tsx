@@ -57,6 +57,7 @@ const registration = (over: Partial<Registration> = {}): Registration => ({
   waitlistPosition: null,
   statusReason: null,
   members: [member('u_cap', 'Capi', { isCaptain: true }), member('u_b', 'Beto')],
+  guests: [],
   requiredMembers: 2,
   reservedUntil: null,
   createdAt: '2026-11-20T10:00:00.000Z',

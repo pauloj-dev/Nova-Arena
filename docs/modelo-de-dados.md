@@ -117,6 +117,7 @@ erDiagram
 | `TeamInvite` | `teamId`, `invitedUserId?`, `code` (6 caracteres, único), `status`, `expiresAt` (72 h), `createdBy` | `invitedUserId` preenchido no convite por nick; nulo no convite por link/código. |
 | `Registration` | `tournamentId`, `userId?`, `teamId?`, `status`, `seed?`, `waitlistPosition?`, `checkedInAt?`, `rulesAcceptedAt`, `statusReason?`, `reservedUntil?` | Únicos (`tournamentId`, `userId`) e (`tournamentId`, `teamId`). `reservedUntil`: vaga reservada do squad promovido (RN-12). |
 | `RegistrationMember` | `registrationId`, `userId`, `confirmedAt?`, `isSub` | Elenco do squad **naquele** campeonato. Único por (`tournamentId`, `userId`) para garantir a exclusividade. |
+| `RegistrationGuest` | `registrationId`, `tournamentId`, `name`, `gameId?`, `isSub` | Jogador **sem conta** no elenco de uma inscrição criada pela organização (planilha ou cadastro avulso, RN-18). `gameId` só a organização vê; o mesmo ID não entra em dois squads ativos do campeonato (conferido na API). |
 
 ## Competição
 

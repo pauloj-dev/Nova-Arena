@@ -854,6 +854,7 @@ model Registration {
   user         User?                @relation(fields: [userId], references: [id])
   team         Team?                @relation(fields: [teamId], references: [id])
   members      RegistrationMember[]
+  guests       RegistrationGuest[]
   participants MatchParticipant[]
   standings    Standing[]
   groups       GroupMember[]
@@ -888,6 +889,26 @@ model RegistrationMember {
   /// Elencos de que a pessoa faz parte, em qualquer campeonato (revisão R2, #111).
   @@index([userId])
   @@map("registration_members")
+}
+
+/// Jogador sem conta na plataforma, no elenco de uma inscrição criada pela organização (planilha ou cadastro
+/// manual, RN-18). Não faz check-in nem recebe aviso: é só o registro de quem joga pelo squad.
+model RegistrationGuest {
+  id             String   @id @default(uuid()) @db.Uuid
+  registrationId String   @db.Uuid
+  /// Repetido da inscrição: a busca por ID de jogo repetido é sempre dentro do campeonato.
+  tournamentId   String   @db.Uuid
+  name           String
+  /// ID no jogo informado pela organização (só a organização vê).
+  gameId         String?
+  isSub          Boolean  @default(false)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@index([registrationId])
+  @@index([tournamentId, gameId])
+  @@map("registration_guests")
 }
 
 // ── Competição ───────────────────────────────────────────────────────

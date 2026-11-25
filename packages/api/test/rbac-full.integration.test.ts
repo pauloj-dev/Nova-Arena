@@ -177,6 +177,9 @@ const MATRIX: Row[] = [
   r('POST /registrations/:id/decline', OWN, ({ ids }) => `/registrations/${ids.teamRegistration}/decline`),
   r('POST /registrations/:id/members', except(MANAGE, { participante: 'allow' }), ({ ids }) => `/registrations/${ids.teamRegistration}/members`, 'escalar no elenco: o capitão (até a trava de elenco) e quem gerencia o campeonato; moderador não'),
   r('DELETE /registrations/:id/members/:userId', except(MANAGE, { participante: 'allow' }), ({ ids }) => `/registrations/${ids.teamRegistration}/members/00000000-0000-4000-8000-000000000000`, 'tirar do elenco: o capitão (até a trava) e quem gerencia'),
+  r('POST /registrations/:id/guests', MANAGE, ({ ids }) => `/registrations/${ids.teamRegistration}/guests`, 'elenco sem conta (RN-18): só quem gerencia o campeonato; moderador não'),
+  r('PATCH /registrations/:id/guests/:guestId', MANAGE, ({ ids }) => `/registrations/${ids.teamRegistration}/guests/00000000-0000-4000-8000-000000000000`, 'elenco sem conta (RN-18): só quem gerencia'),
+  r('DELETE /registrations/:id/guests/:guestId', MANAGE, ({ ids }) => `/registrations/${ids.teamRegistration}/guests/00000000-0000-4000-8000-000000000000`, 'elenco sem conta (RN-18): só quem gerencia'),
   r('POST /registrations/:id/members/:userId/move', MANAGE, ({ ids }) => `/registrations/${ids.teamRegistration}/members/00000000-0000-4000-8000-000000000000/move`, 'remanejar entre squads: só quem gerencia o campeonato'),
   r('POST /notifications/:id/read', OWN, ({ ids }) => `/notifications/${ids.notification}/read`),
   r('GET /matches/:id/lobby', except(OWN, { moderador: 'allow', organizadorDono: 'allow', adminSem2fa: 'allow', admin: 'allow', superAdmin: 'allow' }), ({ ids }) => `/matches/${ids.match}/lobby`, 'sala: quem joga a partida e o staff'),
@@ -224,6 +227,7 @@ const MATRIX: Row[] = [
       ['POST /tournaments/:id/staff-invites', 'tournaments'],
       ['GET /tournaments/:id/podium-suggestion', 'tournaments'],
       ['POST /tournaments/:id/registrations/import', 'tournaments'],
+      ['POST /tournaments/:id/registrations/manual', 'tournaments'],
     ] as const
   ).map(([route, base]) => r(route, MANAGE, ({ ids }) => `/${base}/${ids.tournament}${route.split(':id')[1] ?? ''}`)),
   r('GET /tournaments/:id/audit-logs', MANAGE, ({ ids }) => `/tournaments/${ids.tournament}/audit-logs`, 'PRD §6: logs só dos próprios campeonatos (moderador não)'),

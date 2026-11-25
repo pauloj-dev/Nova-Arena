@@ -42,7 +42,7 @@ function problem(status: number, code: string, detail: string): ApiError {
 }
 
 function registration(patch: Partial<Registration> = {}): Registration {
-  return { id: 'r8', tournamentId: 'tn_1', displayName: 'Squad 8', tag: null, logoUrl: null, userId: 'u_me', teamId: null, status: 'CONFIRMED', seed: 8, waitlistPosition: null, statusReason: null, members: [], requiredMembers: 1, reservedUntil: null, createdAt: iso(-10_000), ...patch };
+  return { id: 'r8', tournamentId: 'tn_1', displayName: 'Squad 8', tag: null, logoUrl: null, userId: 'u_me', teamId: null, status: 'CONFIRMED', seed: 8, waitlistPosition: null, statusReason: null, members: [], guests: [], requiredMembers: 1, reservedUntil: null, createdAt: iso(-10_000), ...patch };
 }
 const squadMember = (userId: string, isCaptain: boolean): Registration['members'][number] => ({ userId, nickname: userId, avatarUrl: null, isCaptain, isSub: false, confirmedAt: iso(-1000), hasGameAccount: true });
 

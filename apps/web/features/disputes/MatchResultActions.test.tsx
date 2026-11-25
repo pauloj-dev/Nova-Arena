@@ -113,7 +113,7 @@ function duel(patch: Partial<Match> = {}): Match {
 }
 
 function solo(id: string, userId: string, patch: Partial<Registration> = {}): Registration {
-  return { id, tournamentId: 'tn_1', displayName: userId, tag: null, logoUrl: null, userId, teamId: null, status: 'CONFIRMED', seed: null, waitlistPosition: null, statusReason: null, members: [], requiredMembers: 1, reservedUntil: null, createdAt: new Date().toISOString(), ...patch };
+  return { id, tournamentId: 'tn_1', displayName: userId, tag: null, logoUrl: null, userId, teamId: null, status: 'CONFIRMED', seed: null, waitlistPosition: null, statusReason: null, members: [], guests: [], requiredMembers: 1, reservedUntil: null, createdAt: new Date().toISOString(), ...patch };
 }
 
 function squad(id: string, members: { userId: string; isCaptain: boolean }[]): Registration {

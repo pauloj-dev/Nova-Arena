@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canCaptainEditRoster, canStaffEditRoster, rosterLimit, rosterNeedsPlayers, statusAfterRosterChange } from '../src/rules/registrations';
+import { canCaptainEditRoster, canStaffEditRoster, guestKey, guestRosterProblem, rosterLimit, rosterNeedsPlayers, statusAfterRosterChange } from '../src/rules/registrations';
 
 const mode = { teamSize: 4, maxSubs: 1 };
 const now = new Date('2026-11-24T12:00:00Z');
@@ -45,3 +45,29 @@ describe('elenco da inscrição (trava de elenco, PRD §12.1)', () => {
     expect(rosterNeedsPlayers({ members: 4, confirmedMembers: 4 }, mode)).toBe(false);
   });
 });
+
+describe('elenco sem conta (RN-18)', () => {
+  const g = (name: string, extra: { gameId?: string | null; isSub?: boolean } = {}) => ({ name, ...extra });
+
+  it('aceita o elenco dentro do modo, completo ou não', () => {
+    expect(guestRosterProblem([], mode)).toBeNull();
+    expect(guestRosterProblem([g('A'), g('B')], mode)).toBeNull();
+    expect(guestRosterProblem([g('A', { gameId: '1' }), g('B', { gameId: '2' }), g('C'), g('D'), g('E', { isSub: true })], mode)).toBeNull();
+  });
+
+  it('recusa titulares ou reservas a mais', () => {
+    expect(guestRosterProblem([g('A'), g('B'), g('C'), g('D'), g('E')], mode)).toBe('Este modo tem 4 titulares por squad: o elenco ficaria com 5.');
+    expect(guestRosterProblem([g('A', { isSub: true }), g('B', { isSub: true })], mode)).toBe('Este modo aceita 1 reserva por squad: o elenco ficaria com 2.');
+    expect(guestRosterProblem([g('A', { isSub: true })], { teamSize: 2, maxSubs: 0 })).toBe('Este modo não tem reservas.');
+    expect(guestRosterProblem([g('A'), g('B')], { teamSize: 1, maxSubs: 0 })).toBe('Este modo tem 1 titular por squad: o elenco ficaria com 2.');
+  });
+
+  it('recusa nome ou ID no jogo repetido, sem diferenciar maiúsculas nem espaços', () => {
+    expect(guestRosterProblem([g('Ana'), g(' ANA ')], mode)).toBe('O jogador "ANA" aparece duas vezes no elenco.');
+    expect(guestRosterProblem([g('Ana', { gameId: 'ab1' }), g('Bia', { gameId: ' AB1' })], mode)).toBe('O ID no jogo "AB1" aparece duas vezes no elenco.');
+    expect(guestRosterProblem([g('Ana', { gameId: '' }), g('Bia', { gameId: null }), g('Caio')], mode)).toBeNull();
+    expect(guestRosterProblem([g('  ')], mode)).toBe('Há um jogador sem nome no elenco.');
+    expect(guestKey('  Kauê ')).toBe('kauê');
+  });
+});
+

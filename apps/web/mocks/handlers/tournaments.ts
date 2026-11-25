@@ -3,7 +3,7 @@ import { http } from 'msw';
 import { TournamentListQuery, type TournamentStatus } from '@nova/schemas';
 import { db, type DbTournament } from '../db';
 import { badRequest, currentUser, findTournament, handle, json, notFound, paginate, param, query, tournamentAccess, url } from '../http';
-import { takenSlots, toRegistration, toTournament, toTournamentSummary } from '../views';
+import { takenSlots, toRegistration, toTournament, toTournamentSummary, toStaffRegistration } from '../views';
 import { settleWaitlist } from '../waitlist';
 
 export const moduleName = 'tournaments';
@@ -73,7 +73,8 @@ export const handlers = [
         .registrations.filter((r) => r.tournamentId === t.id)
         .filter((r) => (staff && scope === 'all' ? true : ['CONFIRMED', 'PENDING_MEMBERS', 'PENDING_APPROVAL'].includes(r.status)))
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-        .map(toRegistration);
+        // O ID no jogo dos jogadores sem conta só aparece para a organização (RN-18).
+        .map(staff && scope === 'all' ? toStaffRegistration : toRegistration);
       return json(list);
     }),
   ),
