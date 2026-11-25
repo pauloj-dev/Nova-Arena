@@ -84,7 +84,7 @@
     "pg": "^8.23.1",
     "tailwindcss": "4.3.5",
     "tsx": "^4.23.15",
-    "typescript": "^5.9.0",
+    "typescript": "^6.0.3",
     "vitest": "^5.1.0"
   },
   "msw": {
