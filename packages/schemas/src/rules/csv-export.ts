@@ -50,6 +50,8 @@ export function confirmedMembers(r: Pick<Registration, 'members'>): number {
 }
 
 export interface RegistrationExportRow extends Pick<Registration, 'displayName' | 'tag' | 'teamId' | 'userId' | 'status' | 'members' | 'requiredMembers' | 'waitlistPosition' | 'statusReason' | 'createdAt'> {
+  /** Elenco sem conta das inscrições criadas pela organização (RN-18). */
+  guests?: Registration['guests'];
   /** Só nas inscrições importadas por CSV. */
   contact?: string | null;
   gameAccountId?: string | null;
@@ -73,7 +75,7 @@ export function registrationsToCsv(rows: RegistrationExportRow[], timeZone = 'Am
       registrationKind(r),
       REGISTRATION_STATUS_LABEL[r.status],
       r.teamId ? `${confirmedMembers(r)}/${r.requiredMembers}` : '',
-      r.members.map((m) => m.nickname).join(', '),
+      [...r.members.map((m) => m.nickname), ...(r.guests ?? []).map((g) => (g.isSub ? `${g.name} (reserva)` : g.name))].join(', '),
       r.waitlistPosition,
       r.statusReason ?? '',
       formatCsvDate(r.createdAt, timeZone),

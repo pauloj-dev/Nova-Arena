@@ -195,6 +195,14 @@ function Members({ registration }: { registration: Registration }) {
           {!m.confirmedAt && <span className="text-xs text-muted">{t('aguardandoConfirmar')}</span>}
         </li>
       ))}
+      {/* Jogadores sem conta na plataforma (squad cadastrado pela organização, RN-18): só o nome. */}
+      {registration.guests.map((g) => (
+        <li key={g.id} className="flex min-w-0 items-center gap-1.5 text-sm">
+          <Avatar name={g.name} size="sm" />
+          <span className="truncate">{g.name}</span>
+          {g.isSub && <span className="text-xs text-muted">{t('reserva')}</span>}
+        </li>
+      ))}
     </ul>
   );
 }
@@ -243,7 +251,7 @@ export function RegistrationsTab({ tournament }: { tournament: Tournament }) {
               </div>
               <StatusPill status={r.status} className="shrink-0" />
             </div>
-            {team && r.members.length > 0 && <Members registration={r} />}
+            {team && r.members.length + r.guests.length > 0 && <Members registration={r} />}
           </li>
         ))}
       </ul>

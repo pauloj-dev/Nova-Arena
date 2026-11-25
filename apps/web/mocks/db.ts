@@ -108,6 +108,13 @@ export interface DbRegistrationMember {
   isSub: boolean;
   confirmedAt: string | null;
 }
+/** Jogador sem conta no elenco de uma inscrição criada pela organização (RN-18). */
+export interface DbRegistrationGuest {
+  id: string;
+  name: string;
+  gameId: string | null;
+  isSub: boolean;
+}
 export interface DbRegistration {
   id: string;
   tournamentId: string;
@@ -120,6 +127,8 @@ export interface DbRegistration {
   seed: number | null;
   statusReason: string | null;
   members: DbRegistrationMember[];
+  /** Elenco sem conta (RN-18). Opcional: as inscrições gravadas antes dele não têm o campo. */
+  guests?: DbRegistrationGuest[];
   reservedUntil: string | null;
   createdAt: string;
 }

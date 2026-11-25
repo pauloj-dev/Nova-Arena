@@ -2,14 +2,34 @@
  * Módulo `registrations-manage` da API simulada: gestão de inscrições pelo organizador (issue #30).
  * Aprovar, recusar, remover e substituir; importar e exportar CSV. Permissões do PRD §6:
  * aprovar e recusar também é do moderador; remover, substituir e importar é da organização.
+ *
+ * RN-18: inscrito avulso (`/registrations/manual`) e elenco sem conta (`/registrations/:id/guests`), espelho de
+ * `packages/api/src/modules/registrations/guests.ts`.
  */
 import { http, HttpResponse } from 'msw';
-import { ImportRegistrationsInput, ReviewRegistrationInput, SLOT_HOLDING_STATUSES, type ImportRegistrationsResult, type Registration, type RegistrationStatus, type ReviewRegistrationResult, type TournamentStatus } from '@nova/schemas';
+import {
+  canStaffEditRoster,
+  GuestMemberInput,
+  guestKey,
+  guestRosterProblem,
+  ImportRegistrationsInput,
+  ManualRegistrationInput,
+  ReviewRegistrationInput,
+  SLOT_HOLDING_STATUSES,
+  UpdateGuestMemberInput,
+  type ImportRegistrationsResult,
+  type Registration,
+  type RegistrationStatus,
+  type ReviewRegistrationResult,
+  type RosterChangeResult,
+  type TournamentStatus,
+} from '@nova/schemas';
 import { registrationsToCsv } from '@/features/organizer/lib/csv';
 import { promoteFromWaitlist, promotionFor, type WaitlistContext, type WaitlistRegistration } from '@/features/organizer/lib/waitlist';
-import { collection, db, nowIso, save, uid, type DbRegistration, type DbTournament } from '../db';
-import { body, conflict, findTournament, forbidden, handle, json, notFound, param, requireTournamentAccess, url } from '../http';
-import { takenSlots, toRegistration } from '../views';
+import { audit } from '../audit';
+import { collection, db, nowIso, save, uid, type DbRegistration, type DbRegistrationGuest, type DbTournament } from '../db';
+import { badRequest, body, conflict, findTournament, forbidden, handle, HttpProblem, json, notFound, param, requireTournamentAccess, url } from '../http';
+import { takenSlots, toRegistration, toStaffRegistration } from '../views';
 import { notifyConfirmed } from '../roster';
 import { settleWaitlist } from '../waitlist';
 
@@ -58,6 +78,81 @@ function promoteWaitlist(t: DbTournament): DbRegistration[] {
 
 function displayName(r: DbRegistration): string {
   return toRegistration(r).displayName;
+}
+
+// ── Elenco sem conta (RN-18) ─────────────────────────────────────────
+type GuestRow = Omit<DbRegistrationGuest, 'id'>;
+
+function modeSize(t: DbTournament): { teamSize: number; maxSubs: number } {
+  const mode = db().games.find((g) => g.id === t.gameId)?.modes.find((m) => m.id === t.gameModeId);
+  return { teamSize: mode?.teamSize ?? 1, maxSubs: mode?.maxSubs ?? 0 };
+}
+
+function normalizeGuests(members: GuestMemberInput[] | undefined): GuestRow[] {
+  return (members ?? []).map((m) => ({ name: m.name.trim(), gameId: m.gameId?.trim() || null, isSub: m.isSub ?? false }));
+}
+
+/** Outro squad ativo do campeonato que já tem um destes IDs no jogo. */
+function takenGameIdProblem(t: DbTournament, guests: GuestRow[], exceptRegistrationId?: string): string | null {
+  const ids = new Set(guests.flatMap((g) => (g.gameId ? [guestKey(g.gameId)] : [])));
+  if (ids.size === 0) return null;
+  for (const r of db().registrations) {
+    if (r.tournamentId !== t.id || r.id === exceptRegistrationId || !ACTIVE.includes(r.status)) continue;
+    const taken = (r.guests ?? []).find((g) => g.gameId !== null && ids.has(guestKey(g.gameId)));
+    if (taken) return `O ID no jogo "${taken.gameId ?? ''}" já está no elenco do ${displayName(r)} neste campeonato. Um jogador não pode estar em dois squads no mesmo campeonato.`;
+  }
+  return null;
+}
+
+/** O elenco inteiro de uma inscrição criada pela organização: modo, repetidos e o mesmo ID em outro squad. */
+function guestsProblem(t: DbTournament, guests: GuestRow[], exceptRegistrationId?: string): string | null {
+  if (guests.length === 0) return null;
+  if (t.participantType !== 'TEAM') return 'Este campeonato é individual: o inscrito não tem elenco.';
+  return guestRosterProblem(guests, modeSize(t)) ?? takenGameIdProblem(t, guests, exceptRegistrationId);
+}
+
+function createStaffRegistration(t: DbTournament, row: { name: string; tag?: string | undefined; contact?: string | undefined; gameId?: string | undefined }, guests: GuestRow[], opts: { status: RegistrationStatus; createdAt: string }): DbRegistration {
+  const registration: DbRegistration = {
+    id: uid('r'),
+    tournamentId: t.id,
+    userId: null,
+    teamId: null,
+    importedName: row.name.trim(),
+    importedTag: row.tag?.trim() ? row.tag.trim().toUpperCase() : null,
+    status: opts.status,
+    seed: null,
+    statusReason: null,
+    members: [],
+    guests: guests.map((g) => ({ id: uid('rg'), ...g })),
+    reservedUntil: null,
+    createdAt: opts.createdAt,
+  };
+  db().registrations.push(registration);
+  if (row.contact?.trim() || row.gameId?.trim()) {
+    importedInfo().push({ registrationId: registration.id, contact: row.contact?.trim() || null, gameId: row.gameId?.trim() || null });
+  }
+  return registration;
+}
+
+/** A inscrição com o elenco que a organização ainda pode mudar (moderador não mexe no elenco). */
+function staffRoster(registrationId: string) {
+  const r = db().registrations.find((x) => x.id === registrationId);
+  if (!r) throw notFound('Inscrição');
+  const t = findTournament(r.tournamentId);
+  const { user } = requireTournamentAccess(t);
+  if (r.userId || r.teamId) throw conflict('Esta inscrição é de quem tem conta na plataforma: o elenco dela é escalado pelo apelido dos jogadores.', 'NOT_STAFF_REGISTRATION');
+  if (t.participantType !== 'TEAM') throw conflict('Inscrição individual não tem elenco.', 'SOLO_REGISTRATION');
+  if (!ACTIVE.includes(r.status)) throw conflict('Esta inscrição não está mais ativa.', 'REGISTRATION_INACTIVE');
+  if (!canStaffEditRoster(t.status)) throw conflict('Este campeonato já terminou: o elenco não muda mais.', 'ROSTER_CLOSED');
+  r.guests ??= [];
+  return { r, t, user, guests: r.guests };
+}
+
+function rosterChanged(r: DbRegistration, t: DbTournament, status = 200) {
+  t.updatedAt = nowIso();
+  save();
+  const result: RosterChangeResult = { registrations: [toStaffRegistration(r)] };
+  return json(result, status);
 }
 
 export const handlers = [
@@ -155,9 +250,8 @@ export const handlers = [
         throw conflict(t.status === 'DRAFT' ? 'Publique o campeonato antes de importar inscritos.' : 'Só dá para importar inscritos antes de o campeonato começar.', 'REGISTRATIONS_LOCKED');
       }
 
-      const d = db();
       const names = new Set(
-        d.registrations.filter((r) => r.tournamentId === t.id && ACTIVE.includes(r.status)).map((r) => displayName(r).trim().toLowerCase()),
+        db().registrations.filter((r) => r.tournamentId === t.id && ACTIVE.includes(r.status)).map((r) => displayName(r).trim().toLowerCase()),
       );
       const result: ImportRegistrationsResult = { created: 0, waitlisted: 0, skipped: [] };
       let taken = takenSlots(t.id);
@@ -180,26 +274,16 @@ export const handlers = [
           result.skipped.push({ row: line, reason: 'As vagas acabaram e a lista de espera está desligada.' });
           return;
         }
-        const registration: DbRegistration = {
-          id: uid('r'),
-          tournamentId: t.id,
-          userId: null,
-          teamId: null,
-          importedName: name,
-          importedTag: row.tag?.trim() ? row.tag.trim().toUpperCase() : null,
-          status: hasSlot ? 'CONFIRMED' : 'WAITLIST',
-          seed: null,
-          statusReason: null,
-          members: [],
-          reservedUntil: null,
-          // Um milissegundo por linha preserva a ordem do arquivo na lista de espera.
-          createdAt: new Date(base + index).toISOString(),
-        };
-        d.registrations.push(registration);
-        names.add(key);
-        if (row.contact?.trim() || row.gameId?.trim()) {
-          importedInfo().push({ registrationId: registration.id, contact: row.contact?.trim() || null, gameId: row.gameId?.trim() || null });
+        // Elenco da linha (RN-18): fora do modo, repetido ou com ID que já joga por outro squad, a linha fica de fora.
+        const roster = normalizeGuests(row.members);
+        const rosterProblem = guestsProblem(t, roster);
+        if (rosterProblem) {
+          result.skipped.push({ row: line, reason: rosterProblem });
+          return;
         }
+        // Um milissegundo por linha preserva a ordem do arquivo na lista de espera.
+        createStaffRegistration(t, { ...row, name }, roster, { status: hasSlot ? 'CONFIRMED' : 'WAITLIST', createdAt: new Date(base + index).toISOString() });
+        names.add(key);
         if (hasSlot) {
           taken += 1;
           result.created += 1;
@@ -211,6 +295,86 @@ export const handlers = [
       if (result.created + result.waitlisted > 0) t.updatedAt = nowIso();
       save();
       return json(result);
+    }),
+  ),
+
+  /** Inscrito avulso (RN-18): um jogador ou squad sem conta, com as regras da importação. */
+  http.post(
+    url('/tournaments/:id/registrations/manual'),
+    handle(async ({ request, params }) => {
+      const t = findTournament(param(params, 'id'));
+      const { user } = requireTournamentAccess(t);
+      const input = await body(request, ManualRegistrationInput);
+      if (!BEFORE_START.includes(t.status)) {
+        throw conflict(t.status === 'DRAFT' ? 'Publique o campeonato antes de adicionar inscritos.' : 'Só dá para adicionar inscritos antes de o campeonato começar.', 'REGISTRATIONS_LOCKED');
+      }
+      settleWaitlist(t);
+      const taken = db().registrations.some((r) => r.tournamentId === t.id && ACTIVE.includes(r.status) && guestKey(displayName(r)) === guestKey(input.name));
+      if (taken) {
+        const message = `Já existe um inscrito chamado "${input.name}" neste campeonato.`;
+        throw new HttpProblem(409, message, 'NAME_TAKEN', { name: message });
+      }
+      const roster = normalizeGuests(input.members);
+      const problem = guestsProblem(t, roster);
+      if (problem) throw badRequest(problem, 'INVALID_ROSTER', { members: problem });
+      const hasSlot = takenSlots(t.id) < t.maxParticipants;
+      if (!hasSlot && !t.waitlistEnabled) throw conflict('As vagas acabaram e a lista de espera está desligada.', 'TOURNAMENT_FULL');
+      const status: RegistrationStatus = hasSlot ? 'CONFIRMED' : 'WAITLIST';
+      const registration = createStaffRegistration(t, input, roster, { status, createdAt: nowIso() });
+      t.updatedAt = nowIso();
+      audit(user, { action: 'REGISTRATION_ADDED', entityType: 'Registration', entityId: registration.id, entityLabel: `${t.name} · ${input.name}`, tournamentId: t.id, after: { status, jogadores: roster.length } });
+      save();
+      return json(toStaffRegistration(registration), 201);
+    }),
+  ),
+
+  /** Elenco sem conta (RN-18): colocar um jogador. */
+  http.post(
+    url('/registrations/:id/guests'),
+    handle(async ({ request, params }) => {
+      const { r, t, user, guests } = staffRoster(param(params, 'id'));
+      const [guest] = normalizeGuests([await body(request, GuestMemberInput)]) as [GuestRow];
+      const problem = guestRosterProblem([...guests, guest], modeSize(t)) ?? guestsProblem(t, [guest], r.id);
+      if (problem) throw new HttpProblem(409, problem, 'INVALID_ROSTER', { name: problem });
+      guests.push({ id: uid('rg'), ...guest });
+      audit(user, { action: 'ROSTER_CHANGED', entityType: 'Registration', entityId: r.id, entityLabel: `${t.name} · ${displayName(r)}`, tournamentId: t.id, after: { escalou: guest.name, semConta: true } });
+      return rosterChanged(r, t, 201);
+    }),
+  ),
+
+  /** Elenco sem conta (RN-18): corrigir nome, ID no jogo ou titular/reserva. */
+  http.patch(
+    url('/registrations/:id/guests/:guestId'),
+    handle(async ({ request, params }) => {
+      const { r, t, user, guests } = staffRoster(param(params, 'id'));
+      const input = await body(request, UpdateGuestMemberInput);
+      const current = guests.find((g) => g.id === param(params, 'guestId'));
+      if (!current) throw notFound('Jogador no elenco');
+      const next: GuestRow = {
+        name: input.name ?? current.name,
+        gameId: input.gameId === undefined ? current.gameId : input.gameId?.trim() || null,
+        isSub: input.isSub ?? current.isSub,
+      };
+      const problem = guestRosterProblem(guests.map((g) => (g.id === current.id ? next : g)), modeSize(t)) ?? guestsProblem(t, [next], r.id);
+      if (problem) throw new HttpProblem(409, problem, 'INVALID_ROSTER', { name: problem });
+      const before = { nome: current.name, reserva: current.isSub };
+      Object.assign(current, next);
+      audit(user, { action: 'ROSTER_CHANGED', entityType: 'Registration', entityId: r.id, entityLabel: `${t.name} · ${displayName(r)}`, tournamentId: t.id, before, after: { corrigiu: next.name, reserva: next.isSub, semConta: true } });
+      return rosterChanged(r, t);
+    }),
+  ),
+
+  /** Elenco sem conta (RN-18): tirar um jogador. */
+  http.delete(
+    url('/registrations/:id/guests/:guestId'),
+    handle(({ params }) => {
+      const { r, t, user, guests } = staffRoster(param(params, 'id'));
+      const index = guests.findIndex((g) => g.id === param(params, 'guestId'));
+      const current = guests[index];
+      if (!current) throw notFound('Jogador no elenco');
+      guests.splice(index, 1);
+      audit(user, { action: 'ROSTER_CHANGED', entityType: 'Registration', entityId: r.id, entityLabel: `${t.name} · ${displayName(r)}`, tournamentId: t.id, after: { tirou: current.name, semConta: true } });
+      return rosterChanged(r, t);
     }),
   ),
 
@@ -227,7 +391,7 @@ export const handlers = [
         .registrations.filter((r) => r.tournamentId === t.id)
         .sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status) || a.createdAt.localeCompare(b.createdAt))
         .map((r) => {
-          const view: Registration = toRegistration(r);
+          const view: Registration = toStaffRegistration(r);
           const extra = info.find((x) => x.registrationId === r.id);
           return { ...view, contact: extra?.contact ?? null, gameAccountId: extra?.gameId ?? null };
         });

@@ -184,7 +184,8 @@ export function useSaveCustomScoringModel() {
 
 // ── Inscrições (issue #30) ───────────────────────────────────────────
 
-function invalidateRegistrations(qc: QueryClient, tournamentId: string) {
+/** Depois de mudar inscrições: a lista do campeonato e tudo o que mostra vagas e inscritos. */
+export function invalidateRegistrations(qc: QueryClient, tournamentId: string) {
   return Promise.all([
     qc.invalidateQueries({ queryKey: keys.tournaments.registrations(tournamentId) }),
     qc.invalidateQueries({ queryKey: keys.tournaments.mine('organizer') }),

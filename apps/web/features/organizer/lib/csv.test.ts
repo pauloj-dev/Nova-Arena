@@ -1,6 +1,6 @@
 import type { RegistrationMember } from '@nova/schemas';
 import { describe, expect, it } from 'vitest';
-import { importableRows, parseRegistrationsCsv, registrationsCsvTemplate, registrationsToCsv, toCsv, UTF8_BOM, type RegistrationExportRow } from './csv';
+import { importableRows, importHeader, parseRegistrationsCsv, registrationsCsvTemplate, registrationsToCsv, toCsv, UTF8_BOM, type RegistrationExportRow } from './csv';
 
 const member = (nickname: string, confirmed = true): RegistrationMember => ({ userId: `u_${nickname}`, nickname, avatarUrl: null, isCaptain: false, isSub: false, confirmedAt: confirmed ? '2026-11-10T12:00:00.000Z' : null, hasGameAccount: true });
 
@@ -52,6 +52,9 @@ describe('geração do CSV', () => {
     expect(lines[1]).toBe('Squad Alfa;ALFA;Squad;Confirmada;2/4;Lucas, Kaue, Thiago;;;10/11/2026 20:30;;');
     expect(lines[2]).toBe('NinaX10;;Solo;Lista de espera;;NinaX10;2;;10/11/2026 20:30;;');
     expect(lines[3]).toBe('Time Importado;IMP;Importada;Recusada;;;;"Fora do prazo; sem contato";10/11/2026 20:30;a@b.com;123');
+    // Elenco sem conta (RN-18): os jogadores saem na coluna de membros, com a reserva marcada.
+    const withGuests = registrationsToCsv([row({ displayName: 'Squad Manual', tag: null, teamId: null, members: [], guests: [{ id: 'g1', name: 'Ana', gameId: '1', isSub: false }, { id: 'g2', name: 'Bia', gameId: null, isSub: true }] })]);
+    expect(withGuests.slice(1).trim().split('\r\n')[1]).toBe('Squad Manual;;Importada;Confirmada;;Ana, Bia (reserva);;;10/11/2026 20:30;;');
   });
 });
 
@@ -108,5 +111,59 @@ describe('leitura do CSV de importação', () => {
   it('ida e volta: o que é exportado com BOM e ponto e vírgula é lido de volta', () => {
     const csv = toCsv(['nome', 'tag'], [['Squad "Ômega"; o melhor', 'OMG']]);
     expect(parseRegistrationsCsv(csv).lines[0]?.values).toMatchObject({ name: 'Squad "Ômega"; o melhor', tag: 'OMG' });
+  });
+
+  describe('elenco na planilha (RN-18, campeonato por squad)', () => {
+    const FF_4X4 = { teamSize: 4, maxSubs: 1 };
+
+    it('o modelo do Free Fire 4x4 traz 4 titulares e 1 reserva, com nome e ID, e é lido de volta sem erros', () => {
+      const template = registrationsCsvTemplate(true, FF_4X4);
+      expect(template.slice(1).split('\r\n')[0]).toBe('nome;tag;contato;id_no_jogo;jogador_1;id_jogador_1;jogador_2;id_jogador_2;jogador_3;id_jogador_3;jogador_4;id_jogador_4;reserva_1;id_reserva_1');
+      expect(importHeader(null)).toEqual(['nome', 'tag', 'contato', 'id_no_jogo']);
+      const parsed = parseRegistrationsCsv(template, FF_4X4);
+      expect(parsed.lines.map((l) => [l.values.name, l.members.length, l.errors])).toEqual([
+        ['Squad Exemplo', 5, []],
+        ['Squad Modelo', 2, []],
+      ]);
+      expect(importableRows(parsed).rows[0]?.members).toEqual([
+        { name: 'ExemJogador1', gameId: '1000000001' },
+        { name: 'ExemJogador2', gameId: '1000000002' },
+        { name: 'ExemJogador3', gameId: '1000000003' },
+        { name: 'ExemJogador4', gameId: '1000000004' },
+        { name: 'ExemReserva1', gameId: '1000000005', isSub: true },
+      ]);
+    });
+
+    it('aceita variações de cabeçalho, elenco incompleto e colunas fora de ordem', () => {
+      const parsed = parseRegistrationsCsv('Squad;Reserva;ID Jogador 2;Jogador 2;Titular 1;Player 3 ID;Player 3\nTime;Banco;22;Bia;Ana;33;Caio\nSó Nome;;;;;;\n', FF_4X4);
+      expect(parsed.lines[0]?.errors).toEqual([]);
+      expect(parsed.lines[0]?.members).toEqual([
+        { name: 'Ana', gameId: '', isSub: false },
+        { name: 'Bia', gameId: '22', isSub: false },
+        { name: 'Caio', gameId: '33', isSub: false },
+        { name: 'Banco', gameId: '', isSub: true },
+      ]);
+      expect(importableRows(parsed).rows).toEqual([{ name: 'Time', members: [{ name: 'Ana' }, { name: 'Bia', gameId: '22' }, { name: 'Caio', gameId: '33' }, { name: 'Banco', isSub: true }] }, { name: 'Só Nome' }]);
+    });
+
+    it('aponta elenco fora do modo, jogador repetido e ID sem nome', () => {
+      const header = 'nome;jogador_1;id_jogador_1;jogador_2;id_jogador_2;jogador_3;jogador_4;jogador_5;reserva_1;reserva_2';
+      const parsed = parseRegistrationsCsv(`${header}\nCinco;A;;B;;C;D;E;;\nDuas Reservas;A;;;;;;;R1;R2\nRepetido;Ana;1;ana;2;;;;;\nMesmo ID;Ana;7;Bia;7;;;;;\nSem Nome;;9;Bia;;;;;;\n`, FF_4X4);
+      expect(parsed.lines.map((l) => l.errors)).toEqual([
+        ['Este modo tem 4 titulares por squad: o elenco ficaria com 5.'],
+        ['Este modo aceita 1 reserva por squad: o elenco ficaria com 2.'],
+        ['O jogador "ana" aparece duas vezes no elenco.'],
+        ['O ID no jogo "7" aparece duas vezes no elenco.'],
+        ['A coluna "id_jogador_1" tem um ID no jogo, mas falta o nome do jogador.'],
+      ]);
+      expect(importableRows(parsed).rows).toEqual([]);
+    });
+
+    it('em campeonato individual as colunas de elenco são ignoradas (o modelo nem traz)', () => {
+      expect(registrationsCsvTemplate(false, FF_4X4).slice(1).split('\r\n')[0]).toBe('nome;tag;contato;id_no_jogo');
+      const parsed = parseRegistrationsCsv('nome;jogador_1;id_jogador_1\nZeca;Outro;1\n');
+      expect(parsed.lines[0]).toMatchObject({ members: [], errors: [] });
+      expect(importableRows(parsed).rows).toEqual([{ name: 'Zeca' }]);
+    });
   });
 });

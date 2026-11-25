@@ -5,6 +5,7 @@ export * from './tournament';
 export * from './event';
 export * from './team';
 export * from './registration';
+export * from './registration-staff';
 export * from './competition';
 export * from './governance';
 export * from './notification';

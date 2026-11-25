@@ -28,6 +28,8 @@ export async function lockTournament(tx: Tx, id: string): Promise<TournamentForR
 
 export const registrationInclude = {
   members: { include: { user: { select: { nickname: true, avatarUrl: true } } }, orderBy: [{ isCaptain: 'desc' }, { createdAt: 'asc' }, { userId: 'asc' }] },
+  // Elenco sem conta (RN-18): titulares primeiro, na ordem em que entraram.
+  guests: { orderBy: [{ isSub: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] },
   team: { select: { name: true, tag: true, logoUrl: true, captainId: true } },
   user: { select: { nickname: true, avatarUrl: true } },
 } satisfies Prisma.RegistrationInclude;
@@ -36,8 +38,13 @@ export type RegistrationRow = Prisma.RegistrationGetPayload<{ include: typeof re
 const confirmed = (r: { members: { confirmedAt: Date | null }[] }) => r.members.filter((m) => m.confirmedAt !== null).length;
 const needsAccount = (t: TournamentForRegistration) => Array.isArray(t.game.requiredAccountFields) && t.game.requiredAccountFields.length > 0;
 
+export interface RegistrationViewOptions {
+  /** Só para a organização do campeonato: mostra o ID no jogo dos jogadores sem conta (RN-18). */
+  guestIds?: boolean;
+}
+
 /** Converte inscrições de um mesmo campeonato (com posição na fila e se cada jogador tem o ID do jogo). */
-export async function toRegistrations(db: Db, t: TournamentForRegistration, rows: RegistrationRow[]): Promise<Registration[]> {
+export async function toRegistrations(db: Db, t: TournamentForRegistration, rows: RegistrationRow[], opts: RegistrationViewOptions = {}): Promise<Registration[]> {
   const waitlist = await db.registration.findMany({ where: { tournamentId: t.id, status: 'WAITLIST' }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true } });
   const position = new Map(waitlist.map((w, i) => [w.id, i + 1]));
   const userIds = [...new Set(rows.flatMap((r) => [...r.members.map((m) => m.userId), ...(r.userId ? [r.userId] : [])]))];
@@ -66,6 +73,7 @@ export async function toRegistrations(db: Db, t: TournamentForRegistration, rows
       waitlistPosition: position.get(r.id) ?? null,
       statusReason: r.statusReason,
       members,
+      guests: r.guests.map((g) => ({ id: g.id, name: g.name, gameId: opts.guestIds ? g.gameId : null, isSub: g.isSub })),
       requiredMembers: t.gameMode.teamSize,
       reservedUntil: r.reservedUntil?.toISOString() ?? null,
       createdAt: r.createdAt.toISOString(),
@@ -73,9 +81,9 @@ export async function toRegistrations(db: Db, t: TournamentForRegistration, rows
   });
 }
 
-export async function toRegistration(db: Db, t: TournamentForRegistration, id: string): Promise<Registration> {
+export async function toRegistration(db: Db, t: TournamentForRegistration, id: string, opts: RegistrationViewOptions = {}): Promise<Registration> {
   const row = await db.registration.findUniqueOrThrow({ where: { id }, include: registrationInclude });
-  const [view] = await toRegistrations(db, t, [row]);
+  const [view] = await toRegistrations(db, t, [row], opts);
   return view as Registration;
 }
 

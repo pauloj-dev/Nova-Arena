@@ -121,38 +121,6 @@
     },
     "comandos": "Jogadores usam <code>/nova-arena checkin</code> e <code>/nova-arena proxima</code> com a conta do Discord vinculada à Nova Arena (em Minha conta → Segurança). O bot nunca menciona @everyone."
   },
-  "ImportCsvDialog": {
-    "arquivoGrande": "O arquivo passa de 2 MB. Divida a planilha em arquivos menores.",
-    "erroLer": "Não foi possível ler o arquivo. Salve a planilha como CSV e tente de novo.",
-    "titulo": "Importar inscritos por CSV",
-    "descricao": "Para trazer inscritos que vieram de formulário ou planilha. Eles entram sem conta na plataforma, só com nome e tag.",
-    "outroArquivo": "Escolher outro arquivo",
-    "erroImportar": "Não foi possível importar",
-    "importar": "{count, plural, =1 {Importar 1 inscrito} other {Importar # inscritos}}",
-    "concluir": "Concluir",
-    "passo1": "Baixe o modelo e preencha uma linha por {tipo, select, squad {squad} other {jogador}}.",
-    "passo2": "Salve como CSV (o Excel em português já usa ponto e vírgula).",
-    "passo3": "Escolha o arquivo: mostramos uma prévia antes de importar.",
-    "baixarModelo": "Baixar modelo de CSV",
-    "arquivoModelo": "modelo-inscritos.csv",
-    "escolherArquivo": "Escolher arquivo",
-    "colunas": "Colunas: nome (obrigatória), tag (até 5 letras), contato e id_no_jogo. Quem passar das vagas entra na lista de espera, na ordem do arquivo.",
-    "previa": "<strong>{arquivo}</strong>: {prontas, plural, =1 {# linha pronta} other {# linhas prontas}} para importar{comErro, plural, =0 {.} =1 { e # com erro, que fica de fora.} other { e # com erro, que ficam de fora.}}",
-    "previaLegenda": "Prévia das linhas do arquivo",
-    "linha": "Linha",
-    "nome": "Nome",
-    "tag": "Tag",
-    "situacao": "Situação",
-    "vazio": "(vazio)",
-    "pronta": "Pronta",
-    "nenhumaPronta": "Nenhuma linha está pronta. Corrija o arquivo e escolha de novo.",
-    "criados": "Inscritos criados",
-    "naEspera": "Na lista de espera",
-    "puladas": "Linhas puladas",
-    "porQue": "Por que foram puladas",
-    "linhaN": "Linha {linha}:",
-    "fechar": "Fechar"
-  },
   "MatchesTab": {
     "filtros": {
       "all": "Todas ({count})",
@@ -378,7 +346,9 @@
     "removido": "{nome} removido",
     "substituido": "{nome} foi substituído",
     "elenco": "Elenco",
-    "elencoRotulo": "Editar o elenco do {nome}"
+    "elencoRotulo": "Editar o elenco do {nome}",
+    "adicionarInscrito": "Adicionar inscrito",
+    "jogadoresSemConta": "{titulares} de {exigidos} (sem conta)"
   },
   "StageSeedInfo": {
     "distribuicao": "Distribuição: <strong>{tipo}</strong>",

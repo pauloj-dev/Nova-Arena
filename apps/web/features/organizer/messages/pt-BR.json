@@ -14,7 +14,10 @@
     "tagLonga": "A tag pode ter no máximo {max} caracteres.",
     "nomeRepetido": "Nome repetido no arquivo (já aparece na linha {linha}).",
     "soCabecalho": "O arquivo só tem o cabeçalho. Adicione pelo menos um inscrito.",
-    "muitasLinhas": "O arquivo tem {linhas} linhas. O máximo por importação é de {max}."
+    "muitasLinhas": "O arquivo tem {linhas} linhas. O máximo por importação é de {max}.",
+    "idSemJogador": "A coluna \"{coluna}\" tem um ID no jogo, mas falta o nome do jogador.",
+    "jogadorLongo": "O nome do jogador \"{nome}\" passa de {max} caracteres.",
+    "idLongo": "O ID no jogo de \"{nome}\" passa de {max} caracteres."
   },
   "draft": {
     "fase": "Fase {numero}",

@@ -123,3 +123,23 @@ Decisão de 25/11/2026, para a inscrição de squad ter um passo só para os jog
 - Reserva vencida sem completar: a vaga passa para o primeiro da lista de espera e o squad volta ao **fim da fila** (RN-12). Sem ninguém esperando e com as inscrições abertas, ele volta para a vaga com um novo prazo; com as inscrições fechadas, fica na lista de espera.
 - Squad completo que só espera confirmações não tem reserva (comportamento anterior).
 
+## RN-18 — Inscrito avulso e elenco sem conta
+
+Decisão de 25/11/2026, para a organização conseguir montar um campeonato inteiro à mão.
+
+**Inscrito avulso**
+
+- A organização (responsável, co-organizador ou Admin; moderador não) cadastra um jogador ou um squad **sem conta na plataforma**, um por vez, sem planilha: nome, tag, contato e ID no jogo.
+- Vale a regra da importação por planilha: depois de publicar e antes de o campeonato começar; entra **Confirmado** (sem aprovação manual nem ID do jogo exigido) ou, sem vaga, na lista de espera; com a lista desligada, é recusado. Nome repetido entre os inscritos ativos é recusado.
+- O cadastro é auditado ("Inscrito adicionado pela organização").
+
+**Elenco sem conta**
+
+- Um squad criado pela organização (planilha ou cadastro avulso) tem um elenco de **jogadores sem conta**: só nome, ID no jogo (opcional) e se é reserva. O elenco de squads inscritos pelo capitão continua sendo escalado pelo apelido (PRD §12.1).
+- O elenco segue o modo do campeonato: até `teamSize` titulares e `maxSubs` reservas (no Contra Squad 4v4 do Free Fire, 4 + 1). Nome ou ID repetido no mesmo elenco é recusado, e o mesmo ID no jogo não entra em dois squads ativos do campeonato.
+- O elenco é **opcional** e não muda o status da inscrição: o squad sem conta continua Confirmado com o elenco incompleto.
+- A organização coloca, corrige e tira jogadores enquanto o campeonato não terminou (como no elenco com conta). Toda mudança é auditada.
+- Na planilha de importação, o campeonato por squad ganha as colunas `jogador_N` + `id_jogador_N` (titulares) e `reserva_N` + `id_reserva_N`. Linha com elenco fora do modo, repetido ou com ID que já joga por outro squad fica de fora, com o motivo.
+- O público vê os nomes do elenco na página do campeonato; o **ID no jogo só aparece para a organização**.
+- Jogador sem conta não faz check-in, não recebe aviso, não envia nem contesta resultado e não entra em kills por jogador, MVP, ranking nem histórico. Com check-in ligado e horário marcado, um squad sem conta leva W.O. automático se só o adversário fizer check-in (RN-04): em campeonato manual, desligue o check-in ou não marque horário.
+

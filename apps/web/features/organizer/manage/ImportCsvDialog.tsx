@@ -1,6 +1,6 @@
 'use client';
 
-import type { ImportRegistrationsResult } from '@nova/schemas';
+import type { ImportRegistrationsResult, ModeSize } from '@nova/schemas';
 import { Badge, Button, Modal, useToast } from '@nova/ui';
 import { AlertCircle, CheckCircle2, Download, FileUp } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -9,11 +9,13 @@ import { useImportRegistrations } from '@/shared/api/hooks/organizer';
 import { useT } from '@/shared/i18n/react';
 import { importableRows, parseRegistrationsCsv, registrationsCsvTemplate, type ParsedImport } from '../lib/csv';
 import { downloadFile } from '../lib/download';
-import { messages } from './messages';
+import { messages } from './guests/messages';
 
 interface ImportCsvDialogProps {
   tournamentId: string;
   isTeam: boolean;
+  /** Titulares e reservas do modo (campeonato por squad): a planilha ganha as colunas do elenco (RN-18). */
+  roster?: ModeSize | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -23,7 +25,7 @@ const MAX_FILE_BYTES = 2 * 1024 * 1024;
 type Step = { kind: 'pick' } | { kind: 'preview'; fileName: string; parsed: ParsedImport } | { kind: 'result'; result: ImportRegistrationsResult; fileLines: number[] };
 
 /** Importar inscritos de uma planilha (issue #30): o arquivo é lido no navegador e a prévia mostra os erros por linha antes de enviar. */
-export function ImportCsvDialog({ tournamentId, isTeam, open, onOpenChange }: ImportCsvDialogProps) {
+export function ImportCsvDialog({ tournamentId, isTeam, roster = null, open, onOpenChange }: ImportCsvDialogProps) {
   const t = useT(messages, 'ImportCsvDialog');
   const [step, setStep] = useState<Step>({ kind: 'pick' });
   const [fileError, setFileError] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export function ImportCsvDialog({ tournamentId, isTeam, open, onOpenChange }: Im
       return;
     }
     try {
-      const parsed = parseRegistrationsCsv(await file.text());
+      const parsed = parseRegistrationsCsv(await file.text(), isTeam ? roster : null);
       if (parsed.fatal) setFileError(parsed.fatal);
       else setStep({ kind: 'preview', fileName: file.name, parsed });
     } catch {
@@ -59,6 +61,9 @@ export function ImportCsvDialog({ tournamentId, isTeam, open, onOpenChange }: Im
 
   const ready = step.kind === 'preview' ? importableRows(step.parsed) : { rows: [], fileLines: [] };
   const withErrors = step.kind === 'preview' ? step.parsed.lines.filter((l) => l.errors.length > 0) : [];
+
+  // A coluna do elenco só aparece na prévia quando a planilha trouxe algum jogador.
+  const withRoster = step.kind === 'preview' && step.parsed.lines.some((l) => l.members.length > 0);
 
   const previewSummary =
     step.kind === 'preview' ? t.rich('previa', { arquivo: step.fileName, prontas: ready.rows.length, comErro: withErrors.length, strong: (chunks) => <strong>{chunks}</strong> }) : null;
@@ -107,7 +112,7 @@ export function ImportCsvDialog({ tournamentId, isTeam, open, onOpenChange }: Im
             <li>{t('passo3')}</li>
           </ol>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" iconLeft={<Download className="size-4" aria-hidden />} onClick={() => downloadFile(registrationsCsvTemplate(isTeam), t('arquivoModelo'), 'text/csv;charset=utf-8')}>
+            <Button variant="secondary" iconLeft={<Download className="size-4" aria-hidden />} onClick={() => downloadFile(registrationsCsvTemplate(isTeam, roster), t('arquivoModelo'), 'text/csv;charset=utf-8')}>
               {t('baixarModelo')}
             </Button>
             <Button iconLeft={<FileUp className="size-4" aria-hidden />} onClick={() => inputRef.current?.click()}>
@@ -122,6 +127,7 @@ export function ImportCsvDialog({ tournamentId, isTeam, open, onOpenChange }: Im
             </p>
           )}
           <p className="text-xs text-muted">{t('colunas')}</p>
+          {isTeam && roster && <p className="text-xs text-muted">{t('colunasElenco', { titulares: roster.teamSize, reservas: roster.maxSubs })}</p>}
         </div>
       )}
 
@@ -144,6 +150,11 @@ export function ImportCsvDialog({ tournamentId, isTeam, open, onOpenChange }: Im
                   <th scope="col" className="px-3 py-2 font-semibold">
                     {t('tag')}
                   </th>
+                  {withRoster && (
+                    <th scope="col" className="px-3 py-2 font-semibold">
+                      {t('jogadores')}
+                    </th>
+                  )}
                   <th scope="col" className="px-3 py-2 font-semibold">
                     {t('situacao')}
                   </th>
@@ -155,6 +166,7 @@ export function ImportCsvDialog({ tournamentId, isTeam, open, onOpenChange }: Im
                     <td className="tabular px-3 py-2 text-muted">{line.line}</td>
                     <td className="px-3 py-2 text-text">{line.values.name || <span className="text-muted">{t('vazio')}</span>}</td>
                     <td className="px-3 py-2 text-text">{line.values.tag}</td>
+                    {withRoster && <td className="px-3 py-2 text-text">{line.members.map((m) => (m.isSub ? t('jogadorReserva', { nome: m.name }) : m.name)).join(', ')}</td>}
                     <td className="px-3 py-2">
                       {line.errors.length === 0 ? (
                         <Badge tone="primary" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>

@@ -21,6 +21,13 @@ export const RegistrationMember = z.object({
 });
 export type RegistrationMember = z.infer<typeof RegistrationMember>;
 
+/**
+ * Jogador sem conta na plataforma, no elenco de uma inscrição criada pela organização (planilha ou cadastro
+ * manual, RN-18). `gameId` só vai preenchido para a organização do campeonato; para o público é `null`.
+ */
+export const RegistrationGuest = z.object({ id: Id, name: z.string(), gameId: z.string().nullable(), isSub: z.boolean() });
+export type RegistrationGuest = z.infer<typeof RegistrationGuest>;
+
 export const Registration = z.object({
   id: Id,
   tournamentId: Id,
@@ -35,6 +42,8 @@ export const Registration = z.object({
   waitlistPosition: z.number().int().nullable(),
   statusReason: z.string().nullable(),
   members: z.array(RegistrationMember),
+  /** Elenco sem conta na plataforma (só nas inscrições criadas pela organização, RN-18). */
+  guests: z.array(RegistrationGuest).default([]),
   /** Mínimo de membros confirmados para a inscrição valer. */
   requiredMembers: z.number().int(),
   reservedUntil: IsoDateTime.nullable(),
@@ -55,17 +64,6 @@ export const ReviewRegistrationInput = z.discriminatedUnion('action', [
   z.object({ action: z.literal('replace'), withRegistrationId: Id }),
 ]);
 export type ReviewRegistrationInput = z.infer<typeof ReviewRegistrationInput>;
-
-/** Linha do CSV de importação de inscritos (mitigação do risco R6). */
-export const ImportRegistrationRow = z.object({
-  name: z.string().min(1, 'Nome obrigatório'),
-  tag: z.string().max(5).optional(),
-  contact: z.string().optional(),
-  gameId: z.string().optional(),
-});
-export type ImportRegistrationRow = z.infer<typeof ImportRegistrationRow>;
-export const ImportRegistrationsInput = z.object({ rows: z.array(ImportRegistrationRow).min(1).max(1024) });
-export const ImportRegistrationsResult = z.object({ created: z.number().int(), waitlisted: z.number().int(), skipped: z.array(z.object({ row: z.number().int(), reason: z.string() })) });
 
 /** "Meus campeonatos" do participante. */
 export const MyTournamentEntry = z.object({
@@ -98,8 +96,6 @@ export type RegistrationEligibility = z.infer<typeof RegistrationEligibility>;
 /** Resposta da revisão de uma inscrição: a inscrição alterada e quem subiu da lista de espera (RN-12). */
 export const ReviewRegistrationResult = z.object({ registration: Registration, promoted: z.array(Registration) });
 export type ReviewRegistrationResult = z.infer<typeof ReviewRegistrationResult>;
-export type ImportRegistrationsInput = z.infer<typeof ImportRegistrationsInput>;
-export type ImportRegistrationsResult = z.infer<typeof ImportRegistrationsResult>;
 
 // ── Elenco da inscrição de squad (trava de elenco, PRD §12.1) ────────
 
