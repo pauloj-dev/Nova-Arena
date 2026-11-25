@@ -12,7 +12,16 @@ export function MockGate({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(!enabled);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      // A sessão real usa cookies httpOnly; estes dois itens são exclusivos do protótipo local.
+      try {
+        window.localStorage.removeItem('nova-mock-db');
+        window.localStorage.removeItem('nova-mock-session');
+      } catch {
+        // Armazenamento pode estar bloqueado pelo navegador.
+      }
+      return;
+    }
     let active = true;
     void import('./browser')
       .then((m) => m.startMockApi())

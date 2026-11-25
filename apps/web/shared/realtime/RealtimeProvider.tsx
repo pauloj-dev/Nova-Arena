@@ -4,7 +4,7 @@ import type { RealtimeChannel, RealtimeEvent } from '@nova/schemas';
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { keys } from '../api/keys';
-import { isModuleMocked } from '../api/mode';
+import { isMockEnabled, isModuleMocked } from '../api/mode';
 import { useSession } from '../session/useSession';
 import { AblyRealtimeClient } from './ably-client';
 import { POLLING_INTERVAL_MS, type ConnectionStatus, type RealtimeClient } from './client';
@@ -35,7 +35,7 @@ function createClient(): RealtimeClient {
     return mock;
   }
   const ably = new AblyRealtimeClient();
-  if ((process.env.NEXT_PUBLIC_API_MOCK ?? 'all') === 'none') return ably;
+  if (!isMockEnabled()) return ably;
   return new MergedRealtimeClient(ably, new MockRealtimeClient());
 }
 

@@ -1,3 +1,5 @@
+import { apiMockSetting } from '../api/mode';
+
 /**
  * Quando o service worker do PWA é registrado (issue 105).
  *
@@ -10,5 +12,5 @@
 export function isPwaEnabled(env: Record<string, string | undefined> = { NODE_ENV: process.env.NODE_ENV, NEXT_PUBLIC_PWA: process.env.NEXT_PUBLIC_PWA, NEXT_PUBLIC_API_MOCK: process.env.NEXT_PUBLIC_API_MOCK }): boolean {
   if (env.NEXT_PUBLIC_PWA === 'off') return false;
   if (env.NEXT_PUBLIC_PWA === 'on') return true;
-  return env.NODE_ENV === 'production' && (env.NEXT_PUBLIC_API_MOCK ?? 'all') === 'none';
+  return env.NODE_ENV === 'production' && apiMockSetting(env.NEXT_PUBLIC_API_MOCK, env.NODE_ENV) === 'none';
 }

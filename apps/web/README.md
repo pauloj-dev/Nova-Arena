@@ -45,14 +45,14 @@ e2e/             Playwright (fixtures.ts tem `test`, `expect`, `loginAs`, `waitF
 
 - Seletor **"Entrar como"** (canto inferior esquerdo): Bianca (participante), Lucas (capitão), Camila (organizadora verificada), Diego (organizador), Ana (admin), Rafael (super admin). Senha de todas as contas: `arena1234`.
 - Os dados ficam no `localStorage` do navegador. "Reiniciar dados" volta ao seed (`mocks/seed.ts`).
-- `NEXT_PUBLIC_API_MOCK`: `all` (padrão) · `none` · lista de módulos (`auth,games`). Ver "Modos da API" abaixo.
+- `NEXT_PUBLIC_API_MOCK`: `all` (padrão local em dev/teste) · `none` · lista de módulos (`auth,games`). Builds de produção sempre usam a API real. Ver "Modos da API" abaixo.
 
 ## Modos da API
 
 | Modo | `NEXT_PUBLIC_API_MOCK` | Onde | O que precisa |
 |---|---|---|---|
-| **Protótipo** (tudo simulado, dados no `localStorage`) | sem a variável, ou `all` | `pnpm dev` local, E2E do CI | nada |
-| **API real** | `none` | preview, staging e produção (desde a #102: `previewMockSetting()` em `mocks/handlers/index.ts` devolve `none`); local para testar contra o Postgres | Postgres com as migrations e a seed, e as variáveis do servidor |
+| **Protótipo** (tudo simulado, dados no `localStorage`) | `all` (padrão em dev/teste) | `pnpm dev` local, E2E do CI | nada |
+| **API real** | `none` (padrão em produção) | preview, staging e produção; local para testar contra o Postgres | Postgres com as migrations e a seed, e as variáveis do servidor |
 | Misto (só alguns módulos simulados) | lista, ex.: `realtime` | depuração | — |
 
 Com `none`, o MSW e o banco simulado nem são carregados no navegador (`MockGate` só importa os handlers sob demanda), o seletor "Entrar como" some e os atalhos do protótipo não existem.

@@ -8,6 +8,7 @@
  *     as telas trocam o mock pela API real, módulo a módulo, em B1 e B2.
  */
 import type { HttpHandler } from 'msw';
+import { apiMockSetting } from '@/shared/api/mode';
 import * as adminAudit from './admin-audit';
 import * as adminFraud from './admin-fraud';
 import * as adminModeration from './admin-moderation';
@@ -97,7 +98,7 @@ export function previewMockSetting(): string {
 }
 
 export function mockSetting(): string {
-  return process.env.NEXT_PUBLIC_API_MOCK ?? 'all';
+  return apiMockSetting();
 }
 
 export function isMockEnabled(): boolean {
