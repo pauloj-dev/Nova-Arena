@@ -277,6 +277,21 @@ describe.skipIf(!url)('inscrito avulso e elenco sem conta (Postgres)', () => {
     expect(solo).toEqual({ created: 1, waitlisted: 0, skipped: [{ row: 1, reason: 'Este campeonato é individual: o inscrito não tem elenco.' }] });
   });
 
+  it('planilha cheia (1.024 squads com 5 jogadores cada) importa dentro do tempo da transação', async () => {
+    const t = await tournament(squadGame, { type: 'TEAM', max: 1024 });
+    const rows = Array.from({ length: 1024 }, (_, i) => ({ name: `Squad ${i}`, members: [...squad(`S${i}J`, 4, 100_000 + i * 10), { name: `S${i}R`, gameId: String(100_000 + i * 10 + 9), isSub: true }] }));
+    // A última linha repete um ID da primeira: tem de ser pulada mesmo com a conferência feita na memória.
+    rows[1023] = { name: 'Squad Repetido', members: [{ name: 'Clone', gameId: '100000', isSub: false }] };
+    const started = Date.now();
+    const result = ImportRegistrationsResult.parse((await call('dono', `/tournaments/${t.id}/registrations/import`, { method: 'POST', body: { rows } })).data);
+    const elapsed = Date.now() - started;
+    expect(result.created).toBe(1023);
+    expect(result.skipped).toEqual([{ row: 1024, reason: 'O ID no jogo "100000" já está no elenco do Squad 0 neste campeonato. Um jogador não pode estar em dois squads no mesmo campeonato.' }]);
+    expect(await db.registrationGuest.count({ where: { tournamentId: t.id } })).toBe(1023 * 5);
+    // A transação com a trava do campeonato expira em 20 s: no Postgres local, a planilha cheia fica bem abaixo.
+    expect(elapsed).toBeLessThan(15_000);
+  });
+
   it('o squad sem conta entra na chave e na partida como qualquer inscrito', async () => {
     const t = await tournament(squadGame, { type: 'TEAM' });
     for (const name of ['Alfa', 'Beta']) expect((await addManual('dono', t.id, { name: `Squad ${name}`, members: squad(name, 4, name === 'Alfa' ? 10 : 20) })).status).toBe(201);
