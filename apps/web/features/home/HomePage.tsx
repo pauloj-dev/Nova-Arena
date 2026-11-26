@@ -1,13 +1,12 @@
 'use client';
 
 import type { TournamentSummary } from '@nova/schemas';
-import { Button, cn, EmptyState, ErrorState, Skeleton, StatusPill } from '@nova/ui';
+import { Button, cn, EmptyState, Skeleton, StatusPill } from '@nova/ui';
 import { ArrowRight, Gamepad2, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { UpcomingMatches } from '@/features/registrations/UpcomingMatches';
 import { listHref } from '@/features/tournaments/filters';
 import { slotsText, TournamentCard, TournamentCardSkeleton, TournamentGrid } from '@/features/tournaments/TournamentCard';
-import { errorMessage } from '@/shared/api/client';
 import { useGames } from '@/shared/api/hooks/games';
 import { useTournaments } from '@/shared/api/hooks/tournaments';
 import { useT } from '@/shared/i18n/react';
@@ -180,7 +179,16 @@ function Showcase({ id, title, query, exclude, moreHref, moreLabel, hideWhenEmpt
           ))}
         </TournamentGrid>
       ) : query.isError ? (
-        <ErrorState title={t('erro')} description={errorMessage(query.error)} onRetry={() => void query.refetch()} />
+        <EmptyState
+          icon={<Trophy className="size-7" />}
+          title={t('erro')}
+          description={t('erroDescricao')}
+          action={
+            <Button variant="secondary" onClick={() => void query.refetch()}>
+              {t('tentarNovamente')}
+            </Button>
+          }
+        />
       ) : items.length === 0 ? (
         empty
       ) : (

@@ -19,7 +19,9 @@
     "todos": "Todos"
   },
   "Showcase": {
-    "erro": "Não foi possível carregar os campeonatos"
+    "erro": "Campeonatos temporariamente indisponíveis",
+    "erroDescricao": "A lista não carregou agora. Tente novamente em instantes.",
+    "tentarNovamente": "Tentar novamente"
   },
   "HomePage": {
     "titulo": "Nova Arena: campeonatos de eSports mobile",
