@@ -23,7 +23,7 @@
     "@commitlint/config-conventional": "^21.0.0",
     "@lhci/cli": "^0.16.1",
     "lefthook": "^2.0.0",
-    "turbo": "^2.11.11",
+    "turbo": "^2.11.13",
     "typescript": "^5.9.0"
   }
 }
