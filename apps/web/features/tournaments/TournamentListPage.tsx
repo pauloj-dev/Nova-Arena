@@ -155,11 +155,20 @@ export function TournamentListPage() {
               ))}
             </TournamentGrid>
           ) : firstLoadFailed ? (
-            <ErrorState title={t('erroCarregar')} description={errorMessage(loadError)} onRetry={() => void list.refetch()} />
+            <EmptyState
+              icon={<SearchX className="size-7" />}
+              title={t('erroCarregar')}
+              description={t('erroCarregarDescricao')}
+              action={
+                <Button variant="secondary" onClick={() => void list.refetch()}>
+                  {t('tentarNovamente')}
+                </Button>
+              }
+            />
           ) : items.length === 0 ? (
             <EmptyState
               icon={<SearchX className="size-7" />}
-              title={t('nenhum')}
+              title={hasAnyFilter(filters) ? t('nenhum') : t('semCampeonatos')}
               description={hasAnyFilter(filters) ? t('vazioComFiltros') : t('vazioSemFiltros')}
               action={
                 hasAnyFilter(filters) ? (
