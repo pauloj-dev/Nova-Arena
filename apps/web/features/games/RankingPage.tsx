@@ -1,13 +1,12 @@
 'use client';
 
 import type { GameRanking, GameRankingEntry } from '@nova/schemas';
-import { Avatar, Button, cn, DataTable, EmptyState, ErrorState, Skeleton, type Column } from '@nova/ui';
+import { Avatar, Button, cn, DataTable, EmptyState, Skeleton, type Column } from '@nova/ui';
 import { Info, Medal, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { SeasonRankingSection } from '@/features/seasons/SeasonRankingSection';
 import { listHref } from '@/features/tournaments/filters';
-import { errorMessage } from '@/shared/api/client';
 import { useGameRanking, useGames } from '@/shared/api/hooks/games';
 import { getFormat, getT } from '@/shared/i18n/core';
 import { useT } from '@/shared/i18n/react';
@@ -82,7 +81,16 @@ export function RankingPage() {
           <Skeleton className="h-64 w-full" />
         </div>
       ) : games.isError ? (
-        <ErrorState title={t('erroJogos')} description={errorMessage(games.error)} onRetry={() => void games.refetch()} />
+        <EmptyState
+          icon={<Medal className="size-7" />}
+          title={t('erroJogos')}
+          description={t('erroJogosDescricao')}
+          action={
+            <Button variant="secondary" onClick={() => void games.refetch()}>
+              {t('tentarNovamente')}
+            </Button>
+          }
+        />
       ) : !selected ? (
         <EmptyState icon={<Medal className="size-7" />} title={t('semJogosTitulo')} description={t('semJogosDescricao')} />
       ) : (
@@ -127,7 +135,16 @@ export function RankingPage() {
               {t('rankingDe', { jogo: selected.name })}
             </h2>
             {ranking.isError ? (
-              <ErrorState title={t('erroRanking')} description={errorMessage(ranking.error)} onRetry={() => void ranking.refetch()} />
+              <EmptyState
+                icon={<Medal className="size-7" />}
+                title={t('erroRanking')}
+                description={t('erroRankingDescricao')}
+                action={
+                  <Button variant="secondary" onClick={() => void ranking.refetch()}>
+                    {t('tentarNovamente')}
+                  </Button>
+                }
+              />
             ) : (
               <DataTable
                 caption={t('rankingDe', { jogo: selected.name })}

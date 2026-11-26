@@ -1,12 +1,12 @@
 'use client';
 
-import { Badge, Button, Card, EmptyState, ErrorState, Skeleton } from '@nova/ui';
+import { Badge, Button, Card, EmptyState, Skeleton } from '@nova/ui';
 import { ArrowRight, Compass, Medal, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { listHref } from '@/features/tournaments/filters';
 import { FollowButton } from '@/features/tournaments/FollowButton';
 import { TournamentCard, TournamentCardSkeleton, TournamentGrid } from '@/features/tournaments/TournamentCard';
-import { ApiError, errorMessage } from '@/shared/api/client';
+import { ApiError } from '@/shared/api/client';
 import { useGame } from '@/shared/api/hooks/games';
 import { useTournaments } from '@/shared/api/hooks/tournaments';
 import { useT } from '@/shared/i18n/react';
@@ -57,7 +57,16 @@ function OpenTournaments({ slug, gameId, name }: { slug: string; gameId: string;
           ))}
         </TournamentGrid>
       ) : open.isError ? (
-        <ErrorState title={t('erro')} description={errorMessage(open.error)} onRetry={() => void open.refetch()} />
+        <EmptyState
+          icon={<Trophy className="size-7" />}
+          title={t('erro')}
+          description={t('erroDescricao')}
+          action={
+            <Button variant="secondary" onClick={() => void open.refetch()}>
+              {t('tentarNovamente')}
+            </Button>
+          }
+        />
       ) : open.data.items.length === 0 ? (
         <EmptyState
           icon={<Trophy className="size-7" />}
@@ -105,7 +114,16 @@ export function GamePage({ slug }: { slug: string }) {
     return (
       <PageContainer narrow>
         <h1 className="sr-only">{t('jogo')}</h1>
-        <ErrorState title={t('erro')} description={errorMessage(game.error)} onRetry={() => void game.refetch()} />
+        <EmptyState
+          icon={<Compass className="size-7" />}
+          title={t('erro')}
+          description={t('erroDescricao')}
+          action={
+            <Button variant="secondary" onClick={() => void game.refetch()}>
+              {t('tentarNovamente')}
+            </Button>
+          }
+        />
       </PageContainer>
     );
   }

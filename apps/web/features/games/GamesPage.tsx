@@ -1,9 +1,8 @@
 'use client';
 
-import { Card, EmptyState, ErrorState, Skeleton } from '@nova/ui';
+import { Button, Card, EmptyState, Skeleton } from '@nova/ui';
 import { ChevronRight, Gamepad2 } from 'lucide-react';
 import Link from 'next/link';
-import { errorMessage } from '@/shared/api/client';
 import { useGames } from '@/shared/api/hooks/games';
 import { useT } from '@/shared/i18n/react';
 import { PageContainer } from '@/shared/layout/AreaShell';
@@ -30,7 +29,16 @@ export function GamesPage() {
           ))}
         </ul>
       ) : games.isError ? (
-        <ErrorState title={t('erro')} description={errorMessage(games.error)} onRetry={() => void games.refetch()} />
+        <EmptyState
+          icon={<Gamepad2 className="size-7" />}
+          title={t('erro')}
+          description={t('erroDescricao')}
+          action={
+            <Button variant="secondary" onClick={() => void games.refetch()}>
+              {t('tentarNovamente')}
+            </Button>
+          }
+        />
       ) : games.data.length === 0 ? (
         <EmptyState
           icon={<Gamepad2 className="size-7" />}
